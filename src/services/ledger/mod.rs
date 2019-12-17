@@ -19,7 +19,9 @@ use crate::domain::ledger::nym::{
 use crate::domain::ledger::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
-use crate::domain::ledger::request::{Request, TxnAuthrAgrmtAcceptanceData};
+use crate::domain::ledger::request::{
+    ProtocolVersion, Request, TxnAuthrAgrmtAcceptanceData, DEFAULT_PROTOCOL_VERSION,
+};
 use crate::domain::ledger::response::{Message, Reply, ReplyType};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 use crate::domain::ledger::validator_info::GetValidatorInfoOperation;
@@ -30,19 +32,27 @@ use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 pub mod merkletree;
 
 macro_rules! build_result {
-        ($operation:ident, $submitter_did:expr, $($params:tt)*) => ({
+        ($proto_ver:expr, $operation:ident, $submitter_did:expr, $($params:tt)*) => ({
             let operation = $operation::new($($params)*);
 
-            Request::build_request($submitter_did, operation)
+            Request::build_request($proto_ver, $submitter_did, operation)
                 .map_err(|err| LedgerError::from_msg(LedgerErrorKind::InvalidState, err))
         })
     }
 
-pub struct LedgerService {}
+pub struct LedgerService {
+    protocol_version: ProtocolVersion,
+}
 
 impl LedgerService {
     pub fn new() -> LedgerService {
-        LedgerService {}
+        LedgerService {
+            protocol_version: DEFAULT_PROTOCOL_VERSION,
+        }
+    }
+
+    pub fn new_with_version(protocol_version: ProtocolVersion) -> LedgerService {
+        LedgerService { protocol_version }
     }
 
     #[logfn(Info)]
@@ -76,6 +86,7 @@ impl LedgerService {
         };
 
         build_result!(
+            self.protocol_version,
             NymOperation,
             Some(identifier),
             dest.to_short(),
@@ -91,7 +102,12 @@ impl LedgerService {
         identifier: Option<&DidValue>,
         dest: &DidValue,
     ) -> LedgerResult<String> {
-        build_result!(GetNymOperation, identifier, dest.to_short())
+        build_result!(
+            self.protocol_version,
+            GetNymOperation,
+            identifier,
+            dest.to_short()
+        )
     }
 
     #[logfn(Info)]
@@ -144,7 +160,12 @@ impl LedgerService {
         identifier: Option<&DidValue>,
         dest: &DidValue,
     ) -> LedgerResult<String> {
-        build_result!(GetDdoOperation, identifier, dest.to_short())
+        build_result!(
+            self.protocol_version,
+            GetDdoOperation,
+            identifier,
+            dest.to_short()
+        )
     }
 
     #[logfn(Info)]
@@ -157,6 +178,7 @@ impl LedgerService {
         enc: Option<&str>,
     ) -> LedgerResult<String> {
         build_result!(
+            self.protocol_version,
             AttribOperation,
             Some(identifier),
             dest.to_short(),
@@ -176,6 +198,7 @@ impl LedgerService {
         enc: Option<&str>,
     ) -> LedgerResult<String> {
         build_result!(
+            self.protocol_version,
             GetAttribOperation,
             identifier,
             dest.to_short(),
@@ -192,14 +215,20 @@ impl LedgerService {
         dest: &DidValue,
         data: NodeOperationData,
     ) -> LedgerResult<String> {
-        build_result!(NodeOperation, Some(identifier), dest.to_short(), data)
+        build_result!(
+            self.protocol_version,
+            NodeOperation,
+            Some(identifier),
+            dest.to_short(),
+            data
+        )
     }
 
     #[logfn(Info)]
     pub fn build_get_validator_info_request(&self, identifier: &DidValue) -> LedgerResult<String> {
         let operation = GetValidatorInfoOperation::new();
 
-        Request::build_request(Some(identifier), operation)
+        Request::build_request(self.protocol_version, Some(identifier), operation)
             .map_err(|err| LedgerError::from_msg(LedgerErrorKind::InvalidState, err))
     }
 
@@ -221,7 +250,13 @@ impl LedgerService {
             None => LedgerType::DOMAIN.to_id(),
         };
 
-        build_result!(GetTxnOperation, identifier, seq_no, ledger_id)
+        build_result!(
+            self.protocol_version,
+            GetTxnOperation,
+            identifier,
+            seq_no,
+            ledger_id
+        )
     }
 
     #[logfn(Info)]
@@ -231,7 +266,13 @@ impl LedgerService {
         writes: bool,
         force: bool,
     ) -> LedgerResult<String> {
-        build_result!(PoolConfigOperation, Some(identifier), writes, force)
+        build_result!(
+            self.protocol_version,
+            PoolConfigOperation,
+            Some(identifier),
+            writes,
+            force
+        )
     }
 
     #[logfn(Info)]
@@ -242,6 +283,7 @@ impl LedgerService {
         datetime: Option<&str>,
     ) -> LedgerResult<String> {
         build_result!(
+            self.protocol_version,
             PoolRestartOperation,
             Some(identifier),
             action,
@@ -265,6 +307,7 @@ impl LedgerService {
         package: Option<&str>,
     ) -> LedgerResult<String> {
         build_result!(
+            self.protocol_version,
             PoolUpgradeOperation,
             Some(identifier),
             name,
@@ -307,6 +350,7 @@ impl LedgerService {
             })?;
 
         build_result!(
+            self.protocol_version,
             AuthRuleOperation,
             Some(submitter_did),
             txn_type.to_string(),
@@ -324,7 +368,12 @@ impl LedgerService {
         submitter_did: &DidValue,
         rules: AuthRules,
     ) -> LedgerResult<String> {
-        build_result!(AuthRulesOperation, Some(submitter_did), rules)
+        build_result!(
+            self.protocol_version,
+            AuthRulesOperation,
+            Some(submitter_did),
+            rules
+        )
     }
 
     #[logfn(Info)]
@@ -371,7 +420,7 @@ impl LedgerService {
             }
         };
 
-        let request = Request::build_request(submitter_did, operation)
+        let request = Request::build_request(self.protocol_version, submitter_did, operation)
             .map_err(|err| LedgerError::from_msg(LedgerErrorKind::InvalidState, err))?;
 
         Ok(request)
@@ -385,6 +434,7 @@ impl LedgerService {
         version: &str,
     ) -> LedgerResult<String> {
         build_result!(
+            self.protocol_version,
             TxnAuthorAgreementOperation,
             Some(identifier),
             text.to_string(),
@@ -398,7 +448,12 @@ impl LedgerService {
         identifier: Option<&DidValue>,
         data: Option<&GetTxnAuthorAgreementData>,
     ) -> LedgerResult<String> {
-        build_result!(GetTxnAuthorAgreementOperation, identifier, data)
+        build_result!(
+            self.protocol_version,
+            GetTxnAuthorAgreementOperation,
+            identifier,
+            data
+        )
     }
 
     #[logfn(Info)]
@@ -410,6 +465,7 @@ impl LedgerService {
         aml_context: Option<&str>,
     ) -> LedgerResult<String> {
         build_result!(
+            self.protocol_version,
             SetAcceptanceMechanismOperation,
             Some(identifier),
             aml,
@@ -433,6 +489,7 @@ impl LedgerService {
         }
 
         build_result!(
+            self.protocol_version,
             GetAcceptanceMechanismOperation,
             identifier,
             timestamp,

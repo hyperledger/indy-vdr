@@ -4,28 +4,14 @@ use time;
 
 use crate::utils::did::{DidValue, ShortDidValue};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub const DEFAULT_LIBIDY_DID: &str = "LibindyDid111111111111";
+pub const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::Node1_4;
 
-pub struct ProtocolVersion {}
-
-lazy_static! {
-    pub static ref PROTOCOL_VERSION: AtomicUsize = AtomicUsize::new(2);
-}
-
-impl ProtocolVersion {
-    pub fn set(version: usize) {
-        PROTOCOL_VERSION.store(version, Ordering::Relaxed);
-    }
-
-    pub fn get() -> usize {
-        PROTOCOL_VERSION.load(Ordering::Relaxed)
-    }
-
-    pub fn is_node_1_3() -> bool {
-        ProtocolVersion::get() == 1
-    }
+#[derive(Copy, Clone)]
+pub enum ProtocolVersion {
+    Node1_3 = 1,
+    Node1_4 = 2,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -63,13 +49,13 @@ impl<T: serde::Serialize> Request<T> {
         req_id: u64,
         identifier: ShortDidValue,
         operation: T,
-        protocol_version: usize,
+        protocol_version: ProtocolVersion,
     ) -> Request<T> {
         Request {
             req_id,
             identifier: Some(identifier),
             operation,
-            protocol_version: Some(protocol_version),
+            protocol_version: Some(protocol_version as usize),
             signature: None,
             signatures: None,
             taa_acceptance: None,
@@ -77,7 +63,11 @@ impl<T: serde::Serialize> Request<T> {
         }
     }
 
-    pub fn build_request(identifier: Option<&DidValue>, operation: T) -> Result<String, String> {
+    pub fn build_request(
+        protocol_version: ProtocolVersion,
+        identifier: Option<&DidValue>,
+        operation: T,
+    ) -> Result<String, String> {
         let req_id = get_req_id();
 
         let identifier = match identifier {
@@ -89,7 +79,7 @@ impl<T: serde::Serialize> Request<T> {
             req_id,
             identifier,
             operation,
-            ProtocolVersion::get(),
+            protocol_version,
         ))
         .map_err(|err| format!("Cannot serialize Request: {:?}", err))
     }
