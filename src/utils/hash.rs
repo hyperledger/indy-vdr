@@ -3,17 +3,14 @@ use super::error::prelude::*;
 use crate::sha2::{Digest, Sha256};
 
 pub type DefaultHash = Sha256;
+pub const HASHBYTES: usize = 32;
+pub const EMPTY_HASH_BYTES: [u8; HASHBYTES] = [
+    227, 176, 196, 66, 152, 252, 28, 20, 154, 251, 244, 200, 153, 111, 185, 36, 39, 174, 65, 228,
+    100, 155, 147, 76, 164, 149, 153, 27, 120, 82, 184, 85,
+];
 
-/*pub fn hash(input: &[u8]) -> Result<Vec<u8>, LedgerError> {
-    let mut hasher = Hash::new_context()?;
-    hasher.update(input)?;
-    Ok(hasher.finish().map(|b| b.to_vec())?)
-}
-*/
-
-pub trait TreeHash: Digest {
-    const SIZE: usize;
-    const EMPTY: Vec<u8>;
+pub trait TreeHash {
+    fn hash(input: &[u8]) -> LedgerResult<Vec<u8>>;
     fn hash_leaf<T>(leaf: &T) -> LedgerResult<Vec<u8>>
     where
         T: Hashable;
@@ -23,8 +20,11 @@ pub trait TreeHash: Digest {
 }
 
 impl<H: Digest> TreeHash for H {
-    const SIZE: usize = H::output_size();
-    const EMPTY: Vec<u8> = Self::new().result().to_vec();
+    fn hash(input: &[u8]) -> LedgerResult<Vec<u8>> {
+        let mut ctx = Self::new();
+        ctx.input(input);
+        Ok(ctx.result().to_vec())
+    }
 
     fn hash_leaf<T>(leaf: &T) -> LedgerResult<Vec<u8>>
     where
@@ -32,7 +32,7 @@ impl<H: Digest> TreeHash for H {
     {
         let mut ctx = Self::new();
         ctx.input(&[0x00]);
-        leaf.update_context(&mut ctx);
+        leaf.update_context(&mut ctx)?;
         Ok(ctx.result().to_vec())
     }
 
@@ -42,8 +42,8 @@ impl<H: Digest> TreeHash for H {
     {
         let mut ctx = Self::new();
         ctx.input(&[0x01]);
-        left.update_context(&mut ctx);
-        right.update_context(&mut ctx);
+        left.update_context(&mut ctx)?;
+        right.update_context(&mut ctx)?;
         Ok(ctx.result().to_vec())
     }
 }
@@ -72,11 +72,11 @@ pub trait Hashable {
     /// Update the given `context` with `self`.
     ///
     /// See `openssl::hash::Hasher::update` for more information.
-    fn update_context<TH: TreeHash>(&self, context: &mut TH) -> LedgerResult<()>;
+    fn update_context<D: Digest>(&self, context: &mut D) -> LedgerResult<()>;
 }
 
 impl<T: AsRef<[u8]>> Hashable for T {
-    fn update_context<TH: TreeHash>(&self, context: &mut TH) -> LedgerResult<()> {
+    fn update_context<D: Digest>(&self, context: &mut D) -> LedgerResult<()> {
         Ok(context.input(self.as_ref()))
     }
 }

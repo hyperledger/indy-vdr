@@ -6,7 +6,7 @@ use crate::services::ledger::merkletree::tree::{
     LeavesIntoIterator, LeavesIterator, Tree, TreeLeafData,
 };
 use crate::utils::error::LedgerResult;
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use crate::utils::hash::{DefaultHash as Hash, TreeHash, EMPTY_HASH_BYTES};
 
 /// A Merkle tree is a binary tree, with values of type `T` at the leafs,
 /// and where every internal node holds the hash of the concatenation of the hashes of its children nodes.
@@ -29,7 +29,7 @@ impl Default for MerkleTree {
     fn default() -> Self {
         MerkleTree {
             root: Tree::Empty {
-                hash: Hash::EMPTY.to_vec(),
+                hash: EMPTY_HASH_BYTES.to_vec(),
             },
             height: 0,
             count: 0,

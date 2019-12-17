@@ -8,7 +8,8 @@ use crate::domain::ledger::attrib::{AttribOperation, GetAttribOperation};
 use crate::domain::ledger::auth_rule::*;
 use crate::domain::ledger::author_agreement::*;
 use crate::domain::ledger::constants::{
-    txn_name_to_code, GET_VALIDATOR_INFO, POOL_RESTART, ROLE_REMOVE,
+    txn_name_to_code, ENDORSER, GET_VALIDATOR_INFO, NETWORK_MONITOR, POOL_RESTART, ROLES,
+    ROLE_REMOVE, STEWARD, TRUSTEE,
 };
 use crate::domain::ledger::ddo::GetDdoOperation;
 use crate::domain::ledger::node::{NodeOperation, NodeOperationData};
@@ -24,7 +25,7 @@ use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 use crate::domain::ledger::validator_info::GetValidatorInfoOperation;
 use crate::utils::did::DidValue;
 use crate::utils::error::prelude::*;
-use crate::utils::hash::DefaultHash as Hash;
+use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 pub mod merkletree;
 
@@ -102,7 +103,7 @@ impl LedgerService {
                 let data: GetNymResultDataV0 = res
                     .data
                     .ok_or(LedgerError::from_msg(
-                        LedgerErrorKind::LedgerItemNotFound,
+                        LedgerErrorKind::ItemNotFound,
                         format!("Nym not found"),
                     ))
                     .and_then(|data| {
@@ -457,7 +458,7 @@ impl LedgerService {
         }
 
         let message: Message<T> = serde_json::from_value(message).to_result(
-            LedgerErrorKind::LedgerItemNotFound,
+            LedgerErrorKind::ItemNotFound,
             "Structure doesn't correspond to type. Most probably not found",
         )?; // FIXME: Review how we handle not found
 
@@ -576,10 +577,8 @@ impl LedgerService {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::anoncreds::schema::AttributeNames;
     use crate::domain::ledger::constants::*;
     use crate::domain::ledger::node::Services;
-    use crate::domain::ledger::request::ProtocolVersion;
 
     use super::*;
 
@@ -740,84 +739,6 @@ mod tests {
 
         let request = ledger_service
             .build_get_attrib_request(Some(&identifier()), &dest(), None, None, Some("enc"))
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_schema_request_works() {
-        let ledger_service = LedgerService::new();
-
-        let mut attr_names: AttributeNames = AttributeNames::new();
-        attr_names.0.insert("male".to_string());
-
-        let data = SchemaV1 {
-            id: SchemaId::new(&identifier(), "name", "1.0"),
-            name: "name".to_string(),
-            version: "1.0".to_string(),
-            attr_names,
-            seq_no: None,
-        };
-
-        let expected_result = json!({
-            "type": SCHEMA,
-            "data": {
-                "name": "name",
-                "version": "1.0",
-                "attr_names": ["male"]
-            }
-        });
-
-        let request = ledger_service
-            .build_schema_request(&identifier(), data)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_schema_request_works_for_valid_id() {
-        let ledger_service = LedgerService::new();
-
-        let id = SchemaId::new(&identifier(), "name", "1.0");
-
-        let expected_result = json!({
-            "type": GET_SCHEMA,
-            "dest": IDENTIFIER,
-            "data": {
-                "name": "name",
-                "version": "1.0"
-            }
-        });
-
-        let request = ledger_service
-            .build_get_schema_request(Some(&identifier()), &id)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_cred_def_request_works() {
-        ProtocolVersion::set(2);
-
-        let ledger_service = LedgerService::new();
-
-        let id = CredentialDefinitionId::new(
-            &identifier(),
-            &SchemaId("1".to_string()),
-            "signature_type",
-            "tag",
-        );
-
-        let expected_result = json!({
-            "type": GET_CRED_DEF,
-            "ref": 1,
-            "signature_type": "signature_type",
-            "origin": IDENTIFIER,
-            "tag":"tag"
-        });
-
-        let request = ledger_service
-            .build_get_cred_def_request(Some(&identifier()), &id)
             .unwrap();
         check_request(&request, expected_result);
     }

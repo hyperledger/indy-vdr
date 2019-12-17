@@ -77,8 +77,9 @@ impl LedgerError {
     where
         D: fmt::Display + fmt::Debug + Send + Sync + 'static,
     {
+        let kind = self.kind();
         LedgerError {
-            inner: self.inner.map(|_| msg).context(self.kind()),
+            inner: self.inner.map(|_| msg).context(kind),
         }
     }
 
@@ -87,7 +88,7 @@ impl LedgerError {
         D: fmt::Display + fmt::Debug + Send + Sync + 'static,
     {
         LedgerError {
-            inner: self.inner.map(|_| msg).context(self.kind()),
+            inner: self.inner.map(|_| msg).context(kind),
         }
     }
 }
@@ -119,8 +120,8 @@ impl From<io::Error> for LedgerError {
     }
 }
 
-impl From<rust_base58::base58::FromBase58Error> for LedgerError {
-    fn from(_err: rust_base58::base58::FromBase58Error) -> Self {
+impl From<bs58::decode::Error> for LedgerError {
+    fn from(_err: bs58::decode::Error) -> Self {
         LedgerError::from_msg(
             LedgerErrorKind::InvalidStructure,
             "The base58 input contained a character not part of the base58 alphabet",

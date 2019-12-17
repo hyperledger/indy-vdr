@@ -20,6 +20,7 @@ extern crate rmp_serde;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
 extern crate serde_json;
 
 extern crate base64;
@@ -31,6 +32,39 @@ extern crate sha2;
 extern crate sha3;
 extern crate time;
 extern crate ursa;
+
+macro_rules! _map_err {
+    ($lvl:expr, $expr:expr) => {
+        |err| {
+            log!($lvl, "{} - {}", $expr, err);
+            err
+        }
+    };
+    ($lvl:expr) => {
+        |err| {
+            log!($lvl, "{}", err);
+            err
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! map_err_err {
+    () => ( _map_err!(::log::Level::Error) );
+    ($($arg:tt)*) => ( _map_err!(::log::Level::Error, $($arg)*) )
+}
+
+#[macro_export]
+macro_rules! map_err_trace {
+    () => ( _map_err!(::log::Level::Trace) );
+    ($($arg:tt)*) => ( _map_err!(::log::Level::Trace, $($arg)*) )
+}
+
+#[macro_export]
+macro_rules! map_err_info {
+    () => ( _map_err!(::log::Level::Info) );
+    ($($arg:tt)*) => ( _map_err!(::log::Level::Info, $($arg)*) )
+}
 
 macro_rules! unwrap_opt_or_return {
     ($opt:expr, $err:expr) => {
@@ -47,6 +81,16 @@ macro_rules! unwrap_or_return {
             Ok(res) => res,
             Err(_) => return $err,
         };
+    };
+}
+
+#[macro_export]
+macro_rules! assert_kind {
+    ($kind:expr, $var:expr) => {
+        match $var {
+            Err(e) => assert_eq!($kind, e.kind()),
+            _ => assert!(false, "Result expected to be error"),
+        }
     };
 }
 

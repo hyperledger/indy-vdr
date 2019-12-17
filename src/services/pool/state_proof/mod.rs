@@ -14,7 +14,7 @@ use serde_json::Value as SJsonValue;
 use crate::domain::ledger::{constants, request::ProtocolVersion};
 use crate::services::pool::events::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
 use crate::utils::error::prelude::*;
-use crate::utils::hash::Hash;
+use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 use super::types::*;
 use super::PoolService;
@@ -365,7 +365,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
     let key_prefix = match type_ {
         constants::GET_NYM => {
             if let Some(dest) = dest {
-                openssl_hash(dest.as_bytes()).ok()?
+                Hash::hash(dest.as_bytes()).ok()?
             } else {
                 debug!("TransactionHandler::parse_reply_for_builtin_sp: <<< No dest");
                 return None;
@@ -1047,7 +1047,7 @@ fn _parse_reply_for_proof_value(
             }
             constants::GET_ATTR => {
                 value["val"] =
-                    SJsonValue::String(hex::encode(openssl_hash(data.as_bytes()).unwrap()));
+                    SJsonValue::String(hex::encode(Hash::hash(data.as_bytes()).unwrap()));
             }
             constants::GET_CRED_DEF
             | constants::GET_REVOC_REG_DEF
@@ -1114,7 +1114,7 @@ fn _parse_reply_for_proof_value(
 
 fn _calculate_taa_digest(text: &str, version: &str) -> LedgerResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    openssl_hash(content.as_bytes())
+    Hash::hash(content.as_bytes())
 }
 
 fn _is_full_taa_state_value_expected(expected_state_key: &[u8]) -> bool {

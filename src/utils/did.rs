@@ -1,6 +1,6 @@
+use super::base58::FromBase58;
 use named_type::NamedType;
 use regex::Regex;
-use rust_base58::FromBase58;
 
 use super::qualifier;
 use super::validation::Validatable;
