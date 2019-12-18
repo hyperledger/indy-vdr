@@ -1,4 +1,4 @@
-use crate::services::ledger::merkletree::tree::{Tree, TreeLeafData};
+use super::tree::{Tree, TreeLeafData};
 use crate::utils::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 

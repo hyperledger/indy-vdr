@@ -1,6 +1,8 @@
-fn main() {
-  // Statements here are executed when the compiled binary is called
+extern crate indy_ledger_client;
 
-  // Print text to the console
-  println!("Hello World!");
+use indy_ledger_client::config::pool_factory::PoolFactory;
+
+fn main() {
+  let factory = PoolFactory::from_genesis_file("genesis.txn").unwrap();
+  print!("{:?}", factory.merkle_tree)
 }

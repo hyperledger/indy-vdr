@@ -1,6 +1,6 @@
 use std::cmp;
 
-pub use crate::services::ledger::merkletree::proof::{Lemma, Positioned, Proof};
+pub use super::proof::{Lemma, Positioned, Proof};
 use crate::utils::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 

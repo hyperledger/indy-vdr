@@ -8,7 +8,7 @@ use std::collections::HashMap;
 pub const DEFAULT_LIBIDY_DID: &str = "LibindyDid111111111111";
 pub const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::Node1_4;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ProtocolVersion {
     Node1_3 = 1,
     Node1_4 = 2,

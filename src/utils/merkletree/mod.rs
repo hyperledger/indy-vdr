@@ -2,10 +2,8 @@ pub mod merkletree;
 pub mod proof;
 pub mod tree;
 
-use self::merkletree::*;
-use self::tree::*;
-// use indy_api_types::errors::prelude::*;
-// use indy_utils::crypto::hash::Hash;
+pub use self::merkletree::*;
+pub use self::tree::*;
 use crate::utils::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 

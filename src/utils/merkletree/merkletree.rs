@@ -1,10 +1,7 @@
 use crate::hex;
 
-// use indy_api_types::errors::prelude::*;
-use crate::services::ledger::merkletree::proof::{Lemma, Proof};
-use crate::services::ledger::merkletree::tree::{
-    LeavesIntoIterator, LeavesIterator, Tree, TreeLeafData,
-};
+use super::proof::{Lemma, Proof};
+use super::tree::{LeavesIntoIterator, LeavesIterator, Tree, TreeLeafData};
 use crate::utils::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash, EMPTY_HASH_BYTES};
 

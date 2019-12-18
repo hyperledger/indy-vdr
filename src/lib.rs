@@ -95,6 +95,7 @@ macro_rules! assert_kind {
 }
 
 pub mod api;
+pub mod config;
 mod domain;
 mod services;
 mod utils;

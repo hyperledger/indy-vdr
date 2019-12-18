@@ -29,8 +29,6 @@ use crate::utils::did::DidValue;
 use crate::utils::error::prelude::*;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
-pub mod merkletree;
-
 macro_rules! build_result {
         ($proto_ver:expr, $operation:ident, $submitter_did:expr, $($params:tt)*) => ({
             let operation = $operation::new($($params)*);
