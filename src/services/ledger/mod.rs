@@ -4,6 +4,7 @@ use serde::de::DeserializeOwned;
 use serde_json;
 use serde_json::Value;
 
+use crate::domain::did::DidValue;
 use crate::domain::ledger::attrib::{AttribOperation, GetAttribOperation};
 use crate::domain::ledger::auth_rule::*;
 use crate::domain::ledger::author_agreement::*;
@@ -19,13 +20,11 @@ use crate::domain::ledger::nym::{
 use crate::domain::ledger::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
-use crate::domain::ledger::request::{
-    ProtocolVersion, Request, TxnAuthrAgrmtAcceptanceData, DEFAULT_PROTOCOL_VERSION,
-};
+use crate::domain::ledger::request::{Request, TxnAuthrAgrmtAcceptanceData};
 use crate::domain::ledger::response::{Message, Reply, ReplyType};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 use crate::domain::ledger::validator_info::GetValidatorInfoOperation;
-use crate::utils::did::DidValue;
+use crate::domain::pool::{ProtocolVersion, DEFAULT_PROTOCOL_VERSION};
 use crate::utils::error::prelude::*;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 

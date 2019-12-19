@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use failure::Context;
-use rust_base58::{FromBase58, ToBase58};
 use serde_json;
 
-use super::merkle_tree_factory;
+// use super::merkle_tree_factory;
 use super::types::{CatchupReq, Message};
-use crate::services::ledger::merkletree::merkletree::MerkleTree;
+use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
+use crate::utils::merkletree::MerkleTree;
 
 pub enum CatchupProgress {
     ShouldBeStarted(
@@ -55,7 +55,6 @@ pub fn check_nodes_responses_on_status(
     merkle_tree: &MerkleTree,
     node_cnt: usize,
     f: usize,
-    pool_name: &str,
 ) -> LedgerResult<CatchupProgress> {
     let (votes, timeout_votes): (
         HashMap<&(String, usize, Option<Vec<String>>), usize>,
@@ -80,7 +79,7 @@ pub fn check_nodes_responses_on_status(
                 }
             });
         } else {
-            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f, pool_name);
+            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f);
         }
     } else if let Some((_, votes_cnt)) = timeout_votes {
         if *votes_cnt == node_cnt - f {
@@ -89,7 +88,7 @@ pub fn check_nodes_responses_on_status(
                 err_msg(LedgerErrorKind::PoolTimeout, "Pool timeout"),
             );
         } else {
-            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f, pool_name);
+            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f);
         }
     }
     Ok(CatchupProgress::InProgress)
@@ -100,7 +99,6 @@ fn _if_consensus_reachable(
     node_cnt: usize,
     votes_cnt: usize,
     f: usize,
-    pool_name: &str,
 ) -> LedgerResult<CatchupProgress> {
     let reps_cnt: usize = nodes_votes.values().map(HashSet::len).sum();
     let positive_votes_cnt = votes_cnt + (node_cnt - reps_cnt);

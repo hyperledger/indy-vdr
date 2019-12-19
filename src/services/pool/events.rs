@@ -2,10 +2,10 @@ use serde_json;
 use serde_json::Value as SJsonValue;
 
 use crate::domain::ledger::constants;
-use crate::services::ledger::merkletree::merkletree::MerkleTree;
-use crate::services::pool::{types::*, PoolService};
+use crate::domain::pool::ProtocolVersion;
+use crate::services::pool::types::*;
 use crate::utils::error::prelude::*;
-// use indy_api_types::CommandHandle;
+use crate::utils::merkletree::MerkleTree;
 
 pub const REQUESTS_FOR_STATE_PROOFS: [&str; 11] = [
     constants::GET_NYM,
@@ -67,7 +67,7 @@ pub const COMMAND_EXIT: &str = "exit";
 pub const COMMAND_CONNECT: &str = "connect";
 pub const COMMAND_REFRESH: &str = "refresh";
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum PoolEvent {
     CheckCache(CommandHandle),
     NodeReply(
@@ -98,6 +98,35 @@ pub enum PoolEvent {
         String, //req_id
         String, //node alias
     ),
+}
+
+#[derive(Debug)]
+pub enum PoolUpdateEvent {
+    OpenAck(CommandHandle, PoolHandle, LedgerResult<()>),
+    CloseAck(CommandHandle, LedgerResult<()>),
+    RefreshAck(CommandHandle, LedgerResult<()>),
+    SubmitAck(CommandHandle, LedgerResult<String>),
+}
+
+pub trait PoolUpdateHandler: Send {
+    fn send(&self, update: PoolUpdateEvent) -> LedgerResult<()>;
+}
+
+pub struct MockUpdateHandler {
+    pub events: Vec<PoolUpdateEvent>,
+}
+
+impl MockUpdateHandler {
+    pub fn new() -> MockUpdateHandler {
+        MockUpdateHandler { events: vec![] }
+    }
+}
+
+impl PoolUpdateHandler for MockUpdateHandler {
+    pub fn send(&self, update: PoolUpdateEvent) -> LedgerResult<()> {
+        self.events.push(update);
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -183,11 +212,12 @@ impl RequestEvent {
             _ => "".to_string(),
         }
     }
-}
 
-impl Into<Option<RequestEvent>> for PoolEvent {
-    fn into(self) -> Option<RequestEvent> {
-        match self {
+    pub fn from_pool_event(
+        event: PoolEvent,
+        protocol_version: ProtocolVersion, // FIXME: pass in state machine parser instead
+    ) -> Option<RequestEvent> {
+        match event {
             PoolEvent::NodeReply(msg, node_alias) => {
                 _parse_msg(&msg).map(|parsed| match parsed {
                     //TODO change mapping for CatchupReq. May be return None
@@ -235,7 +265,10 @@ impl Into<Option<RequestEvent>> for PoolEvent {
                                timeout, nodes, op);
                         None
                     } else if REQUESTS_FOR_STATE_PROOFS.contains(&op.as_str()) {
-                        let key = super::state_proof::parse_key_from_request_for_builtin_sp(&req);
+                        let key = super::state_proof::parse_key_from_request_for_builtin_sp(
+                            &req,
+                            protocol_version,
+                        );
                         let timestamps = _parse_timestamp_from_req_for_builtin_sp(req, &op);
                         Some(RequestEvent::CustomSingleRequest(
                             msg,
@@ -243,14 +276,18 @@ impl Into<Option<RequestEvent>> for PoolEvent {
                             key,
                             timestamps,
                         ))
-                    } else if PoolService::get_sp_parser(&op.as_str()).is_some() {
+                    }
+                    /*
+                    FIXME custom state proof parser
+                    else if PoolService::get_sp_parser(&op.as_str()).is_some() {
                         Some(RequestEvent::CustomSingleRequest(
                             msg,
                             req_id.clone(),
                             None,
                             (None, None),
                         ))
-                    } else {
+                    }*/
+                    else {
                         Some(RequestEvent::CustomConsensusRequest(msg, req_id.clone()))
                     }
                 } else {

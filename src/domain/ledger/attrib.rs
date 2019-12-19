@@ -1,6 +1,6 @@
 use super::constants::{ATTRIB, GET_ATTR};
 use super::response::GetReplyResultV1;
-use crate::utils::did::ShortDidValue;
+use crate::domain::did::ShortDidValue;
 
 use named_type::NamedType;
 

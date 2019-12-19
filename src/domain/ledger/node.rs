@@ -1,6 +1,6 @@
 use super::constants::NODE;
 
-use crate::utils::did::ShortDidValue;
+use crate::domain::did::ShortDidValue;
 use crate::utils::validation::Validatable;
 
 #[derive(Serialize, PartialEq, Debug)]

@@ -1,10 +1,60 @@
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::utils::crypto::verkey_builder::build_full_verkey;
+use ursa::bls::VerKey as BlsVerKey;
+
+use crate::domain::pool::ProtocolVersion;
+use crate::domain::verkey::VerKey;
 use crate::utils::error::prelude::*;
-// use indy_api_types::CommandHandle;
+
+#[derive(Debug, Clone)]
+pub struct PoolConfig {
+    pub protocol_version: ProtocolVersion,
+    pub freshness_threshold: u64,
+    pub timeout: i64,
+    pub extended_timeout: i64,
+    pub conn_limit: usize,
+    pub conn_active_timeout: i64,
+    pub number_read_nodes: usize,
+    pub preordered_nodes: Vec<String>,
+}
+
+pub type PoolHandle = u32;
+pub const INVALID_POOL_HANDLE: PoolHandle = 0;
+
+lazy_static! {
+    static ref PH_COUNTER: AtomicUsize = AtomicUsize::new(1);
+}
+
+pub fn next_pool_handle() -> PoolHandle {
+    (PH_COUNTER.fetch_add(1, Ordering::SeqCst) + 1) as PoolHandle
+}
+
+pub type CommandHandle = u32;
+pub const INVALID_COMMAND_HANDLE: CommandHandle = 0;
+
+lazy_static! {
+    static ref CH_COUNTER: AtomicUsize = AtomicUsize::new(1);
+}
+
+pub fn next_command_handle() -> CommandHandle {
+    (CH_COUNTER.fetch_add(1, Ordering::SeqCst) + 1) as CommandHandle
+}
+
+pub type PoolConnectionHandle = u32;
+pub const INVALID_POOL_CONNECTION_HANDLE: PoolConnectionHandle = 0;
+
+lazy_static! {
+    static ref PC_COUNTER: AtomicUsize = AtomicUsize::new(1);
+}
+
+pub fn next_pool_connection_handle() -> PoolConnectionHandle {
+    (PC_COUNTER.fetch_add(1, Ordering::SeqCst) + 1) as PoolConnectionHandle
+}
+
+pub type Nodes = HashMap<String, Option<BlsVerKey>>;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct NodeData {
@@ -127,7 +177,7 @@ pub struct TxnData {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TxnMetadata {
-    pub req_id: Option<i64>,
+    pub req_id: Option<u64>,
     pub from: String,
 }
 
@@ -198,10 +248,13 @@ impl NodeTransactionV1 {
         }
 
         if other.txn.data.verkey.is_some() {
-            self.txn.data.verkey = Some(build_full_verkey(
-                &self.txn.data.dest,
-                other.txn.data.verkey.as_ref().map(String::as_str),
-            )?);
+            let verkey = VerKey::from_str_qualified(
+                other.txn.data.verkey.unwrap().as_str(),
+                Some(self.txn.data.dest.as_str()),
+                None,
+                None,
+            )?;
+            self.txn.data.verkey = Some(verkey.long_form());
         }
 
         Ok(())

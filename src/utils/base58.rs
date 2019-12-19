@@ -14,3 +14,13 @@ impl FromBase58 for str {
         )
     }
 }
+
+pub trait ToBase58 {
+    fn to_base58(&self) -> String;
+}
+
+impl ToBase58 for [u8] {
+    fn to_base58(&self) -> String {
+        bs58::encode(self).into_string()
+    }
+}

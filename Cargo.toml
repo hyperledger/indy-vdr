@@ -20,6 +20,7 @@ vendored_zmq = ['zmq/vendored']
 base64 = "0.10.1"
 bs58 = "0.3.0"
 byteorder = "1.3.2"
+dirs = "2.0.2"  # remove me
 etcommon-rlp = "0.2.4"
 failure = "0.1.6"
 failure_derive = "0.1.6"

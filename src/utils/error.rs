@@ -120,15 +120,6 @@ impl From<io::Error> for LedgerError {
     }
 }
 
-impl From<bs58::decode::Error> for LedgerError {
-    fn from(_err: bs58::decode::Error) -> Self {
-        LedgerError::from_msg(
-            LedgerErrorKind::InvalidStructure,
-            "The base58 input contained a character not part of the base58 alphabet",
-        )
-    }
-}
-
 impl From<zmq::Error> for LedgerError {
     fn from(err: zmq::Error) -> Self {
         err.context(LedgerErrorKind::IOError).into()

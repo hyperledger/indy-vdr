@@ -1,22 +1,17 @@
 use crate::utils::validation::Validatable;
 
+pub const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::Node1_4;
+
 pub const POOL_CON_ACTIVE_TO: i64 = 5;
 pub const POOL_ACK_TIMEOUT: i64 = 20;
 pub const POOL_REPLY_TIMEOUT: i64 = 60;
 pub const MAX_REQ_PER_POOL_CON: usize = 5;
-pub const NUMBER_READ_NODES: u8 = 2;
+pub const NUMBER_READ_NODES: usize = 2;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PoolConfig {
-    pub genesis_txn: String,
-}
-
-impl PoolConfig {
-    pub fn default_for_name(name: &str) -> PoolConfig {
-        let mut txn = name.to_string();
-        txn += ".txn";
-        PoolConfig { genesis_txn: txn }
-    }
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum ProtocolVersion {
+    Node1_3 = 1,
+    Node1_4 = 2,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -32,7 +27,7 @@ pub struct PoolOpenConfig {
     #[serde(default = "PoolOpenConfig::default_preordered_nodes")]
     pub preordered_nodes: Vec<String>,
     #[serde(default = "PoolOpenConfig::default_number_read_nodes")]
-    pub number_read_nodes: u8,
+    pub number_read_nodes: usize,
 }
 
 impl Validatable for PoolOpenConfig {
@@ -90,7 +85,7 @@ impl PoolOpenConfig {
         Vec::new()
     }
 
-    fn default_number_read_nodes() -> u8 {
+    fn default_number_read_nodes() -> usize {
         NUMBER_READ_NODES
     }
 }

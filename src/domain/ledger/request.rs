@@ -2,17 +2,11 @@ use serde;
 use serde_json;
 use time;
 
-use crate::utils::did::{DidValue, ShortDidValue};
+use crate::domain::did::{DidValue, ShortDidValue};
+use crate::domain::pool::ProtocolVersion;
 use std::collections::HashMap;
 
 pub const DEFAULT_LIBIDY_DID: &str = "LibindyDid111111111111";
-pub const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::Node1_4;
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum ProtocolVersion {
-    Node1_3 = 1,
-    Node1_4 = 2,
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]

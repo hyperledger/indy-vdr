@@ -165,7 +165,7 @@ pub fn dump_new_txns(pool_name: &str, txns: &[Vec<u8>]) -> LedgerResult<()> {
     _dump_vec_to_file(txns, &mut file)
 }*/
 
-pub fn dump_genesis_to_stored(p: &PathBuf, pool_name: &str) -> LedgerResult<()> {
+pub fn _dump_genesis_to_stored(p: &PathBuf, pool_name: &str) -> LedgerResult<()> {
     let p_genesis = get_pool_stored_path_base(pool_name, false, pool_name, POOL_EXT);
 
     if !p_genesis.exists() {

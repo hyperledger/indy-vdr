@@ -1,50 +1,44 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::u64;
 
-use self::super::THRESHOLD;
+use log_derive::logfn;
 use rmp_serde;
 use serde_json;
 use serde_json::Value as SJsonValue;
+use ursa::bls::Generator;
 
 // use crate::commands::ledger::LedgerCommand;
 // use crate::commands::Command;
 // use crate::commands::CommandExecutor;
-use crate::services::ledger::merkletree::merkletree::MerkleTree;
 use crate::services::pool::catchup::{
     build_catchup_req, check_cons_proofs, check_nodes_responses_on_status, CatchupProgress,
 };
 use crate::services::pool::events::NetworkerEvent;
-use crate::services::pool::events::PoolEvent;
 use crate::services::pool::events::RequestEvent;
+use crate::services::pool::events::{PoolEvent, PoolUpdateEvent, PoolUpdateHandler};
+use crate::services::pool::get_last_signed_time;
 use crate::services::pool::merkle_tree_factory;
 use crate::services::pool::networker::Networker;
 use crate::services::pool::state_proof;
 use crate::services::pool::types::CatchupRep;
-use crate::services::pool::types::HashableValue;
-use crate::services::pool::{get_last_signed_time, Nodes};
+use crate::services::pool::types::{CommandHandle, HashableValue, Nodes, PoolConfig};
+use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
+use crate::utils::merkletree::MerkleTree;
 
-// use indy_api_types::CommandHandle;
-use log_derive::logfn;
-use rust_base58::FromBase58;
-use std::hash::{Hash, Hasher};
-use ursa::bls::Generator;
-
-struct RequestSM<T: Networker> {
+struct RequestSM<T: Networker, U: PoolUpdateHandler> {
     f: usize,
     cmd_ids: Vec<CommandHandle>,
     nodes: Nodes,
     generator: Generator,
-    pool_name: String,
-    timeout: i64,
-    extended_timeout: i64,
-    number_read_nodes: u8,
+    config: PoolConfig,
     state: RequestState<T>,
+    updater: U,
 }
 
 /// Transitions of request state
@@ -67,16 +61,14 @@ enum RequestState<T: Networker> {
 
 pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
 
-impl<T: Networker> RequestSM<T> {
+impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
     pub fn new(
         networker: Rc<RefCell<T>>,
         f: usize,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
-        pool_name: &str,
-        timeout: i64,
-        extended_timeout: i64,
-        number_read_nodes: u8,
+        config: &PoolConfig,
+        updater: U,
     ) -> Self {
         let generator: Generator =
             Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
@@ -85,11 +77,9 @@ impl<T: Networker> RequestSM<T> {
             cmd_ids: cmd_ids.to_owned(),
             nodes: nodes.clone(),
             generator,
-            pool_name: pool_name.to_string(),
-            timeout,
-            extended_timeout,
-            number_read_nodes,
+            config: config.clone(),
             state: RequestState::Start(StartState { networker }),
+            updater,
         }
     }
 
@@ -98,22 +88,18 @@ impl<T: Networker> RequestSM<T> {
         cmd_ids: Vec<CommandHandle>,
         nodes: Nodes,
         generator: Generator,
-        pool_name: String,
-        timeout: i64,
-        extended_timeout: i64,
-        number_read_nodes: u8,
+        config: PoolConfig,
         state: RequestState<T>,
+        updater: U,
     ) -> Self {
         RequestSM {
             f,
             cmd_ids,
             nodes,
             generator,
-            pool_name,
-            timeout,
-            extended_timeout,
-            number_read_nodes,
+            config,
             state,
+            updater,
         }
     }
 }
@@ -266,7 +252,7 @@ impl Hash for NodeResponse {
     }
 }
 
-impl<T: Networker> RequestSM<T> {
+impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
     fn handle_event(self, re: RequestEvent) -> (Self, Option<PoolEvent>) {
         let RequestSM {
             state,
@@ -274,10 +260,8 @@ impl<T: Networker> RequestSM<T> {
             cmd_ids,
             nodes,
             generator,
-            pool_name,
-            timeout,
-            extended_timeout,
-            number_read_nodes,
+            config,
+            updater,
         } = self;
         let (state, event) = match state {
             RequestState::Start(state) => {
@@ -288,7 +272,7 @@ impl<T: Networker> RequestSM<T> {
                             serde_json::to_string(&super::types::Message::LedgerStatus(ls))
                                 .expect("FIXME"),
                             req_id,
-                            extended_timeout,
+                            config.extended_timeout,
                             None,
                         ));
                         trace!("start catchup, ne: {:?}", ne);
@@ -302,7 +286,7 @@ impl<T: Networker> RequestSM<T> {
                                     NetworkerEvent::SendOneRequest(
                                         req_json,
                                         req_id.clone(),
-                                        timeout,
+                                        config.timeout,
                                     ),
                                 ));
                                 (
@@ -318,19 +302,23 @@ impl<T: Networker> RequestSM<T> {
                                 (RequestState::finish(), Some(PoolEvent::Synced(merkle)))
                             }
                             Err(e) => {
-                                _send_replies(&cmd_ids, Err(e));
+                                _send_replies(updater, &cmd_ids, Err(e));
                                 (RequestState::finish(), None)
                             }
                         }
                     }
                     RequestEvent::CustomSingleRequest(msg, req_id, sp_key, timestamps) => {
                         state.networker.borrow_mut().process_event(Some(
-                            NetworkerEvent::SendOneRequest(msg.clone(), req_id.clone(), timeout),
+                            NetworkerEvent::SendOneRequest(
+                                msg.clone(),
+                                req_id.clone(),
+                                config.timeout,
+                            ),
                         ));
 
-                        for _ in 0..number_read_nodes - 1 {
+                        for _ in 0..config.number_read_nodes - 1 {
                             state.networker.borrow_mut().process_event(Some(
-                                NetworkerEvent::Resend(req_id.clone(), timeout),
+                                NetworkerEvent::Resend(req_id.clone(), config.timeout),
                             ));
                         }
 
@@ -342,7 +330,7 @@ impl<T: Networker> RequestSM<T> {
                     RequestEvent::CustomFullRequest(msg, req_id, local_timeout, nodes_to_send) => {
                         let timeout = local_timeout
                             .map(|to| to as i64)
-                            .unwrap_or(extended_timeout);
+                            .unwrap_or(config.extended_timeout);
                         if let Some(nodes_to_send) = nodes_to_send {
                             match serde_json::from_str::<Vec<String>>(&nodes_to_send) {
                                 Ok(nodes_to_send) => {
@@ -365,7 +353,7 @@ impl<T: Networker> RequestSM<T> {
                                             None,
                                         )
                                     } else {
-                                        _send_replies(&cmd_ids, Err(err_msg(LedgerErrorKind::InvalidStructure,
+                                        _send_replies(updater, &cmd_ids, Err(err_msg(LedgerErrorKind::InvalidStructure,
                                                                             format!("There is no known node in list to send {:?}, known nodes are {:?}",
                                                                                     nodes_to_send, nodes.keys()))));
                                         (RequestState::finish(), None)
@@ -373,6 +361,7 @@ impl<T: Networker> RequestSM<T> {
                                 }
                                 Err(err) => {
                                     _send_replies(
+                                        updater,
                                         &cmd_ids,
                                         Err(err.to_result(
                                             LedgerErrorKind::InvalidStructure,
@@ -391,7 +380,7 @@ impl<T: Networker> RequestSM<T> {
                     }
                     RequestEvent::CustomConsensusRequest(msg, req_id) => {
                         state.networker.borrow_mut().process_event(Some(
-                            NetworkerEvent::SendAllRequest(msg, req_id, timeout, None),
+                            NetworkerEvent::SendAllRequest(msg, req_id, config.timeout, None),
                         ));
                         (RequestState::Consensus(state.into()), None)
                     }
@@ -418,7 +407,7 @@ impl<T: Networker> RequestSM<T> {
                             };
 
                             if cnt > f {
-                                _send_ok_replies(&cmd_ids, &raw_msg);
+                                _send_ok_replies(updater, &cmd_ids, &raw_msg);
                                 state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::CleanTimeout(req_id, None),
                                 ));
@@ -431,6 +420,7 @@ impl<T: Networker> RequestSM<T> {
                             } else {
                                 //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
                                 _send_replies(
+                                    updater,
                                     &cmd_ids,
                                     Err(err_msg(
                                         LedgerErrorKind::PoolTimeout,
@@ -446,6 +436,7 @@ impl<T: Networker> RequestSM<T> {
                             state.denied_nodes.insert(node_alias.clone());
                             if state.denied_nodes.len() + state.replies.len() == nodes.len() {
                                 _send_replies(
+                                    updater,
                                     &cmd_ids,
                                     Err(err_msg(
                                         LedgerErrorKind::PoolTimeout,
@@ -460,7 +451,11 @@ impl<T: Networker> RequestSM<T> {
                     }
                     RequestEvent::ReqACK(_, _, node_alias, req_id) => {
                         state.networker.borrow_mut().process_event(Some(
-                            NetworkerEvent::ExtendTimeout(req_id, node_alias, extended_timeout),
+                            NetworkerEvent::ExtendTimeout(
+                                req_id,
+                                node_alias,
+                                config.extended_timeout,
+                            ),
                         ));
                         (RequestState::Consensus(state), None)
                     }
@@ -474,6 +469,7 @@ impl<T: Networker> RequestSM<T> {
                         } else {
                             //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
                             _send_replies(
+                                updater,
                                 &cmd_ids,
                                 Err(err_msg(
                                     LedgerErrorKind::PoolTimeout,
@@ -488,7 +484,7 @@ impl<T: Networker> RequestSM<T> {
                         }
                     }
                     RequestEvent::Terminate => {
-                        _finish_request(&cmd_ids);
+                        _finish_request(updater, &cmd_ids);
                         (RequestState::finish(), None)
                     }
                     _ => (RequestState::Consensus(state), None),
@@ -536,22 +532,31 @@ impl<T: Networker> RequestSM<T> {
                                 state.sp_key.as_ref().map(Vec::as_slice),
                                 state.timestamps,
                                 last_write_time,
+                                config.freshness_threshold,
                             )
                         {
                             state
                                 .networker
                                 .borrow_mut()
                                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
-                            _send_ok_replies(&cmd_ids, if cnt > f { &soonest } else { &raw_msg });
+                            _send_ok_replies(
+                                updater,
+                                &cmd_ids,
+                                if cnt > f { &soonest } else { &raw_msg },
+                            );
                             (RequestState::finish(), None)
                         } else {
                             (
-                                state.try_to_continue(
-                                    req_id,
-                                    node_alias,
+                                _report_failed(
+                                    updater,
                                     &cmd_ids,
-                                    nodes.len(),
-                                    timeout,
+                                    state.try_to_continue(
+                                        req_id,
+                                        node_alias,
+                                        &cmd_ids,
+                                        nodes.len(),
+                                        config.timeout,
+                                    ),
                                 ),
                                 None,
                             )
@@ -559,12 +564,16 @@ impl<T: Networker> RequestSM<T> {
                     } else {
                         state.denied_nodes.insert(node_alias.clone());
                         (
-                            state.try_to_continue(
-                                req_id,
-                                node_alias,
+                            _report_failed(
+                                updater,
                                 &cmd_ids,
-                                nodes.len(),
-                                timeout,
+                                state.try_to_continue(
+                                    req_id,
+                                    node_alias,
+                                    &cmd_ids,
+                                    nodes.len(),
+                                    config.timeout,
+                                ),
                             ),
                             None,
                         )
@@ -572,19 +581,29 @@ impl<T: Networker> RequestSM<T> {
                 }
                 RequestEvent::ReqACK(_, _, node_alias, req_id) => {
                     state.networker.borrow_mut().process_event(Some(
-                        NetworkerEvent::ExtendTimeout(req_id, node_alias, extended_timeout),
+                        NetworkerEvent::ExtendTimeout(req_id, node_alias, config.extended_timeout),
                     ));
                     (RequestState::Single(state), None)
                 }
                 RequestEvent::Timeout(req_id, node_alias) => {
                     state.timeout_nodes.insert(node_alias.clone());
                     (
-                        state.try_to_continue(req_id, node_alias, &cmd_ids, nodes.len(), timeout),
+                        _report_failed(
+                            updater,
+                            &cmd_ids,
+                            state.try_to_continue(
+                                req_id,
+                                node_alias,
+                                &cmd_ids,
+                                nodes.len(),
+                                config.timeout,
+                            ),
+                        ),
                         None,
                     )
                 }
                 RequestEvent::Terminate => {
-                    _finish_request(&cmd_ids);
+                    _finish_request(updater, &cmd_ids);
                     (RequestState::finish(), None)
                 }
                 _ => (RequestState::Single(state), None),
@@ -600,7 +619,6 @@ impl<T: Networker> RequestSM<T> {
                         ls.merkleRoot,
                         f,
                         &nodes,
-                        &pool_name,
                     )
                 }
                 RequestEvent::ConsistencyProof(cp, node_alias) => {
@@ -613,7 +631,6 @@ impl<T: Networker> RequestSM<T> {
                         cp.oldMerkleRoot,
                         f,
                         &nodes,
-                        &pool_name,
                     )
                 }
                 RequestEvent::Timeout(req_id, node_alias) => {
@@ -626,71 +643,70 @@ impl<T: Networker> RequestSM<T> {
                         req_id,
                         f,
                         &nodes,
-                        &pool_name,
                     )
                 }
 
                 RequestEvent::Terminate => {
-                    _finish_request(&cmd_ids);
+                    _finish_request(updater, &cmd_ids);
                     (RequestState::finish(), None)
                 }
                 _ => (RequestState::CatchupConsensus(state), None),
             },
-            RequestState::CatchupSingle(state) => match re {
-                RequestEvent::CatchupRep(mut cr, node_alias) => {
-                    match _process_catchup_reply(
-                        &mut cr,
-                        &state.merkle_tree,
-                        &state.target_mt_root,
-                        state.target_mt_size,
-                        &pool_name,
-                    ) {
-                        Ok(merkle) => {
-                            state.networker.borrow_mut().process_event(Some(
-                                NetworkerEvent::CleanTimeout(state.req_id.clone(), None),
-                            ));
-                            (RequestState::finish(), Some(PoolEvent::Synced(merkle)))
-                        }
-                        Err(_) => {
-                            state.networker.borrow_mut().process_event(Some(
-                                NetworkerEvent::Resend(state.req_id.clone(), timeout),
-                            ));
-                            state.networker.borrow_mut().process_event(Some(
-                                NetworkerEvent::CleanTimeout(
-                                    state.req_id.clone(),
-                                    Some(node_alias),
-                                ),
-                            ));
-                            (RequestState::CatchupSingle(state), None)
+            RequestState::CatchupSingle(state) => {
+                match re {
+                    RequestEvent::CatchupRep(mut cr, node_alias) => {
+                        match _process_catchup_reply(
+                            &mut cr,
+                            &state.merkle_tree,
+                            &state.target_mt_root,
+                            state.target_mt_size,
+                        ) {
+                            Ok(merkle) => {
+                                state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::CleanTimeout(state.req_id.clone(), None),
+                                ));
+                                (RequestState::finish(), Some(PoolEvent::Synced(merkle)))
+                            }
+                            Err(_) => {
+                                state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::Resend(state.req_id.clone(), config.timeout),
+                                ));
+                                state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::CleanTimeout(
+                                        state.req_id.clone(),
+                                        Some(node_alias),
+                                    ),
+                                ));
+                                (RequestState::CatchupSingle(state), None)
+                            }
                         }
                     }
+                    RequestEvent::Timeout(req_id, node_alias) => {
+                        state
+                            .networker
+                            .borrow_mut()
+                            .process_event(Some(NetworkerEvent::Resend(
+                                state.req_id.clone(),
+                                config.timeout,
+                            )));
+                        state.networker.borrow_mut().process_event(Some(
+                            NetworkerEvent::CleanTimeout(req_id, Some(node_alias)),
+                        ));
+                        (RequestState::CatchupSingle(state), None)
+                    }
+                    RequestEvent::Terminate => {
+                        _finish_request(updater, &cmd_ids);
+                        (RequestState::finish(), None)
+                    }
+                    _ => (RequestState::CatchupSingle(state), None),
                 }
-                RequestEvent::Timeout(req_id, node_alias) => {
-                    state
-                        .networker
-                        .borrow_mut()
-                        .process_event(Some(NetworkerEvent::Resend(state.req_id.clone(), timeout)));
-                    state
-                        .networker
-                        .borrow_mut()
-                        .process_event(Some(NetworkerEvent::CleanTimeout(
-                            req_id,
-                            Some(node_alias),
-                        )));
-                    (RequestState::CatchupSingle(state), None)
-                }
-                RequestEvent::Terminate => {
-                    _finish_request(&cmd_ids);
-                    (RequestState::finish(), None)
-                }
-                _ => (RequestState::CatchupSingle(state), None),
-            },
+            }
             RequestState::Full(state) => match re {
                 RequestEvent::Reply(_, raw_msg, node_alias, req_id)
                 | RequestEvent::ReqNACK(_, raw_msg, node_alias, req_id)
                 | RequestEvent::Reject(_, raw_msg, node_alias, req_id) => (
                     RequestSM::_full_request_handle_consensus_state(
-                        state, req_id, node_alias, raw_msg, &cmd_ids, &nodes,
+                        state, req_id, node_alias, raw_msg, &cmd_ids, &nodes, updater,
                     ),
                     None,
                 ),
@@ -702,12 +718,13 @@ impl<T: Networker> RequestSM<T> {
                         "timeout".to_string(),
                         &cmd_ids,
                         &nodes,
+                        updater,
                     ),
                     None,
                 ),
 
                 RequestEvent::Terminate => {
-                    _finish_request(&cmd_ids);
+                    _finish_request(updater, &cmd_ids);
                     (RequestState::finish(), None)
                 }
                 _ => (RequestState::Full(state), None),
@@ -715,17 +732,7 @@ impl<T: Networker> RequestSM<T> {
             RequestState::Finish(state) => (RequestState::Finish(state), None),
         };
         (
-            RequestSM::step(
-                f,
-                cmd_ids,
-                nodes,
-                generator,
-                pool_name,
-                timeout,
-                extended_timeout,
-                number_read_nodes,
-                state,
-            ),
+            RequestSM::step(f, cmd_ids, nodes, generator, config, state, updater),
             event,
         )
     }
@@ -749,6 +756,7 @@ impl<T: Networker> RequestSM<T> {
         node_result: String,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
+        updater: U,
     ) -> RequestState<T> {
         let is_first_resp = state.accum_reply.is_none();
         if is_first_resp {
@@ -787,7 +795,7 @@ impl<T: Networker> RequestSM<T> {
                 .borrow_mut()
                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
             let reply = state.accum_reply.as_ref().unwrap().inner.to_string();
-            _send_ok_replies(&cmd_ids, &reply);
+            _send_ok_replies(updater, &cmd_ids, &reply);
             RequestState::Finish(FinishState {})
         } else {
             state
@@ -807,7 +815,6 @@ impl<T: Networker> RequestSM<T> {
         req_id: String,
         f: usize,
         nodes: &Nodes,
-        pool_name: &str,
     ) -> (RequestState<T>, Option<PoolEvent>) {
         let (finished, result) = RequestSM::_process_catchup_target(
             mt_root,
@@ -817,7 +824,6 @@ impl<T: Networker> RequestSM<T> {
             &mut state,
             f,
             nodes,
-            pool_name,
         );
 
         match (finished, result) {
@@ -856,7 +862,6 @@ impl<T: Networker> RequestSM<T> {
         state: &mut CatchupConsensusState<T>,
         f: usize,
         nodes: &Nodes,
-        pool_name: &str,
     ) -> (bool, Option<PoolEvent>) {
         let key = (merkle_root, txn_seq_no, hashes);
         let contains = state
@@ -873,13 +878,7 @@ impl<T: Networker> RequestSM<T> {
                 .insert(key, HashSet::from_iter(vec![node_alias.to_string()]));
         }
 
-        match check_nodes_responses_on_status(
-            &state.replies,
-            &state.merkle_tree,
-            nodes.len(),
-            f,
-            &pool_name,
-        ) {
+        match check_nodes_responses_on_status(&state.replies, &state.merkle_tree, nodes.len(), f) {
             Ok(CatchupProgress::InProgress) => (false, None),
             Ok(CatchupProgress::NotNeeded(merkle_tree)) => {
                 (true, Some(PoolEvent::Synced(merkle_tree)))
@@ -900,46 +899,35 @@ impl<T: Networker> RequestSM<T> {
     }
 }
 
-pub trait RequestHandler<T: Networker> {
+pub trait RequestHandler<T: Networker, U: PoolUpdateHandler> {
     fn new(
         networker: Rc<RefCell<T>>,
         f: usize,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
-        pool_name: &str,
-        timeout: i64,
-        extended_timeout: i64,
-        number_read_nodes: u8,
+        config: &PoolConfig,
+        updater: U,
     ) -> Self;
     fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<PoolEvent>;
     fn is_terminal(&self) -> bool;
 }
 
-pub struct RequestHandlerImpl<T: Networker> {
-    request_wrapper: Option<RequestSM<T>>,
+pub struct RequestHandlerImpl<T: Networker, U: PoolUpdateHandler> {
+    request_wrapper: Option<RequestSM<T, U>>,
 }
 
-impl<T: Networker> RequestHandler<T> for RequestHandlerImpl<T> {
+impl<T: Networker, U: PoolUpdateHandler> RequestHandler<T, U> for RequestHandlerImpl<T, U> {
     fn new(
         networker: Rc<RefCell<T>>,
         f: usize,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
-        pool_name: &str,
-        timeout: i64,
-        extended_timeout: i64,
-        number_read_nodes: u8,
+        config: &PoolConfig,
+        updater: U,
     ) -> Self {
         RequestHandlerImpl {
             request_wrapper: Some(RequestSM::new(
-                networker,
-                f,
-                cmd_ids,
-                nodes,
-                pool_name,
-                timeout,
-                extended_timeout,
-                number_read_nodes,
+                networker, f, cmd_ids, nodes, config, updater,
             )),
         }
     }
@@ -982,7 +970,7 @@ impl<T: Networker> SingleState<T> {
         cmd_ids: &[CommandHandle],
         nodes_cnt: usize,
         timeout: i64,
-    ) -> RequestState<T> {
+    ) -> (RequestState<T>, Option<LedgerError>) {
         if self.is_consensus_reachable(nodes_cnt) {
             self.networker
                 .borrow_mut()
@@ -993,20 +981,19 @@ impl<T: Networker> SingleState<T> {
             self.networker
                 .borrow_mut()
                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, Some(node_alias))));
-            RequestState::Single(self)
+            (RequestState::Single(self), None)
         } else {
-            //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-            _send_replies(
-                cmd_ids,
-                Err(err_msg(
-                    LedgerErrorKind::PoolTimeout,
-                    "Consensus is impossible",
-                )),
-            );
             self.networker
                 .borrow_mut()
                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
-            RequestState::finish()
+            (
+                RequestState::finish(),
+                //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
+                Some(err_msg(
+                    LedgerErrorKind::PoolTimeout,
+                    "Consensus is impossible",
+                )),
+            )
         }
     }
 }
@@ -1024,28 +1011,30 @@ impl<T: Networker> ConsensusState<T> {
     }
 }
 
+/*
 fn _parse_nack(
     denied_nodes: &mut HashSet<String>,
     f: usize,
     raw_msg: &str,
     cmd_ids: &[CommandHandle],
     node_alias: &str,
+    updater: PoolUpdateHandler,
 ) -> bool {
     if denied_nodes.len() == f {
-        _send_ok_replies(cmd_ids, raw_msg);
+        _send_ok_replies(updater, cmd_ids, raw_msg);
         true
     } else {
         denied_nodes.insert(node_alias.to_string());
         false
     }
 }
+*/
 
 fn _process_catchup_reply(
     rep: &mut CatchupRep,
     merkle: &MerkleTree,
     target_mt_root: &Vec<u8>,
     target_mt_size: usize,
-    pool_name: &str,
 ) -> LedgerResult<MerkleTree> {
     let mut txns_to_drop = vec![];
     let mut merkle = merkle.clone();
@@ -1068,12 +1057,13 @@ fn _process_catchup_reply(
     Ok(merkle)
 }
 
-fn _send_ok_replies(cmd_ids: &[CommandHandle], msg: &str) {
-    _send_replies(cmd_ids, Ok(msg.to_string()))
+fn _send_ok_replies<U: PoolUpdateHandler>(updater: U, cmd_ids: &[CommandHandle], msg: &str) {
+    _send_replies(updater, cmd_ids, Ok(msg.to_string()))
 }
 
-fn _finish_request(cmd_ids: &[CommandHandle]) {
+fn _finish_request<U: PoolUpdateHandler>(updater: U, cmd_ids: &[CommandHandle]) {
     _send_replies(
+        updater,
         cmd_ids,
         Err(err_msg(
             LedgerErrorKind::PoolTerminated,
@@ -1082,11 +1072,24 @@ fn _finish_request(cmd_ids: &[CommandHandle]) {
     )
 }
 
-fn _send_replies(cmd_ids: &[CommandHandle], msg: LedgerResult<String>) {
+fn _report_failed<T: Networker, U: PoolUpdateHandler>(
+    updater: U,
+    cmd_ids: &[CommandHandle],
+    (state, err): (RequestState<T>, Option<LedgerError>),
+) -> RequestState<T> {
+    if let Some(err) = err {
+        _send_replies(updater, cmd_ids, Err(err));
+    }
+    state
+}
+
+fn _send_replies<U: PoolUpdateHandler>(
+    updater: U,
+    cmd_ids: &[CommandHandle],
+    msg: LedgerResult<String>,
+) {
     cmd_ids.iter().for_each(|id| {
-        CommandExecutor::instance()
-            .send(Command::Ledger(LedgerCommand::SubmitAck(*id, msg.clone())))
-            .unwrap();
+        updater.send(PoolUpdateEvent::SubmitAck(*id, msg));
     });
 }
 
@@ -1121,6 +1124,7 @@ fn _check_state_proof(
     sp_key: Option<&[u8]>,
     requested_timestamps: (Option<u64>, Option<u64>),
     last_write_time: u64,
+    threshold: u64,
 ) -> bool {
     debug!("TransactionHandler::process_reply: Try to verify proof and signature >>");
 
@@ -1133,8 +1137,8 @@ fn _check_state_proof(
             None => false,
         };
 
-    let res =
-        proof_checking_res && _check_freshness(msg_result, requested_timestamps, last_write_time);
+    let res = proof_checking_res
+        && _check_freshness(msg_result, requested_timestamps, last_write_time, threshold);
 
     debug!(
         "TransactionHandler::process_reply: Try to verify proof and signature << {}",
@@ -1147,6 +1151,7 @@ fn _check_freshness(
     msg_result: &SJsonValue,
     requested_timestamps: (Option<u64>, Option<u64>),
     last_write_time: u64,
+    threshold: u64,
 ) -> bool {
     debug!(
         "TransactionHandler::_check_freshness: requested_timestamps: {:?} >>",
@@ -1171,8 +1176,8 @@ fn _check_freshness(
                 right_time_for_freshness_check
             );
 
-            left_time_for_freshness_check <= _get_freshness_threshold() + left_last_write_time
-                && right_time_for_freshness_check <= _get_freshness_threshold() + last_write_time
+            left_time_for_freshness_check <= threshold + left_last_write_time
+                && right_time_for_freshness_check <= threshold + last_write_time
         }
         (None, Some(to)) => {
             let time_for_freshness_check = to;
@@ -1180,7 +1185,7 @@ fn _check_freshness(
             trace!("Last signed time: {}", last_write_time);
             trace!("Time for freshness check: {}", time_for_freshness_check);
 
-            time_for_freshness_check <= _get_freshness_threshold() + last_write_time
+            time_for_freshness_check <= threshold + last_write_time
         }
         (Some(from), None) => {
             let left_last_write_time = _extract_left_last_write_time(msg_result).unwrap_or(0);
@@ -1197,8 +1202,8 @@ fn _check_freshness(
             );
             trace!("Time for freshness check: {}", time_for_freshness_check);
 
-            left_time_for_freshness_check <= _get_freshness_threshold() + left_last_write_time
-                && time_for_freshness_check <= _get_freshness_threshold() + last_write_time
+            left_time_for_freshness_check <= threshold + left_last_write_time
+                && time_for_freshness_check <= threshold + last_write_time
         }
         (None, None) => {
             let time_for_freshness_check = _get_cur_time();
@@ -1206,7 +1211,7 @@ fn _check_freshness(
             trace!("Last signed time: {}", last_write_time);
             trace!("Time for freshness check: {}", time_for_freshness_check);
 
-            time_for_freshness_check <= _get_freshness_threshold() + last_write_time
+            time_for_freshness_check <= threshold + last_write_time
         }
     };
 
@@ -1225,10 +1230,6 @@ fn _extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
     }
 }
 
-fn _get_freshness_threshold() -> u64 {
-    *THRESHOLD.lock().unwrap()
-}
-
 fn _get_cur_time() -> u64 {
     let since_epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -1240,13 +1241,14 @@ fn _get_cur_time() -> u64 {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::domain::pool::NUMBER_READ_NODES;
-    use crate::services::ledger::merkletree::tree::Tree;
+    use crate::domain::pool::{DEFAULT_PROTOCOL_VERSION, NUMBER_READ_NODES};
+    use crate::services::pool::events::MockUpdateHandler;
     use crate::services::pool::networker::MockNetworker;
     use crate::services::pool::types::{
         ConsistencyProof, LedgerStatus, Reply, ReplyResultV1, ReplyTxnV1, ReplyV1, Response,
         ResponseMetadata, ResponseV1,
     };
+    use crate::utils::merkletree::Tree;
     use crate::utils::test;
     use crate::utils::test::test_pool_create_poolfile;
 
@@ -1263,19 +1265,28 @@ pub mod tests {
     const REJECT_REPLY: &str = r#"{"op":"REJECT", "result": {"reason": "reject"}}"#;
     const NACK_REPLY: &str = r#"{"op":"REQNACK", "result": {"reason": "reqnack"}}"#;
 
+    const TEST_POOL_CONFIG: PoolConfig = PoolConfig {
+        conn_active_timeout: 0,
+        conn_limit: NUMBER_READ_NODES,
+        freshness_threshold: 0,
+        timeout: 0,
+        extended_timeout: 0,
+        number_read_nodes: NUMBER_READ_NODES,
+        protocol_version: DEFAULT_PROTOCOL_VERSION,
+        preordered_nodes: vec![],
+    };
+
     #[derive(Debug)]
     pub struct MockRequestHandler {}
 
-    impl<T: Networker> RequestHandler<T> for MockRequestHandler {
+    impl<T: Networker, U: PoolUpdateHandler> RequestHandler<T, U> for MockRequestHandler {
         fn new(
             _networker: Rc<RefCell<T>>,
             _f: usize,
             _cmd_ids: &[CommandHandle],
             _nodes: &Nodes,
-            _pool_name: &str,
-            _timeout: i64,
-            _extended_timeout: i64,
-            _number_read_nodes: u8,
+            _config: &PoolConfig,
+            _updater: U,
         ) -> Self {
             MockRequestHandler {}
         }
@@ -1349,8 +1360,9 @@ pub mod tests {
         pool_name: &str,
         f: usize,
         nodes_cnt: usize,
-    ) -> RequestHandlerImpl<MockNetworker> {
+    ) -> RequestHandlerImpl<MockNetworker, MockUpdateHandler> {
         let networker = Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![])));
+        let upd = MockUpdateHandler::new();
 
         let mut default_nodes: Nodes = HashMap::new();
         default_nodes.insert(NODE.to_string(), None);
@@ -1362,16 +1374,7 @@ pub mod tests {
             nodes.insert(node_names[i].to_string(), None);
         }
 
-        RequestHandlerImpl::new(
-            networker,
-            f,
-            &vec![],
-            &nodes,
-            pool_name,
-            0,
-            0,
-            NUMBER_READ_NODES,
-        )
+        RequestHandlerImpl::new(networker, f, &vec![], &nodes, &TEST_POOL_CONFIG, upd)
     }
 
     // required because of dumping txns to cache
@@ -1998,7 +2001,6 @@ pub mod tests {
 
     mod single {
         use super::*;
-        use crate::services::pool::set_freshness_threshold;
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_consensus_reached() {
@@ -2051,7 +2053,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_state_proof() {
-            set_freshness_threshold(600);
+            // set_freshness_threshold(600);
             add_state_proof_parser();
             let mut request_handler = _request_handler(
                 "request_handler_process_reply_event_from_single_state_works_for_state_proof",
@@ -2079,7 +2081,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_state_proof_from_future()
         {
-            set_freshness_threshold(600);
+            // set_freshness_threshold(600);
             add_state_proof_parser();
             let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_state_proof_from_future", 1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
@@ -2101,6 +2103,8 @@ pub mod tests {
         }
 
         fn add_state_proof_parser() {
+            /*
+            FIXME
             use crate::services::pool::{PoolService, REGISTERED_SP_PARSERS};
             use indy_api_types::ErrorCode;
             use libc::c_char;
@@ -2122,11 +2126,12 @@ pub mod tests {
                 ErrorCode::Success
             }
             PoolService::register_sp_parser("test", test_sp, test_free).unwrap();
+            */
         }
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_freshness_filtering() {
-            set_freshness_threshold(600);
+            // set_freshness_threshold(600);
             add_state_proof_parser();
             let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_freshness_filtering", 2, 4);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
@@ -2162,7 +2167,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_state_proof_from_past() {
-            set_freshness_threshold(300);
+            // set_freshness_threshold(300);
             add_state_proof_parser();
 
             let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_state_proof_from_past", 2, 4);
@@ -2202,7 +2207,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_freshness_filtering_from_env_variable(
         ) {
-            set_freshness_threshold(300);
+            // set_freshness_threshold(300);
             // Register custom state proof parser
             add_state_proof_parser();
 
@@ -2236,7 +2241,7 @@ pub mod tests {
                 RequestState::Finish(_),
                 request_handler.request_wrapper.unwrap().state
             );
-            set_freshness_threshold(600);
+            // set_freshness_threshold(600);
         }
 
         #[test]

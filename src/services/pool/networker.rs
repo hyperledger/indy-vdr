@@ -5,12 +5,11 @@ use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use time::Tm;
 
-use crate::services::pool::events::*;
-use crate::services::pool::types::*;
 use crate::utils::error::prelude::*;
-// use indy_utils::sequence;
 
+use super::events::*;
 use super::time::Duration;
+use super::types::*;
 
 use super::zmq::PollItem;
 use super::zmq::Socket as ZSocket;
@@ -26,8 +25,8 @@ pub trait Networker {
 }
 
 pub struct ZMQNetworker {
-    req_id_mappings: HashMap<String, i32>,
-    pool_connections: BTreeMap<i32, PoolConnection>,
+    req_id_mappings: HashMap<String, u32>,
+    pool_connections: BTreeMap<u32, PoolConnection>,
     nodes: Vec<RemoteNode>,
     active_timeout: i64,
     conn_limit: usize,
@@ -98,7 +97,7 @@ impl Networker for ZMQNetworker {
                     }
                     None => {
                         trace!("send request in new conn");
-                        let pc_id = sequence::get_next_id();
+                        let pc_id = next_pool_connection_handle();
                         let mut pc = PoolConnection::new(
                             self.nodes.clone(),
                             self.active_timeout,
@@ -155,7 +154,7 @@ impl Networker for ZMQNetworker {
                 None
             }
             Some(NetworkerEvent::Timeout) => {
-                let pc_to_delete: Vec<i32> = self
+                let pc_to_delete: Vec<u32> = self
                     .pool_connections
                     .iter()
                     .filter(|(_, v)| v.is_orphaned())
@@ -203,9 +202,9 @@ impl PoolConnection {
     fn new(mut nodes: Vec<RemoteNode>, active_timeout: i64, preordered_nodes: Vec<String>) -> Self {
         trace!("PoolConnection::new: from nodes {:?}", nodes);
 
-        nodes.shuffle(&mut thread_rng());
-
-        if !preordered_nodes.is_empty() {
+        if preordered_nodes.is_empty() {
+            nodes.shuffle(&mut thread_rng());
+        } else {
             nodes.sort_by_key(|node: &RemoteNode| -> usize {
                 preordered_nodes
                     .iter()
@@ -241,8 +240,8 @@ impl PoolConnection {
         for i in 0..len {
             if let (&Some(ref s), rn) = (&self.sockets[i], &self.nodes[i]) {
                 if poll_items[pi_idx].is_readable() {
-                    if let Ok(Ok(str)) = s.recv_string(zmq::DONTWAIT) {
-                        vec.push(PoolEvent::NodeReply(str, rn.name.clone()))
+                    if let Ok(Ok(msg)) = s.recv_string(zmq::DONTWAIT) {
+                        vec.push(PoolEvent::NodeReply(msg, rn.name.clone()))
                     }
                 }
                 pi_idx += 1;
@@ -259,16 +258,17 @@ impl PoolConnection {
     }
 
     fn get_timeout(&self) -> ((String, String), i64) {
+        let now = time::now();
         if let Some((&(ref req_id, ref node_alias), timeout)) = self
             .timeouts
             .borrow()
             .iter()
-            .map(|(key, value)| (key, (*value - time::now()).num_milliseconds()))
+            .map(|(key, value)| (key, (*value - now).num_milliseconds()))
             .min_by(|&(_, ref val1), &(_, ref val2)| val1.cmp(&val2))
         {
             ((req_id.to_string(), node_alias.to_string()), timeout)
         } else {
-            let time_from_start: Duration = time::now() - self.time_created;
+            let time_from_start: Duration = now - self.time_created;
             (
                 ("".to_string(), "".to_string()),
                 self.active_timeout * 1000 - time_from_start.num_milliseconds(),
@@ -286,9 +286,9 @@ impl PoolConnection {
         res
     }
 
-    fn send_request(&mut self, pe: Option<NetworkerEvent>) -> LedgerResult<()> {
-        trace!("send_request >> pe: {:?}", pe);
-        match pe {
+    fn send_request(&mut self, ne: Option<NetworkerEvent>) -> LedgerResult<()> {
+        trace!("send_request >> ne: {:?}", ne);
+        match ne {
             Some(NetworkerEvent::SendOneRequest(msg, req_id, timeout)) => {
                 self.req_cnt += 1;
                 self._send_msg_to_one_node(0, req_id.clone(), msg.clone(), timeout)?;
@@ -462,25 +462,20 @@ pub mod networker_tests {
         MAX_REQ_PER_POOL_CON, POOL_ACK_TIMEOUT, POOL_CON_ACTIVE_TO, POOL_REPLY_TIMEOUT,
     };
     use crate::services::pool::tests::nodes_emulator;
-    use crate::utils::crypto::ed25519_sign;
+    use crate::utils::base58::FromBase58;
+    use crate::utils::crypto;
 
     use super::*;
-    use rust_base58::base58::FromBase58;
 
     const REQ_ID: &str = "1";
     const MESSAGE: &str = "msg";
     const NODE_NAME: &str = "n1";
 
     pub fn _remote_node(txn: &NodeTransactionV1) -> RemoteNode {
+        let vk = crypto::PublicKey::from_bytes(&txn.txn.data.dest.as_str().from_base58().unwrap())
+            .unwrap();
         RemoteNode {
-            public_key: ed25519_sign::vk_to_curve25519(
-                &ed25519_sign::PublicKey::from_slice(
-                    &txn.txn.data.dest.as_str().from_base58().unwrap(),
-                )
-                .unwrap(),
-            )
-            .unwrap()[..]
-                .to_vec(),
+            public_key: crypto::vk_to_curve25519(vk).unwrap(),
             zaddr: format!(
                 "tcp://{}:{}",
                 txn.txn.data.data.client_ip.clone().unwrap(),
@@ -737,11 +732,11 @@ pub mod networker_tests {
 
         // Roll back connection creation time on 5 seconds ago instead of sleeping
         fn _roll_back_timeout(networker: &mut ZMQNetworker) {
-            let conn_id: i32 = networker
+            let conn_id: u32 = networker
                 .pool_connections
                 .keys()
                 .cloned()
-                .collect::<Vec<i32>>()[0];
+                .collect::<Vec<u32>>()[0];
             let conn: &mut PoolConnection = networker.pool_connections.get_mut(&conn_id).unwrap();
             conn.time_created = time::now().sub(Duration::seconds(5));
         }

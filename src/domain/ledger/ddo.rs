@@ -1,5 +1,5 @@
 use super::constants::GET_DDO;
-use crate::utils::did::ShortDidValue;
+use crate::domain::did::ShortDidValue;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetDdoOperation {

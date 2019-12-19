@@ -5,7 +5,7 @@ use std::{fs, io};
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use crate::domain::ledger::request::{ProtocolVersion, DEFAULT_PROTOCOL_VERSION};
+use crate::domain::pool::{ProtocolVersion, DEFAULT_PROTOCOL_VERSION};
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
@@ -30,6 +30,12 @@ impl PoolFactory {
 
     pub fn from_genesis_path(genesis_path: &PathBuf) -> LedgerResult<PoolFactory> {
         let tree = _merkle_tree_from_genesis(genesis_path)?;
+        if tree.count() == 0 {
+            return Err(err_msg(
+                LedgerErrorKind::InvalidStructure,
+                "Empty genesis transaction file",
+            ));
+        }
         Ok(PoolFactory {
             merkle_tree: tree,
             protocol_version: DEFAULT_PROTOCOL_VERSION,

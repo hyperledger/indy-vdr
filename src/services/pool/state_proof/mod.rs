@@ -1,9 +1,7 @@
 extern crate log_derive;
 extern crate rmp_serde;
 
-use rust_base58::ToBase58;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
 
 use base64;
 use rlp::UntrustedRlp;
@@ -11,18 +9,18 @@ use serde_json;
 use serde_json::Value as SJsonValue;
 
 // use indy_api_types::ErrorCode;
-use crate::domain::ledger::{constants, request::ProtocolVersion};
+use crate::domain::ledger::constants;
+use crate::domain::pool::ProtocolVersion;
 use crate::services::pool::events::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
+use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 use super::types::*;
-use super::PoolService;
+// use super::PoolService;
 
 use self::log_derive::logfn;
 use self::node::{Node, TrieDB};
-use crate::services::pool::Nodes;
-use rust_base58::FromBase58;
 use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
 mod node;
@@ -51,7 +49,10 @@ pub fn parse_generic_reply_for_proof_checking(
             warn!("parse_generic_reply_for_proof_checking: can't get key in sp for built-in type");
             None
         }
-    } else if let Some((parser, free)) = PoolService::get_sp_parser(type_) {
+    }
+    /*
+    FIXME restore custom state proof parsers
+    else if let Some((parser, free)) = PoolService::get_sp_parser(type_) {
         trace!("TransactionHandler::parse_generic_reply_for_proof_checking: plugged: parser {:?}, free {:?}",
                parser, free);
 
@@ -82,7 +83,8 @@ pub fn parse_generic_reply_for_proof_checking(
         );
 
         parsed_sps
-    } else {
+    }*/
+    else {
         trace!(
             "TransactionHandler::parse_generic_reply_for_proof_checking: <<< type not supported"
         );
@@ -174,7 +176,11 @@ pub fn verify_parsed_sp(
 }
 
 #[logfn(Trace)]
-pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Vec<u8>> {
+pub fn parse_key_from_request_for_builtin_sp(
+    json_msg: &SJsonValue,
+    protocol_version: ProtocolVersion,
+) -> Option<Vec<u8>> {
+    let is_node_1_3 = protocol_version == ProtocolVersion::Node1_3;
     let type_ = json_msg["operation"]["type"].as_str()?;
     let json_msg = &json_msg["operation"];
     let key_suffix: String = match type_ {
@@ -189,11 +195,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
                     attr_name
                 );
 
-                let marker = if ProtocolVersion::is_node_1_3() {
-                    '\x01'
-                } else {
-                    '1'
-                };
+                let marker = if is_node_1_3 { '\x01' } else { '1' };
                 let hash = Hash::hash(attr_name.as_bytes()).ok()?;
                 format!(":{}:{}", marker, hex::encode(hash))
             } else {
@@ -209,12 +211,8 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
                 json_msg["ref"].as_u64(),
             ) {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_CRED_DEF sign_type {:?}, sch_seq_no: {:?}", sign_type, sch_seq_no);
-                let marker = if ProtocolVersion::is_node_1_3() {
-                    '\x03'
-                } else {
-                    '3'
-                };
-                let tag = if ProtocolVersion::is_node_1_3() {
+                let marker = if is_node_1_3 { '\x03' } else { '3' };
+                let tag = if is_node_1_3 {
                     None
                 } else {
                     json_msg["tag"].as_str()
@@ -238,11 +236,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
                 json_msg["data"]["version"].as_str(),
             ) {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_SCHEMA name {:?}, ver: {:?}", name, ver);
-                let marker = if ProtocolVersion::is_node_1_3() {
-                    '\x02'
-                } else {
-                    '2'
-                };
+                let marker = if is_node_1_3 { '\x02' } else { '2' };
                 format!(":{}:{}:{}", marker, name, ver)
             } else {
                 trace!(
@@ -255,11 +249,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
             //{MARKER}:{REVOC_REG_DEF_ID} MARKER = 6
             if let Some(revoc_reg_def_id) = json_msg["revocRegDefId"].as_str() {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_REVOC_REG revoc_reg_def_id {:?}", revoc_reg_def_id);
-                let marker = if ProtocolVersion::is_node_1_3() {
-                    '\x06'
-                } else {
-                    '6'
-                };
+                let marker = if is_node_1_3 { '\x06' } else { '6' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_REVOC_REG No key suffix");
@@ -296,11 +286,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
             //{MARKER}:{REVOC_REG_DEF_ID} MARKER = 5
             if let Some(revoc_reg_def_id) = json_msg["revocRegDefId"].as_str() {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_REVOC_REG_DELTA revoc_reg_def_id {:?}", revoc_reg_def_id);
-                let marker = if ProtocolVersion::is_node_1_3() {
-                    '\x05'
-                } else {
-                    '5'
-                };
+                let marker = if is_node_1_3 { '\x05' } else { '5' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix");
@@ -312,11 +298,7 @@ pub fn parse_key_from_request_for_builtin_sp(json_msg: &SJsonValue) -> Option<Ve
             //{MARKER}:{REVOC_REG_DEF_ID} MARKER = 6 for both
             if let Some(revoc_reg_def_id) = json_msg["revocRegDefId"].as_str() {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_REVOC_REG_DELTA revoc_reg_def_id {:?}", revoc_reg_def_id);
-                let marker = if ProtocolVersion::is_node_1_3() {
-                    '\x06'
-                } else {
-                    '6'
-                };
+                let marker = if is_node_1_3 { '\x06' } else { '6' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
                 trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix");
@@ -1130,7 +1112,8 @@ mod tests {
     use super::*;
 
     use hex::FromHex;
-    use libc::c_char;
+    // use libc::c_char;
+    // use std::ffi::{CStr, CString};
 
     /// For audit proofs tree looks like this
     ///         12345
@@ -1981,6 +1964,7 @@ mod tests {
         );
     }
 
+    /*
     #[test]
     fn transaction_handler_parse_generic_reply_for_proof_checking_works_for_plugged() {
         extern "C" fn parse(msg: *const c_char, parsed: *mut *const c_char) -> ErrorCode {
@@ -2137,5 +2121,5 @@ mod tests {
                     ),
             })
         );
-    }
+    }*/
 }

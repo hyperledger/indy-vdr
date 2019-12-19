@@ -1,9 +1,9 @@
-use super::base58::FromBase58;
 use named_type::NamedType;
 use regex::Regex;
 
-use super::qualifier;
-use super::validation::Validatable;
+use crate::utils::base58::FromBase58;
+use crate::utils::qualifier;
+use crate::utils::validation::Validatable;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DidMethod(pub String);

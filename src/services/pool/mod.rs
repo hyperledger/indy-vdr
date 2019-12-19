@@ -5,47 +5,43 @@ extern crate rmp_serde;
 extern crate time;
 extern crate zmq;
 
-use self::zmq::Socket;
-use byteorder::{ByteOrder, LittleEndian};
+// use self::zmq::Socket;
+// use byteorder::{ByteOrder, LittleEndian};
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::Write;
-use std::sync::Mutex;
-use std::{fs, io};
+// use std::cell::RefCell;
+// use std::collections::HashMap;
+// use std::io::Write;
+// use std::sync::Mutex;
+// use std::{fs, io};
 
 use serde::de::DeserializeOwned;
-use serde_json;
+// use serde_json;
 
-use crate::api::ledger::{CustomFree, CustomTransactionParser};
-use crate::domain::{
-    ledger::response::{Message, Reply, ResponseMetadata},
-    pool::{PoolConfig, PoolOpenConfig},
-};
+// use crate::api::ledger::{CustomFree, CustomTransactionParser};
+use crate::domain::ledger::response::{Message, Reply, ResponseMetadata};
 use crate::services::pool::events::{COMMAND_CONNECT, COMMAND_EXIT, COMMAND_REFRESH};
-use crate::services::pool::pool::{Pool, ZMQPool};
+// use crate::services::pool::types::PoolConfig;
+//use crate::services::pool::pool::{Pool, ZMQPool};
 // use crate::utils::environment;
 use crate::utils::error::prelude::*;
 // use indy_api_types::{CommandHandle, PoolHandle};
 // use indy_utils::{next_command_handle, next_pool_handle};
-use ursa::bls::VerKey;
+// use ursa::bls::VerKey;
 
 mod catchup;
 mod commander;
 mod events;
-mod merkle_tree_factory;
+// mod merkle_tree_factory;
 mod networker;
 mod pool;
 mod request_handler;
 mod state_proof;
 mod types;
 
-lazy_static! {
+/* lazy_static! {
     static ref REGISTERED_SP_PARSERS: Mutex<HashMap<String, (CustomTransactionParser, CustomFree)>> =
         Mutex::new(HashMap::new());
 }
-
-type Nodes = HashMap<String, Option<VerKey>>;
 
 pub struct PoolService {
     open_pools: RefCell<HashMap<PoolHandle, ZMQPool>>,
@@ -338,6 +334,7 @@ pub fn set_freshness_threshold(threshold: u64) {
     let mut th = THRESHOLD.lock().unwrap();
     *th = ::std::cmp::max(threshold, 300);
 }
+*/
 
 pub fn parse_response_metadata(response: &str) -> LedgerResult<ResponseMetadata> {
     trace!(
@@ -423,20 +420,21 @@ pub fn pool_create_pair_of_sockets(addr: &str) -> (zmq::Socket, zmq::Socket) {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
+    // use std::thread;
 
-    use crate::domain::ledger::request::ProtocolVersion;
+    // use crate::domain::ledger::request::ProtocolVersion;
     use crate::services::pool::types::*;
-    use crate::utils::test;
+    // use crate::utils::test;
 
     use super::*;
 
-    const TEST_PROTOCOL_VERSION: usize = 2;
+    // const TEST_PROTOCOL_VERSION: usize = 2;
 
-    fn _set_protocol_version(version: usize) {
+    /*fn _set_protocol_version(version: usize) {
         ProtocolVersion::set(version);
-    }
+    }*/
 
+    /*
     mod pool_service {
         use std::path;
 
@@ -694,8 +692,9 @@ mod tests {
             assert_eq!(LedgerErrorKind::InvalidPoolHandle, res.unwrap_err().kind());
         }
     }
+    */
 
-    #[test]
+    /*#[test]
     fn pool_drop_works_for_after_close() {
         use crate::utils::test;
         use std::time;
@@ -732,13 +731,11 @@ mod tests {
 
         drop_test();
         test::cleanup_storage("pool_drop_works_for_after_close");
-    }
+    }*/
 
     pub mod nodes_emulator {
-        extern crate sodiumoxide;
-
-        use crate::utils::crypto::ed25519_sign;
-        use rust_base58::{FromBase58, ToBase58};
+        use crate::utils::base58::{FromBase58, ToBase58};
+        use crate::utils::crypto;
 
         use super::*;
 
@@ -813,7 +810,7 @@ mod tests {
                             node_ip: Some(String::new()),
                             node_port: Some(0),
                             services: Some(vec!["VALIDATOR".to_string()]),
-                            blskey: Some(blskey.to_string()),
+                            blskey: Some(blskey),
                             blskey_pop: None,
                         },
                         dest: "Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv".to_string(),
@@ -838,17 +835,15 @@ mod tests {
         }
 
         pub fn start(gt: &mut NodeTransactionV1) -> zmq::Socket {
-            let (vk, sk) = sodiumoxide::crypto::sign::ed25519::gen_keypair();
-            let (vk, sk) = (
-                ed25519_sign::PublicKey::from_slice(&vk[..]).unwrap(),
-                ed25519_sign::SecretKey::from_slice(&sk[..]).unwrap(),
+            let keypair = crypto::gen_keypair().unwrap();
+            let (pkc, skc) = (
+                crypto::vk_to_curve25519(keypair.public).expect("Invalid pkc"),
+                crypto::sk_to_curve25519(keypair.secret).expect("Invalid skc"),
             );
-            let pkc = ed25519_sign::vk_to_curve25519(&vk).expect("Invalid pkc");
-            let skc = ed25519_sign::sk_to_curve25519(&sk).expect("Invalid skc");
             let ctx = zmq::Context::new();
             let s: zmq::Socket = ctx.socket(zmq::SocketType::ROUTER).unwrap();
 
-            gt.txn.data.dest = (&vk[..]).to_base58();
+            gt.txn.data.dest = keypair.public.to_bytes().to_base58();
 
             s.set_curve_publickey(&zmq::z85_encode(&pkc[..]).unwrap().as_bytes())
                 .expect("set public key");

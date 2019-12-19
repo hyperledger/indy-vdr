@@ -1,11 +1,11 @@
 use crate::services::pool::events::PoolEvent;
 use crate::utils::error::prelude::*;
 
+use super::types::INVALID_COMMAND_HANDLE;
 use super::zmq;
 
-use byteorder::{ByteOrder, LittleEndian};
-// use indy_api_types::INVALID_COMMAND_HANDLE;
 use crate::services::pool::{COMMAND_CONNECT, COMMAND_EXIT, COMMAND_REFRESH};
+use byteorder::{ByteOrder, LittleEndian};
 
 pub struct Commander {
     cmd_socket: zmq::Socket,
@@ -39,7 +39,7 @@ impl Commander {
 
         let id = cmd_parts
             .get(1)
-            .map(|cmd: &Vec<u8>| LittleEndian::read_i32(cmd.as_slice()))
+            .map(|cmd: &Vec<u8>| LittleEndian::read_u32(cmd.as_slice()))
             .unwrap_or(INVALID_COMMAND_HANDLE);
 
         if COMMAND_EXIT.eq(cmd_s.as_str()) {
@@ -77,10 +77,9 @@ impl Commander {
 
 #[cfg(test)]
 mod commander_tests {
+    use super::super::types::{next_command_handle, CommandHandle};
     use super::*;
     use crate::services::pool::{pool_create_pair_of_sockets, COMMAND_EXIT, COMMAND_REFRESH};
-    use indy_api_types::CommandHandle;
-    use indy_utils::next_command_handle;
 
     fn new_commander() -> Commander {
         let zmq_ctx = zmq::Context::new();
@@ -124,7 +123,7 @@ mod commander_tests {
 
         let cmd_id: CommandHandle = next_command_handle();
         let mut buf = [0u8; 4];
-        LittleEndian::write_i32(&mut buf, cmd_id);
+        LittleEndian::write_u32(&mut buf, cmd_id);
         send_cmd_sock
             .send_multipart(&[COMMAND_EXIT.as_bytes(), &buf], zmq::DONTWAIT)
             .expect("FIXME");
@@ -144,7 +143,7 @@ mod commander_tests {
 
         let cmd_id: CommandHandle = next_command_handle();
         let mut buf = [0u8; 4];
-        LittleEndian::write_i32(&mut buf, cmd_id);
+        LittleEndian::write_u32(&mut buf, cmd_id);
         send_cmd_sock
             .send_multipart(&[COMMAND_REFRESH.as_bytes(), &buf], zmq::DONTWAIT)
             .expect("FIXME");
@@ -164,7 +163,7 @@ mod commander_tests {
 
         let cmd_id: CommandHandle = next_command_handle();
         let mut buf = [0u8; 4];
-        LittleEndian::write_i32(&mut buf, cmd_id);
+        LittleEndian::write_u32(&mut buf, cmd_id);
         send_cmd_sock
             .send_multipart(&[COMMAND_CONNECT.as_bytes(), &buf], zmq::DONTWAIT)
             .expect("FIXME");
@@ -184,7 +183,7 @@ mod commander_tests {
 
         let cmd_id: CommandHandle = next_command_handle();
         let mut buf = [0u8; 4];
-        LittleEndian::write_i32(&mut buf, cmd_id);
+        LittleEndian::write_u32(&mut buf, cmd_id);
         let mut buf_to = [0u8; 4];
         LittleEndian::write_i32(&mut buf_to, -1);
         let msg = "test";
