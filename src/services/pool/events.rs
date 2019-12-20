@@ -76,18 +76,8 @@ pub enum PoolEvent {
     ),
     Close(CommandHandle),
     Refresh(CommandHandle),
-    CatchupTargetFound(
-        Vec<u8>, //target_mt_root
-        usize,   //target_mt_size
-        MerkleTree,
-    ),
-    CatchupRestart(MerkleTree),
-    CatchupTargetNotFound(LedgerError),
     #[allow(dead_code)] //FIXME
     PoolOutdated,
-    Synced(MerkleTree),
-    #[allow(dead_code)] //FIXME
-    NodesBlacklisted,
     SendRequest(
         CommandHandle,
         String,         // request
@@ -101,19 +91,28 @@ pub enum PoolEvent {
 }
 
 #[derive(Debug)]
-pub enum PoolUpdateEvent {
+pub enum UpdateEvent {
     OpenAck(CommandHandle, PoolHandle, LedgerResult<()>),
     CloseAck(CommandHandle, LedgerResult<()>),
     RefreshAck(CommandHandle, LedgerResult<()>),
-    SubmitAck(CommandHandle, LedgerResult<String>),
+    SubmitAck(Vec<CommandHandle>, LedgerResult<String>),
+    Synced(MerkleTree),
+    CatchupTargetFound(
+        Vec<u8>, //target_mt_root
+        usize,   //target_mt_size
+        MerkleTree,
+    ),
+    CatchupRestart(MerkleTree),
+    CatchupTargetNotFound(LedgerError),
+    NodesBlacklisted,
 }
 
-pub trait PoolUpdateHandler: Send {
-    fn send(&self, update: PoolUpdateEvent) -> LedgerResult<()>;
+pub trait UpdateHandler {
+    fn send(&self, update: UpdateEvent) -> LedgerResult<()>;
 }
 
 pub struct MockUpdateHandler {
-    pub events: Vec<PoolUpdateEvent>,
+    pub events: Vec<UpdateEvent>,
 }
 
 impl MockUpdateHandler {
@@ -122,8 +121,8 @@ impl MockUpdateHandler {
     }
 }
 
-impl PoolUpdateHandler for MockUpdateHandler {
-    pub fn send(&self, update: PoolUpdateEvent) -> LedgerResult<()> {
+impl UpdateHandler for MockUpdateHandler {
+    fn send(&self, update: UpdateEvent) -> LedgerResult<()> {
         self.events.push(update);
         Ok(())
     }

@@ -27,11 +27,10 @@ use crate::utils::merkletree::MerkleTree;
 use ursa::bls::VerKey as BlsVerKey;
 use zmq;
 
-struct PoolSM<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
+struct PoolSM<T: Networker, R: RequestHandler<T>> {
     id: PoolHandle,
     config: PoolConfig,
-    state: PoolState<T, R, U>,
-    updater: U,
+    state: PoolState<T, R>,
 }
 
 /// Transitions of pool state
@@ -41,11 +40,11 @@ struct PoolSM<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
 /// SyncCatchup -> Active, Terminated, Closed
 /// Terminated -> GettingCatchupTarget, Closed
 /// Closed -> Closed
-enum PoolState<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
+enum PoolState<T: Networker, R: RequestHandler<T>> {
     Initialization(InitializationState<T>),
-    GettingCatchupTarget(GettingCatchupTargetState<T, R, U>),
-    Active(ActiveState<T, R, U>),
-    SyncCatchup(SyncCatchupState<T, R, U>),
+    GettingCatchupTarget(GettingCatchupTargetState<T, R>),
+    Active(ActiveState<T, R>),
+    SyncCatchup(SyncCatchupState<T, R>),
     Terminated(TerminatedState<T>),
     Closed(ClosedState),
 }
@@ -54,23 +53,20 @@ struct InitializationState<T: Networker> {
     networker: Rc<RefCell<T>>,
 }
 
-struct GettingCatchupTargetState<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
-    _pd: PhantomData<U>,
+struct GettingCatchupTargetState<T: Networker, R: RequestHandler<T>> {
     networker: Rc<RefCell<T>>,
     request_handler: R,
     cmd_id: CommandHandle,
     refresh: bool,
 }
 
-struct ActiveState<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
-    _pd: PhantomData<U>,
+struct ActiveState<T: Networker, R: RequestHandler<T>> {
     networker: Rc<RefCell<T>>,
     request_handlers: HashMap<String, R>,
     nodes: Nodes,
 }
 
-struct SyncCatchupState<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
-    _pd: PhantomData<U>,
+struct SyncCatchupState<T: Networker, R: RequestHandler<T>> {
     networker: Rc<RefCell<T>>,
     request_handler: R,
     cmd_id: CommandHandle,
@@ -83,43 +79,31 @@ struct TerminatedState<T: Networker> {
 
 struct ClosedState {}
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> PoolSM<T, R, U> {
-    pub fn new(
-        id: PoolHandle,
-        config: &PoolConfig,
-        networker: Rc<RefCell<T>>,
-        updater: U,
-    ) -> PoolSM<T, R, U> {
+impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
+    pub fn new(id: PoolHandle, config: &PoolConfig, networker: Rc<RefCell<T>>) -> PoolSM<T, R> {
         PoolSM {
             id,
             config: config.clone(),
             state: PoolState::Initialization(InitializationState { networker }),
-            updater,
         }
     }
 
-    pub fn step(id: PoolHandle, config: PoolConfig, state: PoolState<T, R, U>, updater: U) -> Self {
-        PoolSM {
-            id,
-            config,
-            state,
-            updater,
-        }
+    pub fn step(id: PoolHandle, config: PoolConfig, state: PoolState<T, R>) -> Self {
+        PoolSM { id, config, state }
     }
 }
 
 // transitions from Initialization
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<(R, CommandHandle, InitializationState<T>)> for GettingCatchupTargetState<T, R, U>
+impl<T: Networker, R: RequestHandler<T>> From<(R, CommandHandle, InitializationState<T>)>
+    for GettingCatchupTargetState<T, R>
 {
     fn from(
         (request_handler, cmd_id, state): (R, CommandHandle, InitializationState<T>),
-    ) -> GettingCatchupTargetState<T, R, U> {
+    ) -> GettingCatchupTargetState<T, R> {
         trace!("PoolSM: from init to getting catchup target");
         //TODO: fill it up!
         GettingCatchupTargetState {
-            _pd: PhantomData::<U>,
             networker: state.networker,
             request_handler,
             cmd_id,
@@ -144,13 +128,12 @@ impl<T: Networker> From<InitializationState<T>> for TerminatedState<T> {
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<(InitializationState<T>, Nodes)> for ActiveState<T, R, U>
+impl<T: Networker, R: RequestHandler<T>> From<(InitializationState<T>, Nodes)>
+    for ActiveState<T, R>
 {
-    fn from((state, nodes): (InitializationState<T>, Nodes)) -> ActiveState<T, R, U> {
+    fn from((state, nodes): (InitializationState<T>, Nodes)) -> ActiveState<T, R> {
         trace!("PoolSM: from init to active");
         ActiveState {
-            _pd: PhantomData::<U>,
             networker: state.networker,
             request_handlers: HashMap::new(),
             nodes,
@@ -160,13 +143,12 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
 
 // transitions from GettingCatchupTarget
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<(R, GettingCatchupTargetState<T, R, U>)> for SyncCatchupState<T, R, U>
+impl<T: Networker, R: RequestHandler<T>> From<(R, GettingCatchupTargetState<T, R>)>
+    for SyncCatchupState<T, R>
 {
-    fn from((request_handler, state): (R, GettingCatchupTargetState<T, R, U>)) -> Self {
+    fn from((request_handler, state): (R, GettingCatchupTargetState<T, R>)) -> Self {
         trace!("PoolSM: from getting catchup target to sync catchup");
         SyncCatchupState {
-            _pd: PhantomData::<U>,
             networker: state.networker,
             request_handler,
             cmd_id: state.cmd_id,
@@ -175,12 +157,11 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<(GettingCatchupTargetState<T, R, U>, Nodes)> for ActiveState<T, R, U>
+impl<T: Networker, R: RequestHandler<T>> From<(GettingCatchupTargetState<T, R>, Nodes)>
+    for ActiveState<T, R>
 {
-    fn from((state, nodes): (GettingCatchupTargetState<T, R, U>, Nodes)) -> Self {
+    fn from((state, nodes): (GettingCatchupTargetState<T, R>, Nodes)) -> Self {
         ActiveState {
-            _pd: PhantomData::<U>,
             networker: state.networker,
             request_handlers: HashMap::new(),
             nodes,
@@ -188,10 +169,10 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<GettingCatchupTargetState<T, R, U>> for TerminatedState<T>
+impl<T: Networker, R: RequestHandler<T>> From<GettingCatchupTargetState<T, R>>
+    for TerminatedState<T>
 {
-    fn from(state: GettingCatchupTargetState<T, R, U>) -> Self {
+    fn from(state: GettingCatchupTargetState<T, R>) -> Self {
         trace!("PoolSM: from getting catchup target to terminated");
         TerminatedState {
             networker: state.networker,
@@ -199,10 +180,8 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<GettingCatchupTargetState<T, R, U>> for ClosedState
-{
-    fn from(mut state: GettingCatchupTargetState<T, R, U>) -> Self {
+impl<T: Networker, R: RequestHandler<T>> From<GettingCatchupTargetState<T, R>> for ClosedState {
+    fn from(mut state: GettingCatchupTargetState<T, R>) -> Self {
         trace!("PoolSM: from getting catchup target to closed");
         state
             .request_handler
@@ -213,14 +192,13 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
 
 // transitions from Active
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<(ActiveState<T, R, U>, R, CommandHandle)> for GettingCatchupTargetState<T, R, U>
+impl<T: Networker, R: RequestHandler<T>> From<(ActiveState<T, R>, R, CommandHandle)>
+    for GettingCatchupTargetState<T, R>
 {
-    fn from((state, request_handler, cmd_id): (ActiveState<T, R, U>, R, CommandHandle)) -> Self {
+    fn from((state, request_handler, cmd_id): (ActiveState<T, R>, R, CommandHandle)) -> Self {
         trace!("PoolSM: from active to getting catchup target");
         //TODO: close connections!
         GettingCatchupTargetState {
-            _pd: PhantomData::<U>,
             networker: state.networker,
             cmd_id,
             request_handler,
@@ -229,10 +207,8 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<ActiveState<T, R, U>>
-    for TerminatedState<T>
-{
-    fn from(state: ActiveState<T, R, U>) -> Self {
+impl<T: Networker, R: RequestHandler<T>> From<ActiveState<T, R>> for TerminatedState<T> {
+    fn from(state: ActiveState<T, R>) -> Self {
         trace!("PoolSM: from active to terminated");
         TerminatedState {
             networker: state.networker,
@@ -240,10 +216,8 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<ActiveSta
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<ActiveState<T, R, U>>
-    for ClosedState
-{
-    fn from(mut state: ActiveState<T, R, U>) -> Self {
+impl<T: Networker, R: RequestHandler<T>> From<ActiveState<T, R>> for ClosedState {
+    fn from(mut state: ActiveState<T, R>) -> Self {
         state
             .request_handlers
             .iter_mut()
@@ -258,13 +232,12 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<ActiveSta
 
 // transitions from SyncCatchup
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<(SyncCatchupState<T, R, U>, Nodes)> for ActiveState<T, R, U>
+impl<T: Networker, R: RequestHandler<T>> From<(SyncCatchupState<T, R>, Nodes)>
+    for ActiveState<T, R>
 {
-    fn from((state, nodes): (SyncCatchupState<T, R, U>, Nodes)) -> Self {
+    fn from((state, nodes): (SyncCatchupState<T, R>, Nodes)) -> Self {
         trace!("PoolSM: from sync catchup to active");
         ActiveState {
-            _pd: PhantomData::<U>,
             networker: state.networker,
             request_handlers: HashMap::new(),
             nodes,
@@ -272,10 +245,8 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<SyncCatchupState<T, R, U>>
-    for TerminatedState<T>
-{
-    fn from(state: SyncCatchupState<T, R, U>) -> Self {
+impl<T: Networker, R: RequestHandler<T>> From<SyncCatchupState<T, R>> for TerminatedState<T> {
+    fn from(state: SyncCatchupState<T, R>) -> Self {
         trace!("PoolSM: from sync catchup to terminated");
         TerminatedState {
             networker: state.networker,
@@ -283,10 +254,8 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<SyncCatch
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<SyncCatchupState<T, R, U>>
-    for ClosedState
-{
-    fn from(mut state: SyncCatchupState<T, R, U>) -> Self {
+impl<T: Networker, R: RequestHandler<T>> From<SyncCatchupState<T, R>> for ClosedState {
+    fn from(mut state: SyncCatchupState<T, R>) -> Self {
         trace!("PoolSM: from sync catchup to closed");
         state
             .request_handler
@@ -297,13 +266,12 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> From<SyncCatch
 
 // transitions from Terminated
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler>
-    From<(TerminatedState<T>, R, CommandHandle)> for GettingCatchupTargetState<T, R, U>
+impl<T: Networker, R: RequestHandler<T>> From<(TerminatedState<T>, R, CommandHandle)>
+    for GettingCatchupTargetState<T, R>
 {
     fn from((state, request_handler, cmd_id): (TerminatedState<T>, R, CommandHandle)) -> Self {
         trace!("PoolSM: from terminated to getting catchup target");
         GettingCatchupTargetState {
-            _pd: PhantomData::<U>,
             networker: state.networker,
             cmd_id,
             request_handler,
@@ -319,247 +287,147 @@ impl<T: Networker> From<TerminatedState<T>> for ClosedState {
     }
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> PoolSM<T, R, U> {
+impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
     pub fn handle_event(self, pe: PoolEvent) -> Self {
-        let PoolSM {
-            id,
-            config,
-            state,
-            updater,
-        } = self;
-        let state = match state {
-            PoolState::Initialization(init_state) => match pe {
-                PoolEvent::CheckCache(cmd_id) => {
-                    //TODO: check cache freshness
-                    let fresh = false;
-                    if fresh {
-                        //                        PoolWrapper::Active(pool.into())
-                        unimplemented!()
-                    } else {
-                        match _get_request_handler_with_ledger_status_sent(
-                            init_state.networker.clone(),
-                            &config,
-                            updater,
-                        ) {
-                            Ok(request_handler) => {
-                                (PoolState::GettingCatchupTarget(
-                                    (request_handler, cmd_id, init_state).into(),
-                                ))
-                            }
-                            Err(err) => {
-                                updater.send(PoolUpdateEvent::OpenAck(cmd_id, id, Err(err)));
-                                PoolState::Terminated(init_state.into())
+        let PoolSM { id, config, state } = self;
+        let state =
+            match state {
+                PoolState::Initialization(init_state) => match pe {
+                    PoolEvent::CheckCache(cmd_id) => {
+                        //TODO: check cache freshness
+                        let fresh = false;
+                        if fresh {
+                            //  PoolWrapper::Active(pool.into())
+                            unimplemented!()
+                        } else {
+                            match _get_request_handler_with_ledger_status_sent(
+                                init_state.networker.clone(),
+                                &config,
+                            ) {
+                                Ok(request_handler) => {
+                                    (PoolState::GettingCatchupTarget(
+                                        (request_handler, cmd_id, init_state).into(),
+                                    ))
+                                }
+                                Err(err) => {
+                                    // FIXME updater.send(UpdateEvent::OpenAck(cmd_id, id, Err(err)));
+                                    PoolState::Terminated(init_state.into())
+                                }
                             }
                         }
                     }
-                }
-                PoolEvent::Close(cmd_id) => {
-                    updater.send(PoolUpdateEvent::CloseAck(cmd_id, Ok(())));
-                    PoolState::Closed(init_state.into())
-                }
-                _ => PoolState::Initialization(init_state),
-            },
-            PoolState::GettingCatchupTarget(mut catchup_state) => {
-                let pe = catchup_state
-                    .request_handler
-                    .process_event(RequestEvent::from_pool_event(pe, config.protocol_version))
-                    .unwrap_or(pe);
-                match pe {
                     PoolEvent::Close(cmd_id) => {
-                        updater.send(PoolUpdateEvent::CloseAck(cmd_id, Ok(())));
-                        PoolState::Closed(catchup_state.into())
+                        // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                        PoolState::Closed(init_state.into())
                     }
-                    PoolEvent::CatchupTargetNotFound(err) => {
-                        updater.send(_open_refresh_ack(
-                            catchup_state.cmd_id,
-                            id,
-                            catchup_state.refresh,
-                            Err(err),
-                        ));
-                        PoolState::Terminated(catchup_state.into())
-                    }
-                    PoolEvent::CatchupRestart(merkle_tree) => {
-                        if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
-                            catchup_state
-                                .networker
-                                .borrow_mut()
-                                .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
-                            catchup_state.request_handler = R::new(
-                                catchup_state.networker.clone(),
-                                _get_f(nodes.len()),
-                                &[],
-                                &nodes,
-                                &config,
-                                updater,
-                            );
-                            let ls = _ledger_status(&merkle_tree, config.protocol_version);
-                            catchup_state.request_handler.process_event(Some(
-                                RequestEvent::LedgerStatus(ls, None, Some(merkle_tree)),
-                            ));
-                            PoolState::GettingCatchupTarget(catchup_state)
-                        } else {
-                            PoolState::Terminated(catchup_state.into())
-                        }
-                    }
-                    PoolEvent::CatchupTargetFound(target_mt_root, target_mt_size, merkle_tree) => {
-                        if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
-                            catchup_state
-                                .networker
-                                .borrow_mut()
-                                .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
-                            let mut request_handler = R::new(
-                                catchup_state.networker.clone(),
-                                _get_f(nodes.len()),
-                                &[],
-                                &nodes,
-                                &config,
-                                updater,
-                            );
-                            request_handler.process_event(Some(RequestEvent::CatchupReq(
-                                merkle_tree,
-                                target_mt_size,
-                                target_mt_root,
-                            )));
-                            PoolState::SyncCatchup((request_handler, catchup_state).into())
-                        } else {
-                            PoolState::Terminated(catchup_state.into())
-                        }
-                    }
-                    PoolEvent::Synced(merkle_tree) => {
-                        if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
-                            catchup_state
-                                .networker
-                                .borrow_mut()
-                                .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
-                            updater.send(_open_refresh_ack(
+                    _ => PoolState::Initialization(init_state),
+                },
+                PoolState::GettingCatchupTarget(mut catchup_state) => {
+                    let ue = catchup_state
+                        .request_handler
+                        .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
+                    match ue {
+                        Some(UpdateEvent::CatchupTargetNotFound(err)) => {
+                            /* FIXME updater.send(_open_refresh_ack(
                                 catchup_state.cmd_id,
                                 id,
                                 catchup_state.refresh,
-                                Ok(()),
-                            ));
-                            PoolState::Active((catchup_state, nodes).into())
-                        } else {
+                                Err(err),
+                            ));*/
                             PoolState::Terminated(catchup_state.into())
                         }
+                        Some(UpdateEvent::CatchupRestart(merkle_tree)) => {
+                            if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
+                                catchup_state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::NodesStateUpdated(remotes),
+                                ));
+                                catchup_state.request_handler = R::new(
+                                    catchup_state.networker.clone(),
+                                    _get_f(nodes.len()),
+                                    &[],
+                                    &nodes,
+                                    &config,
+                                );
+                                let ls = _ledger_status(&merkle_tree, config.protocol_version);
+                                catchup_state.request_handler.process_event(Some(
+                                    RequestEvent::LedgerStatus(ls, None, Some(merkle_tree)),
+                                ));
+                                PoolState::GettingCatchupTarget(catchup_state)
+                            } else {
+                                PoolState::Terminated(catchup_state.into())
+                            }
+                        }
+                        Some(UpdateEvent::CatchupTargetFound(
+                            target_mt_root,
+                            target_mt_size,
+                            merkle_tree,
+                        )) => {
+                            if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
+                                catchup_state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::NodesStateUpdated(remotes),
+                                ));
+                                let mut request_handler = R::new(
+                                    catchup_state.networker.clone(),
+                                    _get_f(nodes.len()),
+                                    &[],
+                                    &nodes,
+                                    &config,
+                                );
+                                request_handler.process_event(Some(RequestEvent::CatchupReq(
+                                    merkle_tree,
+                                    target_mt_size,
+                                    target_mt_root,
+                                )));
+                                PoolState::SyncCatchup((request_handler, catchup_state).into())
+                            } else {
+                                PoolState::Terminated(catchup_state.into())
+                            }
+                        }
+                        Some(UpdateEvent::Synced(merkle_tree)) => {
+                            if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
+                                catchup_state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::NodesStateUpdated(remotes),
+                                ));
+                                /* FIXME updater.send(_open_refresh_ack(
+                                    catchup_state.cmd_id,
+                                    id,
+                                    catchup_state.refresh,
+                                    Ok(()),
+                                ));*/
+                                PoolState::Active((catchup_state, nodes).into())
+                            } else {
+                                PoolState::Terminated(catchup_state.into())
+                            }
+                        }
+                        _ => match pe {
+                            PoolEvent::Close(cmd_id) => {
+                                // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                                PoolState::Closed(catchup_state.into())
+                            }
+                            _ => PoolState::GettingCatchupTarget(catchup_state),
+                        },
                     }
-                    _ => PoolState::GettingCatchupTarget(catchup_state),
                 }
-            }
-            PoolState::Terminated(term_state) => match pe {
-                PoolEvent::Close(cmd_id) => {
-                    updater.send(PoolUpdateEvent::CloseAck(cmd_id, Ok(())));
-                    PoolState::Closed(term_state.into())
-                }
-                PoolEvent::Refresh(cmd_id) => {
-                    if let Ok(request_handler) = _get_request_handler_with_ledger_status_sent(
-                        term_state.networker.clone(),
-                        &config,
-                        updater,
-                    ) {
-                        PoolState::GettingCatchupTarget(
-                            (term_state, request_handler, cmd_id).into(),
-                        )
-                    } else {
-                        PoolState::Terminated(term_state)
-                    }
-                }
-                PoolEvent::Timeout(req_id, node_alias) => {
-                    if "".eq(&req_id) {
-                        term_state
-                            .networker
-                            .borrow_mut()
-                            .process_event(Some(NetworkerEvent::Timeout));
-                    } else {
-                        warn!(
-                            "Unexpected timeout: req_id {}, node_alias {}",
-                            req_id, node_alias
-                        )
-                    }
-                    PoolState::Terminated(term_state)
-                }
-                _ => PoolState::Terminated(term_state),
-            },
-            PoolState::Closed(close_state) => PoolState::Closed(close_state),
-            PoolState::Active(mut active_state) => {
-                match pe {
-                    PoolEvent::PoolOutdated => PoolState::Terminated(active_state.into()),
+                PoolState::Terminated(term_state) => match pe {
                     PoolEvent::Close(cmd_id) => {
-                        updater.send(PoolUpdateEvent::CloseAck(cmd_id, Ok(())));
-                        PoolState::Closed(active_state.into())
+                        // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                        PoolState::Closed(term_state.into())
                     }
                     PoolEvent::Refresh(cmd_id) => {
                         if let Ok(request_handler) = _get_request_handler_with_ledger_status_sent(
-                            active_state.networker.clone(),
+                            term_state.networker.clone(),
                             &config,
-                            updater,
                         ) {
                             PoolState::GettingCatchupTarget(
-                                (active_state, request_handler, cmd_id).into(),
+                                (term_state, request_handler, cmd_id).into(),
                             )
                         } else {
-                            PoolState::Terminated(active_state.into())
+                            PoolState::Terminated(term_state)
                         }
                     }
-                    PoolEvent::SendRequest(cmd_id, _, _, _) => {
-                        trace!("received request to send");
-                        let re: Option<RequestEvent> =
-                            RequestEvent::from_pool_event(pe, config.protocol_version);
-                        match re.as_ref().map(|r| r.get_req_id()) {
-                            Some(req_id) => {
-                                let mut request_handler = R::new(
-                                    active_state.networker.clone(),
-                                    _get_f(active_state.nodes.len()),
-                                    &[cmd_id],
-                                    &active_state.nodes,
-                                    &config,
-                                    updater,
-                                );
-                                request_handler.process_event(re);
-                                active_state
-                                    .request_handlers
-                                    .insert(req_id.to_string(), request_handler);
-                                //FIXME check already exists
-                            }
-                            None => {
-                                let res = Err(err_msg(
-                                    LedgerErrorKind::InvalidStructure,
-                                    "Request id not found",
-                                ));
-                                updater.send(PoolUpdateEvent::SubmitAck(cmd_id, res));
-                            }
-                        };
-                        PoolState::Active(active_state)
-                    }
-                    PoolEvent::NodeReply(reply, node) => {
-                        trace!("received reply from node {:?}: {:?}", node, reply);
-                        let re: Option<RequestEvent> =
-                            RequestEvent::from_pool_event(pe, config.protocol_version);
-                        match re.as_ref().map(|r| r.get_req_id()) {
-                            Some(req_id) => {
-                                let remove = if let Some(rh) =
-                                    active_state.request_handlers.get_mut(&req_id)
-                                {
-                                    rh.process_event(re);
-                                    rh.is_terminal()
-                                } else {
-                                    false
-                                };
-                                if remove {
-                                    active_state.request_handlers.remove(&req_id);
-                                }
-                            }
-                            None => warn!("Request id not found in Reply: {:?}", reply),
-                        };
-                        PoolState::Active(active_state)
-                    }
                     PoolEvent::Timeout(req_id, node_alias) => {
-                        if let Some(rh) = active_state.request_handlers.get_mut(&req_id) {
-                            rh.process_event(RequestEvent::from_pool_event(
-                                pe,
-                                config.protocol_version,
-                            ));
-                        } else if "".eq(&req_id) {
-                            active_state
+                        if "".eq(&req_id) {
+                            term_state
                                 .networker
                                 .borrow_mut()
                                 .process_event(Some(NetworkerEvent::Timeout));
@@ -569,46 +437,142 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> PoolSM<T, R, U
                                 req_id, node_alias
                             )
                         }
-                        PoolState::Active(active_state)
+                        PoolState::Terminated(term_state)
                     }
-                    _ => PoolState::Active(active_state),
+                    _ => PoolState::Terminated(term_state),
+                },
+                PoolState::Closed(close_state) => PoolState::Closed(close_state),
+                PoolState::Active(mut active_state) => {
+                    match pe {
+                        PoolEvent::PoolOutdated => PoolState::Terminated(active_state.into()),
+                        PoolEvent::Close(cmd_id) => {
+                            // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                            PoolState::Closed(active_state.into())
+                        }
+                        PoolEvent::Refresh(cmd_id) => {
+                            if let Ok(request_handler) =
+                                _get_request_handler_with_ledger_status_sent(
+                                    active_state.networker.clone(),
+                                    &config,
+                                )
+                            {
+                                PoolState::GettingCatchupTarget(
+                                    (active_state, request_handler, cmd_id).into(),
+                                )
+                            } else {
+                                PoolState::Terminated(active_state.into())
+                            }
+                        }
+                        PoolEvent::SendRequest(cmd_id, _, _, _) => {
+                            trace!("received request to send");
+                            let re: Option<RequestEvent> =
+                                RequestEvent::from_pool_event(pe, config.protocol_version);
+                            match re.as_ref().map(|r| r.get_req_id()) {
+                                Some(req_id) => {
+                                    let mut request_handler = R::new(
+                                        active_state.networker.clone(),
+                                        _get_f(active_state.nodes.len()),
+                                        &[cmd_id],
+                                        &active_state.nodes,
+                                        &config,
+                                    );
+                                    request_handler.process_event(re);
+                                    active_state
+                                        .request_handlers
+                                        .insert(req_id.to_string(), request_handler);
+                                    // FIXME check already exists
+                                }
+                                None => {
+                                    let res = Err(err_msg(
+                                        LedgerErrorKind::InvalidStructure,
+                                        "Request id not found",
+                                    ));
+                                    // FIXME updater.send(UpdateEvent::SubmitAck(cmd_id, res));
+                                }
+                            };
+                            PoolState::Active(active_state)
+                        }
+                        PoolEvent::NodeReply(reply, node) => {
+                            trace!("received reply from node {:?}: {:?}", node, reply);
+                            let re: Option<RequestEvent> =
+                                RequestEvent::from_pool_event(pe, config.protocol_version);
+                            match re.as_ref().map(|r| r.get_req_id()) {
+                                Some(req_id) => {
+                                    let remove = if let Some(rh) =
+                                        active_state.request_handlers.get_mut(&req_id)
+                                    {
+                                        rh.process_event(re);
+                                        rh.is_terminal()
+                                    } else {
+                                        false
+                                    };
+                                    if remove {
+                                        active_state.request_handlers.remove(&req_id);
+                                    }
+                                }
+                                None => warn!("Request id not found in Reply: {:?}", reply),
+                            };
+                            PoolState::Active(active_state)
+                        }
+                        PoolEvent::Timeout(req_id, node_alias) => {
+                            if let Some(rh) = active_state.request_handlers.get_mut(&req_id) {
+                                rh.process_event(RequestEvent::from_pool_event(
+                                    pe,
+                                    config.protocol_version,
+                                ));
+                            } else if "".eq(&req_id) {
+                                active_state
+                                    .networker
+                                    .borrow_mut()
+                                    .process_event(Some(NetworkerEvent::Timeout));
+                            } else {
+                                warn!(
+                                    "Unexpected timeout: req_id {}, node_alias {}",
+                                    req_id, node_alias
+                                )
+                            }
+                            PoolState::Active(active_state)
+                        }
+                        _ => PoolState::Active(active_state),
+                    }
                 }
-            }
-            PoolState::SyncCatchup(mut syncc_state) => {
-                let pe = syncc_state
-                    .request_handler
-                    .process_event(RequestEvent::from_pool_event(pe, config.protocol_version))
-                    .unwrap_or(pe);
-                match pe {
-                    PoolEvent::Close(cmd_id) => {
-                        updater.send(PoolUpdateEvent::CloseAck(cmd_id, Ok(())));
-                        PoolState::Closed(syncc_state.into())
-                    }
-                    PoolEvent::NodesBlacklisted => PoolState::Terminated(syncc_state.into()),
-                    PoolEvent::Synced(merkle) => {
-                        if let Ok((nodes, remotes)) =
-                            _get_nodes_and_remotes(&merkle).map_err(map_err_err!())
-                        {
-                            syncc_state
-                                .networker
-                                .borrow_mut()
-                                .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
-                            updater.send(_open_refresh_ack(
-                                syncc_state.cmd_id,
-                                id,
-                                syncc_state.refresh,
-                                Ok(()),
-                            ));
-                            PoolState::Active((syncc_state, nodes).into())
-                        } else {
+                PoolState::SyncCatchup(mut syncc_state) => {
+                    let ue = syncc_state
+                        .request_handler
+                        .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
+                    match ue {
+                        Some(UpdateEvent::NodesBlacklisted) => {
                             PoolState::Terminated(syncc_state.into())
                         }
+                        Some(UpdateEvent::Synced(merkle)) => {
+                            if let Ok((nodes, remotes)) =
+                                _get_nodes_and_remotes(&merkle).map_err(map_err_err!())
+                            {
+                                syncc_state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::NodesStateUpdated(remotes),
+                                ));
+                                /* FIXME updater.send(_open_refresh_ack(
+                                    syncc_state.cmd_id,
+                                    id,
+                                    syncc_state.refresh,
+                                    Ok(()),
+                                ));*/
+                                PoolState::Active((syncc_state, nodes).into())
+                            } else {
+                                PoolState::Terminated(syncc_state.into())
+                            }
+                        }
+                        _ => match pe {
+                            PoolEvent::Close(cmd_id) => {
+                                // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                                PoolState::Closed(syncc_state.into())
+                            }
+                            _ => PoolState::SyncCatchup(syncc_state),
+                        },
                     }
-                    _ => PoolState::SyncCatchup(syncc_state),
                 }
-            }
-        };
-        PoolSM::step(id, config, state, updater)
+            };
+        PoolSM::step(id, config, state)
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -623,8 +587,8 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> PoolSM<T, R, U
     }
 }
 
-impl PoolUpdateHandler for Sender<PoolUpdateEvent> {
-    fn send(&self, update: PoolUpdateEvent) -> LedgerResult<()> {
+impl UpdateHandler for Sender<UpdateEvent> {
+    fn send(&self, update: UpdateEvent) -> LedgerResult<()> {
         self.send(update).to_result(
             LedgerErrorKind::IOError,
             "Error returning pool update event",
@@ -632,29 +596,32 @@ impl PoolUpdateHandler for Sender<PoolUpdateEvent> {
     }
 }
 
-pub struct Pool<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
-    _pd: PhantomData<(T, R, U)>,
+pub struct Pool<T: Networker, R: RequestHandler<T>> {
+    _pd: PhantomData<(T, R)>,
     worker: Option<JoinHandle<()>>,
     id: PoolHandle,
     config: PoolConfig,
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> Pool<T, R, U> {
+impl<T: Networker, R: RequestHandler<T>> Pool<T, R>
+where
+    T: Sync,
+    R: Sync,
+{
     pub fn new(id: PoolHandle, config: &PoolConfig) -> Self {
         trace!("Pool::new id {:?}, config {:?}", id, config);
         Pool {
-            _pd: PhantomData::<(T, R, U)>,
+            _pd: PhantomData::<(T, R)>,
             worker: None,
             id,
             config: config.clone(),
         }
     }
 
-    pub fn work(&self, cmd_socket: zmq::Socket, updater: U) {
-        // let (sender, upd_rx) = channel::<PoolUpdateEvent>();
+    pub fn work(&self, cmd_socket: zmq::Socket) {
+        let config = &self.config;
         self.worker = Some(thread::spawn(move || {
-            let mut pool_thread: PoolThread<T, R, U> =
-                PoolThread::new(self.id, &self.config, cmd_socket, updater);
+            let mut pool_thread: PoolThread<T, R> = PoolThread::new(self.id, config, cmd_socket);
             pool_thread.work();
         }));
     }
@@ -664,27 +631,22 @@ impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> Pool<T, R, U> 
     }
 }
 
-struct PoolThread<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> {
-    pool_sm: Option<PoolSM<T, R, U>>,
+struct PoolThread<T: Networker, R: RequestHandler<T>> {
+    pool_sm: Option<PoolSM<T, R>>,
     events: VecDeque<PoolEvent>,
     commander: Commander,
     networker: Rc<RefCell<T>>,
 }
 
-impl<T: Networker, R: RequestHandler<T, U>, U: PoolUpdateHandler> PoolThread<T, R, U> {
-    pub fn new(
-        id: PoolHandle,
-        ref config: &PoolConfig,
-        cmd_socket: zmq::Socket,
-        updater: U,
-    ) -> Self {
+impl<T: Networker, R: RequestHandler<T>> PoolThread<T, R> {
+    pub fn new(id: PoolHandle, config: &PoolConfig, cmd_socket: zmq::Socket) -> Self {
         let networker = Rc::new(RefCell::new(T::new(
             config.conn_active_timeout,
             config.conn_limit,
             config.preordered_nodes.clone(),
         )));
         PoolThread {
-            pool_sm: Some(PoolSM::new(id, &config, networker.clone(), updater)),
+            pool_sm: Some(PoolSM::new(id, config, networker.clone())),
             events: VecDeque::new(),
             commander: Commander::new(cmd_socket),
             networker,
@@ -760,14 +722,9 @@ fn _get_f(cnt: usize) -> usize {
     (cnt - 1) / 3
 }
 
-fn _get_request_handler_with_ledger_status_sent<
-    T: Networker,
-    R: RequestHandler<T, U>,
-    U: PoolUpdateHandler,
->(
+fn _get_request_handler_with_ledger_status_sent<T: Networker, R: RequestHandler<T>>(
     networker: Rc<RefCell<T>>,
     config: &PoolConfig,
-    updater: U,
 ) -> LedgerResult<R> {
     let mut merkle = merkle_tree_factory::create(pool_name)?;
 
@@ -786,14 +743,8 @@ fn _get_request_handler_with_ledger_status_sent<
     networker
         .borrow_mut()
         .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
-    let mut request_handler = R::new(
-        networker.clone(),
-        _get_f(nodes.len()),
-        &[],
-        &nodes,
-        &config,
-        updater,
-    );
+    let mut request_handler = R::new(networker.clone(), _get_f(nodes.len()), &[], &nodes, &config);
+    // FIXME - let RequestEvent produce the ledger status event in response to a PoolEvent?
     let ls = _ledger_status(&merkle, config.protocol_version);
     request_handler.process_event(Some(RequestEvent::LedgerStatus(ls, None, Some(merkle))));
     Ok(request_handler)
@@ -912,16 +863,15 @@ fn _open_refresh_ack(
     id: PoolHandle,
     is_refresh: bool,
     res: LedgerResult<()>,
-) -> PoolUpdateEvent {
+) -> UpdateEvent {
     trace!("PoolSM: from getting catchup target to active");
     if is_refresh {
-        PoolUpdateEvent::RefreshAck(cmd_id, res)
+        UpdateEvent::RefreshAck(cmd_id, res)
     } else {
-        PoolUpdateEvent::OpenAck(cmd_id, id, res)
+        UpdateEvent::OpenAck(cmd_id, id, res)
     }
 }
 
-/*
 pub struct ZMQPool {
     pub(super) pool: Pool<ZMQNetworker, RequestHandlerImpl<ZMQNetworker>>,
     pub(super) cmd_socket: zmq::Socket,
@@ -955,11 +905,11 @@ impl Drop for ZMQPool {
         info!("Drop finished");
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
     use crate::domain::pool::{DEFAULT_PROTOCOL_VERSION, NUMBER_READ_NODES};
+    // use crate::services::pool::events::MockUpdateHandler;
     use crate::services::pool::networker::MockNetworker;
     use crate::services::pool::request_handler::tests::MockRequestHandler;
     use crate::services::pool::types::{
@@ -981,23 +931,6 @@ mod tests {
         protocol_version: DEFAULT_PROTOCOL_VERSION,
         preordered_nodes: vec![],
     };
-
-    pub struct MockUpdateHandler {
-        pub events: Vec<PoolUpdateEvent>,
-    }
-
-    impl MockUpdateHandler {
-        fn new() -> MockUpdateHandler {
-            MockUpdateHandler { events: vec![] }
-        }
-    }
-
-    impl PoolUpdateHandler for MockUpdateHandler {
-        fn send(&self, update: PoolUpdateEvent) -> LedgerResult<()> {
-            self.events.push(update);
-            Ok(())
-        }
-    }
 
     mod pool {
         use super::*;
@@ -1026,11 +959,10 @@ mod tests {
 
         #[test]
         pub fn pool_wrapper_new_initialization_works() {
-            let _p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let _p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
         }
 
@@ -1040,11 +972,10 @@ mod tests {
 
             _write_genesis_txns("pool_wrapper_check_cache_works");
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1055,11 +986,10 @@ mod tests {
 
         #[test]
         pub fn pool_wrapper_check_cache_works_for_no_pool_created() {
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1068,11 +998,10 @@ mod tests {
 
         #[test]
         pub fn pool_wrapper_terminated_close_works() {
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1084,11 +1013,10 @@ mod tests {
         #[test]
         pub fn pool_wrapper_terminated_refresh_works() {
             test::cleanup_pool("pool_wrapper_terminated_refresh_works");
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1103,13 +1031,12 @@ mod tests {
 
         #[test]
         pub fn pool_wrapper_terminated_timeout_works() {
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM {
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM {
                 id: next_pool_handle(),
                 config: TEST_POOL_CONFIG,
                 state: PoolState::Terminated(TerminatedState {
                     networker: Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
                 }),
-                updater: MockUpdateHandler::new(),
             };
 
             let p = p.handle_event(PoolEvent::Timeout("".to_string(), "".to_string()));
@@ -1126,11 +1053,10 @@ mod tests {
 
         #[test]
         pub fn pool_wrapper_close_works_from_initialization() {
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::Close(cmd_id));
@@ -1143,11 +1069,10 @@ mod tests {
 
             _write_genesis_txns("pool_wrapper_close_works_from_getting_catchup_target");
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1164,11 +1089,10 @@ mod tests {
 
             _write_genesis_txns("pool_wrapper_catchup_target_not_found_works");
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1187,11 +1111,10 @@ mod tests {
 
             _write_genesis_txns("pool_wrapper_getting_catchup_target_synced_works");
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1218,7 +1141,6 @@ mod tests {
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1248,11 +1170,10 @@ mod tests {
             )
             .unwrap();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1282,7 +1203,6 @@ mod tests {
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1306,11 +1226,10 @@ mod tests {
 
             let mt = merkle_tree_factory::create("pool_wrapper_sync_catchup_close_works").unwrap();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1334,11 +1253,10 @@ mod tests {
 
             let mt = merkle_tree_factory::create("pool_wrapper_sync_catchup_synced_works").unwrap();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1373,7 +1291,6 @@ mod tests {
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1409,11 +1326,10 @@ mod tests {
             })
             .to_string();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1445,11 +1361,10 @@ mod tests {
             })
             .to_string();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1491,11 +1406,10 @@ mod tests {
 
             let rep = serde_json::to_string(&rep).unwrap();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1528,11 +1442,10 @@ mod tests {
             })
             .to_string();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1574,11 +1487,10 @@ mod tests {
 
             let rep = serde_json::to_string(&rep).unwrap();
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
@@ -1614,11 +1526,10 @@ mod tests {
 
             let rep = r#"{}"#;
 
-            let p: PoolSM<MockNetworker, MockRequestHandler, MockUpdateHandler> = PoolSM::new(
+            let p: PoolSM<MockNetworker, MockRequestHandler> = PoolSM::new(
                 next_pool_handle(),
                 &TEST_POOL_CONFIG,
                 Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![]))),
-                MockUpdateHandler::new(),
             );
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));

@@ -12,17 +12,12 @@ use serde_json;
 use serde_json::Value as SJsonValue;
 use ursa::bls::Generator;
 
-// use crate::commands::ledger::LedgerCommand;
-// use crate::commands::Command;
-// use crate::commands::CommandExecutor;
 use crate::services::pool::catchup::{
     build_catchup_req, check_cons_proofs, check_nodes_responses_on_status, CatchupProgress,
 };
-use crate::services::pool::events::NetworkerEvent;
-use crate::services::pool::events::RequestEvent;
-use crate::services::pool::events::{PoolEvent, PoolUpdateEvent, PoolUpdateHandler};
+use crate::services::pool::events::{NetworkerEvent, RequestEvent, UpdateEvent};
 use crate::services::pool::get_last_signed_time;
-use crate::services::pool::merkle_tree_factory;
+//use crate::services::pool::merkle_tree_factory;
 use crate::services::pool::networker::Networker;
 use crate::services::pool::state_proof;
 use crate::services::pool::types::CatchupRep;
@@ -31,14 +26,13 @@ use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-struct RequestSM<T: Networker, U: PoolUpdateHandler> {
+struct RequestSM<T: Networker> {
     f: usize,
     cmd_ids: Vec<CommandHandle>,
     nodes: Nodes,
     generator: Generator,
     config: PoolConfig,
     state: RequestState<T>,
-    updater: U,
 }
 
 /// Transitions of request state
@@ -61,14 +55,13 @@ enum RequestState<T: Networker> {
 
 pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
 
-impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
+impl<T: Networker> RequestSM<T> {
     pub fn new(
         networker: Rc<RefCell<T>>,
         f: usize,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
         config: &PoolConfig,
-        updater: U,
     ) -> Self {
         let generator: Generator =
             Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
@@ -79,7 +72,6 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
             generator,
             config: config.clone(),
             state: RequestState::Start(StartState { networker }),
-            updater,
         }
     }
 
@@ -90,7 +82,6 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
         generator: Generator,
         config: PoolConfig,
         state: RequestState<T>,
-        updater: U,
     ) -> Self {
         RequestSM {
             f,
@@ -99,7 +90,6 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
             generator,
             config,
             state,
-            updater,
         }
     }
 }
@@ -252,8 +242,8 @@ impl Hash for NodeResponse {
     }
 }
 
-impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
-    fn handle_event(self, re: RequestEvent) -> (Self, Option<PoolEvent>) {
+impl<T: Networker> RequestSM<T> {
+    fn handle_event(self, re: RequestEvent) -> (Self, Option<UpdateEvent>) {
         let RequestSM {
             state,
             f,
@@ -261,9 +251,8 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
             nodes,
             generator,
             config,
-            updater,
         } = self;
-        let (state, event) = match state {
+        let (state, update) = match state {
             RequestState::Start(state) => {
                 match re {
                     RequestEvent::LedgerStatus(ls, _, Some(merkle)) => {
@@ -299,12 +288,9 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                             }
                             Ok(None) => {
                                 warn!("No transactions to catch up!");
-                                (RequestState::finish(), Some(PoolEvent::Synced(merkle)))
+                                (RequestState::finish(), Some(UpdateEvent::Synced(merkle)))
                             }
-                            Err(e) => {
-                                _send_replies(updater, &cmd_ids, Err(e));
-                                (RequestState::finish(), None)
-                            }
+                            Err(e) => (RequestState::finish(), Some(_ack_submit(&cmd_ids, Err(e)))),
                         }
                     }
                     RequestEvent::CustomSingleRequest(msg, req_id, sp_key, timestamps) => {
@@ -353,23 +339,22 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                                             None,
                                         )
                                     } else {
-                                        _send_replies(updater, &cmd_ids, Err(err_msg(LedgerErrorKind::InvalidStructure,
-                                                                            format!("There is no known node in list to send {:?}, known nodes are {:?}",
-                                                                                    nodes_to_send, nodes.keys()))));
-                                        (RequestState::finish(), None)
+                                        (RequestState::finish(),
+                                        Some(_ack_submit(&cmd_ids, Err(err_msg(LedgerErrorKind::InvalidStructure,
+                                            format!("There is no known node in list to send {:?}, known nodes are {:?}",
+                                                    nodes_to_send, nodes.keys()))))))
                                     }
                                 }
-                                Err(err) => {
-                                    _send_replies(
-                                        updater,
+                                Err(err) => (
+                                    RequestState::finish(),
+                                    Some(_ack_submit(
                                         &cmd_ids,
                                         Err(err.to_result(
                                             LedgerErrorKind::InvalidStructure,
                                             "Invalid list of nodes to send",
                                         )),
-                                    );
-                                    (RequestState::finish(), None)
-                                }
+                                    )),
+                                ),
                             }
                         } else {
                             state.networker.borrow_mut().process_event(Some(
@@ -407,43 +392,44 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                             };
 
                             if cnt > f {
-                                _send_ok_replies(updater, &cmd_ids, &raw_msg);
                                 state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::CleanTimeout(req_id, None),
                                 ));
-                                (RequestState::finish(), None)
+                                (RequestState::finish(), Some(_ok_submit(&cmd_ids, &raw_msg)))
                             } else if state.is_consensus_reachable(f, nodes.len()) {
                                 state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::CleanTimeout(req_id, Some(node_alias)),
                                 ));
                                 (RequestState::Consensus(state), None)
                             } else {
-                                //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-                                _send_replies(
-                                    updater,
-                                    &cmd_ids,
-                                    Err(err_msg(
-                                        LedgerErrorKind::PoolTimeout,
-                                        "Consensus is impossible",
-                                    )),
-                                );
                                 state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::CleanTimeout(req_id, None),
                                 ));
-                                (RequestState::finish(), None)
+                                (
+                                    RequestState::finish(),
+                                    //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
+                                    Some(_ack_submit(
+                                        &cmd_ids,
+                                        Err(err_msg(
+                                            LedgerErrorKind::PoolTimeout,
+                                            "Consensus is impossible",
+                                        )),
+                                    )),
+                                )
                             }
                         } else {
                             state.denied_nodes.insert(node_alias.clone());
                             if state.denied_nodes.len() + state.replies.len() == nodes.len() {
-                                _send_replies(
-                                    updater,
-                                    &cmd_ids,
-                                    Err(err_msg(
-                                        LedgerErrorKind::PoolTimeout,
-                                        "Consensus is impossible",
+                                (
+                                    RequestState::finish(),
+                                    Some(_ack_submit(
+                                        &cmd_ids,
+                                        Err(err_msg(
+                                            LedgerErrorKind::PoolTimeout,
+                                            "Consensus is impossible",
+                                        )),
                                     )),
-                                );
-                                (RequestState::finish(), None)
+                                )
                             } else {
                                 (RequestState::Consensus(state), None)
                             }
@@ -467,25 +453,25 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                             ));
                             (RequestState::Consensus(state), None)
                         } else {
-                            //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-                            _send_replies(
-                                updater,
-                                &cmd_ids,
-                                Err(err_msg(
-                                    LedgerErrorKind::PoolTimeout,
-                                    "Consensus is impossible",
-                                )),
-                            );
                             state
                                 .networker
                                 .borrow_mut()
                                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
-                            (RequestState::finish(), None)
+                            (
+                                RequestState::finish(),
+                                //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
+                                Some(_ack_submit(
+                                    &cmd_ids,
+                                    Err(err_msg(
+                                        LedgerErrorKind::PoolTimeout,
+                                        "Consensus is impossible",
+                                    )),
+                                )),
+                            )
                         }
                     }
                     RequestEvent::Terminate => {
-                        _finish_request(updater, &cmd_ids);
-                        (RequestState::finish(), None)
+                        (RequestState::finish(), Some(_finish_request(&cmd_ids)))
                     }
                     _ => (RequestState::Consensus(state), None),
                 }
@@ -539,43 +525,30 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                                 .networker
                                 .borrow_mut()
                                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
-                            _send_ok_replies(
-                                updater,
-                                &cmd_ids,
-                                if cnt > f { &soonest } else { &raw_msg },
-                            );
-                            (RequestState::finish(), None)
-                        } else {
                             (
-                                _report_failed(
-                                    updater,
+                                RequestState::finish(),
+                                Some(_ok_submit(
                                     &cmd_ids,
-                                    state.try_to_continue(
-                                        req_id,
-                                        node_alias,
-                                        &cmd_ids,
-                                        nodes.len(),
-                                        config.timeout,
-                                    ),
-                                ),
-                                None,
+                                    if cnt > f { &soonest } else { &raw_msg },
+                                )),
+                            )
+                        } else {
+                            state.try_to_continue(
+                                req_id,
+                                node_alias,
+                                &cmd_ids,
+                                nodes.len(),
+                                config.timeout,
                             )
                         }
                     } else {
                         state.denied_nodes.insert(node_alias.clone());
-                        (
-                            _report_failed(
-                                updater,
-                                &cmd_ids,
-                                state.try_to_continue(
-                                    req_id,
-                                    node_alias,
-                                    &cmd_ids,
-                                    nodes.len(),
-                                    config.timeout,
-                                ),
-                            ),
-                            None,
+                        state.try_to_continue(
+                            req_id,
+                            node_alias,
+                            &cmd_ids,
+                            nodes.len(),
+                            config.timeout,
                         )
                     }
                 }
@@ -587,24 +560,10 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                 }
                 RequestEvent::Timeout(req_id, node_alias) => {
                     state.timeout_nodes.insert(node_alias.clone());
-                    (
-                        _report_failed(
-                            updater,
-                            &cmd_ids,
-                            state.try_to_continue(
-                                req_id,
-                                node_alias,
-                                &cmd_ids,
-                                nodes.len(),
-                                config.timeout,
-                            ),
-                        ),
-                        None,
-                    )
+                    state.try_to_continue(req_id, node_alias, &cmd_ids, nodes.len(), config.timeout)
                 }
                 RequestEvent::Terminate => {
-                    _finish_request(updater, &cmd_ids);
-                    (RequestState::finish(), None)
+                    (RequestState::finish(), Some(_finish_request(&cmd_ids)))
                 }
                 _ => (RequestState::Single(state), None),
             },
@@ -647,8 +606,7 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                 }
 
                 RequestEvent::Terminate => {
-                    _finish_request(updater, &cmd_ids);
-                    (RequestState::finish(), None)
+                    (RequestState::finish(), Some(_finish_request(&cmd_ids)))
                 }
                 _ => (RequestState::CatchupConsensus(state), None),
             },
@@ -665,7 +623,7 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                                 state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::CleanTimeout(state.req_id.clone(), None),
                                 ));
-                                (RequestState::finish(), Some(PoolEvent::Synced(merkle)))
+                                (RequestState::finish(), Some(UpdateEvent::Synced(merkle)))
                             }
                             Err(_) => {
                                 state.networker.borrow_mut().process_event(Some(
@@ -695,8 +653,7 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                         (RequestState::CatchupSingle(state), None)
                     }
                     RequestEvent::Terminate => {
-                        _finish_request(updater, &cmd_ids);
-                        (RequestState::finish(), None)
+                        (RequestState::finish(), Some(_finish_request(&cmd_ids)))
                     }
                     _ => (RequestState::CatchupSingle(state), None),
                 }
@@ -706,7 +663,7 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                 | RequestEvent::ReqNACK(_, raw_msg, node_alias, req_id)
                 | RequestEvent::Reject(_, raw_msg, node_alias, req_id) => (
                     RequestSM::_full_request_handle_consensus_state(
-                        state, req_id, node_alias, raw_msg, &cmd_ids, &nodes, updater,
+                        state, req_id, node_alias, raw_msg, &cmd_ids, &nodes,
                     ),
                     None,
                 ),
@@ -718,22 +675,20 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                         "timeout".to_string(),
                         &cmd_ids,
                         &nodes,
-                        updater,
                     ),
                     None,
                 ),
 
                 RequestEvent::Terminate => {
-                    _finish_request(updater, &cmd_ids);
-                    (RequestState::finish(), None)
+                    (RequestState::finish(), Some(_finish_request(&cmd_ids)))
                 }
                 _ => (RequestState::Full(state), None),
             },
             RequestState::Finish(state) => (RequestState::Finish(state), None),
         };
         (
-            RequestSM::step(f, cmd_ids, nodes, generator, config, state, updater),
-            event,
+            RequestSM::step(f, cmd_ids, nodes, generator, config, state),
+            update,
         )
     }
 
@@ -756,7 +711,6 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
         node_result: String,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
-        updater: U,
     ) -> RequestState<T> {
         let is_first_resp = state.accum_reply.is_none();
         if is_first_resp {
@@ -795,7 +749,7 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                 .borrow_mut()
                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
             let reply = state.accum_reply.as_ref().unwrap().inner.to_string();
-            _send_ok_replies(updater, &cmd_ids, &reply);
+            _ok_submit(&cmd_ids, &reply);
             RequestState::Finish(FinishState {})
         } else {
             state
@@ -815,7 +769,7 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
         req_id: String,
         f: usize,
         nodes: &Nodes,
-    ) -> (RequestState<T>, Option<PoolEvent>) {
+    ) -> (RequestState<T>, Option<UpdateEvent>) {
         let (finished, result) = RequestSM::_process_catchup_target(
             mt_root,
             sz,
@@ -834,15 +788,12 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
                     .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
                 (RequestState::finish(), result)
             }
-            (false, Some(PoolEvent::CatchupRestart(merkle_tree))) => {
+            (false, Some(UpdateEvent::CatchupRestart(merkle_tree))) => {
                 state
                     .networker
                     .borrow_mut()
                     .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
-                (
-                    RequestState::CatchupConsensus(state),
-                    Some(PoolEvent::CatchupRestart(merkle_tree)),
-                )
+                (RequestState::CatchupConsensus(state), result)
             }
             (false, result) => {
                 state
@@ -862,7 +813,7 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
         state: &mut CatchupConsensusState<T>,
         f: usize,
         nodes: &Nodes,
-    ) -> (bool, Option<PoolEvent>) {
+    ) -> (bool, Option<UpdateEvent>) {
         let key = (merkle_root, txn_seq_no, hashes);
         let contains = state
             .replies
@@ -881,63 +832,59 @@ impl<T: Networker, U: PoolUpdateHandler> RequestSM<T, U> {
         match check_nodes_responses_on_status(&state.replies, &state.merkle_tree, nodes.len(), f) {
             Ok(CatchupProgress::InProgress) => (false, None),
             Ok(CatchupProgress::NotNeeded(merkle_tree)) => {
-                (true, Some(PoolEvent::Synced(merkle_tree)))
+                (true, Some(UpdateEvent::Synced(merkle_tree)))
             }
             Ok(CatchupProgress::Restart(merkle_tree)) => {
-                (false, Some(PoolEvent::CatchupRestart(merkle_tree)))
+                (false, Some(UpdateEvent::CatchupRestart(merkle_tree)))
             }
             Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size, merkle_tree)) => (
                 true,
-                Some(PoolEvent::CatchupTargetFound(
+                Some(UpdateEvent::CatchupTargetFound(
                     target_mt_root,
                     target_mt_size,
                     merkle_tree,
                 )),
             ),
-            Err(err) => (true, Some(PoolEvent::CatchupTargetNotFound(err))),
+            Err(err) => (true, Some(UpdateEvent::CatchupTargetNotFound(err))),
         }
     }
 }
 
-pub trait RequestHandler<T: Networker, U: PoolUpdateHandler> {
+pub trait RequestHandler<T: Networker> {
     fn new(
         networker: Rc<RefCell<T>>,
         f: usize,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
         config: &PoolConfig,
-        updater: U,
     ) -> Self;
-    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<PoolEvent>;
+    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<UpdateEvent>;
     fn is_terminal(&self) -> bool;
 }
 
-pub struct RequestHandlerImpl<T: Networker, U: PoolUpdateHandler> {
-    request_wrapper: Option<RequestSM<T, U>>,
+pub struct RequestHandlerImpl<T: Networker> {
+    request_wrapper: Option<RequestSM<T>>,
 }
 
-impl<T: Networker, U: PoolUpdateHandler> RequestHandler<T, U> for RequestHandlerImpl<T, U> {
+impl<T: Networker> RequestHandler<T> for RequestHandlerImpl<T> {
     fn new(
         networker: Rc<RefCell<T>>,
         f: usize,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
         config: &PoolConfig,
-        updater: U,
     ) -> Self {
         RequestHandlerImpl {
-            request_wrapper: Some(RequestSM::new(
-                networker, f, cmd_ids, nodes, config, updater,
-            )),
+            request_wrapper: Some(RequestSM::new(networker, f, cmd_ids, nodes, config)),
         }
     }
 
-    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<PoolEvent> {
+    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<UpdateEvent> {
         match ore {
             Some(re) => {
-                if let Some((rw, res)) = self.request_wrapper.take().map(|w| w.handle_event(re)) {
+                if let Some((rw, upd)) = self.request_wrapper.take().map(|w| w.handle_event(re)) {
                     self.request_wrapper = Some(rw);
-                    res
+                    upd
                 } else {
                     self.request_wrapper = None;
                     None
@@ -970,7 +917,7 @@ impl<T: Networker> SingleState<T> {
         cmd_ids: &[CommandHandle],
         nodes_cnt: usize,
         timeout: i64,
-    ) -> (RequestState<T>, Option<LedgerError>) {
+    ) -> (RequestState<T>, Option<UpdateEvent>) {
         if self.is_consensus_reachable(nodes_cnt) {
             self.networker
                 .borrow_mut()
@@ -989,9 +936,10 @@ impl<T: Networker> SingleState<T> {
             (
                 RequestState::finish(),
                 //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-                Some(err_msg(
-                    LedgerErrorKind::PoolTimeout,
-                    "Consensus is impossible",
+                // FIXME: error context?
+                Some(_fail_submit(
+                    cmd_ids,
+                    err_msg(LedgerErrorKind::PoolTimeout, "Consensus is impossible"),
                 )),
             )
         }
@@ -1018,10 +966,9 @@ fn _parse_nack(
     raw_msg: &str,
     cmd_ids: &[CommandHandle],
     node_alias: &str,
-    updater: PoolUpdateHandler,
 ) -> bool {
     if denied_nodes.len() == f {
-        _send_ok_replies(updater, cmd_ids, raw_msg);
+        _ok_submit(cmd_ids, raw_msg);
         true
     } else {
         denied_nodes.insert(node_alias.to_string());
@@ -1053,44 +1000,27 @@ fn _process_catchup_reply(
     }
 
     check_cons_proofs(&merkle, &rep.consProof, target_mt_root, target_mt_size)?;
-    merkle_tree_factory::dump_new_txns(pool_name, &txns_to_drop)?;
+    // merkle_tree_factory::dump_new_txns(pool_name, &txns_to_drop)?;
     Ok(merkle)
 }
 
-fn _send_ok_replies<U: PoolUpdateHandler>(updater: U, cmd_ids: &[CommandHandle], msg: &str) {
-    _send_replies(updater, cmd_ids, Ok(msg.to_string()))
+fn _ok_submit(cmd_ids: &[CommandHandle], msg: &str) -> UpdateEvent {
+    _ack_submit(cmd_ids, Ok(msg.to_string()))
 }
 
-fn _finish_request<U: PoolUpdateHandler>(updater: U, cmd_ids: &[CommandHandle]) {
-    _send_replies(
-        updater,
+fn _finish_request(cmd_ids: &[CommandHandle]) -> UpdateEvent {
+    _fail_submit(
         cmd_ids,
-        Err(err_msg(
-            LedgerErrorKind::PoolTerminated,
-            "Pool is terminated",
-        )),
+        err_msg(LedgerErrorKind::PoolTerminated, "Pool is terminated"),
     )
 }
 
-fn _report_failed<T: Networker, U: PoolUpdateHandler>(
-    updater: U,
-    cmd_ids: &[CommandHandle],
-    (state, err): (RequestState<T>, Option<LedgerError>),
-) -> RequestState<T> {
-    if let Some(err) = err {
-        _send_replies(updater, cmd_ids, Err(err));
-    }
-    state
+fn _fail_submit(cmd_ids: &[CommandHandle], err: LedgerError) -> UpdateEvent {
+    _ack_submit(cmd_ids, Err(err))
 }
 
-fn _send_replies<U: PoolUpdateHandler>(
-    updater: U,
-    cmd_ids: &[CommandHandle],
-    msg: LedgerResult<String>,
-) {
-    cmd_ids.iter().for_each(|id| {
-        updater.send(PoolUpdateEvent::SubmitAck(*id, msg));
-    });
+fn _ack_submit(cmd_ids: &[CommandHandle], msg: LedgerResult<String>) -> UpdateEvent {
+    UpdateEvent::SubmitAck(cmd_ids.to_vec(), msg)
 }
 
 fn _get_msg_result_without_state_proof(msg: &str) -> LedgerResult<(SJsonValue, SJsonValue)> {
@@ -1242,7 +1172,6 @@ fn _get_cur_time() -> u64 {
 #[cfg(test)]
 pub mod tests {
     use crate::domain::pool::{DEFAULT_PROTOCOL_VERSION, NUMBER_READ_NODES};
-    use crate::services::pool::events::MockUpdateHandler;
     use crate::services::pool::networker::MockNetworker;
     use crate::services::pool::types::{
         ConsistencyProof, LedgerStatus, Reply, ReplyResultV1, ReplyTxnV1, ReplyV1, Response,
@@ -1279,19 +1208,18 @@ pub mod tests {
     #[derive(Debug)]
     pub struct MockRequestHandler {}
 
-    impl<T: Networker, U: PoolUpdateHandler> RequestHandler<T, U> for MockRequestHandler {
+    impl<T: Networker> RequestHandler<T> for MockRequestHandler {
         fn new(
             _networker: Rc<RefCell<T>>,
             _f: usize,
             _cmd_ids: &[CommandHandle],
             _nodes: &Nodes,
             _config: &PoolConfig,
-            _updater: U,
         ) -> Self {
             MockRequestHandler {}
         }
 
-        fn process_event(&mut self, _ore: Option<RequestEvent>) -> Option<PoolEvent> {
+        fn process_event(&mut self, _ore: Option<RequestEvent>) -> Option<UpdateEvent> {
             None
         }
 
@@ -1360,9 +1288,8 @@ pub mod tests {
         pool_name: &str,
         f: usize,
         nodes_cnt: usize,
-    ) -> RequestHandlerImpl<MockNetworker, MockUpdateHandler> {
+    ) -> RequestHandlerImpl<MockNetworker> {
         let networker = Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![])));
-        let upd = MockUpdateHandler::new();
 
         let mut default_nodes: Nodes = HashMap::new();
         default_nodes.insert(NODE.to_string(), None);
@@ -1374,7 +1301,7 @@ pub mod tests {
             nodes.insert(node_names[i].to_string(), None);
         }
 
-        RequestHandlerImpl::new(networker, f, &vec![], &nodes, &TEST_POOL_CONFIG, upd)
+        RequestHandlerImpl::new(networker, f, &vec![], &nodes, &TEST_POOL_CONFIG)
     }
 
     // required because of dumping txns to cache
