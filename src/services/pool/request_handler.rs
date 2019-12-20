@@ -15,7 +15,7 @@ use ursa::bls::Generator;
 use crate::services::pool::catchup::{
     build_catchup_req, check_cons_proofs, check_nodes_responses_on_status, CatchupProgress,
 };
-use crate::services::pool::events::{NetworkerEvent, RequestEvent, UpdateEvent};
+use crate::services::pool::events::{NetworkerEvent, RequestEvent, RequestUpdate};
 use crate::services::pool::get_last_signed_time;
 //use crate::services::pool::merkle_tree_factory;
 use crate::services::pool::networker::Networker;
@@ -243,7 +243,7 @@ impl Hash for NodeResponse {
 }
 
 impl<T: Networker> RequestSM<T> {
-    fn handle_event(self, re: RequestEvent) -> (Self, Option<UpdateEvent>) {
+    fn handle_event(self, re: RequestEvent) -> (Self, Option<RequestUpdate>) {
         let RequestSM {
             state,
             f,
@@ -261,7 +261,7 @@ impl<T: Networker> RequestSM<T> {
                             serde_json::to_string(&super::types::Message::LedgerStatus(ls))
                                 .expect("FIXME"),
                             req_id,
-                            config.extended_timeout,
+                            config.reply_timeout,
                             None,
                         ));
                         trace!("start catchup, ne: {:?}", ne);
@@ -275,7 +275,7 @@ impl<T: Networker> RequestSM<T> {
                                     NetworkerEvent::SendOneRequest(
                                         req_json,
                                         req_id.clone(),
-                                        config.timeout,
+                                        config.ack_timeout,
                                     ),
                                 ));
                                 (
@@ -288,7 +288,7 @@ impl<T: Networker> RequestSM<T> {
                             }
                             Ok(None) => {
                                 warn!("No transactions to catch up!");
-                                (RequestState::finish(), Some(UpdateEvent::Synced(merkle)))
+                                (RequestState::finish(), Some(RequestUpdate::Synced(merkle)))
                             }
                             Err(e) => (RequestState::finish(), Some(_ack_submit(&cmd_ids, Err(e)))),
                         }
@@ -298,13 +298,13 @@ impl<T: Networker> RequestSM<T> {
                             NetworkerEvent::SendOneRequest(
                                 msg.clone(),
                                 req_id.clone(),
-                                config.timeout,
+                                config.ack_timeout,
                             ),
                         ));
 
                         for _ in 0..config.number_read_nodes - 1 {
                             state.networker.borrow_mut().process_event(Some(
-                                NetworkerEvent::Resend(req_id.clone(), config.timeout),
+                                NetworkerEvent::Resend(req_id.clone(), config.ack_timeout),
                             ));
                         }
 
@@ -316,7 +316,7 @@ impl<T: Networker> RequestSM<T> {
                     RequestEvent::CustomFullRequest(msg, req_id, local_timeout, nodes_to_send) => {
                         let timeout = local_timeout
                             .map(|to| to as i64)
-                            .unwrap_or(config.extended_timeout);
+                            .unwrap_or(config.reply_timeout);
                         if let Some(nodes_to_send) = nodes_to_send {
                             match serde_json::from_str::<Vec<String>>(&nodes_to_send) {
                                 Ok(nodes_to_send) => {
@@ -365,7 +365,7 @@ impl<T: Networker> RequestSM<T> {
                     }
                     RequestEvent::CustomConsensusRequest(msg, req_id) => {
                         state.networker.borrow_mut().process_event(Some(
-                            NetworkerEvent::SendAllRequest(msg, req_id, config.timeout, None),
+                            NetworkerEvent::SendAllRequest(msg, req_id, config.ack_timeout, None),
                         ));
                         (RequestState::Consensus(state.into()), None)
                     }
@@ -437,11 +437,7 @@ impl<T: Networker> RequestSM<T> {
                     }
                     RequestEvent::ReqACK(_, _, node_alias, req_id) => {
                         state.networker.borrow_mut().process_event(Some(
-                            NetworkerEvent::ExtendTimeout(
-                                req_id,
-                                node_alias,
-                                config.extended_timeout,
-                            ),
+                            NetworkerEvent::ExtendTimeout(req_id, node_alias, config.reply_timeout),
                         ));
                         (RequestState::Consensus(state), None)
                     }
@@ -538,7 +534,7 @@ impl<T: Networker> RequestSM<T> {
                                 node_alias,
                                 &cmd_ids,
                                 nodes.len(),
-                                config.timeout,
+                                config.ack_timeout,
                             )
                         }
                     } else {
@@ -548,19 +544,25 @@ impl<T: Networker> RequestSM<T> {
                             node_alias,
                             &cmd_ids,
                             nodes.len(),
-                            config.timeout,
+                            config.ack_timeout,
                         )
                     }
                 }
                 RequestEvent::ReqACK(_, _, node_alias, req_id) => {
                     state.networker.borrow_mut().process_event(Some(
-                        NetworkerEvent::ExtendTimeout(req_id, node_alias, config.extended_timeout),
+                        NetworkerEvent::ExtendTimeout(req_id, node_alias, config.reply_timeout),
                     ));
                     (RequestState::Single(state), None)
                 }
                 RequestEvent::Timeout(req_id, node_alias) => {
                     state.timeout_nodes.insert(node_alias.clone());
-                    state.try_to_continue(req_id, node_alias, &cmd_ids, nodes.len(), config.timeout)
+                    state.try_to_continue(
+                        req_id,
+                        node_alias,
+                        &cmd_ids,
+                        nodes.len(),
+                        config.ack_timeout,
+                    )
                 }
                 RequestEvent::Terminate => {
                     (RequestState::finish(), Some(_finish_request(&cmd_ids)))
@@ -610,54 +612,56 @@ impl<T: Networker> RequestSM<T> {
                 }
                 _ => (RequestState::CatchupConsensus(state), None),
             },
-            RequestState::CatchupSingle(state) => {
-                match re {
-                    RequestEvent::CatchupRep(mut cr, node_alias) => {
-                        match _process_catchup_reply(
-                            &mut cr,
-                            &state.merkle_tree,
-                            &state.target_mt_root,
-                            state.target_mt_size,
-                        ) {
-                            Ok(merkle) => {
-                                state.networker.borrow_mut().process_event(Some(
-                                    NetworkerEvent::CleanTimeout(state.req_id.clone(), None),
-                                ));
-                                (RequestState::finish(), Some(UpdateEvent::Synced(merkle)))
-                            }
-                            Err(_) => {
-                                state.networker.borrow_mut().process_event(Some(
-                                    NetworkerEvent::Resend(state.req_id.clone(), config.timeout),
-                                ));
-                                state.networker.borrow_mut().process_event(Some(
-                                    NetworkerEvent::CleanTimeout(
-                                        state.req_id.clone(),
-                                        Some(node_alias),
-                                    ),
-                                ));
-                                (RequestState::CatchupSingle(state), None)
-                            }
+            RequestState::CatchupSingle(state) => match re {
+                RequestEvent::CatchupRep(mut cr, node_alias) => {
+                    match _process_catchup_reply(
+                        &mut cr,
+                        &state.merkle_tree,
+                        &state.target_mt_root,
+                        state.target_mt_size,
+                    ) {
+                        Ok(merkle) => {
+                            state.networker.borrow_mut().process_event(Some(
+                                NetworkerEvent::CleanTimeout(state.req_id.clone(), None),
+                            ));
+                            (RequestState::finish(), Some(RequestUpdate::Synced(merkle)))
+                        }
+                        Err(_) => {
+                            state.networker.borrow_mut().process_event(Some(
+                                NetworkerEvent::Resend(state.req_id.clone(), config.ack_timeout),
+                            ));
+                            state.networker.borrow_mut().process_event(Some(
+                                NetworkerEvent::CleanTimeout(
+                                    state.req_id.clone(),
+                                    Some(node_alias),
+                                ),
+                            ));
+                            (RequestState::CatchupSingle(state), None)
                         }
                     }
-                    RequestEvent::Timeout(req_id, node_alias) => {
-                        state
-                            .networker
-                            .borrow_mut()
-                            .process_event(Some(NetworkerEvent::Resend(
-                                state.req_id.clone(),
-                                config.timeout,
-                            )));
-                        state.networker.borrow_mut().process_event(Some(
-                            NetworkerEvent::CleanTimeout(req_id, Some(node_alias)),
-                        ));
-                        (RequestState::CatchupSingle(state), None)
-                    }
-                    RequestEvent::Terminate => {
-                        (RequestState::finish(), Some(_finish_request(&cmd_ids)))
-                    }
-                    _ => (RequestState::CatchupSingle(state), None),
                 }
-            }
+                RequestEvent::Timeout(req_id, node_alias) => {
+                    state
+                        .networker
+                        .borrow_mut()
+                        .process_event(Some(NetworkerEvent::Resend(
+                            state.req_id.clone(),
+                            config.ack_timeout,
+                        )));
+                    state
+                        .networker
+                        .borrow_mut()
+                        .process_event(Some(NetworkerEvent::CleanTimeout(
+                            req_id,
+                            Some(node_alias),
+                        )));
+                    (RequestState::CatchupSingle(state), None)
+                }
+                RequestEvent::Terminate => {
+                    (RequestState::finish(), Some(_finish_request(&cmd_ids)))
+                }
+                _ => (RequestState::CatchupSingle(state), None),
+            },
             RequestState::Full(state) => match re {
                 RequestEvent::Reply(_, raw_msg, node_alias, req_id)
                 | RequestEvent::ReqNACK(_, raw_msg, node_alias, req_id)
@@ -769,7 +773,7 @@ impl<T: Networker> RequestSM<T> {
         req_id: String,
         f: usize,
         nodes: &Nodes,
-    ) -> (RequestState<T>, Option<UpdateEvent>) {
+    ) -> (RequestState<T>, Option<RequestUpdate>) {
         let (finished, result) = RequestSM::_process_catchup_target(
             mt_root,
             sz,
@@ -788,7 +792,7 @@ impl<T: Networker> RequestSM<T> {
                     .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
                 (RequestState::finish(), result)
             }
-            (false, Some(UpdateEvent::CatchupRestart(merkle_tree))) => {
+            (false, Some(RequestUpdate::CatchupRestart(merkle_tree))) => {
                 state
                     .networker
                     .borrow_mut()
@@ -813,7 +817,7 @@ impl<T: Networker> RequestSM<T> {
         state: &mut CatchupConsensusState<T>,
         f: usize,
         nodes: &Nodes,
-    ) -> (bool, Option<UpdateEvent>) {
+    ) -> (bool, Option<RequestUpdate>) {
         let key = (merkle_root, txn_seq_no, hashes);
         let contains = state
             .replies
@@ -832,20 +836,20 @@ impl<T: Networker> RequestSM<T> {
         match check_nodes_responses_on_status(&state.replies, &state.merkle_tree, nodes.len(), f) {
             Ok(CatchupProgress::InProgress) => (false, None),
             Ok(CatchupProgress::NotNeeded(merkle_tree)) => {
-                (true, Some(UpdateEvent::Synced(merkle_tree)))
+                (true, Some(RequestUpdate::Synced(merkle_tree)))
             }
             Ok(CatchupProgress::Restart(merkle_tree)) => {
-                (false, Some(UpdateEvent::CatchupRestart(merkle_tree)))
+                (false, Some(RequestUpdate::CatchupRestart(merkle_tree)))
             }
             Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size, merkle_tree)) => (
                 true,
-                Some(UpdateEvent::CatchupTargetFound(
+                Some(RequestUpdate::CatchupTargetFound(
                     target_mt_root,
                     target_mt_size,
                     merkle_tree,
                 )),
             ),
-            Err(err) => (true, Some(UpdateEvent::CatchupTargetNotFound(err))),
+            Err(err) => (true, Some(RequestUpdate::CatchupTargetNotFound(err))),
         }
     }
 }
@@ -858,7 +862,7 @@ pub trait RequestHandler<T: Networker> {
         nodes: &Nodes,
         config: &PoolConfig,
     ) -> Self;
-    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<UpdateEvent>;
+    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<RequestUpdate>;
     fn is_terminal(&self) -> bool;
 }
 
@@ -879,7 +883,7 @@ impl<T: Networker> RequestHandler<T> for RequestHandlerImpl<T> {
         }
     }
 
-    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<UpdateEvent> {
+    fn process_event(&mut self, ore: Option<RequestEvent>) -> Option<RequestUpdate> {
         match ore {
             Some(re) => {
                 if let Some((rw, upd)) = self.request_wrapper.take().map(|w| w.handle_event(re)) {
@@ -917,7 +921,7 @@ impl<T: Networker> SingleState<T> {
         cmd_ids: &[CommandHandle],
         nodes_cnt: usize,
         timeout: i64,
-    ) -> (RequestState<T>, Option<UpdateEvent>) {
+    ) -> (RequestState<T>, Option<RequestUpdate>) {
         if self.is_consensus_reachable(nodes_cnt) {
             self.networker
                 .borrow_mut()
@@ -1004,23 +1008,23 @@ fn _process_catchup_reply(
     Ok(merkle)
 }
 
-fn _ok_submit(cmd_ids: &[CommandHandle], msg: &str) -> UpdateEvent {
+fn _ok_submit(cmd_ids: &[CommandHandle], msg: &str) -> RequestUpdate {
     _ack_submit(cmd_ids, Ok(msg.to_string()))
 }
 
-fn _finish_request(cmd_ids: &[CommandHandle]) -> UpdateEvent {
+fn _finish_request(cmd_ids: &[CommandHandle]) -> RequestUpdate {
     _fail_submit(
         cmd_ids,
         err_msg(LedgerErrorKind::PoolTerminated, "Pool is terminated"),
     )
 }
 
-fn _fail_submit(cmd_ids: &[CommandHandle], err: LedgerError) -> UpdateEvent {
+fn _fail_submit(cmd_ids: &[CommandHandle], err: LedgerError) -> RequestUpdate {
     _ack_submit(cmd_ids, Err(err))
 }
 
-fn _ack_submit(cmd_ids: &[CommandHandle], msg: LedgerResult<String>) -> UpdateEvent {
-    UpdateEvent::SubmitAck(cmd_ids.to_vec(), msg)
+fn _ack_submit(cmd_ids: &[CommandHandle], msg: LedgerResult<String>) -> RequestUpdate {
+    RequestUpdate::SubmitAck(cmd_ids.to_vec(), msg)
 }
 
 fn _get_msg_result_without_state_proof(msg: &str) -> LedgerResult<(SJsonValue, SJsonValue)> {
@@ -1171,7 +1175,6 @@ fn _get_cur_time() -> u64 {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::domain::pool::{DEFAULT_PROTOCOL_VERSION, NUMBER_READ_NODES};
     use crate::services::pool::networker::MockNetworker;
     use crate::services::pool::types::{
         ConsistencyProof, LedgerStatus, Reply, ReplyResultV1, ReplyTxnV1, ReplyV1, Response,
@@ -1194,16 +1197,7 @@ pub mod tests {
     const REJECT_REPLY: &str = r#"{"op":"REJECT", "result": {"reason": "reject"}}"#;
     const NACK_REPLY: &str = r#"{"op":"REQNACK", "result": {"reason": "reqnack"}}"#;
 
-    const TEST_POOL_CONFIG: PoolConfig = PoolConfig {
-        conn_active_timeout: 0,
-        conn_limit: NUMBER_READ_NODES,
-        freshness_threshold: 0,
-        timeout: 0,
-        extended_timeout: 0,
-        number_read_nodes: NUMBER_READ_NODES,
-        protocol_version: DEFAULT_PROTOCOL_VERSION,
-        preordered_nodes: vec![],
-    };
+    const TEST_POOL_CONFIG: PoolConfig = PoolConfig::default();
 
     #[derive(Debug)]
     pub struct MockRequestHandler {}
@@ -1219,7 +1213,7 @@ pub mod tests {
             MockRequestHandler {}
         }
 
-        fn process_event(&mut self, _ore: Option<RequestEvent>) -> Option<UpdateEvent> {
+        fn process_event(&mut self, _ore: Option<RequestEvent>) -> Option<RequestUpdate> {
             None
         }
 

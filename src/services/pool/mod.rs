@@ -31,7 +31,7 @@ use crate::utils::error::prelude::*;
 mod catchup;
 mod commander;
 mod events;
-// mod merkle_tree_factory;
+mod merkle_tree_factory;
 mod networker;
 mod pool;
 mod request_handler;

@@ -1,9 +1,9 @@
 use serde_json;
 use serde_json::Value as SJsonValue;
 
+use super::types::*;
 use crate::domain::ledger::constants;
 use crate::domain::pool::ProtocolVersion;
-use crate::services::pool::types::*;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
@@ -91,7 +91,7 @@ pub enum PoolEvent {
 }
 
 #[derive(Debug)]
-pub enum UpdateEvent {
+pub enum RequestUpdate {
     OpenAck(CommandHandle, PoolHandle, LedgerResult<()>),
     CloseAck(CommandHandle, LedgerResult<()>),
     RefreshAck(CommandHandle, LedgerResult<()>),
@@ -108,11 +108,11 @@ pub enum UpdateEvent {
 }
 
 pub trait UpdateHandler {
-    fn send(&self, update: UpdateEvent) -> LedgerResult<()>;
+    fn send(&self, update: RequestUpdate) -> LedgerResult<()>;
 }
 
 pub struct MockUpdateHandler {
-    pub events: Vec<UpdateEvent>,
+    pub events: Vec<RequestUpdate>,
 }
 
 impl MockUpdateHandler {
@@ -122,7 +122,7 @@ impl MockUpdateHandler {
 }
 
 impl UpdateHandler for MockUpdateHandler {
-    fn send(&self, update: UpdateEvent) -> LedgerResult<()> {
+    fn send(&self, update: RequestUpdate) -> LedgerResult<()> {
         self.events.push(update);
         Ok(())
     }
@@ -214,7 +214,7 @@ impl RequestEvent {
 
     pub fn from_pool_event(
         event: PoolEvent,
-        protocol_version: ProtocolVersion, // FIXME: pass in state machine parser instead
+        protocol_version: ProtocolVersion, // FIXME: pass in state proof parser instead of version
     ) -> Option<RequestEvent> {
         match event {
             PoolEvent::NodeReply(msg, node_alias) => {

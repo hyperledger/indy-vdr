@@ -458,8 +458,9 @@ pub mod networker_tests {
     use std;
     use std::thread;
 
-    use crate::domain::pool::{
-        MAX_REQ_PER_POOL_CON, POOL_ACK_TIMEOUT, POOL_CON_ACTIVE_TO, POOL_REPLY_TIMEOUT,
+    use super::super::types::{
+        DEFAULT_ACK_TIMEOUT, DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT,
+        DEFAULT_REPLY_TIMEOUT,
     };
     use crate::services::pool::tests::nodes_emulator;
     use crate::utils::base58::FromBase58;
@@ -494,12 +495,13 @@ pub mod networker_tests {
 
         #[test]
         pub fn networker_new_works() {
-            ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
         }
 
         #[test]
         pub fn networker_process_event_works() {
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
             networker.process_event(None);
         }
 
@@ -508,7 +510,8 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
 
             assert_eq!(0, networker.nodes.len());
 
@@ -523,7 +526,8 @@ pub mod networker_tests {
             let handle = nodes_emulator::start(&mut txn);
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
 
             assert!(networker.pool_connections.is_empty());
@@ -532,7 +536,7 @@ pub mod networker_tests {
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
 
             assert_eq!(1, networker.pool_connections.len());
@@ -553,13 +557,14 @@ pub mod networker_tests {
             let handle_2 = nodes_emulator::start(&mut txn_2);
             let rn_2 = _remote_node(&txn_2);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
 
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn_1, rn_2])));
             networker.process_event(Some(NetworkerEvent::SendAllRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
                 None,
             )));
 
@@ -583,8 +588,8 @@ pub mod networker_tests {
             let send_cnt = 2;
 
             let mut networker = ZMQNetworker::new(
-                POOL_CON_ACTIVE_TO,
-                MAX_REQ_PER_POOL_CON,
+                DEFAULT_CONN_ACTIVE_TIMEOUT,
+                DEFAULT_CONN_REQ_LIMIT,
                 vec!["n2".to_string(), "n1".to_string()],
             );
 
@@ -594,7 +599,7 @@ pub mod networker_tests {
                 networker.process_event(Some(NetworkerEvent::SendAllRequest(
                     MESSAGE.to_string(),
                     i.to_string(),
-                    POOL_ACK_TIMEOUT,
+                    DEFAULT_ACK_TIMEOUT,
                     None,
                 )));
                 assert_eq!(1, networker.pool_connections.len());
@@ -620,13 +625,14 @@ pub mod networker_tests {
             let handle_2 = nodes_emulator::start(&mut txn_2);
             let rn_2 = _remote_node(&txn_2);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
 
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn_1, rn_2])));
             networker.process_event(Some(NetworkerEvent::SendAllRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
                 Some(vec![NODE_NAME.to_string()]),
             )));
 
@@ -644,7 +650,8 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
 
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
 
@@ -652,7 +659,7 @@ pub mod networker_tests {
                 networker.process_event(Some(NetworkerEvent::SendOneRequest(
                     MESSAGE.to_string(),
                     i.to_string(),
-                    POOL_ACK_TIMEOUT,
+                    DEFAULT_ACK_TIMEOUT,
                 )));
                 assert_eq!(1, networker.pool_connections.len());
             }
@@ -660,7 +667,7 @@ pub mod networker_tests {
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 "6".to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
             assert_eq!(2, networker.pool_connections.len());
 
@@ -675,7 +682,8 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
 
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
 
@@ -683,7 +691,7 @@ pub mod networker_tests {
                 networker.process_event(Some(NetworkerEvent::SendOneRequest(
                     MESSAGE.to_string(),
                     i.to_string(),
-                    POOL_ACK_TIMEOUT,
+                    DEFAULT_ACK_TIMEOUT,
                 )));
             }
             assert_eq!(1, networker.pool_connections.len());
@@ -696,7 +704,7 @@ pub mod networker_tests {
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 "6".to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
             assert_eq!(2, networker.pool_connections.len());
         }
@@ -706,13 +714,14 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
 
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
 
             thread::sleep(std::time::Duration::from_secs(1));
@@ -722,7 +731,7 @@ pub mod networker_tests {
             networker.process_event(Some(NetworkerEvent::ExtendTimeout(
                 REQ_ID.to_string(),
                 txn.txn.data.data.alias,
-                POOL_REPLY_TIMEOUT,
+                DEFAULT_REPLY_TIMEOUT,
             )));
 
             let (_, timeout_2) = networker.get_timeout();
@@ -745,9 +754,10 @@ pub mod networker_tests {
         fn networker_process_timeout_event_works() {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
-            let conn = PoolConnection::new(vec![rn.clone()], POOL_CON_ACTIVE_TO, vec![]);
+            let conn = PoolConnection::new(vec![rn.clone()], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
 
             networker.pool_connections.insert(1, conn);
@@ -764,12 +774,13 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
 
             _roll_back_timeout(&mut networker);
@@ -787,13 +798,14 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
 
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
             networker.process_event(Some(NetworkerEvent::CleanTimeout(REQ_ID.to_string(), None)));
 
@@ -802,7 +814,7 @@ pub mod networker_tests {
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 "2".to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
 
             assert_eq!(1, networker.pool_connections.len());
@@ -813,13 +825,14 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
 
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
 
             assert_eq!(1, networker.pool_connections.len());
@@ -829,7 +842,7 @@ pub mod networker_tests {
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 "2".to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
 
             assert_eq!(2, networker.pool_connections.len());
@@ -840,7 +853,8 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut networker = ZMQNetworker::new(POOL_CON_ACTIVE_TO, MAX_REQ_PER_POOL_CON, vec![]);
+            let mut networker =
+                ZMQNetworker::new(DEFAULT_CONN_ACTIVE_TIMEOUT, DEFAULT_CONN_REQ_LIMIT, vec![]);
 
             networker.process_event(Some(NetworkerEvent::NodesStateUpdated(vec![rn])));
 
@@ -851,7 +865,7 @@ pub mod networker_tests {
             networker.process_event(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
 
             let (_, timeout) = networker.get_timeout();
@@ -896,7 +910,7 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
         }
 
         #[test]
@@ -912,7 +926,7 @@ pub mod networker_tests {
                 nodes.push(_remote_node(&txn));
             }
 
-            let pc = PoolConnection::new(nodes, POOL_CON_ACTIVE_TO, vec![]);
+            let pc = PoolConnection::new(nodes, DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             let act_names: Vec<String> = pc.nodes.iter().map(|n| n.name.to_string()).collect();
 
@@ -946,7 +960,7 @@ pub mod networker_tests {
                     rn_4.clone(),
                     rn_5.clone(),
                 ],
-                POOL_CON_ACTIVE_TO,
+                DEFAULT_CONN_ACTIVE_TIMEOUT,
                 vec![rn_2.name.clone(), rn_1.name.clone(), rn_5.name.clone()],
             );
 
@@ -960,11 +974,11 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             assert!(conn.is_active());
 
-            conn.time_created = time::now().sub(Duration::seconds(POOL_CON_ACTIVE_TO));
+            conn.time_created = time::now().sub(Duration::seconds(DEFAULT_CONN_ACTIVE_TIMEOUT));
 
             assert!(!conn.is_active());
         }
@@ -974,14 +988,14 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             assert!(!conn.has_active_requests());
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
@@ -993,25 +1007,25 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             let ((req_id, node_alias), timeout) = conn.get_timeout();
             assert_eq!(req_id, "".to_string());
             assert_eq!(node_alias, "".to_string());
-            assert!(POOL_CON_ACTIVE_TO * 1000 - 10 <= timeout);
-            assert!(POOL_CON_ACTIVE_TO * 1000 >= timeout);
+            assert!(DEFAULT_CONN_ACTIVE_TIMEOUT * 1000 - 10 <= timeout);
+            assert!(DEFAULT_CONN_ACTIVE_TIMEOUT * 1000 >= timeout);
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
             let (id, timeout) = conn.get_timeout();
             assert_eq!((REQ_ID.to_string(), NODE_NAME.to_string()), id);
-            assert!(POOL_ACK_TIMEOUT * 1000 - 10 <= timeout);
-            assert!(POOL_ACK_TIMEOUT * 1000 >= timeout);
+            assert!(DEFAULT_ACK_TIMEOUT * 1000 - 10 <= timeout);
+            assert!(DEFAULT_ACK_TIMEOUT * 1000 >= timeout);
         }
 
         #[test]
@@ -1019,12 +1033,12 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
@@ -1032,7 +1046,7 @@ pub mod networker_tests {
 
             let ((msg, name), timeout) = conn.get_timeout();
 
-            conn.extend_timeout(&msg, &name, POOL_REPLY_TIMEOUT);
+            conn.extend_timeout(&msg, &name, DEFAULT_REPLY_TIMEOUT);
 
             let ((_, _), timeout_2) = conn.get_timeout();
 
@@ -1044,12 +1058,12 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
@@ -1065,7 +1079,7 @@ pub mod networker_tests {
             let txn = nodes_emulator::node();
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             let _socket = conn._get_socket(0).unwrap();
         }
@@ -1076,7 +1090,7 @@ pub mod networker_tests {
             let mut rn = _remote_node(&txn);
             rn.zaddr = "invalid_address".to_string();
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             let res = conn._get_socket(0);
             assert_kind!(LedgerErrorKind::IOError, res);
@@ -1088,18 +1102,18 @@ pub mod networker_tests {
             let handle = nodes_emulator::start(&mut txn);
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 "msg2".to_string(),
                 "12".to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
@@ -1120,14 +1134,14 @@ pub mod networker_tests {
 
             let mut conn = PoolConnection::new(
                 vec![rn_1, rn_2],
-                POOL_CON_ACTIVE_TO,
+                DEFAULT_CONN_ACTIVE_TIMEOUT,
                 vec!["n1".to_string(), "n2".to_string()],
             );
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
@@ -1150,12 +1164,13 @@ pub mod networker_tests {
             let handle_2 = nodes_emulator::start(&mut txn_2);
             let rn_2 = _remote_node(&txn_2);
 
-            let mut conn = PoolConnection::new(vec![rn_1, rn_2], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn =
+                PoolConnection::new(vec![rn_1, rn_2], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             conn.send_request(Some(NetworkerEvent::SendAllRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
                 None,
             )))
             .unwrap();
@@ -1172,18 +1187,18 @@ pub mod networker_tests {
             let handle = nodes_emulator::start(&mut txn);
             let rn = _remote_node(&txn);
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
             conn.send_request(Some(NetworkerEvent::Resend(
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
@@ -1202,18 +1217,19 @@ pub mod networker_tests {
             let handle_2 = nodes_emulator::start(&mut txn_2);
             let rn_2 = _remote_node(&txn_2);
 
-            let mut conn = PoolConnection::new(vec![rn_1, rn_2], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn =
+                PoolConnection::new(vec![rn_1, rn_2], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
             conn.send_request(Some(NetworkerEvent::Resend(
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )))
             .unwrap();
 
@@ -1229,12 +1245,12 @@ pub mod networker_tests {
             let mut rn = _remote_node(&txn);
             rn.zaddr = "invalid_address".to_string();
 
-            let mut conn = PoolConnection::new(vec![rn], POOL_CON_ACTIVE_TO, vec![]);
+            let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             let res = conn.send_request(Some(NetworkerEvent::SendOneRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
-                POOL_ACK_TIMEOUT,
+                DEFAULT_ACK_TIMEOUT,
             )));
             assert_kind!(LedgerErrorKind::IOError, res);
         }

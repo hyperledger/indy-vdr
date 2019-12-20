@@ -1,91 +1,36 @@
-use crate::utils::validation::Validatable;
+use std::fmt;
 
 pub const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::Node1_4;
 
-pub const POOL_CON_ACTIVE_TO: i64 = 5;
-pub const POOL_ACK_TIMEOUT: i64 = 20;
-pub const POOL_REPLY_TIMEOUT: i64 = 60;
-pub const MAX_REQ_PER_POOL_CON: usize = 5;
-pub const NUMBER_READ_NODES: usize = 2;
-
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ProtocolVersion {
     Node1_3 = 1,
     Node1_4 = 2,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PoolOpenConfig {
-    #[serde(default = "PoolOpenConfig::default_timeout")]
-    pub timeout: i64,
-    #[serde(default = "PoolOpenConfig::default_extended_timeout")]
-    pub extended_timeout: i64,
-    #[serde(default = "PoolOpenConfig::default_conn_limit")]
-    pub conn_limit: usize,
-    #[serde(default = "PoolOpenConfig::default_conn_active_timeout")]
-    pub conn_active_timeout: i64,
-    #[serde(default = "PoolOpenConfig::default_preordered_nodes")]
-    pub preordered_nodes: Vec<String>,
-    #[serde(default = "PoolOpenConfig::default_number_read_nodes")]
-    pub number_read_nodes: usize,
-}
-
-impl Validatable for PoolOpenConfig {
-    fn validate(&self) -> Result<(), String> {
-        if self.timeout <= 0 {
-            return Err(String::from("`timeout` must be greater than 0"));
+impl ProtocolVersion {
+    fn display_version(&self) -> String {
+        match self {
+            Self::Node1_3 => "1.3".to_owned(),
+            Self::Node1_4 => "1.4".to_owned(),
         }
-        if self.extended_timeout <= 0 {
-            return Err(String::from("`extended_timeout` must be greater than 0"));
-        }
-        if self.conn_limit == 0 {
-            return Err(String::from("`conn_limit` must be greater than 0"));
-        }
-        if self.conn_active_timeout <= 0 {
-            return Err(String::from("`conn_active_timeout` must be greater than 0"));
-        }
-        if self.number_read_nodes == 0 {
-            return Err(String::from("`number_read_nodes` must be greater than 0"));
-        }
-        Ok(())
     }
 }
 
-impl Default for PoolOpenConfig {
+impl PartialEq<usize> for ProtocolVersion {
+    fn eq(&self, other: &usize) -> bool {
+        (*self as usize) == *other
+    }
+}
+
+impl Default for ProtocolVersion {
     fn default() -> Self {
-        PoolOpenConfig {
-            timeout: PoolOpenConfig::default_timeout(),
-            extended_timeout: PoolOpenConfig::default_extended_timeout(),
-            conn_limit: PoolOpenConfig::default_conn_limit(),
-            conn_active_timeout: PoolOpenConfig::default_conn_active_timeout(),
-            preordered_nodes: PoolOpenConfig::default_preordered_nodes(),
-            number_read_nodes: PoolOpenConfig::default_number_read_nodes(),
-        }
+        DEFAULT_PROTOCOL_VERSION
     }
 }
 
-impl PoolOpenConfig {
-    fn default_timeout() -> i64 {
-        POOL_ACK_TIMEOUT
-    }
-
-    fn default_extended_timeout() -> i64 {
-        POOL_REPLY_TIMEOUT
-    }
-
-    fn default_conn_limit() -> usize {
-        MAX_REQ_PER_POOL_CON
-    }
-
-    fn default_conn_active_timeout() -> i64 {
-        POOL_CON_ACTIVE_TO
-    }
-
-    fn default_preordered_nodes() -> Vec<String> {
-        Vec::new()
-    }
-
-    fn default_number_read_nodes() -> usize {
-        NUMBER_READ_NODES
+impl fmt::Display for ProtocolVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.display_version())
     }
 }

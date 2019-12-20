@@ -8,16 +8,13 @@ use rlp::UntrustedRlp;
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-// use indy_api_types::ErrorCode;
+use super::events::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
+use super::types::*;
 use crate::domain::ledger::constants;
 use crate::domain::pool::ProtocolVersion;
-use crate::services::pool::events::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
-
-use super::types::*;
-// use super::PoolService;
 
 use self::log_derive::logfn;
 use self::node::{Node, TrieDB};

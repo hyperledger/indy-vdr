@@ -3,10 +3,7 @@ use serde_json;
 use time;
 
 use crate::domain::did::{DidValue, ShortDidValue};
-use crate::domain::pool::ProtocolVersion;
 use std::collections::HashMap;
-
-pub const DEFAULT_LIBIDY_DID: &str = "LibindyDid111111111111";
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -27,6 +24,7 @@ pub struct Request<T: serde::Serialize> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub identifier: Option<ShortDidValue>,
     pub operation: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol_version: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
@@ -41,15 +39,15 @@ pub struct Request<T: serde::Serialize> {
 impl<T: serde::Serialize> Request<T> {
     pub fn new(
         req_id: u64,
-        identifier: ShortDidValue,
         operation: T,
-        protocol_version: ProtocolVersion,
+        identifier: Option<ShortDidValue>,
+        protocol_version: Option<usize>,
     ) -> Request<T> {
         Request {
             req_id,
-            identifier: Some(identifier),
+            identifier,
             operation,
-            protocol_version: Some(protocol_version as usize),
+            protocol_version,
             signature: None,
             signatures: None,
             taa_acceptance: None,
@@ -58,21 +56,18 @@ impl<T: serde::Serialize> Request<T> {
     }
 
     pub fn build_request(
-        protocol_version: ProtocolVersion,
-        identifier: Option<&DidValue>,
         operation: T,
+        identifier: Option<&DidValue>,
+        protocol_version: Option<usize>,
     ) -> Result<String, String> {
         let req_id = get_req_id();
 
-        let identifier = match identifier {
-            Some(identifier_) => identifier_.clone().to_short(),
-            None => ShortDidValue(DEFAULT_LIBIDY_DID.to_string()),
-        };
+        // FIXME - verify that qualified DID is using a known DID method
 
         serde_json::to_string(&Request::new(
             req_id,
-            identifier,
             operation,
+            identifier.map(DidValue::to_short),
             protocol_version,
         ))
         .map_err(|err| format!("Cannot serialize Request: {:?}", err))

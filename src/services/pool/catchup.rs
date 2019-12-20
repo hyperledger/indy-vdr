@@ -53,6 +53,7 @@ pub fn build_catchup_req(
 pub fn check_nodes_responses_on_status(
     nodes_votes: &HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
     merkle_tree: &MerkleTree,
+    prev_merkle_tree: Option<&MerkleTree>,
     node_cnt: usize,
     f: usize,
 ) -> LedgerResult<CatchupProgress> {
@@ -71,24 +72,23 @@ pub fn check_nodes_responses_on_status(
     if let Some((most_popular_not_timeout_vote, votes_cnt)) = most_popular_not_timeout {
         if *votes_cnt == f + 1 {
             return _try_to_catch_up(most_popular_not_timeout_vote, merkle_tree).or_else(|err| {
-                if merkle_tree_factory::drop_cache(pool_name).is_ok() {
-                    let merkle_tree = merkle_tree_factory::create(pool_name)?;
-                    _try_to_catch_up(most_popular_not_timeout_vote, &merkle_tree)
+                if let Some(merkle_tree) = prev_merkle_tree {
+                    _try_to_catch_up(most_popular_not_timeout_vote, merkle_tree)
                 } else {
                     Err(err)
                 }
             });
         } else {
-            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f);
+            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f, prev_merkle_tree);
         }
     } else if let Some((_, votes_cnt)) = timeout_votes {
         if *votes_cnt == node_cnt - f {
             return _try_to_restart_catch_up(
-                pool_name,
+                prev_merkle_tree,
                 err_msg(LedgerErrorKind::PoolTimeout, "Pool timeout"),
             );
         } else {
-            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f);
+            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f, prev_merkle_tree);
         }
     }
     Ok(CatchupProgress::InProgress)
@@ -99,6 +99,7 @@ fn _if_consensus_reachable(
     node_cnt: usize,
     votes_cnt: usize,
     f: usize,
+    prev_merkle_tree: Option<&MerkleTree>,
 ) -> LedgerResult<CatchupProgress> {
     let reps_cnt: usize = nodes_votes.values().map(HashSet::len).sum();
     let positive_votes_cnt = votes_cnt + (node_cnt - reps_cnt);
@@ -106,7 +107,7 @@ fn _if_consensus_reachable(
     if is_consensus_not_reachable {
         //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
         _try_to_restart_catch_up(
-            pool_name,
+            prev_merkle_tree,
             err_msg(LedgerErrorKind::PoolTimeout, "No consensus possible"),
         )
     } else {
@@ -114,10 +115,12 @@ fn _if_consensus_reachable(
     }
 }
 
-fn _try_to_restart_catch_up(pool_name: &str, err: LedgerError) -> LedgerResult<CatchupProgress> {
-    if merkle_tree_factory::drop_cache(pool_name).is_ok() {
-        let merkle_tree = merkle_tree_factory::create(pool_name)?;
-        Ok(CatchupProgress::Restart(merkle_tree))
+fn _try_to_restart_catch_up(
+    prev_merkle_tree: Option<&MerkleTree>,
+    err: LedgerError,
+) -> LedgerResult<CatchupProgress> {
+    if let Some(merkle_tree) = prev_merkle_tree {
+        Ok(CatchupProgress::Restart(*merkle_tree))
     } else {
         Err(err)
     }

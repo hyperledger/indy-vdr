@@ -6,9 +6,9 @@ use std::{fs, io};
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use crate::domain::ledger::request::ProtocolVersion;
-use crate::services::ledger::merkletree::merkletree::MerkleTree;
-use crate::services::pool::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1};
+use super::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1};
+use crate::domain::pool::ProtocolVersion;
+use crate::utils::merkletree::MerkleTree;
 // use crate::utils::environment;
 use crate::utils::error::prelude::*;
 
@@ -41,7 +41,7 @@ const POOL_EXT: &str = "txn";
         trace!("Restoring merkle tree from cache");
         _from_cache(&p_stored)
     }
-}*/
+}
 
 pub fn drop_cache(pool_name: &str) -> LedgerResult<()> {
     let p = get_pool_stored_path(pool_name, false);
@@ -107,7 +107,7 @@ pub fn from_cache(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
     }
 
     Ok(mt)
-}
+}*/
 
 pub fn from_genesis(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
     let mut mt = MerkleTree::from_vec(Vec::new())?;
@@ -128,6 +128,10 @@ pub fn from_genesis(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
     }
 
     Ok(mt)
+}
+
+pub fn from_genesis_file(txn_file: &str) -> LedgerResult<MerkleTree> {
+    from_genesis(&PathBuf::from(txn_file))
 }
 
 /*
@@ -163,7 +167,7 @@ pub fn dump_new_txns(pool_name: &str, txns: &[Vec<u8>]) -> LedgerResult<()> {
     )?;
 
     _dump_vec_to_file(txns, &mut file)
-}*/
+}
 
 pub fn _dump_genesis_to_stored(p: &PathBuf, pool_name: &str) -> LedgerResult<()> {
     let p_genesis = get_pool_stored_path_base(pool_name, false, pool_name, POOL_EXT);
@@ -183,7 +187,7 @@ pub fn _dump_genesis_to_stored(p: &PathBuf, pool_name: &str) -> LedgerResult<()>
 
     let genesis_vec = _genesis_to_binary(&p_genesis)?;
     _dump_vec_to_file(&genesis_vec, &mut file)
-}
+}*/
 
 fn _dump_vec_to_file(v: &[Vec<u8>], file: &mut fs::File) -> LedgerResult<()> {
     for ref line in v {
@@ -237,6 +241,7 @@ fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
 
 pub fn build_node_state(
     merkle_tree: &MerkleTree,
+    protocol_version: ProtocolVersion,
 ) -> LedgerResult<HashMap<String, NodeTransactionV1>> {
     let mut gen_tnxs: HashMap<String, NodeTransactionV1> = HashMap::new();
 
@@ -246,8 +251,6 @@ pub fn build_node_state(
                 LedgerErrorKind::InvalidState,
                 "MerkleTree contains invalid item",
             )?;
-
-        let protocol_version = ProtocolVersion::get();
 
         let mut gen_txn = match gen_txn {
             NodeTransaction::NodeTransactionV0(txn) => {
@@ -282,9 +285,8 @@ pub fn build_node_state(
     Ok(gen_tnxs)
 }
 
-pub fn from_file(txn_file: &str) -> LedgerResult<MerkleTree> {
-    _from_genesis(&PathBuf::from(txn_file))
-}
+/*
+FIXME
 
 #[cfg(test)]
 mod tests {
@@ -292,7 +294,7 @@ mod tests {
 
     use byteorder::LittleEndian;
 
-    use crate::domain::ledger::request::ProtocolVersion;
+    use crate::domain::pool::ProtocolVersion;
     use crate::utils::test;
 
     use super::*;
@@ -510,3 +512,4 @@ mod tests {
         );
     }
 }
+*/

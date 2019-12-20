@@ -15,11 +15,12 @@ use crate::commands::Command;
 use crate::commands::CommandExecutor; */
 use super::commander::Commander;
 use super::events::*;
+use super::merkle_tree_factory;
 use super::networker::{Networker, ZMQNetworker};
 use super::request_handler::{RequestHandler, RequestHandlerImpl};
 use super::types::{CommandHandle, LedgerStatus, Nodes, PoolConfig, PoolHandle, RemoteNode};
 use crate::domain::pool::ProtocolVersion;
-use crate::utils::base58::ToBase58;
+use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::crypto;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
@@ -310,24 +311,24 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                                     ))
                                 }
                                 Err(err) => {
-                                    // FIXME updater.send(UpdateEvent::OpenAck(cmd_id, id, Err(err)));
+                                    // FIXME updater.send(RequestUpdate::OpenAck(cmd_id, id, Err(err)));
                                     PoolState::Terminated(init_state.into())
                                 }
                             }
                         }
                     }
                     PoolEvent::Close(cmd_id) => {
-                        // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                        // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
                         PoolState::Closed(init_state.into())
                     }
                     _ => PoolState::Initialization(init_state),
                 },
                 PoolState::GettingCatchupTarget(mut catchup_state) => {
-                    let ue = catchup_state
+                    let oru = catchup_state
                         .request_handler
                         .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
-                    match ue {
-                        Some(UpdateEvent::CatchupTargetNotFound(err)) => {
+                    match oru {
+                        Some(RequestUpdate::CatchupTargetNotFound(err)) => {
                             /* FIXME updater.send(_open_refresh_ack(
                                 catchup_state.cmd_id,
                                 id,
@@ -336,7 +337,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                             ));*/
                             PoolState::Terminated(catchup_state.into())
                         }
-                        Some(UpdateEvent::CatchupRestart(merkle_tree)) => {
+                        Some(RequestUpdate::CatchupRestart(merkle_tree)) => {
                             if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
                                 catchup_state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::NodesStateUpdated(remotes),
@@ -357,7 +358,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                                 PoolState::Terminated(catchup_state.into())
                             }
                         }
-                        Some(UpdateEvent::CatchupTargetFound(
+                        Some(RequestUpdate::CatchupTargetFound(
                             target_mt_root,
                             target_mt_size,
                             merkle_tree,
@@ -383,7 +384,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                                 PoolState::Terminated(catchup_state.into())
                             }
                         }
-                        Some(UpdateEvent::Synced(merkle_tree)) => {
+                        Some(RequestUpdate::Synced(merkle_tree)) => {
                             if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
                                 catchup_state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::NodesStateUpdated(remotes),
@@ -401,7 +402,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                         }
                         _ => match pe {
                             PoolEvent::Close(cmd_id) => {
-                                // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                                // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
                                 PoolState::Closed(catchup_state.into())
                             }
                             _ => PoolState::GettingCatchupTarget(catchup_state),
@@ -410,7 +411,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                 }
                 PoolState::Terminated(term_state) => match pe {
                     PoolEvent::Close(cmd_id) => {
-                        // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                        // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
                         PoolState::Closed(term_state.into())
                     }
                     PoolEvent::Refresh(cmd_id) => {
@@ -446,7 +447,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                     match pe {
                         PoolEvent::PoolOutdated => PoolState::Terminated(active_state.into()),
                         PoolEvent::Close(cmd_id) => {
-                            // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                            // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
                             PoolState::Closed(active_state.into())
                         }
                         PoolEvent::Refresh(cmd_id) => {
@@ -487,7 +488,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                                         LedgerErrorKind::InvalidStructure,
                                         "Request id not found",
                                     ));
-                                    // FIXME updater.send(UpdateEvent::SubmitAck(cmd_id, res));
+                                    // FIXME updater.send(RequestUpdate::SubmitAck(cmd_id, res));
                                 }
                             };
                             PoolState::Active(active_state)
@@ -537,14 +538,14 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                     }
                 }
                 PoolState::SyncCatchup(mut syncc_state) => {
-                    let ue = syncc_state
+                    let oru = syncc_state
                         .request_handler
                         .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
-                    match ue {
-                        Some(UpdateEvent::NodesBlacklisted) => {
+                    match oru {
+                        Some(RequestUpdate::NodesBlacklisted) => {
                             PoolState::Terminated(syncc_state.into())
                         }
-                        Some(UpdateEvent::Synced(merkle)) => {
+                        Some(RequestUpdate::Synced(merkle)) => {
                             if let Ok((nodes, remotes)) =
                                 _get_nodes_and_remotes(&merkle).map_err(map_err_err!())
                             {
@@ -564,7 +565,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                         }
                         _ => match pe {
                             PoolEvent::Close(cmd_id) => {
-                                // FIXME updater.send(UpdateEvent::CloseAck(cmd_id, Ok(())));
+                                // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
                                 PoolState::Closed(syncc_state.into())
                             }
                             _ => PoolState::SyncCatchup(syncc_state),
@@ -587,8 +588,8 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
     }
 }
 
-impl UpdateHandler for Sender<UpdateEvent> {
-    fn send(&self, update: UpdateEvent) -> LedgerResult<()> {
+impl UpdateHandler for Sender<RequestUpdate> {
+    fn send(&self, update: RequestUpdate) -> LedgerResult<()> {
         self.send(update).to_result(
             LedgerErrorKind::IOError,
             "Error returning pool update event",
@@ -603,11 +604,7 @@ pub struct Pool<T: Networker, R: RequestHandler<T>> {
     config: PoolConfig,
 }
 
-impl<T: Networker, R: RequestHandler<T>> Pool<T, R>
-where
-    T: Sync,
-    R: Sync,
-{
+impl<T: Networker, R: RequestHandler<T>> Pool<T, R> {
     pub fn new(id: PoolHandle, config: &PoolConfig) -> Self {
         trace!("Pool::new id {:?}, config {:?}", id, config);
         Pool {
@@ -619,9 +616,10 @@ where
     }
 
     pub fn work(&self, cmd_socket: zmq::Socket) {
-        let config = &self.config;
+        let id = self.id;
+        let config = self.config;
         self.worker = Some(thread::spawn(move || {
-            let mut pool_thread: PoolThread<T, R> = PoolThread::new(self.id, config, cmd_socket);
+            let mut pool_thread: PoolThread<T, R> = PoolThread::new(id, config, cmd_socket);
             pool_thread.work();
         }));
     }
@@ -639,14 +637,14 @@ struct PoolThread<T: Networker, R: RequestHandler<T>> {
 }
 
 impl<T: Networker, R: RequestHandler<T>> PoolThread<T, R> {
-    pub fn new(id: PoolHandle, config: &PoolConfig, cmd_socket: zmq::Socket) -> Self {
+    pub fn new(id: PoolHandle, config: PoolConfig, cmd_socket: zmq::Socket) -> Self {
         let networker = Rc::new(RefCell::new(T::new(
             config.conn_active_timeout,
-            config.conn_limit,
+            config.conn_request_limit,
             config.preordered_nodes.clone(),
         )));
         PoolThread {
-            pool_sm: Some(PoolSM::new(id, config, networker.clone())),
+            pool_sm: Some(PoolSM::new(id, &config, networker.clone())),
             events: VecDeque::new(),
             commander: Commander::new(cmd_socket),
             networker,
@@ -740,11 +738,13 @@ fn _get_request_handler_with_ledger_status_sent<T: Networker, R: RequestHandler<
             }
         },
     };
+    // FIXME - let RequestEvent handle NodesStateUpdated
     networker
         .borrow_mut()
         .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
     let mut request_handler = R::new(networker.clone(), _get_f(nodes.len()), &[], &nodes, &config);
     // FIXME - let RequestEvent produce the ledger status event in response to a PoolEvent?
+    // or catchup.rs
     let ls = _ledger_status(&merkle, config.protocol_version);
     request_handler.process_event(Some(RequestEvent::LedgerStatus(ls, None, Some(merkle))));
     Ok(request_handler)
@@ -766,13 +766,10 @@ fn _get_nodes_and_remotes(merkle: &MerkleTree) -> LedgerResult<(Nodes, Vec<Remot
 
     Ok(nodes
         .iter()
-        .map(|(_, txn)| {
+        .map(|(dest, txn)| {
             let node_alias = txn.txn.data.data.alias.clone();
 
-            let node_verkey = txn
-                .txn
-                .data
-                .dest
+            let node_verkey = dest
                 .as_str()
                 .from_base58()
                 .map_err(Context::new)
@@ -863,12 +860,12 @@ fn _open_refresh_ack(
     id: PoolHandle,
     is_refresh: bool,
     res: LedgerResult<()>,
-) -> UpdateEvent {
+) -> RequestUpdate {
     trace!("PoolSM: from getting catchup target to active");
     if is_refresh {
-        UpdateEvent::RefreshAck(cmd_id, res)
+        RequestUpdate::RefreshAck(cmd_id, res)
     } else {
-        UpdateEvent::OpenAck(cmd_id, id, res)
+        RequestUpdate::OpenAck(cmd_id, id, res)
     }
 }
 
@@ -921,16 +918,7 @@ mod tests {
 
     use super::*;
 
-    const TEST_POOL_CONFIG: PoolConfig = PoolConfig {
-        conn_active_timeout: 0,
-        conn_limit: NUMBER_READ_NODES,
-        freshness_threshold: 0,
-        timeout: 0,
-        extended_timeout: 0,
-        number_read_nodes: NUMBER_READ_NODES,
-        protocol_version: DEFAULT_PROTOCOL_VERSION,
-        preordered_nodes: vec![],
-    };
+    const TEST_POOL_CONFIG: PoolConfig = PoolConfig::default();
 
     mod pool {
         use super::*;
@@ -955,7 +943,6 @@ mod tests {
         use serde_json;
 
         use super::*;
-        // use crate::domain::pool::NUMBER_READ_NODES;
 
         #[test]
         pub fn pool_wrapper_new_initialization_works() {
