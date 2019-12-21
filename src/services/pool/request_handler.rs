@@ -12,17 +12,17 @@ use serde_json;
 use serde_json::Value as SJsonValue;
 use ursa::bls::Generator;
 
-use crate::services::pool::catchup::{
+use super::catchup::{
     build_catchup_req, check_cons_proofs, check_nodes_responses_on_status, CatchupProgress,
 };
-use crate::services::pool::events::{NetworkerEvent, RequestEvent, RequestUpdate};
+use super::events::{NetworkerEvent, RequestEvent, RequestUpdate};
+use super::networker::Networker;
+use super::state_proof;
+use super::types::CatchupRep;
+use super::types::{CommandHandle, HashableValue, LedgerStatus, Nodes, PoolConfig};
+use crate::domain::pool::ProtocolVersion;
 use crate::services::pool::get_last_signed_time;
-//use crate::services::pool::merkle_tree_factory;
-use crate::services::pool::networker::Networker;
-use crate::services::pool::state_proof;
-use crate::services::pool::types::CatchupRep;
-use crate::services::pool::types::{CommandHandle, HashableValue, Nodes, PoolConfig};
-use crate::utils::base58::FromBase58;
+use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
@@ -109,6 +109,7 @@ struct CatchupConsensusState<T: Networker> {
     replies: HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
     networker: Rc<RefCell<T>>,
     merkle_tree: MerkleTree,
+    backup_merkle_tree: Option<MerkleTree>,
 }
 
 struct CatchupSingleState<T: Networker> {
@@ -164,12 +165,17 @@ impl<T: Networker> From<StartState<T>> for ConsensusState<T> {
     }
 }
 
-impl<T: Networker> From<(MerkleTree, StartState<T>)> for CatchupConsensusState<T> {
-    fn from((merkle_tree, state): (MerkleTree, StartState<T>)) -> Self {
+impl<T: Networker> From<(MerkleTree, Option<MerkleTree>, StartState<T>)>
+    for CatchupConsensusState<T>
+{
+    fn from(
+        (merkle_tree, backup_merkle_tree, state): (MerkleTree, Option<MerkleTree>, StartState<T>),
+    ) -> Self {
         CatchupConsensusState {
             replies: HashMap::new(),
             networker: state.networker.clone(),
             merkle_tree,
+            backup_merkle_tree,
         }
     }
 }
@@ -255,7 +261,8 @@ impl<T: Networker> RequestSM<T> {
         let (state, update) = match state {
             RequestState::Start(state) => {
                 match re {
-                    RequestEvent::LedgerStatus(ls, _, Some(merkle)) => {
+                    RequestEvent::Init(merkle, backup) => {
+                        let ls = _ledger_status(&merkle, config.protocol_version);
                         let req_id = ls.merkleRoot.clone();
                         let ne = Some(NetworkerEvent::SendAllRequest(
                             serde_json::to_string(&super::types::Message::LedgerStatus(ls))
@@ -266,7 +273,10 @@ impl<T: Networker> RequestSM<T> {
                         ));
                         trace!("start catchup, ne: {:?}", ne);
                         state.networker.borrow_mut().process_event(ne);
-                        (RequestState::CatchupConsensus((merkle, state).into()), None)
+                        (
+                            RequestState::CatchupConsensus((merkle, backup, state).into()),
+                            None,
+                        )
                     }
                     RequestEvent::CatchupReq(merkle, target_mt_size, target_mt_root) => {
                         match build_catchup_req(&merkle, target_mt_size) {
@@ -290,7 +300,7 @@ impl<T: Networker> RequestSM<T> {
                                 warn!("No transactions to catch up!");
                                 (RequestState::finish(), Some(RequestUpdate::Synced(merkle)))
                             }
-                            Err(e) => (RequestState::finish(), Some(_ack_submit(&cmd_ids, Err(e)))),
+                            Err(e) => (RequestState::finish(), Some(_fail_submit(&cmd_ids, e))),
                         }
                     }
                     RequestEvent::CustomSingleRequest(msg, req_id, sp_key, timestamps) => {
@@ -340,19 +350,19 @@ impl<T: Networker> RequestSM<T> {
                                         )
                                     } else {
                                         (RequestState::finish(),
-                                        Some(_ack_submit(&cmd_ids, Err(err_msg(LedgerErrorKind::InvalidStructure,
+                                        Some(_fail_submit(&cmd_ids, err_msg(LedgerErrorKind::InvalidStructure,
                                             format!("There is no known node in list to send {:?}, known nodes are {:?}",
-                                                    nodes_to_send, nodes.keys()))))))
+                                                    nodes_to_send, nodes.keys())))))
                                     }
                                 }
                                 Err(err) => (
                                     RequestState::finish(),
-                                    Some(_ack_submit(
+                                    Some(_fail_submit(
                                         &cmd_ids,
-                                        Err(err.to_result(
+                                        err.to_result(
                                             LedgerErrorKind::InvalidStructure,
                                             "Invalid list of nodes to send",
-                                        )),
+                                        ),
                                     )),
                                 ),
                             }
@@ -408,12 +418,12 @@ impl<T: Networker> RequestSM<T> {
                                 (
                                     RequestState::finish(),
                                     //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-                                    Some(_ack_submit(
+                                    Some(_fail_submit(
                                         &cmd_ids,
-                                        Err(err_msg(
+                                        err_msg(
                                             LedgerErrorKind::PoolTimeout,
                                             "Consensus is impossible",
-                                        )),
+                                        ),
                                     )),
                                 )
                             }
@@ -422,12 +432,12 @@ impl<T: Networker> RequestSM<T> {
                             if state.denied_nodes.len() + state.replies.len() == nodes.len() {
                                 (
                                     RequestState::finish(),
-                                    Some(_ack_submit(
+                                    Some(_fail_submit(
                                         &cmd_ids,
-                                        Err(err_msg(
+                                        err_msg(
                                             LedgerErrorKind::PoolTimeout,
                                             "Consensus is impossible",
-                                        )),
+                                        ),
                                     )),
                                 )
                             } else {
@@ -456,12 +466,12 @@ impl<T: Networker> RequestSM<T> {
                             (
                                 RequestState::finish(),
                                 //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-                                Some(_ack_submit(
+                                Some(_fail_submit(
                                     &cmd_ids,
-                                    Err(err_msg(
+                                    err_msg(
                                         LedgerErrorKind::PoolTimeout,
                                         "Consensus is impossible",
-                                    )),
+                                    ),
                                 )),
                             )
                         }
@@ -570,7 +580,7 @@ impl<T: Networker> RequestSM<T> {
                 _ => (RequestState::Single(state), None),
             },
             RequestState::CatchupConsensus(state) => match re {
-                RequestEvent::LedgerStatus(ls, Some(node_alias), _) => {
+                RequestEvent::LedgerStatus(ls, node_alias) => {
                     RequestSM::_catchup_target_handle_consensus_state(
                         state,
                         ls.merkleRoot.clone(),
@@ -665,23 +675,21 @@ impl<T: Networker> RequestSM<T> {
             RequestState::Full(state) => match re {
                 RequestEvent::Reply(_, raw_msg, node_alias, req_id)
                 | RequestEvent::ReqNACK(_, raw_msg, node_alias, req_id)
-                | RequestEvent::Reject(_, raw_msg, node_alias, req_id) => (
-                    RequestSM::_full_request_handle_consensus_state(
+                | RequestEvent::Reject(_, raw_msg, node_alias, req_id) => {
+                    (RequestSM::_full_request_handle_consensus_state(
                         state, req_id, node_alias, raw_msg, &cmd_ids, &nodes,
-                    ),
-                    None,
-                ),
-                RequestEvent::Timeout(req_id, node_alias) => (
-                    RequestSM::_full_request_handle_consensus_state(
+                    ))
+                }
+                RequestEvent::Timeout(req_id, node_alias) => {
+                    (RequestSM::_full_request_handle_consensus_state(
                         state,
                         req_id,
                         node_alias,
                         "timeout".to_string(),
                         &cmd_ids,
                         &nodes,
-                    ),
-                    None,
-                ),
+                    ))
+                }
 
                 RequestEvent::Terminate => {
                     (RequestState::finish(), Some(_finish_request(&cmd_ids)))
@@ -715,7 +723,7 @@ impl<T: Networker> RequestSM<T> {
         node_result: String,
         cmd_ids: &[CommandHandle],
         nodes: &Nodes,
-    ) -> RequestState<T> {
+    ) -> (RequestState<T>, Option<RequestUpdate>) {
         let is_first_resp = state.accum_reply.is_none();
         if is_first_resp {
             state.accum_reply = Some(HashableValue {
@@ -753,14 +761,16 @@ impl<T: Networker> RequestSM<T> {
                 .borrow_mut()
                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
             let reply = state.accum_reply.as_ref().unwrap().inner.to_string();
-            _ok_submit(&cmd_ids, &reply);
-            RequestState::Finish(FinishState {})
+            (
+                RequestState::Finish(FinishState {}),
+                Some(_ok_submit(&cmd_ids, &reply)),
+            )
         } else {
             state
                 .networker
                 .borrow_mut()
                 .process_event(Some(NetworkerEvent::CleanTimeout(req_id, Some(node_alias))));
-            RequestState::Full(state)
+            (RequestState::Full(state), None)
         }
     }
 
@@ -797,7 +807,10 @@ impl<T: Networker> RequestSM<T> {
                     .networker
                     .borrow_mut()
                     .process_event(Some(NetworkerEvent::CleanTimeout(req_id, None)));
-                (RequestState::CatchupConsensus(state), result)
+                (
+                    RequestState::CatchupConsensus(state),
+                    Some(RequestUpdate::CatchupRestart(merkle_tree)),
+                )
             }
             (false, result) => {
                 state
@@ -833,7 +846,13 @@ impl<T: Networker> RequestSM<T> {
                 .insert(key, HashSet::from_iter(vec![node_alias.to_string()]));
         }
 
-        match check_nodes_responses_on_status(&state.replies, &state.merkle_tree, nodes.len(), f) {
+        match check_nodes_responses_on_status(
+            &state.replies,
+            &state.merkle_tree,
+            state.backup_merkle_tree.clone(),
+            nodes.len(),
+            f,
+        ) {
             Ok(CatchupProgress::InProgress) => (false, None),
             Ok(CatchupProgress::NotNeeded(merkle_tree)) => {
                 (true, Some(RequestUpdate::Synced(merkle_tree)))
@@ -980,6 +999,17 @@ fn _parse_nack(
     }
 }
 */
+
+fn _ledger_status(merkle: &MerkleTree, protocol_version: ProtocolVersion) -> LedgerStatus {
+    LedgerStatus {
+        txnSeqNo: merkle.count(),
+        merkleRoot: merkle.root_hash().as_slice().to_base58(),
+        ledgerId: 0,
+        ppSeqNo: None,
+        viewNo: None,
+        protocolVersion: Some(protocol_version as usize),
+    }
+}
 
 fn _process_catchup_reply(
     rep: &mut CatchupRep,
@@ -1323,6 +1353,8 @@ pub mod tests {
     mod start {
         use super::*;
 
+        /*
+        FIXME - use Init event
         #[test]
         fn request_handler_process_ledger_status_event_from_start_works() {
             let mut request_handler = _request_handler(
@@ -1332,7 +1364,7 @@ pub mod tests {
             );
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
+                NODE.to_string()),
                 Some(MerkleTree::default()),
             )));
             assert_match!(
@@ -1340,6 +1372,7 @@ pub mod tests {
                 request_handler.request_wrapper.unwrap().state
             );
         }
+        */
 
         #[test]
         fn request_handler_process_catchup_req_event_from_start_works() {
@@ -2568,13 +2601,11 @@ pub mod tests {
             let mut request_handler = _request_handler("request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_catchup_completed", 0, 1);
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             assert_match!(
                 RequestState::Finish(_),
@@ -2588,13 +2619,11 @@ pub mod tests {
             let mut request_handler = _request_handler("request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_catchup_not_completed", 1, 1);
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             assert_match!(
                 RequestState::CatchupConsensus(_),
@@ -2608,8 +2637,7 @@ pub mod tests {
             let mut request_handler = _request_handler("request_handler_process_consistency_proof_event_from_catchup_consensus_state_works_for_catchup_completed", 0, 1);
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::ConsistencyProof(
                 ConsistencyProof::default(),
@@ -2627,8 +2655,7 @@ pub mod tests {
             let mut request_handler = _request_handler("request_handler_process_consistency_proof_event_from_catchup_consensus_state_works_for_catchup_not_completed", 1, 1);
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::ConsistencyProof(
                 ConsistencyProof::default(),
@@ -2649,8 +2676,7 @@ pub mod tests {
             );
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::Timeout(
                 REQ_ID.to_string(),
@@ -2668,8 +2694,7 @@ pub mod tests {
             let mut request_handler = _request_handler("request_handler_process_timeout_event_from_catchup_consensus_state_works_for_all_timeouts", 0, 1);
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::Timeout(
                 REQ_ID.to_string(),
@@ -2690,8 +2715,7 @@ pub mod tests {
             );
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::Terminate));
             assert_match!(
@@ -2709,8 +2733,7 @@ pub mod tests {
             );
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             request_handler.process_event(Some(RequestEvent::Pong));
             assert_match!(
@@ -2725,8 +2748,7 @@ pub mod tests {
             let mut request_handler = _request_handler("request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_splitted_pool", 1, 4);
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some(NODE.to_string()),
-                Some(MerkleTree::default()),
+                NODE.to_string(),
             )));
             assert_match!(
                 &RequestState::CatchupConsensus(_),
@@ -2752,8 +2774,7 @@ pub mod tests {
 
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some("n3".to_string()),
-                Some(MerkleTree::default()),
+                "n3".to_string(),
             )));
             assert_match!(
                 &RequestState::Finish(_),
@@ -2761,8 +2782,7 @@ pub mod tests {
             );
             request_handler.process_event(Some(RequestEvent::LedgerStatus(
                 LedgerStatus::default(),
-                Some("n4".to_string()),
-                Some(MerkleTree::default()),
+                "n4".to_string(),
             )));
             assert_match!(
                 RequestState::Finish(_),

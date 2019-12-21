@@ -69,6 +69,7 @@ pub const COMMAND_REFRESH: &str = "refresh";
 
 #[derive(Debug)]
 pub enum PoolEvent {
+    Open(CommandHandle),
     CheckCache(CommandHandle),
     NodeReply(
         String, // reply
@@ -91,49 +92,22 @@ pub enum PoolEvent {
 }
 
 #[derive(Debug)]
-pub enum RequestUpdate {
+pub enum PoolUpdate {
     OpenAck(CommandHandle, PoolHandle, LedgerResult<()>),
     CloseAck(CommandHandle, LedgerResult<()>),
     RefreshAck(CommandHandle, LedgerResult<()>),
-    SubmitAck(Vec<CommandHandle>, LedgerResult<String>),
-    Synced(MerkleTree),
-    CatchupTargetFound(
-        Vec<u8>, //target_mt_root
-        usize,   //target_mt_size
-        MerkleTree,
-    ),
-    CatchupRestart(MerkleTree),
-    CatchupTargetNotFound(LedgerError),
-    NodesBlacklisted,
-}
-
-pub trait UpdateHandler {
-    fn send(&self, update: RequestUpdate) -> LedgerResult<()>;
-}
-
-pub struct MockUpdateHandler {
-    pub events: Vec<RequestUpdate>,
-}
-
-impl MockUpdateHandler {
-    pub fn new() -> MockUpdateHandler {
-        MockUpdateHandler { events: vec![] }
-    }
-}
-
-impl UpdateHandler for MockUpdateHandler {
-    fn send(&self, update: RequestUpdate) -> LedgerResult<()> {
-        self.events.push(update);
-        Ok(())
-    }
+    SubmitAck(CommandHandle, LedgerResult<String>),
 }
 
 #[derive(Clone, Debug)]
 pub enum RequestEvent {
+    Init(
+        MerkleTree,         // current
+        Option<MerkleTree>, // previous
+    ),
     LedgerStatus(
         LedgerStatus,
-        Option<String>, //node alias
-        Option<MerkleTree>,
+        String, //node alias
     ),
     CatchupReq(
         MerkleTree,
@@ -198,6 +172,20 @@ pub enum RequestEvent {
     Terminate,
 }
 
+#[derive(Debug)]
+pub enum RequestUpdate {
+    SubmitAck(Vec<CommandHandle>, LedgerResult<String>),
+    Synced(MerkleTree),
+    CatchupTargetFound(
+        Vec<u8>, //target_mt_root
+        usize,   //target_mt_size
+        MerkleTree,
+    ),
+    CatchupRestart(MerkleTree),
+    CatchupTargetNotFound(LedgerError),
+    NodesBlacklisted,
+}
+
 impl RequestEvent {
     pub fn get_req_id(&self) -> String {
         match *self {
@@ -224,9 +212,7 @@ impl RequestEvent {
                         RequestEvent::CatchupReq(MerkleTree::default(), 0, vec![])
                     }
                     Message::CatchupRep(rep) => RequestEvent::CatchupRep(rep, node_alias),
-                    Message::LedgerStatus(ls) => {
-                        RequestEvent::LedgerStatus(ls, Some(node_alias), None)
-                    }
+                    Message::LedgerStatus(ls) => RequestEvent::LedgerStatus(ls, node_alias),
                     Message::ConsistencyProof(cp) => RequestEvent::ConsistencyProof(cp, node_alias),
                     Message::Reply(rep) => {
                         let req_id = rep.req_id();
@@ -299,6 +285,27 @@ impl RequestEvent {
             }
             _ => None,
         }
+    }
+}
+
+pub trait UpdateHandler {
+    fn send(&mut self, update: PoolUpdate) -> LedgerResult<()>;
+}
+
+pub struct MockUpdateHandler {
+    pub events: Vec<PoolUpdate>,
+}
+
+impl MockUpdateHandler {
+    pub fn new() -> Self {
+        Self { events: vec![] }
+    }
+}
+
+impl UpdateHandler for MockUpdateHandler {
+    fn send(&mut self, update: PoolUpdate) -> LedgerResult<()> {
+        self.events.push(update);
+        Ok(())
     }
 }
 

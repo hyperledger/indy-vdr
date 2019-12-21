@@ -53,7 +53,7 @@ pub fn build_catchup_req(
 pub fn check_nodes_responses_on_status(
     nodes_votes: &HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
     merkle_tree: &MerkleTree,
-    prev_merkle_tree: Option<&MerkleTree>,
+    prev_merkle_tree: Option<MerkleTree>,
     node_cnt: usize,
     f: usize,
 ) -> LedgerResult<CatchupProgress> {
@@ -73,7 +73,7 @@ pub fn check_nodes_responses_on_status(
         if *votes_cnt == f + 1 {
             return _try_to_catch_up(most_popular_not_timeout_vote, merkle_tree).or_else(|err| {
                 if let Some(merkle_tree) = prev_merkle_tree {
-                    _try_to_catch_up(most_popular_not_timeout_vote, merkle_tree)
+                    _try_to_catch_up(most_popular_not_timeout_vote, &merkle_tree)
                 } else {
                     Err(err)
                 }
@@ -99,7 +99,7 @@ fn _if_consensus_reachable(
     node_cnt: usize,
     votes_cnt: usize,
     f: usize,
-    prev_merkle_tree: Option<&MerkleTree>,
+    prev_merkle_tree: Option<MerkleTree>,
 ) -> LedgerResult<CatchupProgress> {
     let reps_cnt: usize = nodes_votes.values().map(HashSet::len).sum();
     let positive_votes_cnt = votes_cnt + (node_cnt - reps_cnt);
@@ -116,11 +116,11 @@ fn _if_consensus_reachable(
 }
 
 fn _try_to_restart_catch_up(
-    prev_merkle_tree: Option<&MerkleTree>,
+    prev_merkle_tree: Option<MerkleTree>,
     err: LedgerError,
 ) -> LedgerResult<CatchupProgress> {
     if let Some(merkle_tree) = prev_merkle_tree {
-        Ok(CatchupProgress::Restart(*merkle_tree))
+        Ok(CatchupProgress::Restart(merkle_tree))
     } else {
         Err(err)
     }

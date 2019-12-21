@@ -28,9 +28,27 @@ use crate::utils::merkletree::MerkleTree;
 use ursa::bls::VerKey as BlsVerKey;
 use zmq;
 
+#[derive(Clone, Debug)]
+struct NodeTransactions {
+    active: MerkleTree,
+    backup: Option<MerkleTree>,
+    preordered_nodes: Vec<String>,
+}
+
+impl NodeTransactions {
+    fn new(active: &MerkleTree, backup: Option<MerkleTree>, preordered_nodes: Vec<String>) -> Self {
+        Self {
+            active: active.clone(),
+            backup,
+            preordered_nodes: preordered_nodes.clone(),
+        }
+    }
+}
+
 struct PoolSM<T: Networker, R: RequestHandler<T>> {
     id: PoolHandle,
     config: PoolConfig,
+    transactions: NodeTransactions,
     state: PoolState<T, R>,
 }
 
@@ -81,16 +99,32 @@ struct TerminatedState<T: Networker> {
 struct ClosedState {}
 
 impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
-    pub fn new(id: PoolHandle, config: &PoolConfig, networker: Rc<RefCell<T>>) -> PoolSM<T, R> {
+    pub fn new(
+        id: PoolHandle,
+        config: PoolConfig,
+        transactions: NodeTransactions,
+        networker: Rc<RefCell<T>>,
+    ) -> PoolSM<T, R> {
         PoolSM {
             id,
-            config: config.clone(),
+            config: config,
+            transactions: transactions,
             state: PoolState::Initialization(InitializationState { networker }),
         }
     }
 
-    pub fn step(id: PoolHandle, config: PoolConfig, state: PoolState<T, R>) -> Self {
-        PoolSM { id, config, state }
+    pub fn step(
+        id: PoolHandle,
+        config: PoolConfig,
+        transactions: NodeTransactions,
+        state: PoolState<T, R>,
+    ) -> Self {
+        PoolSM {
+            id,
+            config,
+            transactions,
+            state,
+        }
     }
 }
 
@@ -289,146 +323,276 @@ impl<T: Networker> From<TerminatedState<T>> for ClosedState {
 }
 
 impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
-    pub fn handle_event(self, pe: PoolEvent) -> Self {
-        let PoolSM { id, config, state } = self;
-        let state =
-            match state {
-                PoolState::Initialization(init_state) => match pe {
-                    PoolEvent::CheckCache(cmd_id) => {
-                        //TODO: check cache freshness
-                        let fresh = false;
-                        if fresh {
-                            //  PoolWrapper::Active(pool.into())
-                            unimplemented!()
-                        } else {
-                            match _get_request_handler_with_ledger_status_sent(
-                                init_state.networker.clone(),
-                                &config,
-                            ) {
-                                Ok(request_handler) => {
-                                    (PoolState::GettingCatchupTarget(
-                                        (request_handler, cmd_id, init_state).into(),
-                                    ))
-                                }
-                                Err(err) => {
-                                    // FIXME updater.send(RequestUpdate::OpenAck(cmd_id, id, Err(err)));
-                                    PoolState::Terminated(init_state.into())
-                                }
-                            }
+    pub fn handle_event(self, pe: PoolEvent) -> (Self, Option<PoolUpdate>) {
+        let PoolSM {
+            id,
+            config,
+            mut transactions,
+            state,
+        } = self;
+        let (state, update) = match state {
+            PoolState::Initialization(init_state) => match pe {
+                PoolEvent::Open(cmd_id) => {
+                    // if transactions are known to be fresh
+                    match _find_valid_state(transactions.active, transactions.backup, &config) {
+                        Ok(((nodes, remotes), merkle_tree, backup)) => {
+                            transactions.active = merkle_tree;
+                            transactions.backup = backup;
+                            init_state
+                                .networker
+                                .borrow_mut()
+                                .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
+                            (
+                                PoolState::Active((init_state, nodes).into()),
+                                // FIXME ack with new transactions
+                                Some(PoolUpdate::OpenAck(cmd_id, id, Ok(()))),
+                            )
                         }
-                    }
-                    PoolEvent::Close(cmd_id) => {
-                        // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
-                        PoolState::Closed(init_state.into())
-                    }
-                    _ => PoolState::Initialization(init_state),
-                },
-                PoolState::GettingCatchupTarget(mut catchup_state) => {
-                    let oru = catchup_state
-                        .request_handler
-                        .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
-                    match oru {
-                        Some(RequestUpdate::CatchupTargetNotFound(err)) => {
-                            /* FIXME updater.send(_open_refresh_ack(
-                                catchup_state.cmd_id,
-                                id,
-                                catchup_state.refresh,
-                                Err(err),
-                            ));*/
-                            PoolState::Terminated(catchup_state.into())
-                        }
-                        Some(RequestUpdate::CatchupRestart(merkle_tree)) => {
-                            if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
-                                catchup_state.networker.borrow_mut().process_event(Some(
-                                    NetworkerEvent::NodesStateUpdated(remotes),
-                                ));
-                                catchup_state.request_handler = R::new(
-                                    catchup_state.networker.clone(),
-                                    _get_f(nodes.len()),
-                                    &[],
-                                    &nodes,
-                                    &config,
-                                );
-                                let ls = _ledger_status(&merkle_tree, config.protocol_version);
-                                catchup_state.request_handler.process_event(Some(
-                                    RequestEvent::LedgerStatus(ls, None, Some(merkle_tree)),
-                                ));
-                                PoolState::GettingCatchupTarget(catchup_state)
-                            } else {
-                                PoolState::Terminated(catchup_state.into())
-                            }
-                        }
-                        Some(RequestUpdate::CatchupTargetFound(
-                            target_mt_root,
-                            target_mt_size,
-                            merkle_tree,
-                        )) => {
-                            if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
-                                catchup_state.networker.borrow_mut().process_event(Some(
-                                    NetworkerEvent::NodesStateUpdated(remotes),
-                                ));
-                                let mut request_handler = R::new(
-                                    catchup_state.networker.clone(),
-                                    _get_f(nodes.len()),
-                                    &[],
-                                    &nodes,
-                                    &config,
-                                );
-                                request_handler.process_event(Some(RequestEvent::CatchupReq(
-                                    merkle_tree,
-                                    target_mt_size,
-                                    target_mt_root,
-                                )));
-                                PoolState::SyncCatchup((request_handler, catchup_state).into())
-                            } else {
-                                PoolState::Terminated(catchup_state.into())
-                            }
-                        }
-                        Some(RequestUpdate::Synced(merkle_tree)) => {
-                            if let Ok((nodes, remotes)) = _get_nodes_and_remotes(&merkle_tree) {
-                                catchup_state.networker.borrow_mut().process_event(Some(
-                                    NetworkerEvent::NodesStateUpdated(remotes),
-                                ));
-                                /* FIXME updater.send(_open_refresh_ack(
-                                    catchup_state.cmd_id,
-                                    id,
-                                    catchup_state.refresh,
-                                    Ok(()),
-                                ));*/
-                                PoolState::Active((catchup_state, nodes).into())
-                            } else {
-                                PoolState::Terminated(catchup_state.into())
-                            }
-                        }
-                        _ => match pe {
-                            PoolEvent::Close(cmd_id) => {
-                                // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
-                                PoolState::Closed(catchup_state.into())
-                            }
-                            _ => PoolState::GettingCatchupTarget(catchup_state),
-                        },
+                        Err(err) => (
+                            PoolState::Terminated(init_state.into()),
+                            Some(PoolUpdate::OpenAck(cmd_id, id, Err(err))),
+                        ),
                     }
                 }
-                PoolState::Terminated(term_state) => match pe {
-                    PoolEvent::Close(cmd_id) => {
-                        // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
-                        PoolState::Closed(term_state.into())
+                PoolEvent::CheckCache(cmd_id) => {
+                    match _init_request_handler(
+                        init_state.networker.clone(),
+                        transactions.active,
+                        transactions.backup,
+                        &config,
+                    ) {
+                        Ok(request_handler) => (
+                            PoolState::GettingCatchupTarget(
+                                (request_handler, cmd_id, init_state).into(),
+                            ),
+                            None,
+                        ),
+                        Err(err) => (
+                            PoolState::Terminated(init_state.into()),
+                            Some(PoolUpdate::OpenAck(cmd_id, id, Err(err))),
+                        ),
                     }
-                    PoolEvent::Refresh(cmd_id) => {
-                        if let Ok(request_handler) = _get_request_handler_with_ledger_status_sent(
-                            term_state.networker.clone(),
+                }
+                PoolEvent::Close(cmd_id) => (
+                    PoolState::Closed(init_state.into()),
+                    Some(PoolUpdate::CloseAck(cmd_id, Ok(()))),
+                ),
+                _ => (PoolState::Initialization(init_state), None),
+            },
+            PoolState::GettingCatchupTarget(mut catchup_state) => {
+                let oru = catchup_state
+                    .request_handler
+                    .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
+                let cmd_id = catchup_state.cmd_id;
+                let refresh = catchup_state.refresh;
+                match oru {
+                    Some(RequestUpdate::CatchupTargetNotFound(err)) => (
+                        PoolState::Terminated(catchup_state.into()),
+                        Some(_open_refresh_ack(cmd_id, id, refresh, Err(err))),
+                    ),
+                    Some(RequestUpdate::CatchupRestart(merkle_tree)) => {
+                        match _init_request_handler(
+                            catchup_state.networker.clone(),
+                            merkle_tree,
+                            None,
                             &config,
                         ) {
-                            PoolState::GettingCatchupTarget(
-                                (term_state, request_handler, cmd_id).into(),
-                            )
-                        } else {
-                            PoolState::Terminated(term_state)
+                            Ok(request_handler) => {
+                                catchup_state.request_handler = request_handler;
+                                (PoolState::GettingCatchupTarget(catchup_state), None)
+                            }
+                            Err(err) => (
+                                PoolState::Terminated(catchup_state.into()),
+                                Some(_open_refresh_ack(cmd_id, id, refresh, Err(err))),
+                            ),
                         }
                     }
+                    Some(RequestUpdate::CatchupTargetFound(
+                        target_mt_root,
+                        target_mt_size,
+                        merkle_tree,
+                    )) => {
+                        match _catchup_request_handler(
+                            catchup_state.networker.clone(),
+                            merkle_tree,
+                            target_mt_size,
+                            target_mt_root,
+                            &config,
+                        ) {
+                            Ok(request_handler) => {
+                                catchup_state.request_handler = request_handler;
+                                (
+                                    PoolState::SyncCatchup(
+                                        (catchup_state.request_handler, catchup_state).into(),
+                                    ),
+                                    None,
+                                )
+                            }
+                            Err(err) => (
+                                PoolState::Terminated(catchup_state.into()),
+                                Some(_open_refresh_ack(cmd_id, id, refresh, Err(err))),
+                            ),
+                        }
+                    }
+                    Some(RequestUpdate::Synced(merkle_tree)) => {
+                        match _get_nodes_and_remotes(&merkle_tree, &config) {
+                            Ok((nodes, remotes)) => {
+                                catchup_state.networker.borrow_mut().process_event(Some(
+                                    NetworkerEvent::NodesStateUpdated(remotes),
+                                ));
+                                (
+                                    PoolState::Active((catchup_state, nodes).into()),
+                                    Some(_open_refresh_ack(cmd_id, id, refresh, Ok(()))),
+                                )
+                            }
+                            Err(err) => (
+                                PoolState::Terminated(catchup_state.into()),
+                                Some(_open_refresh_ack(cmd_id, id, refresh, Err(err))),
+                            ),
+                        }
+                    }
+                    _ => match pe {
+                        PoolEvent::Close(cmd_id) => (
+                            PoolState::Closed(catchup_state.into()),
+                            Some(PoolUpdate::CloseAck(cmd_id, Ok(()))),
+                        ),
+                        _ => (PoolState::GettingCatchupTarget(catchup_state), None),
+                    },
+                }
+            }
+            PoolState::Terminated(term_state) => match pe {
+                PoolEvent::Close(cmd_id) => (
+                    PoolState::Closed(term_state.into()),
+                    Some(PoolUpdate::CloseAck(cmd_id, Ok(()))),
+                ),
+                PoolEvent::Refresh(cmd_id) => {
+                    match _init_request_handler(
+                        term_state.networker.clone(),
+                        transactions.active,
+                        transactions.backup,
+                        &config,
+                    ) {
+                        Ok(request_handler) => (
+                            PoolState::GettingCatchupTarget(
+                                (term_state, request_handler, cmd_id).into(),
+                            ),
+                            None,
+                        ),
+                        Err(err) => (
+                            PoolState::Terminated(term_state),
+                            Some(_open_refresh_ack(cmd_id, id, true, Err(err))),
+                        ),
+                    }
+                }
+                PoolEvent::Timeout(req_id, node_alias) => {
+                    if "".eq(&req_id) {
+                        term_state
+                            .networker
+                            .borrow_mut()
+                            .process_event(Some(NetworkerEvent::Timeout));
+                    } else {
+                        warn!(
+                            "Unexpected timeout: req_id {}, node_alias {}",
+                            req_id, node_alias
+                        )
+                    }
+                    (PoolState::Terminated(term_state), None)
+                }
+                _ => (PoolState::Terminated(term_state), None),
+            },
+            PoolState::Closed(close_state) => (PoolState::Closed(close_state), None),
+            PoolState::Active(mut active_state) => {
+                match pe {
+                    PoolEvent::PoolOutdated => (
+                        PoolState::Terminated(active_state.into()),
+                        // FIXME - need a new pool update event?
+                        None,
+                    ),
+                    PoolEvent::Close(cmd_id) => (
+                        PoolState::Closed(active_state.into()),
+                        Some(PoolUpdate::CloseAck(cmd_id, Ok(()))),
+                    ),
+                    PoolEvent::Refresh(cmd_id) => {
+                        match _init_request_handler(
+                            active_state.networker.clone(),
+                            transactions.active,
+                            transactions.backup,
+                            &config,
+                        ) {
+                            Ok(request_handler) => (
+                                PoolState::GettingCatchupTarget(
+                                    (active_state, request_handler, cmd_id).into(),
+                                ),
+                                None,
+                            ),
+                            Err(err) => (
+                                PoolState::Terminated(active_state.into()),
+                                Some(_open_refresh_ack(cmd_id, id, true, Err(err))),
+                            ),
+                        }
+                    }
+                    PoolEvent::SendRequest(cmd_id, _, _, _) => {
+                        trace!("received request to send");
+                        let re: Option<RequestEvent> =
+                            RequestEvent::from_pool_event(pe, config.protocol_version);
+                        match re.as_ref().map(|r| r.get_req_id()) {
+                            Some(req_id) => {
+                                let mut request_handler = R::new(
+                                    active_state.networker.clone(),
+                                    _get_f(active_state.nodes.len()),
+                                    &[cmd_id],
+                                    &active_state.nodes,
+                                    &config,
+                                );
+                                request_handler.process_event(re); // FIXME check result
+                                active_state
+                                    .request_handlers
+                                    .insert(req_id.to_string(), request_handler);
+                                // FIXME check already exists
+                                (PoolState::Active(active_state), None)
+                            }
+                            None => {
+                                let res = Err(err_msg(
+                                    LedgerErrorKind::InvalidStructure,
+                                    "Request id not found",
+                                ));
+                                (
+                                    PoolState::Active(active_state),
+                                    Some(PoolUpdate::SubmitAck(cmd_id, res)),
+                                )
+                            }
+                        }
+                    }
+                    PoolEvent::NodeReply(reply, node) => {
+                        trace!("received reply from node {:?}: {:?}", node, reply);
+                        let re: Option<RequestEvent> =
+                            RequestEvent::from_pool_event(pe, config.protocol_version);
+                        match re.as_ref().map(|r| r.get_req_id()) {
+                            Some(req_id) => {
+                                let remove = if let Some(rh) =
+                                    active_state.request_handlers.get_mut(&req_id)
+                                {
+                                    rh.process_event(re);
+                                    rh.is_terminal()
+                                } else {
+                                    false
+                                };
+                                if remove {
+                                    active_state.request_handlers.remove(&req_id);
+                                }
+                            }
+                            None => warn!("Request id not found in Reply: {:?}", reply),
+                        };
+                        (PoolState::Active(active_state), None)
+                    }
                     PoolEvent::Timeout(req_id, node_alias) => {
-                        if "".eq(&req_id) {
-                            term_state
+                        if let Some(rh) = active_state.request_handlers.get_mut(&req_id) {
+                            rh.process_event(RequestEvent::from_pool_event(
+                                pe,
+                                config.protocol_version,
+                            ));
+                        } else if "".eq(&req_id) {
+                            active_state
                                 .networker
                                 .borrow_mut()
                                 .process_event(Some(NetworkerEvent::Timeout));
@@ -438,142 +602,55 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                                 req_id, node_alias
                             )
                         }
-                        PoolState::Terminated(term_state)
+                        (PoolState::Active(active_state), None)
                     }
-                    _ => PoolState::Terminated(term_state),
-                },
-                PoolState::Closed(close_state) => PoolState::Closed(close_state),
-                PoolState::Active(mut active_state) => {
-                    match pe {
-                        PoolEvent::PoolOutdated => PoolState::Terminated(active_state.into()),
-                        PoolEvent::Close(cmd_id) => {
-                            // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
-                            PoolState::Closed(active_state.into())
-                        }
-                        PoolEvent::Refresh(cmd_id) => {
-                            if let Ok(request_handler) =
-                                _get_request_handler_with_ledger_status_sent(
-                                    active_state.networker.clone(),
-                                    &config,
-                                )
-                            {
-                                PoolState::GettingCatchupTarget(
-                                    (active_state, request_handler, cmd_id).into(),
-                                )
-                            } else {
-                                PoolState::Terminated(active_state.into())
-                            }
-                        }
-                        PoolEvent::SendRequest(cmd_id, _, _, _) => {
-                            trace!("received request to send");
-                            let re: Option<RequestEvent> =
-                                RequestEvent::from_pool_event(pe, config.protocol_version);
-                            match re.as_ref().map(|r| r.get_req_id()) {
-                                Some(req_id) => {
-                                    let mut request_handler = R::new(
-                                        active_state.networker.clone(),
-                                        _get_f(active_state.nodes.len()),
-                                        &[cmd_id],
-                                        &active_state.nodes,
-                                        &config,
-                                    );
-                                    request_handler.process_event(re);
-                                    active_state
-                                        .request_handlers
-                                        .insert(req_id.to_string(), request_handler);
-                                    // FIXME check already exists
-                                }
-                                None => {
-                                    let res = Err(err_msg(
-                                        LedgerErrorKind::InvalidStructure,
-                                        "Request id not found",
-                                    ));
-                                    // FIXME updater.send(RequestUpdate::SubmitAck(cmd_id, res));
-                                }
-                            };
-                            PoolState::Active(active_state)
-                        }
-                        PoolEvent::NodeReply(reply, node) => {
-                            trace!("received reply from node {:?}: {:?}", node, reply);
-                            let re: Option<RequestEvent> =
-                                RequestEvent::from_pool_event(pe, config.protocol_version);
-                            match re.as_ref().map(|r| r.get_req_id()) {
-                                Some(req_id) => {
-                                    let remove = if let Some(rh) =
-                                        active_state.request_handlers.get_mut(&req_id)
-                                    {
-                                        rh.process_event(re);
-                                        rh.is_terminal()
-                                    } else {
-                                        false
-                                    };
-                                    if remove {
-                                        active_state.request_handlers.remove(&req_id);
-                                    }
-                                }
-                                None => warn!("Request id not found in Reply: {:?}", reply),
-                            };
-                            PoolState::Active(active_state)
-                        }
-                        PoolEvent::Timeout(req_id, node_alias) => {
-                            if let Some(rh) = active_state.request_handlers.get_mut(&req_id) {
-                                rh.process_event(RequestEvent::from_pool_event(
-                                    pe,
-                                    config.protocol_version,
-                                ));
-                            } else if "".eq(&req_id) {
-                                active_state
-                                    .networker
-                                    .borrow_mut()
-                                    .process_event(Some(NetworkerEvent::Timeout));
-                            } else {
-                                warn!(
-                                    "Unexpected timeout: req_id {}, node_alias {}",
-                                    req_id, node_alias
-                                )
-                            }
-                            PoolState::Active(active_state)
-                        }
-                        _ => PoolState::Active(active_state),
-                    }
+                    _ => (PoolState::Active(active_state), None),
                 }
-                PoolState::SyncCatchup(mut syncc_state) => {
-                    let oru = syncc_state
-                        .request_handler
-                        .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
-                    match oru {
-                        Some(RequestUpdate::NodesBlacklisted) => {
-                            PoolState::Terminated(syncc_state.into())
-                        }
-                        Some(RequestUpdate::Synced(merkle)) => {
-                            if let Ok((nodes, remotes)) =
-                                _get_nodes_and_remotes(&merkle).map_err(map_err_err!())
-                            {
+            }
+            PoolState::SyncCatchup(mut syncc_state) => {
+                let oru = syncc_state
+                    .request_handler
+                    .process_event(RequestEvent::from_pool_event(pe, config.protocol_version));
+                let cmd_id = syncc_state.cmd_id;
+                let refresh = syncc_state.refresh;
+                match oru {
+                    Some(RequestUpdate::NodesBlacklisted) => (
+                        PoolState::Terminated(syncc_state.into()),
+                        Some(_open_refresh_ack(
+                            cmd_id,
+                            id,
+                            refresh,
+                            Err(err_msg(LedgerErrorKind::InvalidState, "Blacklisted")),
+                        )),
+                    ),
+                    Some(RequestUpdate::Synced(merkle)) => {
+                        match _get_nodes_and_remotes(&merkle, &config).map_err(map_err_err!()) {
+                            Ok((nodes, remotes)) => {
                                 syncc_state.networker.borrow_mut().process_event(Some(
                                     NetworkerEvent::NodesStateUpdated(remotes),
                                 ));
-                                /* FIXME updater.send(_open_refresh_ack(
-                                    syncc_state.cmd_id,
-                                    id,
-                                    syncc_state.refresh,
-                                    Ok(()),
-                                ));*/
-                                PoolState::Active((syncc_state, nodes).into())
-                            } else {
-                                PoolState::Terminated(syncc_state.into())
+                                (
+                                    PoolState::Active((syncc_state, nodes).into()),
+                                    Some(_open_refresh_ack(cmd_id, id, refresh, Ok(()))),
+                                )
                             }
+                            Err(err) => (
+                                PoolState::Terminated(syncc_state.into()),
+                                Some(_open_refresh_ack(cmd_id, id, refresh, Err(err))),
+                            ),
                         }
-                        _ => match pe {
-                            PoolEvent::Close(cmd_id) => {
-                                // FIXME updater.send(RequestUpdate::CloseAck(cmd_id, Ok(())));
-                                PoolState::Closed(syncc_state.into())
-                            }
-                            _ => PoolState::SyncCatchup(syncc_state),
-                        },
                     }
+                    _ => match pe {
+                        PoolEvent::Close(cmd_id) => (
+                            PoolState::Closed(syncc_state.into()),
+                            Some(PoolUpdate::CloseAck(cmd_id, Ok(()))),
+                        ),
+                        _ => (PoolState::SyncCatchup(syncc_state), None),
+                    },
                 }
-            };
-        PoolSM::step(id, config, state)
+            }
+        };
+        (PoolSM::step(id, config, transactions, state), update)
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -588,8 +665,8 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
     }
 }
 
-impl UpdateHandler for Sender<RequestUpdate> {
-    fn send(&self, update: RequestUpdate) -> LedgerResult<()> {
+impl UpdateHandler for Sender<PoolUpdate> {
+    fn send(&mut self, update: PoolUpdate) -> LedgerResult<()> {
         self.send(update).to_result(
             LedgerErrorKind::IOError,
             "Error returning pool update event",
@@ -602,24 +679,28 @@ pub struct Pool<T: Networker, R: RequestHandler<T>> {
     worker: Option<JoinHandle<()>>,
     id: PoolHandle,
     config: PoolConfig,
+    transactions: NodeTransactions,
 }
 
 impl<T: Networker, R: RequestHandler<T>> Pool<T, R> {
-    pub fn new(id: PoolHandle, config: &PoolConfig) -> Self {
+    pub fn new(id: PoolHandle, config: &PoolConfig, transactions: &NodeTransactions) -> Self {
         trace!("Pool::new id {:?}, config {:?}", id, config);
         Pool {
             _pd: PhantomData::<(T, R)>,
             worker: None,
             id,
             config: config.clone(),
+            transactions: transactions.clone(),
         }
     }
 
-    pub fn work(&self, cmd_socket: zmq::Socket) {
+    pub fn work(&mut self, cmd_socket: zmq::Socket) {
         let id = self.id;
         let config = self.config;
+        let transactions = self.transactions;
         self.worker = Some(thread::spawn(move || {
-            let mut pool_thread: PoolThread<T, R> = PoolThread::new(id, config, cmd_socket);
+            let mut pool_thread: PoolThread<T, R> =
+                PoolThread::new(id, config, transactions, cmd_socket);
             pool_thread.work();
         }));
     }
@@ -637,14 +718,19 @@ struct PoolThread<T: Networker, R: RequestHandler<T>> {
 }
 
 impl<T: Networker, R: RequestHandler<T>> PoolThread<T, R> {
-    pub fn new(id: PoolHandle, config: PoolConfig, cmd_socket: zmq::Socket) -> Self {
+    pub fn new(
+        id: PoolHandle,
+        config: PoolConfig,
+        transactions: NodeTransactions,
+        cmd_socket: zmq::Socket,
+    ) -> Self {
         let networker = Rc::new(RefCell::new(T::new(
             config.conn_active_timeout,
             config.conn_request_limit,
-            config.preordered_nodes.clone(),
+            transactions.preordered_nodes,
         )));
         PoolThread {
-            pool_sm: Some(PoolSM::new(id, &config, networker.clone())),
+            pool_sm: Some(PoolSM::new(id, config, transactions, networker.clone())),
             events: VecDeque::new(),
             commander: Commander::new(cmd_socket),
             networker,
@@ -665,9 +751,11 @@ impl<T: Networker, R: RequestHandler<T>> PoolThread<T, R> {
         while !self.events.is_empty() {
             let pe = self.events.pop_front();
             trace!("received pool event: {:?}", pe);
-            match pe {
-                Some(pe) => {
-                    self.pool_sm = self.pool_sm.take().map(|w| w.handle_event(pe));
+            match (self.pool_sm, pe) {
+                (Some(sm), Some(pe)) => {
+                    let (state, update) = sm.handle_event(pe);
+                    // FIXME - do something with update
+                    self.pool_sm = Some(state)
                 }
                 _ => (),
             }
@@ -720,49 +808,65 @@ fn _get_f(cnt: usize) -> usize {
     (cnt - 1) / 3
 }
 
-fn _get_request_handler_with_ledger_status_sent<T: Networker, R: RequestHandler<T>>(
+fn _init_request_handler<T: Networker, R: RequestHandler<T>>(
     networker: Rc<RefCell<T>>,
+    merkle: MerkleTree,
+    backup: Option<MerkleTree>,
     config: &PoolConfig,
 ) -> LedgerResult<R> {
-    let mut merkle = merkle_tree_factory::create(pool_name)?;
-
-    let (nodes, remotes) = match _get_nodes_and_remotes(&merkle) {
-        Ok(n) => n,
-        Err(err) => match merkle_tree_factory::drop_cache(pool_name) {
-            Ok(_) => {
-                merkle = merkle_tree_factory::create(pool_name)?;
-                _get_nodes_and_remotes(&merkle)?
-            }
-            Err(_) => {
-                return Err(err);
-            }
-        },
-    };
-    // FIXME - let RequestEvent handle NodesStateUpdated
+    let ((nodes, remotes), merkle, backup) = _find_valid_state(merkle, backup, config)?;
     networker
         .borrow_mut()
         .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
-    let mut request_handler = R::new(networker.clone(), _get_f(nodes.len()), &[], &nodes, &config);
-    // FIXME - let RequestEvent produce the ledger status event in response to a PoolEvent?
-    // or catchup.rs
-    let ls = _ledger_status(&merkle, config.protocol_version);
-    request_handler.process_event(Some(RequestEvent::LedgerStatus(ls, None, Some(merkle))));
-    Ok(request_handler)
+    let mut handler = R::new(networker.clone(), _get_f(nodes.len()), &[], &nodes, &config);
+    handler.process_event(Some(RequestEvent::Init(merkle, backup))); // FIXME - check result
+    Ok(handler)
 }
 
-fn _ledger_status(merkle: &MerkleTree, protocol_version: ProtocolVersion) -> LedgerStatus {
-    LedgerStatus {
-        txnSeqNo: merkle.count(),
-        merkleRoot: merkle.root_hash().as_slice().to_base58(),
-        ledgerId: 0,
-        ppSeqNo: None,
-        viewNo: None,
-        protocolVersion: Some(protocol_version as usize),
-    }
+fn _catchup_request_handler<T: Networker, R: RequestHandler<T>>(
+    networker: Rc<RefCell<T>>,
+    merkle: MerkleTree,
+    target_mt_size: usize,
+    target_mt_root: Vec<u8>,
+    config: &PoolConfig,
+) -> LedgerResult<R> {
+    let ((nodes, remotes), merkle, _) = _find_valid_state(merkle, None, config)?;
+    networker
+        .borrow_mut()
+        .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
+    let mut handler = R::new(networker.clone(), _get_f(nodes.len()), &[], &nodes, &config);
+    handler.process_event(Some(RequestEvent::CatchupReq(
+        merkle,
+        target_mt_size,
+        target_mt_root,
+    ))); // FIXME - check result
+    Ok(handler)
 }
 
-fn _get_nodes_and_remotes(merkle: &MerkleTree) -> LedgerResult<(Nodes, Vec<RemoteNode>)> {
-    let nodes = merkle_tree_factory::build_node_state(merkle)?;
+fn _find_valid_state(
+    merkle: MerkleTree,
+    backup: Option<MerkleTree>,
+    config: &PoolConfig,
+) -> LedgerResult<((Nodes, Vec<RemoteNode>), MerkleTree, Option<MerkleTree>)> {
+    let result = match _get_nodes_and_remotes(&merkle, config) {
+        Ok(n) => (n, merkle, backup),
+        Err(err) => match backup {
+            Some(backup) => {
+                warn!("Node transactions failed validation, reverting to previous");
+                let n = _get_nodes_and_remotes(&backup, config)?;
+                (n, backup, None)
+            }
+            _ => return Err(err),
+        },
+    };
+    Ok(result)
+}
+
+fn _get_nodes_and_remotes(
+    merkle: &MerkleTree,
+    config: &PoolConfig,
+) -> LedgerResult<(Nodes, Vec<RemoteNode>)> {
+    let nodes = merkle_tree_factory::build_node_state(merkle, config.protocol_version)?;
 
     Ok(nodes
         .iter()
@@ -860,12 +964,12 @@ fn _open_refresh_ack(
     id: PoolHandle,
     is_refresh: bool,
     res: LedgerResult<()>,
-) -> RequestUpdate {
+) -> PoolUpdate {
     trace!("PoolSM: from getting catchup target to active");
     if is_refresh {
-        RequestUpdate::RefreshAck(cmd_id, res)
+        PoolUpdate::RefreshAck(cmd_id, res)
     } else {
-        RequestUpdate::OpenAck(cmd_id, id, res)
+        PoolUpdate::OpenAck(cmd_id, id, res)
     }
 }
 
@@ -905,7 +1009,7 @@ impl Drop for ZMQPool {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::pool::{DEFAULT_PROTOCOL_VERSION, NUMBER_READ_NODES};
+    use crate::domain::pool::DEFAULT_PROTOCOL_VERSION;
     // use crate::services::pool::events::MockUpdateHandler;
     use crate::services::pool::networker::MockNetworker;
     use crate::services::pool::request_handler::tests::MockRequestHandler;

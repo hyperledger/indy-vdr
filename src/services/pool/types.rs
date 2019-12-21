@@ -26,7 +26,6 @@ pub struct PoolConfig {
     pub conn_request_limit: usize,
     pub conn_active_timeout: i64,
     pub number_read_nodes: usize,
-    pub preordered_nodes: Vec<String>,
 }
 
 impl Validatable for PoolConfig {
@@ -78,10 +77,6 @@ impl PoolConfig {
         DEFAULT_CONN_ACTIVE_TIMEOUT
     }
 
-    fn default_preordered_nodes() -> Vec<String> {
-        Vec::new()
-    }
-
     fn default_number_read_nodes() -> usize {
         DEFAULT_NUMBER_READ_NODES
     }
@@ -97,7 +92,6 @@ impl Default for PoolConfig {
             conn_request_limit: Self::default_conn_request_limit(),
             conn_active_timeout: Self::default_conn_active_timeout(),
             number_read_nodes: Self::default_number_read_nodes(),
-            preordered_nodes: Self::default_preordered_nodes(),
         }
     }
 }
@@ -330,7 +324,7 @@ impl NodeTransactionV1 {
 
         if other.txn.data.verkey.is_some() {
             let verkey = VerKey::from_str_qualified(
-                other.txn.data.verkey.unwrap().as_str(),
+                other.txn.data.verkey.as_ref().unwrap().as_str(),
                 Some(self.txn.data.dest.as_str()),
                 None,
                 None,

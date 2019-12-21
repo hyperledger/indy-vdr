@@ -50,7 +50,7 @@ impl VerKey {
             (key, alg)
         };
 
-        let key = if key.starts_with('~') {
+        if key.starts_with('~') {
             let dest = unwrap_opt_or_return!(
                 dest,
                 Err(err_msg(
@@ -61,16 +61,14 @@ impl VerKey {
             let mut result = dest.from_base58()?;
             let mut end = key[1..].from_base58()?;
             result.append(&mut end);
-            result.to_base58().as_str()
+            Ok(VerKey::new(result.to_base58().as_str(), alg, enc))
         } else {
-            key
-        };
-
-        Ok(VerKey::new(key, alg, enc))
+            Ok(VerKey::new(key, alg, enc))
+        }
     }
 
     pub fn long_form(&self) -> String {
-        let result = self.key.clone();
+        let mut result = self.key.clone();
         result.push(':');
         result.push_str(&self.alg);
         result
