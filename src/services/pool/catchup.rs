@@ -4,21 +4,42 @@ use std::collections::HashSet;
 use failure::Context;
 use serde_json;
 
-// use super::merkle_tree_factory;
-use super::types::{CatchupReq, Message};
+use super::types::{CatchupReq, LedgerStatus, Message};
+use crate::domain::pool::ProtocolVersion;
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
 pub enum CatchupProgress {
+    ConsensusNotReachable,
     ShouldBeStarted(
         Vec<u8>, //target_mt_root
         usize,   //target_mt_size
         MerkleTree,
     ),
     NotNeeded(MerkleTree),
-    Restart(MerkleTree),
     InProgress,
+    Timeout,
+}
+
+pub fn build_ledger_status_req(
+    merkle: &MerkleTree,
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<(String, String)> {
+    let lr = LedgerStatus {
+        txnSeqNo: merkle.count(),
+        merkleRoot: merkle.root_hash().as_slice().to_base58(),
+        ledgerId: 0,
+        ppSeqNo: None,
+        viewNo: None,
+        protocolVersion: Some(protocol_version as usize),
+    };
+    let req_id = lr.merkleRoot.clone();
+    let req_json = serde_json::to_string(&super::types::Message::LedgerStatus(lr)).to_result(
+        LedgerErrorKind::InvalidState,
+        "Cannot serialize LedgerStatus",
+    )?;
+    Ok((req_id, req_json))
 }
 
 pub fn build_catchup_req(
@@ -53,7 +74,6 @@ pub fn build_catchup_req(
 pub fn check_nodes_responses_on_status(
     nodes_votes: &HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
     merkle_tree: &MerkleTree,
-    prev_merkle_tree: Option<MerkleTree>,
     node_cnt: usize,
     f: usize,
 ) -> LedgerResult<CatchupProgress> {
@@ -71,27 +91,19 @@ pub fn check_nodes_responses_on_status(
 
     if let Some((most_popular_not_timeout_vote, votes_cnt)) = most_popular_not_timeout {
         if *votes_cnt == f + 1 {
-            return _try_to_catch_up(most_popular_not_timeout_vote, merkle_tree).or_else(|err| {
-                if let Some(merkle_tree) = prev_merkle_tree {
-                    _try_to_catch_up(most_popular_not_timeout_vote, &merkle_tree)
-                } else {
-                    Err(err)
-                }
-            });
+            _try_to_catch_up(most_popular_not_timeout_vote, merkle_tree)
         } else {
-            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f, prev_merkle_tree);
+            _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f)
         }
     } else if let Some((_, votes_cnt)) = timeout_votes {
         if *votes_cnt == node_cnt - f {
-            return _try_to_restart_catch_up(
-                prev_merkle_tree,
-                err_msg(LedgerErrorKind::PoolTimeout, "Pool timeout"),
-            );
+            Ok(CatchupProgress::Timeout)
         } else {
-            return _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f, prev_merkle_tree);
+            _if_consensus_reachable(nodes_votes, node_cnt, *votes_cnt, f)
         }
+    } else {
+        Ok(CatchupProgress::InProgress)
     }
-    Ok(CatchupProgress::InProgress)
 }
 
 fn _if_consensus_reachable(
@@ -99,30 +111,14 @@ fn _if_consensus_reachable(
     node_cnt: usize,
     votes_cnt: usize,
     f: usize,
-    prev_merkle_tree: Option<MerkleTree>,
 ) -> LedgerResult<CatchupProgress> {
     let reps_cnt: usize = nodes_votes.values().map(HashSet::len).sum();
     let positive_votes_cnt = votes_cnt + (node_cnt - reps_cnt);
     let is_consensus_not_reachable = positive_votes_cnt < node_cnt - f;
     if is_consensus_not_reachable {
-        //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-        _try_to_restart_catch_up(
-            prev_merkle_tree,
-            err_msg(LedgerErrorKind::PoolTimeout, "No consensus possible"),
-        )
+        Ok(CatchupProgress::ConsensusNotReachable)
     } else {
         Ok(CatchupProgress::InProgress)
-    }
-}
-
-fn _try_to_restart_catch_up(
-    prev_merkle_tree: Option<MerkleTree>,
-    err: LedgerError,
-) -> LedgerResult<CatchupProgress> {
-    if let Some(merkle_tree) = prev_merkle_tree {
-        Ok(CatchupProgress::Restart(merkle_tree))
-    } else {
-        Err(err)
     }
 }
 

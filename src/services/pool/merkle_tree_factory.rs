@@ -1,18 +1,18 @@
 use std::collections::HashMap;
-use std::io::{BufRead, Read, Write};
+use std::io::BufRead; // {Read, Write};
 use std::path::PathBuf;
 use std::{fs, io};
 
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use super::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1};
+use super::types::{JsonTransactions, NodeTransaction, NodeTransactionV0, NodeTransactionV1};
 use crate::domain::pool::ProtocolVersion;
 use crate::utils::merkletree::MerkleTree;
 // use crate::utils::environment;
 use crate::utils::error::prelude::*;
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+// use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 const POOL_EXT: &str = "txn";
 
@@ -109,6 +109,7 @@ pub fn from_cache(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
     Ok(mt)
 }*/
 
+/*
 pub fn from_genesis(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
     let mut mt = MerkleTree::from_vec(Vec::new())?;
 
@@ -133,6 +134,7 @@ pub fn from_genesis(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
 pub fn from_genesis_file(txn_file: &str) -> LedgerResult<MerkleTree> {
     from_genesis(&PathBuf::from(txn_file))
 }
+*/
 
 /*
 fn get_pool_stored_path(pool_name: &str, create_dir: bool) -> PathBuf {
@@ -189,6 +191,7 @@ pub fn _dump_genesis_to_stored(p: &PathBuf, pool_name: &str) -> LedgerResult<()>
     _dump_vec_to_file(&genesis_vec, &mut file)
 }*/
 
+/*
 fn _dump_vec_to_file(v: &[Vec<u8>], file: &mut fs::File) -> LedgerResult<()> {
     for ref line in v {
         file.write_u64::<LittleEndian>(line.len() as u64)
@@ -205,7 +208,33 @@ fn _dump_vec_to_file(v: &[Vec<u8>], file: &mut fs::File) -> LedgerResult<()> {
 
     Ok(())
 }
+*/
 
+pub fn load_genesis_txns(p: &PathBuf) -> LedgerResult<JsonTransactions> {
+    let f = fs::File::open(p).to_result(LedgerErrorKind::IOError, "Can't open genesis txn file")?;
+
+    let reader = io::BufReader::new(&f);
+    let mut txns: Vec<String> = vec![];
+
+    for line in reader.lines() {
+        let line = line.to_result(LedgerErrorKind::IOError, "Can't read from genesis txn file")?;
+        if !line.is_empty() {
+            txns.push(line);
+        }
+    }
+    Ok(JsonTransactions::new(txns))
+}
+
+pub fn make_tree(gen_tnxs: JsonTransactions) -> LedgerResult<MerkleTree> {
+    let mut bin_txns: Vec<Vec<u8>> = vec![];
+    for json_txn in gen_tnxs.txns.as_ref() {
+        let bin_txn = _parse_txn_from_json(json_txn)?;
+        bin_txns.push(bin_txn)
+    }
+    MerkleTree::from_vec(bin_txns)
+}
+
+/*
 fn _genesis_to_binary(p: &PathBuf) -> LedgerResult<Vec<Vec<u8>>> {
     let f = fs::File::open(p).to_result(LedgerErrorKind::IOError, "Can't open genesis txn file")?;
 
@@ -220,6 +249,7 @@ fn _genesis_to_binary(p: &PathBuf) -> LedgerResult<Vec<Vec<u8>>> {
 
     Ok(txns)
 }
+*/
 
 fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
     let txn = txn.trim();
@@ -239,6 +269,39 @@ fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
     )
 }
 
+fn _decode_transaction(
+    gen_txn: &Vec<u8>,
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<NodeTransactionV1> {
+    let gen_txn: NodeTransaction = rmp_serde::decode::from_slice(gen_txn.as_slice()).to_result(
+        LedgerErrorKind::InvalidState,
+        "Genesis transaction cannot be decoded",
+    )?;
+
+    match gen_txn {
+        NodeTransaction::NodeTransactionV0(txn) => {
+            if protocol_version != 1 {
+                Err(err_msg(LedgerErrorKind::PoolIncompatibleProtocolVersion,
+                            format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                                    Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
+                                    protocol_version, NodeTransactionV0::VERSION)))
+            } else {
+                Ok(NodeTransactionV1::from(txn))
+            }
+        }
+        NodeTransaction::NodeTransactionV1(txn) => {
+            if protocol_version != 2 {
+                Err(err_msg(LedgerErrorKind::PoolIncompatibleProtocolVersion,
+                                format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                                            Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
+                                        protocol_version, NodeTransactionV1::VERSION)))
+            } else {
+                Ok(txn)
+            }
+        }
+    }
+}
+
 pub fn build_node_state(
     merkle_tree: &MerkleTree,
     protocol_version: ProtocolVersion,
@@ -246,40 +309,14 @@ pub fn build_node_state(
     let mut gen_tnxs: HashMap<String, NodeTransactionV1> = HashMap::new();
 
     for gen_txn in merkle_tree {
-        let gen_txn: NodeTransaction = rmp_serde::decode::from_slice(gen_txn.as_slice())
-            .to_result(
-                LedgerErrorKind::InvalidState,
-                "MerkleTree contains invalid item",
-            )?;
-
-        let mut gen_txn = match gen_txn {
-            NodeTransaction::NodeTransactionV0(txn) => {
-                if protocol_version != 1 {
-                    return Err(err_msg(LedgerErrorKind::PoolIncompatibleProtocolVersion,
-                                format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                                         Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
-                                        protocol_version, NodeTransactionV0::VERSION)));
-                }
-                NodeTransactionV1::from(txn)
-            }
-            NodeTransaction::NodeTransactionV1(txn) => {
-                if protocol_version != 2 {
-                    return Err(err_msg(LedgerErrorKind::PoolIncompatibleProtocolVersion,
-                                       format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                                                Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
-                                               protocol_version, NodeTransactionV1::VERSION)));
-                }
-                txn
-            }
-        };
-
-        if gen_tnxs.contains_key(&gen_txn.txn.data.dest) {
+        let mut node_txn = _decode_transaction(gen_txn, protocol_version)?;
+        if gen_tnxs.contains_key(&node_txn.txn.data.dest) {
             gen_tnxs
-                .get_mut(&gen_txn.txn.data.dest)
+                .get_mut(&node_txn.txn.data.dest)
                 .unwrap()
-                .update(&mut gen_txn)?;
+                .update(&mut node_txn)?;
         } else {
-            gen_tnxs.insert(gen_txn.txn.data.dest.clone(), gen_txn);
+            gen_tnxs.insert(node_txn.txn.data.dest.clone(), node_txn);
         }
     }
     Ok(gen_tnxs)

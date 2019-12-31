@@ -69,14 +69,13 @@ pub const COMMAND_REFRESH: &str = "refresh";
 
 #[derive(Debug)]
 pub enum PoolEvent {
-    Open(CommandHandle),
-    CheckCache(CommandHandle),
+    Open(CommandHandle, Option<JsonTransactions>),
+    Refresh(CommandHandle, Option<JsonTransactions>),
     NodeReply(
         String, // reply
         String, // node alias
     ),
     Close(CommandHandle),
-    Refresh(CommandHandle),
     #[allow(dead_code)] //FIXME
     PoolOutdated,
     SendRequest(
@@ -94,18 +93,15 @@ pub enum PoolEvent {
 #[derive(Debug)]
 pub enum PoolUpdate {
     OpenAck(CommandHandle, PoolHandle, LedgerResult<()>),
-    CloseAck(CommandHandle, LedgerResult<()>),
-    RefreshAck(CommandHandle, LedgerResult<()>),
-    SubmitAck(CommandHandle, LedgerResult<String>),
+    CloseAck(CommandHandle, PoolHandle, LedgerResult<()>),
+    RefreshAck(CommandHandle, PoolHandle, LedgerResult<()>),
+    SubmitAck(CommandHandle, PoolHandle, LedgerResult<String>),
 }
 
 #[derive(Clone, Debug)]
 pub enum RequestEvent {
-    Init(
-        MerkleTree,         // current
-        Option<MerkleTree>, // previous
-    ),
-    LedgerStatus(
+    StatusReq(MerkleTree),
+    StatusRep(
         LedgerStatus,
         String, //node alias
     ),
@@ -206,33 +202,56 @@ impl RequestEvent {
     ) -> Option<RequestEvent> {
         match event {
             PoolEvent::NodeReply(msg, node_alias) => {
-                _parse_msg(&msg).map(|parsed| match parsed {
-                    //TODO change mapping for CatchupReq. May be return None
+                _parse_msg(&msg).and_then(|parsed| match parsed {
                     Message::CatchupReq(_) => {
-                        RequestEvent::CatchupReq(MerkleTree::default(), 0, vec![])
+                        warn!("ignoring catchup request");
+                        None
+                        // RequestEvent::CatchupReq(MerkleTree::default(), 0, vec![])
                     }
-                    Message::CatchupRep(rep) => RequestEvent::CatchupRep(rep, node_alias),
-                    Message::LedgerStatus(ls) => RequestEvent::LedgerStatus(ls, node_alias),
-                    Message::ConsistencyProof(cp) => RequestEvent::ConsistencyProof(cp, node_alias),
+                    Message::CatchupRep(rep) => Some(RequestEvent::CatchupRep(rep, node_alias)),
+                    Message::LedgerStatus(ls) => Some(RequestEvent::StatusRep(ls, node_alias)),
+                    Message::ConsistencyProof(cp) => {
+                        Some(RequestEvent::ConsistencyProof(cp, node_alias))
+                    }
                     Message::Reply(rep) => {
                         let req_id = rep.req_id();
-                        RequestEvent::Reply(rep, msg, node_alias, req_id.to_string())
+                        Some(RequestEvent::Reply(
+                            rep,
+                            msg,
+                            node_alias,
+                            req_id.to_string(),
+                        ))
                     }
                     Message::ReqACK(rep) => {
                         let req_id = rep.req_id();
-                        RequestEvent::ReqACK(rep, msg, node_alias, req_id.to_string())
+                        Some(RequestEvent::ReqACK(
+                            rep,
+                            msg,
+                            node_alias,
+                            req_id.to_string(),
+                        ))
                     }
                     Message::ReqNACK(rep) => {
                         let req_id = rep.req_id();
-                        RequestEvent::ReqNACK(rep, msg, node_alias, req_id.to_string())
+                        Some(RequestEvent::ReqNACK(
+                            rep,
+                            msg,
+                            node_alias,
+                            req_id.to_string(),
+                        ))
                     }
                     Message::Reject(rep) => {
                         let req_id = rep.req_id();
-                        RequestEvent::Reject(rep, msg, node_alias, req_id.to_string())
+                        Some(RequestEvent::Reject(
+                            rep,
+                            msg,
+                            node_alias,
+                            req_id.to_string(),
+                        ))
                     }
-                    Message::PoolLedgerTxns(_) => RequestEvent::PoolLedgerTxns,
-                    Message::Ping => RequestEvent::Ping,
-                    Message::Pong => RequestEvent::Pong,
+                    Message::PoolLedgerTxns(_) => Some(RequestEvent::PoolLedgerTxns),
+                    Message::Ping => Some(RequestEvent::Ping),
+                    Message::Pong => Some(RequestEvent::Pong),
                 })
             }
             PoolEvent::SendRequest(_, msg, timeout, nodes) => {

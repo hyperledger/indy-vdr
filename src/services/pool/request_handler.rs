@@ -13,16 +13,15 @@ use serde_json::Value as SJsonValue;
 use ursa::bls::Generator;
 
 use super::catchup::{
-    build_catchup_req, check_cons_proofs, check_nodes_responses_on_status, CatchupProgress,
+    build_catchup_req, build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status,
+    CatchupProgress,
 };
 use super::events::{NetworkerEvent, RequestEvent, RequestUpdate};
 use super::networker::Networker;
 use super::state_proof;
-use super::types::CatchupRep;
-use super::types::{CommandHandle, HashableValue, LedgerStatus, Nodes, PoolConfig};
-use crate::domain::pool::ProtocolVersion;
+use super::types::{CatchupRep, CommandHandle, HashableValue, Nodes, PoolConfig};
 use crate::services::pool::get_last_signed_time;
-use crate::utils::base58::{FromBase58, ToBase58};
+use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
@@ -109,7 +108,6 @@ struct CatchupConsensusState<T: Networker> {
     replies: HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
     networker: Rc<RefCell<T>>,
     merkle_tree: MerkleTree,
-    backup_merkle_tree: Option<MerkleTree>,
 }
 
 struct CatchupSingleState<T: Networker> {
@@ -165,17 +163,12 @@ impl<T: Networker> From<StartState<T>> for ConsensusState<T> {
     }
 }
 
-impl<T: Networker> From<(MerkleTree, Option<MerkleTree>, StartState<T>)>
-    for CatchupConsensusState<T>
-{
-    fn from(
-        (merkle_tree, backup_merkle_tree, state): (MerkleTree, Option<MerkleTree>, StartState<T>),
-    ) -> Self {
+impl<T: Networker> From<(MerkleTree, StartState<T>)> for CatchupConsensusState<T> {
+    fn from((merkle_tree, state): (MerkleTree, StartState<T>)) -> Self {
         CatchupConsensusState {
             replies: HashMap::new(),
             networker: state.networker.clone(),
             merkle_tree,
-            backup_merkle_tree,
         }
     }
 }
@@ -261,22 +254,21 @@ impl<T: Networker> RequestSM<T> {
         let (state, update) = match state {
             RequestState::Start(state) => {
                 match re {
-                    RequestEvent::Init(merkle, backup) => {
-                        let ls = _ledger_status(&merkle, config.protocol_version);
-                        let req_id = ls.merkleRoot.clone();
-                        let ne = Some(NetworkerEvent::SendAllRequest(
-                            serde_json::to_string(&super::types::Message::LedgerStatus(ls))
-                                .expect("FIXME"),
-                            req_id,
-                            config.reply_timeout,
-                            None,
-                        ));
-                        trace!("start catchup, ne: {:?}", ne);
-                        state.networker.borrow_mut().process_event(ne);
-                        (
-                            RequestState::CatchupConsensus((merkle, backup, state).into()),
-                            None,
-                        )
+                    RequestEvent::StatusReq(merkle) => {
+                        match build_ledger_status_req(&merkle, config.protocol_version) {
+                            Ok((req_id, req_json)) => {
+                                let ne = Some(NetworkerEvent::SendAllRequest(
+                                    req_json,
+                                    req_id,
+                                    config.reply_timeout,
+                                    None,
+                                ));
+                                trace!("start catchup, ne: {:?}", ne);
+                                state.networker.borrow_mut().process_event(ne);
+                                (RequestState::CatchupConsensus((merkle, state).into()), None)
+                            }
+                            Err(e) => (RequestState::finish(), Some(_fail_submit(&cmd_ids, e))),
+                        }
                     }
                     RequestEvent::CatchupReq(merkle, target_mt_size, target_mt_root) => {
                         match build_catchup_req(&merkle, target_mt_size) {
@@ -580,7 +572,7 @@ impl<T: Networker> RequestSM<T> {
                 _ => (RequestState::Single(state), None),
             },
             RequestState::CatchupConsensus(state) => match re {
-                RequestEvent::LedgerStatus(ls, node_alias) => {
+                RequestEvent::StatusRep(ls, node_alias) => {
                     RequestSM::_catchup_target_handle_consensus_state(
                         state,
                         ls.merkleRoot.clone(),
@@ -706,13 +698,8 @@ impl<T: Networker> RequestSM<T> {
 
     fn is_terminal(&self) -> bool {
         match self.state {
-            RequestState::Start(_)
-            | RequestState::Consensus(_)
-            | RequestState::Single(_)
-            | RequestState::CatchupSingle(_)
-            | RequestState::CatchupConsensus(_)
-            | RequestState::Full(_) => false,
             RequestState::Finish(_) => true,
+            _ => false,
         }
     }
 
@@ -846,19 +833,20 @@ impl<T: Networker> RequestSM<T> {
                 .insert(key, HashSet::from_iter(vec![node_alias.to_string()]));
         }
 
-        match check_nodes_responses_on_status(
-            &state.replies,
-            &state.merkle_tree,
-            state.backup_merkle_tree.clone(),
-            nodes.len(),
-            f,
-        ) {
-            Ok(CatchupProgress::InProgress) => (false, None),
+        match check_nodes_responses_on_status(&state.replies, &state.merkle_tree, nodes.len(), f) {
             Ok(CatchupProgress::NotNeeded(merkle_tree)) => {
                 (true, Some(RequestUpdate::Synced(merkle_tree)))
             }
-            Ok(CatchupProgress::Restart(merkle_tree)) => {
-                (false, Some(RequestUpdate::CatchupRestart(merkle_tree)))
+            Ok(CatchupProgress::InProgress) => (false, None),
+            Ok(CatchupProgress::ConsensusNotReachable) => {
+                //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
+                (
+                    true,
+                    Some(RequestUpdate::CatchupTargetNotFound(err_msg(
+                        LedgerErrorKind::PoolTimeout,
+                        "No consensus possible",
+                    ))),
+                )
             }
             Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size, merkle_tree)) => (
                 true,
@@ -867,6 +855,13 @@ impl<T: Networker> RequestSM<T> {
                     target_mt_size,
                     merkle_tree,
                 )),
+            ),
+            Ok(CatchupProgress::Timeout) => (
+                true,
+                Some(RequestUpdate::CatchupTargetNotFound(err_msg(
+                    LedgerErrorKind::PoolTimeout,
+                    "Sync timed out",
+                ))),
             ),
             Err(err) => (true, Some(RequestUpdate::CatchupTargetNotFound(err))),
         }
@@ -999,17 +994,6 @@ fn _parse_nack(
     }
 }
 */
-
-fn _ledger_status(merkle: &MerkleTree, protocol_version: ProtocolVersion) -> LedgerStatus {
-    LedgerStatus {
-        txnSeqNo: merkle.count(),
-        merkleRoot: merkle.root_hash().as_slice().to_base58(),
-        ledgerId: 0,
-        ppSeqNo: None,
-        viewNo: None,
-        protocolVersion: Some(protocol_version as usize),
-    }
-}
 
 fn _process_catchup_reply(
     rep: &mut CatchupRep,
@@ -1227,8 +1211,6 @@ pub mod tests {
     const REJECT_REPLY: &str = r#"{"op":"REJECT", "result": {"reason": "reject"}}"#;
     const NACK_REPLY: &str = r#"{"op":"REQNACK", "result": {"reason": "reqnack"}}"#;
 
-    const TEST_POOL_CONFIG: PoolConfig = PoolConfig::default();
-
     #[derive(Debug)]
     pub struct MockRequestHandler {}
 
@@ -1308,11 +1290,7 @@ pub mod tests {
         }
     }
 
-    fn _request_handler(
-        pool_name: &str,
-        f: usize,
-        nodes_cnt: usize,
-    ) -> RequestHandlerImpl<MockNetworker> {
+    fn _request_handler(f: usize, nodes_cnt: usize) -> RequestHandlerImpl<MockNetworker> {
         let networker = Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![])));
 
         let mut default_nodes: Nodes = HashMap::new();
@@ -1325,7 +1303,8 @@ pub mod tests {
             nodes.insert(node_names[i].to_string(), None);
         }
 
-        RequestHandlerImpl::new(networker, f, &vec![], &nodes, &TEST_POOL_CONFIG)
+        let config = PoolConfig::default();
+        RequestHandlerImpl::new(networker, f, &vec![], &nodes, &config)
     }
 
     // required because of dumping txns to cache
@@ -1337,7 +1316,7 @@ pub mod tests {
 
     #[test]
     fn request_handler_new_works() {
-        let request_handler = _request_handler("request_handler_new_works", 0, 1);
+        let request_handler = _request_handler(0, 1);
         assert_match!(
             RequestState::Start(_),
             request_handler.request_wrapper.unwrap().state
@@ -1346,7 +1325,7 @@ pub mod tests {
 
     #[test]
     fn request_handler_process_event_works() {
-        let mut request_handler = _request_handler("request_handler_process_event_works", 0, 1);
+        let mut request_handler = _request_handler(0, 1);
         request_handler.process_event(None);
     }
 
@@ -1358,7 +1337,6 @@ pub mod tests {
         #[test]
         fn request_handler_process_ledger_status_event_from_start_works() {
             let mut request_handler = _request_handler(
-                "request_handler_process_ledger_status_event_from_start_works",
                 0,
                 1,
             );
@@ -1376,11 +1354,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_catchup_req_event_from_start_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_catchup_req_event_from_start_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CatchupReq(
                 MerkleTree::default(),
                 1,
@@ -1395,7 +1369,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_catchup_req_event_from_start_works_for_no_transactions_to_catchup(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_catchup_req_event_from_start_works_for_no_transactions_to_catchup", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CatchupReq(
                 MerkleTree::default(),
                 0,
@@ -1409,11 +1383,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_custom_single_req_event_from_start_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_custom_single_req_event_from_start_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1428,11 +1398,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_consensus_full_req_event_from_start_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_consensus_full_req_event_from_start_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1447,11 +1413,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_consensus_full_req_event_from_start_works_for_list_nodes() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_consensus_full_req_event_from_start_works_for_list_nodes",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1467,7 +1429,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_consensus_full_req_event_from_start_works_for_empty_list_nodes()
         {
-            let mut request_handler = _request_handler("request_handler_process_consensus_full_req_event_from_start_works_for_empty_list_nodes", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1483,7 +1445,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_consensus_full_req_event_from_start_works_for_list_nodes_contains_unknown_node(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_consensus_full_req_event_from_start_works_for_list_nodes_contains_unknown_node", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1499,7 +1461,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_consensus_full_req_event_from_start_works_for_invalid_list_nodes_format(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_consensus_full_req_event_from_start_works_for_invalid_list_nodes_format", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1514,11 +1476,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_custom_consensus_req_event_from_start_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_custom_consensus_req_event_from_start_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1531,8 +1489,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_other_event_from_start_works() {
-            let mut request_handler =
-                _request_handler("request_handler_process_other_event_from_start_works", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::Timeout(
                 REQ_ID.to_string(),
                 NODE.to_string(),
@@ -1549,7 +1506,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_consensus_state_works_for_consensus_reached() {
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_consensus_state_works_for_consensus_reached", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1571,7 +1528,7 @@ pub mod tests {
         ) {
             // the test will use 4 nodes, each node replying with a response to the "custom consensus request" message
             // some nodes accept, some reject and some nack.  the end result is consensus should not be reached
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_consensus_state_works_for_consensus_reached_with_mixed_msgs", 1, 4);
+            let mut request_handler = _request_handler(1, 4);
 
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
@@ -1621,7 +1578,7 @@ pub mod tests {
         ) {
             // the test will use 4 nodes, each node replying with a response to the "custom consensus request" message
             // some nodes accept, some reject and some nack.  the end result is consensus should not be reached
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_consensus_state_works_for_consensus_reached_with_0_concensus", 1, 4);
+            let mut request_handler = _request_handler(1, 4);
 
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
@@ -1667,7 +1624,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reply_event_from_consensus_state_works_for_consensus_reachable()
         {
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_consensus_state_works_for_consensus_reachable", 1, 2);
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1687,7 +1644,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reply_event_from_consensus_state_works_for_consensus_not_reachable(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_consensus_state_works_for_consensus_not_reachable", 1, 2);
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1712,7 +1669,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_consensus_state_works_for_invalid_message() {
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_consensus_state_works_for_invalid_message", 1, 4);
+            let mut request_handler = _request_handler(1, 4);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1731,11 +1688,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reqack_event_from_consensus_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reqack_event_from_consensus_state_works",
-                1,
-                4,
-            );
+            let mut request_handler = _request_handler(1, 4);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1755,7 +1708,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reqnack_event_from_consensus_state_works_for_consensus_reached()
         {
-            let mut request_handler = _request_handler("request_handler_process_reqnack_event_from_consensus_state_works_for_consensus_reached", 1, 1);
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1775,7 +1728,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reqnack_event_from_consensus_state_works_for_consensus_reachable(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_reqnack_event_from_consensus_state_works_for_consensus_reachable", 1, 3);
+            let mut request_handler = _request_handler(1, 3);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1795,7 +1748,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reqnack_event_from_consensus_state_works_for_consensus_not_reachable(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_reqnack_event_from_consensus_state_works_for_consensus_not_reachable", 1, 2);
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1820,7 +1773,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reject_event_from_consensus_state_works_for_consensus_reached() {
-            let mut request_handler = _request_handler("request_handler_process_reject_event_from_consensus_state_works_for_consensus_reached", 1, 1);
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1840,7 +1793,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reject_event_from_consensus_state_works_for_consensus_reachable()
         {
-            let mut request_handler = _request_handler("request_handler_process_reject_event_from_consensus_state_works_for_consensus_reachable", 1, 3);
+            let mut request_handler = _request_handler(1, 3);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1860,7 +1813,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_reject_event_from_consensus_state_works_for_consensus_not_reachable(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_reject_event_from_consensus_state_works_for_consensus_not_reachable", 1, 2);
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1886,7 +1839,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_timeout_event_from_consensus_state_works_for_consensus_reachable(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_timeout_event_from_consensus_state_works_for_consensus_reachable", 1, 3);
+            let mut request_handler = _request_handler(1, 3);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1904,7 +1857,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_timeout_event_from_consensus_state_works_for_consensus_not_reachable(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_timeout_event_from_consensus_state_works_for_consensus_not_reachable", 1, 1);
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1922,7 +1875,7 @@ pub mod tests {
         #[test]
         fn request_handler_process_terminate_event_from_consensus_state_works_for_consensus_not_reachable(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_terminate_event_from_consensus_state_works_for_consensus_not_reachable", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1936,11 +1889,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_other_event_from_consensus_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_other_event_from_consensus_state_works",
-                1,
-                4,
-            );
+            let mut request_handler = _request_handler(1, 4);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -1958,11 +1907,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_consensus_reached() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reply_event_from_single_state_works_for_consensus_reached",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2009,11 +1954,7 @@ pub mod tests {
         fn request_handler_process_reply_event_from_single_state_works_for_state_proof() {
             // set_freshness_threshold(600);
             add_state_proof_parser();
-            let mut request_handler = _request_handler(
-                "request_handler_process_reply_event_from_single_state_works_for_state_proof",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2037,7 +1978,7 @@ pub mod tests {
         {
             // set_freshness_threshold(600);
             add_state_proof_parser();
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_state_proof_from_future", 1, 2);
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2087,7 +2028,7 @@ pub mod tests {
         fn request_handler_process_reply_event_from_single_state_works_for_freshness_filtering() {
             // set_freshness_threshold(600);
             add_state_proof_parser();
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_freshness_filtering", 2, 4);
+            let mut request_handler = _request_handler(2, 4);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2124,7 +2065,7 @@ pub mod tests {
             // set_freshness_threshold(300);
             add_state_proof_parser();
 
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_state_proof_from_past", 2, 4);
+            let mut request_handler = _request_handler(2, 4);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2165,7 +2106,7 @@ pub mod tests {
             // Register custom state proof parser
             add_state_proof_parser();
 
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_freshness_filtering_from_env_variable", 2, 4);
+            let mut request_handler = _request_handler(2, 4);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2200,11 +2141,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_not_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reply_event_from_single_state_works_for_not_completed",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2225,7 +2162,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_cannot_be_completed() {
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_cannot_be_completed", 1, 1);
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2246,11 +2183,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_single_state_works_for_invalid_message() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reply_event_from_single_state_works_for_invalid_message",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2271,11 +2204,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reqack_event_from_single_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reqack_event_from_single_state_works",
-                1,
-                1,
-            );
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2296,11 +2225,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reqnack_event_from_single_state_works_for_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reqnack_event_from_single_state_works_for_completed",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2327,11 +2252,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reqnack_event_from_single_state_works_for_not_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reqnack_event_from_single_state_works_for_not_completed",
-                1,
-                3,
-            );
+            let mut request_handler = _request_handler(1, 3);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2352,11 +2273,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reject_event_from_single_state_works_for_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reject_event_from_single_state_works_for_completed",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2383,11 +2300,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reject_event_from_single_state_works_for_not_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reject_event_from_single_state_works_for_not_completed",
-                1,
-                3,
-            );
+            let mut request_handler = _request_handler(1, 3);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2408,11 +2321,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_timeout_event_from_single_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_timeout_event_from_single_state_works",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2431,7 +2340,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_timeout_event_from_single_state_works_for_cannot_be_completed() {
-            let mut request_handler = _request_handler("request_handler_process_timeout_event_from_single_state_works_for_cannot_be_completed", 1, 1);
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2450,11 +2359,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_terminate_event_from_single_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_terminate_event_from_single_state_works",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2470,11 +2375,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_other_event_from_single_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_other_event_from_single_state_works",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),
@@ -2493,7 +2394,7 @@ pub mod tests {
         ) {
             // the test will use 4 nodes, each node replying with a response to the "custom consensus request" message
             // some nodes accept, some reject and some nack.  the end result is consensus should not be reached
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_consensus_reached_with_mixed_msgs", 1, 4);
+            let mut request_handler = _request_handler(1, 4);
 
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
@@ -2545,7 +2446,7 @@ pub mod tests {
         ) {
             // the test will use 4 nodes, each node replying with a response to the "custom consensus request" message
             // some nodes accept, some reject and some nack.  the end result is consensus should not be reached
-            let mut request_handler = _request_handler("request_handler_process_reply_event_from_single_state_works_for_consensus_reached_with_0_concensus", 1, 4);
+            let mut request_handler = _request_handler(1, 4);
 
             request_handler.process_event(Some(RequestEvent::CustomSingleRequest(
                 MESSAGE.to_string(),
@@ -2598,12 +2499,12 @@ pub mod tests {
         #[test]
         fn request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_catchup_completed(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_catchup_completed", 0, 1);
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(0, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2616,12 +2517,12 @@ pub mod tests {
         #[test]
         fn request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_catchup_not_completed(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_catchup_not_completed", 1, 1);
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(1, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2634,8 +2535,8 @@ pub mod tests {
         #[test]
         fn request_handler_process_consistency_proof_event_from_catchup_consensus_state_works_for_catchup_completed(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_consistency_proof_event_from_catchup_consensus_state_works_for_catchup_completed", 0, 1);
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(0, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2652,8 +2553,8 @@ pub mod tests {
         #[test]
         fn request_handler_process_consistency_proof_event_from_catchup_consensus_state_works_for_catchup_not_completed(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_consistency_proof_event_from_catchup_consensus_state_works_for_catchup_not_completed", 1, 1);
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(1, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2669,12 +2570,8 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_timeout_event_from_catchup_consensus_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_timeout_event_from_catchup_consensus_state_works",
-                1,
-                1,
-            );
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(1, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2691,8 +2588,8 @@ pub mod tests {
         #[test]
         fn request_handler_process_timeout_event_from_catchup_consensus_state_works_for_all_timeouts(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_timeout_event_from_catchup_consensus_state_works_for_all_timeouts", 0, 1);
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(0, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2708,12 +2605,8 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_terminate_event_from_catchup_consensus_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_terminate_event_from_catchup_consensus_state_works",
-                0,
-                1,
-            );
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(0, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2726,12 +2619,8 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_other_event_from_catchup_consensus_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_other_event_from_catchup_consensus_state_works",
-                0,
-                1,
-            );
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(0, 1);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2745,8 +2634,8 @@ pub mod tests {
         #[test]
         fn request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_splitted_pool(
         ) {
-            let mut request_handler = _request_handler("request_handler_process_ledger_status_event_from_catchup_consensus_state_works_for_splitted_pool", 1, 4);
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            let mut request_handler = _request_handler(1, 4);
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 NODE.to_string(),
             )));
@@ -2772,7 +2661,7 @@ pub mod tests {
                 &request_handler.request_wrapper.as_ref().unwrap().state
             );
 
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 "n3".to_string(),
             )));
@@ -2780,7 +2669,7 @@ pub mod tests {
                 &RequestState::Finish(_),
                 &request_handler.request_wrapper.as_ref().unwrap().state
             );
-            request_handler.process_event(Some(RequestEvent::LedgerStatus(
+            request_handler.process_event(Some(RequestEvent::StatusRep(
                 LedgerStatus::default(),
                 "n4".to_string(),
             )));
@@ -2804,11 +2693,7 @@ pub mod tests {
                 None,
             );
 
-            let mut request_handler = _request_handler(
-                "request_handler_process_catchup_reply_event_from_catchup_single_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
 
             let mt = MerkleTree {
                 root: Tree::Leaf {
@@ -2885,7 +2770,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_catchup_reply_event_from_catchup_single_state_works_for_error() {
-            let mut request_handler = _request_handler("request_handler_process_catchup_reply_event_from_catchup_single_state_works_for_error", 0, 1);
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CatchupReq(
                 MerkleTree::default(),
                 1,
@@ -2903,11 +2788,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_timeout_event_from_catchup_single_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_timeout_event_from_catchup_single_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CatchupReq(
                 MerkleTree::default(),
                 1,
@@ -2925,11 +2806,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_terminate_event_from_catchup_single_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_terminate_event_from_catchup_single_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CatchupReq(
                 MerkleTree::default(),
                 1,
@@ -2944,11 +2821,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_other_event_from_catchup_single_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_other_event_from_catchup_single_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CatchupReq(
                 MerkleTree::default(),
                 1,
@@ -2967,11 +2840,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_full_state_works_for_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reply_event_from_full_state_works_for_completed",
-                1,
-                1,
-            );
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -2992,11 +2861,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_full_state_works_for_not_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reply_event_from_full_state_works_for_not_completed",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3017,11 +2882,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reply_event_from_full_state_works_for_different_replies() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reply_event_from_full_state_works_for_different_replies",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3048,11 +2909,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reqnack_event_from_full_state_works_for_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reqnack_event_from_full_state_works_for_completed",
-                1,
-                1,
-            );
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3073,11 +2930,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reqnack_event_from_full_state_works_for_not_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reqnack_event_from_full_state_works_for_not_completed",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3098,11 +2951,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reject_event_from_full_state_works_for_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reject_event_from_full_state_works_for_completed",
-                1,
-                1,
-            );
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3123,11 +2972,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reject_event_from_full_state_works_for_not_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reject_event_from_full_state_works_for_not_completed",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3148,11 +2993,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_timeout_event_from_full_state_works_for_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_timeout_event_from_full_state_works_for_completed",
-                1,
-                1,
-            );
+            let mut request_handler = _request_handler(1, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3171,11 +3012,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_timeout_event_from_full_state_works_for_not_completed() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_timeout_event_from_full_state_works_for_not_completed",
-                1,
-                2,
-            );
+            let mut request_handler = _request_handler(1, 2);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3194,11 +3031,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_reqack_event_from_full_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_reqack_event_from_full_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3219,11 +3052,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_terminate_event_from_full_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_terminate_event_from_full_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3239,11 +3068,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_other_event_from_full_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_other_event_from_full_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomFullRequest(
                 r#"{"result":""}"#.to_string(),
                 REQ_ID.to_string(),
@@ -3263,11 +3088,7 @@ pub mod tests {
 
         #[test]
         fn request_handler_process_event_from_finish_state_works() {
-            let mut request_handler = _request_handler(
-                "request_handler_process_event_from_finish_state_works",
-                0,
-                1,
-            );
+            let mut request_handler = _request_handler(0, 1);
             request_handler.process_event(Some(RequestEvent::CustomConsensusRequest(
                 MESSAGE.to_string(),
                 REQ_ID.to_string(),

@@ -96,6 +96,45 @@ impl Default for PoolConfig {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct JsonTransactions {
+    pub txns: Box<Vec<String>>,
+}
+
+impl JsonTransactions {
+    pub fn new(txns: Vec<String>) -> Self {
+        Self {
+            txns: Box::new(txns.clone()),
+        }
+    }
+}
+
+/*
+impl Default for PoolTransactions {
+    fn default() -> Self {
+        Self {
+            active: Box::new(MerkleTree::default()),
+            ordered_nodes: None,
+        }
+    }
+}
+*/
+
+/*
+#[derive(Clone, Debug)]
+pub struct NodeTransactions {
+    pub txns: Box<Vec<u8>>,
+}
+
+impl NodeTransactions {
+    pub fn new(txns: Vec<u8>) -> Self {
+        Self {
+            txns: Box::new(txns.clone()),
+        }
+    }
+}
+*/
+
 pub type PoolHandle = u32;
 pub const INVALID_POOL_HANDLE: PoolHandle = 0;
 
