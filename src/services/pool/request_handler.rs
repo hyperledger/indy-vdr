@@ -16,14 +16,206 @@ use super::catchup::{
     build_catchup_req, build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status,
     CatchupProgress,
 };
-use super::events::{NetworkerEvent, RequestEvent, RequestUpdate};
+use super::events::{NetworkerEvent, PoolEvent, RequestEvent, RequestUpdate};
 use super::networker::Networker;
 use super::state_proof;
-use super::types::{CatchupRep, CommandHandle, HashableValue, Nodes, PoolConfig};
+use super::types::{CatchupRep, CommandHandle, HashableValue, Message, Nodes, PoolConfig};
 use crate::services::pool::get_last_signed_time;
 use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
+
+fn _get_f(cnt: usize) -> usize {
+    if cnt < 4 {
+        return 0;
+    }
+    (cnt - 1) / 3
+}
+
+pub enum HandlerEvent {
+    Sent(Request, Nodes),
+    Received(
+        Request,
+        Message,
+        String, // node alias
+    ),
+    Timeout(
+        Request,
+        String, // node_alias
+    ),
+    Abort(Request),
+}
+
+pub enum HandlerUpdate {
+    Continue,
+    ExtendTimeout(
+        i64, // timeout
+    ),
+    Resend(
+        i64, // timeout
+    ),
+    Finish(Option<PoolEvent>),
+}
+
+pub trait RequestHandlerT {
+    fn process_event(&mut self, ore: HandlerEvent) -> HandlerUpdate;
+}
+
+pub enum RequestTarget {
+    AllNodes,
+    AnyNodes(u32),
+    SelectNodes(Vec<String>),
+}
+
+pub enum RequestSubscribe {
+    Default,
+    Status,
+    Catchup,
+}
+
+pub struct Request {
+    pub req_id: String,
+    pub req_json: String,
+    pub init_timeout: i64,
+    pub init_target: RequestTarget,
+    pub subscribe: RequestSubscribe,
+    pub handler: Box<dyn RequestHandlerT>,
+}
+
+pub fn ledger_status_request(merkle: MerkleTree, config: PoolConfig) -> LedgerResult<Request> {
+    build_ledger_status_req(&merkle, config.protocol_version).and_then(|(req_id, req_json)| {
+        trace!("fetch status");
+        Ok(Request {
+            req_id: req_id.clone(),
+            req_json,
+            init_timeout: config.reply_timeout,
+            init_target: RequestTarget::AllNodes,
+            subscribe: RequestSubscribe::Status,
+            handler: Box::new(CatchupConsensusHandler::new(req_id, merkle)),
+        })
+    })
+}
+
+struct CatchupConsensusHandler {
+    req_id: String,
+    merkle_tree: MerkleTree,
+    replies: HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
+    nodes: Option<Vec<String>>,
+    f: usize,
+}
+
+impl CatchupConsensusHandler {
+    pub fn new(req_id: String, merkle_tree: MerkleTree) -> Self {
+        Self {
+            req_id,
+            merkle_tree,
+            replies: HashMap::new(),
+            nodes: None,
+            f: 0,
+        }
+    }
+
+    fn _catchup_target_handle_consensus_state(
+        &mut self,
+        mt_root: String,
+        sz: usize,
+        cons_proof: Option<Vec<String>>,
+        node_alias: String,
+    ) -> HandlerUpdate {
+        let result = self._process_catchup_target(mt_root, sz, cons_proof, &node_alias);
+        match result {
+            Some(result) => HandlerUpdate::Finish(Some(result)),
+            None => HandlerUpdate::Continue,
+        }
+    }
+
+    fn _process_catchup_target(
+        &mut self,
+        merkle_root: String,
+        txn_seq_no: usize,
+        hashes: Option<Vec<String>>,
+        node_alias: &str,
+    ) -> Option<PoolEvent> {
+        let key = (merkle_root, txn_seq_no, hashes);
+        let contains = self
+            .replies
+            .get_mut(&key)
+            .map(|set| {
+                set.insert(node_alias.to_string());
+            })
+            .is_some();
+        if !contains {
+            self.replies
+                .insert(key, HashSet::from_iter(vec![node_alias.to_string()]));
+        }
+        match check_nodes_responses_on_status(
+            &self.replies,
+            &self.merkle_tree,
+            self.nodes.as_ref().unwrap().len(),
+            self.f,
+        ) {
+            Ok(CatchupProgress::NotNeeded) => Some(PoolEvent::Synced(self.req_id.clone(), None)),
+            Ok(CatchupProgress::InProgress) => None,
+            Ok(CatchupProgress::ConsensusNotReachable) => {
+                //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
+                Some(PoolEvent::CatchupTargetNotFound(
+                    self.req_id.clone(),
+                    err_msg(LedgerErrorKind::PoolTimeout, "No consensus possible"),
+                ))
+            }
+            Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size)) => Some(
+                PoolEvent::CatchupTargetFound(self.req_id.clone(), target_mt_root, target_mt_size),
+            ),
+            Ok(CatchupProgress::Timeout) => Some(PoolEvent::CatchupTargetNotFound(
+                self.req_id.clone(),
+                err_msg(LedgerErrorKind::PoolTimeout, "Sync timed out"),
+            )),
+            Err(err) => Some(PoolEvent::CatchupTargetNotFound(self.req_id.clone(), err)),
+        }
+    }
+}
+
+impl RequestHandlerT for CatchupConsensusHandler {
+    fn process_event(&mut self, ore: HandlerEvent) -> HandlerUpdate {
+        match ore {
+            HandlerEvent::Sent(_, nodes) => {
+                // FIXME - check sent more than once
+                self.f = _get_f(nodes.len());
+                self.nodes = Some(nodes.keys().cloned().collect());
+                HandlerUpdate::Continue
+            }
+            HandlerEvent::Received(request, message, node_alias) => match message {
+                Message::LedgerStatus(ls) => {
+                    assert_eq!(ls.merkleRoot, request.req_id);
+                    // FIXME assert ls.merkleRoot == self.req_id
+                    self._catchup_target_handle_consensus_state(
+                        ls.merkleRoot.clone(),
+                        ls.txnSeqNo,
+                        None,
+                        node_alias,
+                    )
+                }
+                Message::ConsistencyProof(cp) => {
+                    assert_eq!(cp.oldMerkleRoot, request.req_id);
+                    self._catchup_target_handle_consensus_state(
+                        cp.newMerkleRoot,
+                        cp.seqNoEnd,
+                        Some(cp.hashes),
+                        node_alias,
+                    )
+                }
+                _ => HandlerUpdate::Continue,
+            },
+            HandlerEvent::Timeout(request, node_alias) => self
+                ._catchup_target_handle_consensus_state("timeout".to_string(), 0, None, node_alias),
+            HandlerEvent::Abort(request) => HandlerUpdate::Finish(None),
+        }
+    }
+}
+
+pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
+
+/*
 
 struct RequestSM<T: Networker> {
     f: usize,
@@ -1291,7 +1483,7 @@ pub mod tests {
     }
 
     fn _request_handler(f: usize, nodes_cnt: usize) -> RequestHandlerImpl<MockNetworker> {
-        let networker = Rc::new(RefCell::new(MockNetworker::new(0, 0, vec![])));
+        let networker = Rc::new(RefCell::new(MockNetworker::new()));
 
         let mut default_nodes: Nodes = HashMap::new();
         default_nodes.insert(NODE.to_string(), None);
@@ -3102,3 +3294,4 @@ pub mod tests {
         }
     }
 }
+*/

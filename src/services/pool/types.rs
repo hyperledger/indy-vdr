@@ -571,6 +571,16 @@ impl Message {
                 .to_result(LedgerErrorKind::InvalidStructure, "Malformed message json"),
         }
     }
+
+    pub fn request_id(&self) -> Option<String> {
+        match self {
+            Message::Reply(ref rep) => Some(rep.req_id().to_string()),
+            Message::ReqACK(ref rep) | Message::ReqNACK(ref rep) | Message::Reject(ref rep) => {
+                Some(rep.req_id().to_string())
+            }
+            _ => None,
+        }
+    }
 }
 
 /**

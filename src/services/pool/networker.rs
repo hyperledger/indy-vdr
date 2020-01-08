@@ -1,13 +1,18 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::mpsc;
+use std::thread;
 
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use time::Tm;
 
+use crate::utils::base58::FromBase58;
+use crate::utils::crypto;
 use crate::utils::error::prelude::*;
 
 use super::events::*;
+use super::request_handler::{Request, RequestSubscribe, RequestTarget};
 use super::time::Duration;
 use super::types::*;
 
@@ -15,49 +20,287 @@ use super::zmq::PollItem;
 use super::zmq::Socket as ZSocket;
 
 use base64;
+use ursa::bls::VerKey as BlsVerKey;
 
-pub trait Networker {
-    fn new(active_timeout: i64, conn_limit: usize, preordered_nodes: Vec<String>) -> Self;
-    fn fetch_events(&self, poll_items: &[PollItem]) -> Vec<PoolEvent>;
-    fn process_event(&mut self, pe: Option<NetworkerEvent>) -> Option<RequestEvent>;
-    fn get_timeout(&self) -> ((String, String), i64);
-    fn get_poll_items(&self) -> Vec<PollItem>;
+fn _get_nodes_and_remotes(
+    transactions: HashMap<String, NodeTransactionV1>,
+) -> LedgerResult<(Nodes, Vec<RemoteNode>)> {
+    Ok(transactions
+        .iter()
+        .map(|(dest, txn)| {
+            let node_alias = txn.txn.data.data.alias.clone();
+
+            let node_verkey = dest.as_str().from_base58().to_result(
+                LedgerErrorKind::InvalidStructure,
+                "Invalid field dest in genesis transaction",
+            )?;
+
+            let node_verkey = crypto::import_verkey(node_verkey)
+                .and_then(|vk| crypto::vk_to_curve25519(vk))
+                .to_result(
+                    LedgerErrorKind::InvalidStructure,
+                    "Invalid field dest in genesis transaction",
+                )?;
+
+            if txn.txn.data.data.services.is_none()
+                || !txn
+                    .txn
+                    .data
+                    .data
+                    .services
+                    .as_ref()
+                    .unwrap()
+                    .contains(&"VALIDATOR".to_string())
+            {
+                return Err(err_msg(
+                    LedgerErrorKind::InvalidState,
+                    "Node is not a validator",
+                )); // FIXME: review error kind
+            }
+
+            let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
+                (&Some(ref client_ip), &Some(ref client_port)) => {
+                    format!("tcp://{}:{}", client_ip, client_port)
+                }
+                _ => {
+                    return Err(err_msg(
+                        LedgerErrorKind::InvalidState,
+                        "Client address not found",
+                    ))
+                }
+            };
+
+            let remote = RemoteNode {
+                name: node_alias.clone(),
+                public_key: node_verkey[..].to_vec(),
+                // TODO:FIXME
+                zaddr: address,
+                is_blacklisted: false,
+            };
+
+            let verkey: Option<BlsVerKey> = match txn.txn.data.data.blskey {
+                Some(ref blskey) => {
+                    let key = blskey.as_str().from_base58().to_result(
+                        LedgerErrorKind::InvalidStructure,
+                        "Invalid field blskey in genesis transaction",
+                    )?;
+
+                    Some(BlsVerKey::from_bytes(&key).to_result(
+                        LedgerErrorKind::InvalidStructure,
+                        "Invalid field blskey in genesis transaction",
+                    )?)
+                }
+                None => None,
+            };
+            Ok(((node_alias, verkey), remote))
+        })
+        .fold((HashMap::new(), vec![]), |(mut map, mut vec), res| {
+            match res {
+                Err(e) => {
+                    error!("Error during retrieving nodes: {:?}", e);
+                }
+                Ok(((alias, verkey), remote)) => {
+                    map.insert(alias.clone(), verkey);
+                    vec.push(remote);
+                }
+            }
+            (map, vec)
+        }))
+}
+
+enum NodeEvent {
+    Reply(
+        String, // req id
+        Message,
+        String, // node alias
+    ),
+    Timeout(
+        String, // req id
+        String, // node alias
+    ),
+}
+
+pub trait Networker: Sized {
+    fn new(
+        config: PoolConfig,
+        transactions: HashMap<String, NodeTransactionV1>,
+        preordered_nodes: Vec<String>,
+        sender: mpsc::Sender<PoolEvent>,
+    ) -> LedgerResult<Self>;
+    fn add_request(&mut self, request: Request) -> LedgerResult<()>;
 }
 
 pub struct ZMQNetworker {
-    req_id_mappings: HashMap<String, u32>,
-    pool_connections: BTreeMap<u32, PoolConnection>,
-    nodes: Vec<RemoteNode>,
-    active_timeout: i64,
-    conn_limit: usize,
+    config: PoolConfig,
+    nodes: Nodes,
+    remotes: Vec<RemoteNode>,
     preordered_nodes: Vec<String>,
+    sender: mpsc::Sender<PoolEvent>,
+    worker: Option<thread::JoinHandle<()>>,
+    requests: HashMap<String, Request>,
+    last_connection: Option<u32>,
+    pool_connections: BTreeMap<u32, PoolConnection>,
 }
 
 impl Networker for ZMQNetworker {
-    fn new(active_timeout: i64, conn_limit: usize, preordered_nodes: Vec<String>) -> Self {
-        ZMQNetworker {
-            req_id_mappings: HashMap::new(),
-            pool_connections: BTreeMap::new(),
-            nodes: Vec::new(),
-            active_timeout,
-            conn_limit,
+    fn new(
+        config: PoolConfig,
+        transactions: HashMap<String, NodeTransactionV1>,
+        preordered_nodes: Vec<String>,
+        sender: mpsc::Sender<PoolEvent>,
+    ) -> LedgerResult<Self> {
+        let (nodes, remotes) = _get_nodes_and_remotes(transactions)?;
+        let mut result = ZMQNetworker {
+            config,
+            nodes,
+            remotes,
             preordered_nodes,
+            sender,
+            worker: None,
+            requests: HashMap::new(),
+            last_connection: None,
+            pool_connections: BTreeMap::new(),
+        };
+        result.poll();
+        Ok(result)
+    }
+
+    fn add_request(&mut self, request: Request) -> LedgerResult<()> {
+        let req_id = request.req_id.clone();
+        if self.requests.contains_key(&req_id) {
+            trace!("request with duplicate ID ignored");
+            Ok(())
+        } else {
+            self.dispatch(request)
+        }
+    }
+}
+
+impl ZMQNetworker {
+    fn poll(&mut self) {}
+
+    fn _poll(&self) {
+        loop {
+            let mut poll_items = self.get_poll_items();
+            if poll_items.len() == 0 {
+                thread::park();
+                continue;
+            }
+            let ((req_id, node_alias), timeout) = self.get_timeout();
+            let mut events = vec![];
+            // FIXME add commander to poll items
+            let poll_res = zmq::poll(&mut poll_items, ::std::cmp::max(timeout, 0))
+                .map_err(map_err_err!())
+                .map_err(|_| unimplemented!() /* FIXME */)
+                .unwrap();
+            //            trace!("poll_res: {:?}", poll_res);
+            if poll_res == 0 {
+                events.push(NodeEvent::Timeout(req_id, node_alias));
+            } else {
+                self.fetch_events_into(poll_items.as_slice(), &mut events);
+            }
         }
     }
 
-    fn fetch_events(&self, poll_items: &[PollItem]) -> Vec<PoolEvent> {
-        let mut cnt = 0;
-        self.pool_connections
-            .iter()
-            .map(|(_, pc)| {
-                let ocnt = cnt;
-                cnt += pc.sockets.iter().filter(|s| s.is_some()).count();
-                pc.fetch_events(&poll_items[ocnt..cnt])
-            })
-            .flat_map(|v| v.into_iter())
-            .collect()
+    fn get_active_connection(&mut self) -> u32 {
+        let conn = self
+            .last_connection
+            .and_then(|conn_id| self.pool_connections.get(&conn_id))
+            .filter(|conn| conn.is_active() && conn.req_cnt < self.config.conn_request_limit);
+        if conn.is_none() {
+            let conn = PoolConnection::new(
+                self.remotes.clone(),
+                self.config.conn_active_timeout,
+                self.preordered_nodes.clone(),
+            );
+            trace!("created new connection");
+            let pc_id = next_pool_connection_handle();
+            self.pool_connections.insert(pc_id, conn);
+            self.last_connection.replace(pc_id);
+            pc_id
+        } else {
+            self.last_connection.unwrap()
+        }
     }
 
+    fn dispatch(&mut self, request: Request) -> LedgerResult<()> {
+        let conn = {
+            let conn_id = self.get_active_connection();
+            unwrap_opt_or_return!(
+                self.pool_connections.get_mut(&conn_id),
+                Err(err_msg(
+                    LedgerErrorKind::InvalidState,
+                    "Pool connection not found for dispatch"
+                ))
+            )
+        };
+        match &request.init_target {
+            RequestTarget::AllNodes => conn.send_request(NetworkerEvent::SendAllRequest(
+                request.req_json.clone(),
+                request.req_id.clone(),
+                request.init_timeout,
+                None,
+            )),
+            RequestTarget::AnyNodes(count) => {
+                conn.send_request(NetworkerEvent::SendOneRequest(
+                    request.req_json.clone(),
+                    request.req_id.clone(),
+                    request.init_timeout,
+                ))?;
+                for _ in 0..count - 1 {
+                    conn.send_request(NetworkerEvent::Resend(
+                        request.req_id.clone(),
+                        request.init_timeout,
+                    ))?;
+                }
+                Ok(())
+            }
+            RequestTarget::SelectNodes(select_nodes) => {
+                let nodes = &self.nodes;
+                let found_nodes = select_nodes
+                    .iter()
+                    .cloned()
+                    .filter(|node| nodes.contains_key(node))
+                    .collect::<Vec<String>>();
+                if !found_nodes.is_empty() {
+                    conn.send_request(NetworkerEvent::SendAllRequest(
+                        request.req_json.clone(),
+                        request.req_id.clone(),
+                        request.init_timeout,
+                        Some(select_nodes.clone()),
+                    ))?;
+                    Ok(())
+                } else {
+                    Err(err_msg(
+                        LedgerErrorKind::InvalidStructure,
+                        format!(
+                            "There is no known node in list to send {:?}, known nodes are {:?}",
+                            select_nodes,
+                            self.nodes.keys()
+                        ),
+                    ))
+                }
+            }
+        };
+        self.requests.insert(request.req_id.clone(), request);
+        Ok(())
+    }
+
+    fn fetch_events_into(&self, poll_items: &[PollItem], events: &mut Vec<NodeEvent>) {
+        let mut cnt = 0;
+        events.extend(
+            self.pool_connections
+                .values()
+                .map(|pc| {
+                    let ocnt = cnt;
+                    cnt += pc.sockets.iter().filter(|s| s.is_some()).count();
+                    pc.fetch_events(&poll_items[ocnt..cnt])
+                })
+                .flat_map(|v| v.into_iter()),
+        );
+    }
+
+    /*
     fn process_event(&mut self, pe: Option<NetworkerEvent>) -> Option<RequestEvent> {
         match pe.clone() {
             Some(NetworkerEvent::SendAllRequest(_, req_id, _, _))
@@ -169,6 +412,7 @@ impl Networker for ZMQNetworker {
             _ => None,
         }
     }
+    */
 
     fn get_timeout(&self) -> ((String, String), i64) {
         self.pool_connections
@@ -180,8 +424,8 @@ impl Networker for ZMQNetworker {
 
     fn get_poll_items(&self) -> Vec<PollItem> {
         self.pool_connections
-            .iter()
-            .flat_map(|(_, pool)| pool.get_poll_items())
+            .values()
+            .flat_map(PoolConnection::get_poll_items)
             .collect()
     }
 }
@@ -232,7 +476,7 @@ impl PoolConnection {
         }
     }
 
-    fn fetch_events(&self, poll_items: &[zmq::PollItem]) -> Vec<PoolEvent> {
+    fn fetch_events(&self, poll_items: &[zmq::PollItem]) -> Vec<NodeEvent> {
         let mut vec = Vec::new();
         let mut pi_idx = 0;
         let len = self.nodes.len();
@@ -241,7 +485,13 @@ impl PoolConnection {
             if let (&Some(ref s), rn) = (&self.sockets[i], &self.nodes[i]) {
                 if poll_items[pi_idx].is_readable() {
                     if let Ok(Ok(msg)) = s.recv_string(zmq::DONTWAIT) {
-                        vec.push(PoolEvent::NodeReply(msg, rn.name.clone()))
+                        Message::from_raw_str(msg.as_str()).map(|message| {
+                            vec.push(NodeEvent::Reply(
+                                message.request_id().unwrap_or("".to_string()),
+                                message,
+                                rn.name.clone(),
+                            ))
+                        });
                     }
                 }
                 pi_idx += 1;
@@ -286,15 +536,15 @@ impl PoolConnection {
         res
     }
 
-    fn send_request(&mut self, ne: Option<NetworkerEvent>) -> LedgerResult<()> {
+    fn send_request(&mut self, ne: NetworkerEvent) -> LedgerResult<()> {
         trace!("send_request >> ne: {:?}", ne);
         match ne {
-            Some(NetworkerEvent::SendOneRequest(msg, req_id, timeout)) => {
+            NetworkerEvent::SendOneRequest(msg, req_id, timeout) => {
                 self.req_cnt += 1;
                 self._send_msg_to_one_node(0, req_id.clone(), msg.clone(), timeout)?;
                 self.resend.borrow_mut().insert(req_id, (0, msg));
             }
-            Some(NetworkerEvent::SendAllRequest(msg, req_id, timeout, nodes_to_send)) => {
+            NetworkerEvent::SendAllRequest(msg, req_id, timeout, nodes_to_send) => {
                 self.req_cnt += 1;
                 for idx in 0..self.nodes.len() {
                     if nodes_to_send
@@ -306,7 +556,7 @@ impl PoolConnection {
                     }
                 }
             }
-            Some(NetworkerEvent::Resend(req_id, timeout)) => {
+            NetworkerEvent::Resend(req_id, timeout) => {
                 let resend = if let Some(&mut (ref mut cnt, ref req)) =
                     self.resend.borrow_mut().get_mut(&req_id)
                 {
@@ -431,28 +681,21 @@ pub struct MockNetworker {
 
 #[cfg(test)]
 impl Networker for MockNetworker {
-    fn new(_active_timeout: i64, _conn_limit: usize, _preordered_nodes: Vec<String>) -> Self {
-        MockNetworker { events: Vec::new() }
+    fn new(
+        _config: PoolConfig,
+        _transactions: HashMap<String, NodeTransactionV1>,
+        _preordered_nodes: Vec<String>,
+        _sender: mpsc::Sender<PoolEvent>,
+    ) -> LedgerResult<Self> {
+        Ok(Self { events: Vec::new() })
     }
 
-    fn fetch_events(&self, _poll_items: &[zmq::PollItem]) -> Vec<PoolEvent> {
-        unimplemented!()
-    }
-
-    fn process_event(&mut self, pe: Option<NetworkerEvent>) -> Option<RequestEvent> {
-        self.events.push(pe);
-        None
-    }
-
-    fn get_timeout(&self) -> ((String, String), i64) {
-        unimplemented!()
-    }
-
-    fn get_poll_items(&self) -> Vec<PollItem> {
+    fn add_request(&mut self, request: Request) -> LedgerResult<()> {
         unimplemented!()
     }
 }
 
+/*
 #[cfg(test)]
 pub mod networker_tests {
     use std;
@@ -1256,3 +1499,4 @@ pub mod networker_tests {
         }
     }
 }
+*/

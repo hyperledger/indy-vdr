@@ -15,9 +15,8 @@ pub enum CatchupProgress {
     ShouldBeStarted(
         Vec<u8>, //target_mt_root
         usize,   //target_mt_size
-        MerkleTree,
     ),
-    NotNeeded(MerkleTree),
+    NotNeeded,
     InProgress,
     Timeout,
 }
@@ -132,7 +131,7 @@ fn _try_to_catch_up(
 
     if target_mt_size == cur_mt_size {
         if cur_mt_hash.eq(target_mt_root) {
-            Ok(CatchupProgress::NotNeeded(merkle_tree.clone()))
+            Ok(CatchupProgress::NotNeeded)
         } else {
             Err(err_msg(
                 LedgerErrorKind::InvalidState,
@@ -158,7 +157,6 @@ fn _try_to_catch_up(
         Ok(CatchupProgress::ShouldBeStarted(
             target_mt_root,
             target_mt_size,
-            merkle_tree.clone(),
         ))
     } else {
         Err(err_msg(

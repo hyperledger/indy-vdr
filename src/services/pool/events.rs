@@ -50,7 +50,10 @@ pub enum NetworkerEvent {
         String, //req_id
         i64,    //timeout
     ),
-    NodesStateUpdated(Vec<RemoteNode>),
+    NodesStateUpdated(
+        Vec<RemoteNode>,
+        Option<Vec<String>>, // preferred order
+    ),
     ExtendTimeout(
         String, //req_id
         String, //node_alias
@@ -69,6 +72,7 @@ pub const COMMAND_REFRESH: &str = "refresh";
 
 #[derive(Debug)]
 pub enum PoolEvent {
+    /*
     Open(CommandHandle, Option<JsonTransactions>),
     Refresh(CommandHandle, Option<JsonTransactions>),
     NodeReply(
@@ -88,6 +92,30 @@ pub enum PoolEvent {
         String, //req_id
         String, //node alias
     ),
+    NetworkerDone
+    */
+    SubmitAck(
+        String, // request ID
+        LedgerResult<()>,
+    ),
+    Response(
+        String, // request ID
+        LedgerResult<String>,
+    ),
+    CatchupTargetFound(
+        String,  // request ID
+        Vec<u8>, // target_mt_root
+        usize,   // target_mt_size
+    ),
+    CatchupTargetNotFound(
+        String, // request ID
+        LedgerError,
+    ),
+    Synced(
+        String, // request ID
+        Option<MerkleTree>,
+    ),
+    // NodesBlacklisted,
 }
 
 #[derive(Debug)]
@@ -196,6 +224,7 @@ impl RequestEvent {
         }
     }
 
+    /*
     pub fn from_pool_event(
         event: PoolEvent,
         protocol_version: ProtocolVersion, // FIXME: pass in state proof parser instead of version
@@ -305,6 +334,7 @@ impl RequestEvent {
             _ => None,
         }
     }
+    */
 }
 
 pub trait UpdateHandler {

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::rc::Rc;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -12,7 +13,7 @@ use super::commander::Commander;
 use super::events::*;
 use super::merkle_tree_factory;
 use super::networker::{Networker, ZMQNetworker};
-use super::request_handler::{RequestHandler, RequestHandlerImpl};
+use super::request_handler::ledger_status_request;
 use super::types::{CommandHandle, JsonTransactions, Nodes, PoolConfig, PoolHandle, RemoteNode};
 use crate::utils::base58::FromBase58;
 use crate::utils::crypto;
@@ -21,6 +22,8 @@ use crate::utils::merkletree::MerkleTree;
 
 use ursa::bls::VerKey as BlsVerKey;
 use zmq;
+
+/*
 
 struct PoolSM<T: Networker, R: RequestHandler<T>> {
     id: PoolHandle,
@@ -185,10 +188,9 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                 PoolEvent::Open(cmd_id, opt_txns) => {
                     match _update_pool_nodes(None, opt_txns, &config) {
                         Ok((merkle_tree, nodes, remotes)) => {
-                            init_state
-                                .networker
-                                .borrow_mut()
-                                .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
+                            init_state.networker.borrow_mut().process_event(Some(
+                                NetworkerEvent::NodesStateUpdated(remotes, None),
+                            ));
                             (
                                 PoolState::Active((init_state, merkle_tree, nodes).into()),
                                 Some(PoolUpdate::OpenAck(cmd_id, id, Ok(()))),
@@ -265,7 +267,7 @@ impl<T: Networker, R: RequestHandler<T>> PoolSM<T, R> {
                                 match _get_nodes_and_remotes(&merkle_tree, &config) {
                                     Ok((nodes, remotes)) => {
                                         catchup_state.networker.borrow_mut().process_event(Some(
-                                            NetworkerEvent::NodesStateUpdated(remotes),
+                                            NetworkerEvent::NodesStateUpdated(remotes, None),
                                         ));
                                         (
                                             PoolState::Active(
@@ -507,7 +509,6 @@ impl<T: Networker, R: RequestHandler<T>> PoolThread<T, R> {
         let networker = Rc::new(RefCell::new(T::new(
             config.conn_active_timeout,
             config.conn_request_limit,
-            vec![], // transactions.preordered_nodes,
         )));
         PoolThread {
             pool_sm: Some(PoolSM::new(id, config, networker.clone())),
@@ -581,6 +582,23 @@ impl<T: Networker, R: RequestHandler<T>> PoolThread<T, R> {
         self.events.extend(events);
     }
 }
+*/
+
+
+// -- NEW --
+
+struct PoolManager {}
+
+/*
+
+struct PoolWorkerSM<T: Networker, R: RequestHandler<T>> {
+    req_count: u32,
+    request_handlers: HashMap<String, R>,
+    sender: Sender<PoolEvent>,
+}
+*/
+
+// -- END NEW --
 
 fn _get_f(cnt: usize) -> usize {
     if cnt < 4 {
@@ -613,6 +631,7 @@ fn _update_pool_nodes(
     Ok((merkle_tree, nodes, remotes))
 }
 
+/*
 fn _status_request_handler<T: Networker, R: RequestHandler<T>>(
     networker: Rc<RefCell<T>>,
     merkle_tree: Option<MerkleTree>,
@@ -623,7 +642,7 @@ fn _status_request_handler<T: Networker, R: RequestHandler<T>>(
     let (nodes, remotes) = _get_nodes_and_remotes(&merkle_tree, config)?;
     networker
         .borrow_mut()
-        .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
+        .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes, None)));
     let mut handler = R::new(networker.clone(), _get_f(nodes.len()), &[], &nodes, &config);
     let update = handler.process_event(Some(RequestEvent::StatusReq(merkle_tree)));
     Ok((handler, update))
@@ -639,7 +658,7 @@ fn _catchup_request_handler<T: Networker, R: RequestHandler<T>>(
     let (nodes, remotes) = _get_nodes_and_remotes(&merkle_tree, config)?;
     networker
         .borrow_mut()
-        .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes)));
+        .process_event(Some(NetworkerEvent::NodesStateUpdated(remotes, None)));
     let mut handler = R::new(networker.clone(), _get_f(nodes.len()), &[], &nodes, &config);
     let update = handler.process_event(Some(RequestEvent::CatchupReq(
         merkle_tree,
@@ -648,6 +667,7 @@ fn _catchup_request_handler<T: Networker, R: RequestHandler<T>>(
     )));
     Ok((handler, update))
 }
+*/
 
 fn _get_nodes_and_remotes(
     merkle: &MerkleTree,
@@ -746,6 +766,7 @@ fn _get_nodes_and_remotes(
         }))
 }
 
+/*
 pub struct ZMQPool {
     pub(super) pool: Pool<ZMQNetworker, RequestHandlerImpl<ZMQNetworker>>,
     pub(super) cmd_socket: zmq::Socket,
@@ -779,6 +800,7 @@ impl Drop for ZMQPool {
         info!("Drop finished");
     }
 }
+*/
 
 /*
 #[cfg(test)]
