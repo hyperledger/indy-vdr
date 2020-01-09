@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde_json;
 use serde_json::Value as SJsonValue;
 
@@ -81,6 +83,10 @@ pub enum PoolEvent {
     CatchupTargetNotFound(
         String, // request ID
         LedgerError,
+    ),
+    StatusSynced(
+        String,               // request ID
+        HashMap<String, f32>, // node: duration
     ),
     Synced(
         String, // request ID

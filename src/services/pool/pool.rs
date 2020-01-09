@@ -113,21 +113,27 @@ impl<T: Networker> PoolThread<T> {
         match event {
             PoolEvent::Connect(_cmd_id, txns) => {
                 // FIXME - move to separate function, handle error
-                let transactions =
-                    build_node_state_from_json(txns, self.config.protocol_version).unwrap();
-                let merkle_tree = build_tree(&transactions).unwrap();
+                let merkle_tree = build_tree(&txns).unwrap();
                 let mut networker =
-                    T::new(self.config, transactions, vec![], self.evt_send.clone()).unwrap();
+                    T::new(self.config, txns, vec![], self.evt_send.clone()).unwrap();
                 let req = ledger_status_request(merkle_tree, self.config).unwrap();
                 // FIXME set up link between cmd_id and request
                 networker.add_request(req).unwrap();
                 self.networker = Some(networker);
                 // FIXME send update to listener
             }
+            PoolEvent::SubmitAck(req_id, result) => match result {
+                Ok(_) => info!("Request dispatched {}", req_id),
+                Err(err) => warn!("Request dispatch failed {} {}", req_id, err.to_string()),
+            },
             PoolEvent::Exit() => {
                 // networker(s) automatically dropped
                 return true;
             }
+            PoolEvent::CatchupTargetNotFound(req_id, err) => {
+                print!("Catchup target not found {} {:?}", req_id, err)
+            }
+            PoolEvent::Synced(req_id, opt_tree) => info!("Synced!"),
             _ => trace!("Unhandled event {:?}", event),
         };
         false

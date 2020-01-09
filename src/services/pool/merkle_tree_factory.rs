@@ -229,13 +229,10 @@ pub fn load_genesis_txns(p: &PathBuf) -> LedgerResult<JsonTransactions> {
 }
 */
 
-pub fn build_tree(gen_tnxs: &TransactionMap) -> LedgerResult<MerkleTree> {
+pub fn build_tree(json_tnxs: &Vec<String>) -> LedgerResult<MerkleTree> {
     let mut bin_txns: Vec<Vec<u8>> = vec![];
-    for txn in gen_tnxs.values() {
-        let bin_txn = rmp_serde::to_vec_named(txn).to_result(
-            LedgerErrorKind::InvalidStructure,
-            "Cannot serialize transaction",
-        )?;
+    for json_txn in json_tnxs {
+        let bin_txn = _parse_txn_from_json(json_txn)?;
         bin_txns.push(bin_txn)
     }
     MerkleTree::from_vec(bin_txns)
