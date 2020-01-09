@@ -1,27 +1,138 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::VecDeque;
+// use std::collections::BTreeMap;
 use std::marker::PhantomData;
-use std::rc::Rc;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 
-use failure::Context;
-
-use super::commander::Commander;
-use super::events::*;
-use super::merkle_tree_factory;
-use super::networker::{Networker, ZMQNetworker};
+use super::events::PoolEvent;
+use super::merkle_tree_factory::{build_node_state_from_json, build_tree};
+use super::networker::{Networker, NetworkerHandle, ZMQNetworker};
 use super::request_handler::ledger_status_request;
-use super::types::{CommandHandle, JsonTransactions, Nodes, PoolConfig, PoolHandle, RemoteNode};
-use crate::utils::base58::FromBase58;
-use crate::utils::crypto;
+use super::types::{CommandHandle, PoolConfig};
+// use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
-use crate::utils::merkletree::MerkleTree;
 
-use ursa::bls::VerKey as BlsVerKey;
-use zmq;
+pub trait Pool {
+    fn new(config: PoolConfig) -> Self
+    where
+        Self: Sized;
+    fn connect(&mut self, json_transactions: Vec<String>) -> LedgerResult<CommandHandle>;
+}
+
+pub type ZMQPool = PoolImpl<ZMQNetworker>;
+
+pub struct PoolImpl<T: Networker> {
+    _pd: PhantomData<T>,
+    evt_send: Sender<PoolEvent>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl<T: Networker> Pool for PoolImpl<T> {
+    fn new(config: PoolConfig) -> PoolImpl<T> {
+        let (evt_send, evt_recv) = channel::<PoolEvent>();
+        let mut result = Self {
+            _pd: PhantomData,
+            evt_send: evt_send.clone(),
+            worker: None,
+        };
+        result.worker.replace(thread::spawn(move || {
+            let mut pool_thread = PoolThread::<T>::new(config, evt_recv, evt_send);
+            pool_thread.work();
+            // FIXME send event when thread exits
+            trace!("Pool thread exited")
+        }));
+        result
+    }
+
+    fn connect(&mut self, json_transactions: Vec<String>) -> LedgerResult<CommandHandle> {
+        let cmd_id = CommandHandle::next();
+        self.send(PoolEvent::Connect(cmd_id, json_transactions))?;
+        Ok(cmd_id)
+    }
+}
+
+impl<T: Networker> PoolImpl<T> {
+    fn send(&self, event: PoolEvent) -> LedgerResult<()> {
+        self.evt_send
+            .send(event)
+            .to_result(LedgerErrorKind::PoolTerminated, "Pool terminated")
+    }
+}
+
+impl<T: Networker> Drop for PoolImpl<T> {
+    fn drop(&mut self) {
+        info!("Drop started");
+        if let Err(_) = self.evt_send.send(PoolEvent::Exit()) {
+            trace!("Pool thread already exited")
+        }
+        if let Some(worker) = self.worker.take() {
+            info!("Drop pool worker");
+            worker.join().unwrap();
+        }
+        info!("Drop finished");
+    }
+}
+
+struct PoolThread<T: Networker> {
+    config: PoolConfig,
+    networker: Option<T>,
+    evt_recv: Receiver<PoolEvent>,
+    evt_send: Sender<PoolEvent>,
+}
+
+impl<T: Networker> PoolThread<T> {
+    pub fn new(
+        config: PoolConfig,
+        evt_recv: Receiver<PoolEvent>,
+        evt_send: Sender<PoolEvent>,
+    ) -> Self {
+        Self {
+            config,
+            networker: None,
+            evt_recv,
+            evt_send,
+        }
+    }
+
+    pub fn work(&mut self) {
+        loop {
+            let evt = match self.evt_recv.recv() {
+                Ok(msg) => msg,
+                _ => {
+                    trace!("Pool thread exited");
+                    return;
+                }
+            };
+            if self.handle_event(evt) {
+                break;
+            }
+        }
+    }
+
+    fn handle_event(&mut self, event: PoolEvent) -> bool {
+        match event {
+            PoolEvent::Connect(_cmd_id, txns) => {
+                // FIXME - move to separate function, handle error
+                let transactions =
+                    build_node_state_from_json(txns, self.config.protocol_version).unwrap();
+                let merkle_tree = build_tree(&transactions).unwrap();
+                let mut networker =
+                    T::new(self.config, transactions, vec![], self.evt_send.clone()).unwrap();
+                let req = ledger_status_request(merkle_tree, self.config).unwrap();
+                // FIXME set up link between cmd_id and request
+                networker.add_request(req).unwrap();
+                self.networker = Some(networker);
+                // FIXME send update to listener
+            }
+            PoolEvent::Exit() => {
+                // networker(s) automatically dropped
+                return true;
+            }
+            _ => trace!("Unhandled event {:?}", event),
+        };
+        false
+    }
+}
 
 /*
 
@@ -584,29 +695,16 @@ impl<T: Networker, R: RequestHandler<T>> PoolThread<T, R> {
 }
 */
 
-
-// -- NEW --
-
-struct PoolManager {}
-
 /*
-
-struct PoolWorkerSM<T: Networker, R: RequestHandler<T>> {
-    req_count: u32,
-    request_handlers: HashMap<String, R>,
-    sender: Sender<PoolEvent>,
-}
-*/
-
-// -- END NEW --
-
 fn _get_f(cnt: usize) -> usize {
     if cnt < 4 {
         return 0;
     }
     (cnt - 1) / 3
 }
+*/
 
+/*
 fn _get_merkle_tree(
     merkle_tree: Option<MerkleTree>,
     new_txns: Option<JsonTransactions>,
@@ -630,6 +728,7 @@ fn _update_pool_nodes(
     let (nodes, remotes) = _get_nodes_and_remotes(&merkle_tree, config)?;
     Ok((merkle_tree, nodes, remotes))
 }
+*/
 
 /*
 fn _status_request_handler<T: Networker, R: RequestHandler<T>>(
@@ -669,6 +768,7 @@ fn _catchup_request_handler<T: Networker, R: RequestHandler<T>>(
 }
 */
 
+/*
 fn _get_nodes_and_remotes(
     merkle: &MerkleTree,
     config: &PoolConfig,
@@ -765,6 +865,7 @@ fn _get_nodes_and_remotes(
             (map, vec)
         }))
 }
+*/
 
 /*
 pub struct ZMQPool {

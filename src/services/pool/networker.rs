@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::mpsc;
 use std::thread;
 
@@ -11,10 +11,10 @@ use crate::utils::base58::FromBase58;
 use crate::utils::crypto;
 use crate::utils::error::prelude::*;
 
-use super::events::*;
-use super::request_handler::{Request, RequestSubscribe, RequestTarget};
+use super::events::PoolEvent;
+use super::request_handler::{PoolRequest, PoolRequestSubscribe, PoolRequestTarget};
 use super::time::Duration;
-use super::types::*;
+use super::types::{Message, Nodes, PoolConfig, TransactionMap};
 
 use super::zmq::PollItem;
 use super::zmq::Socket as ZSocket;
@@ -22,92 +22,52 @@ use super::zmq::Socket as ZSocket;
 use base64;
 use ursa::bls::VerKey as BlsVerKey;
 
-fn _get_nodes_and_remotes(
-    transactions: HashMap<String, NodeTransactionV1>,
-) -> LedgerResult<(Nodes, Vec<RemoteNode>)> {
-    Ok(transactions
-        .iter()
-        .map(|(dest, txn)| {
-            let node_alias = txn.txn.data.data.alias.clone();
-
-            let node_verkey = dest.as_str().from_base58().to_result(
-                LedgerErrorKind::InvalidStructure,
-                "Invalid field dest in genesis transaction",
-            )?;
-
-            let node_verkey = crypto::import_verkey(node_verkey)
-                .and_then(|vk| crypto::vk_to_curve25519(vk))
-                .to_result(
-                    LedgerErrorKind::InvalidStructure,
-                    "Invalid field dest in genesis transaction",
-                )?;
-
-            if txn.txn.data.data.services.is_none()
-                || !txn
-                    .txn
-                    .data
-                    .data
-                    .services
-                    .as_ref()
-                    .unwrap()
-                    .contains(&"VALIDATOR".to_string())
-            {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidState,
-                    "Node is not a validator",
-                )); // FIXME: review error kind
-            }
-
-            let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
-                (&Some(ref client_ip), &Some(ref client_port)) => {
-                    format!("tcp://{}:{}", client_ip, client_port)
-                }
-                _ => {
-                    return Err(err_msg(
-                        LedgerErrorKind::InvalidState,
-                        "Client address not found",
-                    ))
-                }
-            };
-
-            let remote = RemoteNode {
-                name: node_alias.clone(),
-                public_key: node_verkey[..].to_vec(),
-                // TODO:FIXME
-                zaddr: address,
-                is_blacklisted: false,
-            };
-
-            let verkey: Option<BlsVerKey> = match txn.txn.data.data.blskey {
-                Some(ref blskey) => {
-                    let key = blskey.as_str().from_base58().to_result(
-                        LedgerErrorKind::InvalidStructure,
-                        "Invalid field blskey in genesis transaction",
-                    )?;
-
-                    Some(BlsVerKey::from_bytes(&key).to_result(
-                        LedgerErrorKind::InvalidStructure,
-                        "Invalid field blskey in genesis transaction",
-                    )?)
-                }
-                None => None,
-            };
-            Ok(((node_alias, verkey), remote))
-        })
-        .fold((HashMap::new(), vec![]), |(mut map, mut vec), res| {
-            match res {
-                Err(e) => {
-                    error!("Error during retrieving nodes: {:?}", e);
-                }
-                Ok(((alias, verkey), remote)) => {
-                    map.insert(alias.clone(), verkey);
-                    vec.push(remote);
-                }
-            }
-            (map, vec)
-        }))
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct RemoteNode {
+    pub name: String,
+    pub public_key: Vec<u8>,
+    pub zaddr: String,
+    pub is_blacklisted: bool,
 }
 
+new_handle_type!(PoolConnectionHandle, PHC_COUNTER);
+
+new_handle_type!(NetworkerHandle, NH_COUNTER);
+
+#[derive(Debug)]
+pub enum NetworkerEvent {
+    SendOneRequest(
+        String, //msg
+        String, //req_id
+        i64,    //timeout
+    ),
+    SendAllRequest(
+        String,              //msg
+        String,              //req_id
+        i64,                 //timeout
+        Option<Vec<String>>, //nodes
+    ),
+    Resend(
+        String, //req_id
+        i64,    //timeout
+    ),
+    /*NodesStateUpdated(
+        Vec<RemoteNode>,
+        Option<Vec<String>>, // preferred order
+    ),*/
+    ExtendTimeout(
+        String, //req_id
+        String, //node_alias
+        i64,    //timeout
+    ),
+    CleanTimeout(
+        String,         //req_id
+        Option<String>, //node_alias
+    ),
+    Timeout,
+}
+
+#[derive(Debug)]
 enum NodeEvent {
     Reply(
         String, // req id
@@ -120,52 +80,227 @@ enum NodeEvent {
     ),
 }
 
+enum PollResult {
+    Default,
+    NoSockets,
+    Exit,
+}
+
 pub trait Networker: Sized {
     fn new(
         config: PoolConfig,
-        transactions: HashMap<String, NodeTransactionV1>,
+        transactions: TransactionMap,
         preordered_nodes: Vec<String>,
         sender: mpsc::Sender<PoolEvent>,
     ) -> LedgerResult<Self>;
-    fn add_request(&mut self, request: Request) -> LedgerResult<()>;
+    fn get_id(&self) -> NetworkerHandle;
+    fn add_request(&mut self, request: PoolRequest) -> LedgerResult<()>;
 }
 
 pub struct ZMQNetworker {
-    config: PoolConfig,
-    nodes: Nodes,
-    remotes: Vec<RemoteNode>,
-    preordered_nodes: Vec<String>,
+    id: NetworkerHandle,
+    cmd_send: zmq::Socket,
+    req_send: mpsc::Sender<PoolRequest>,
     sender: mpsc::Sender<PoolEvent>,
     worker: Option<thread::JoinHandle<()>>,
-    requests: HashMap<String, Request>,
-    last_connection: Option<u32>,
-    pool_connections: BTreeMap<u32, PoolConnection>,
 }
 
 impl Networker for ZMQNetworker {
     fn new(
         config: PoolConfig,
-        transactions: HashMap<String, NodeTransactionV1>,
+        transactions: TransactionMap,
         preordered_nodes: Vec<String>,
         sender: mpsc::Sender<PoolEvent>,
     ) -> LedgerResult<Self> {
+        let id = NetworkerHandle::next();
         let (nodes, remotes) = _get_nodes_and_remotes(transactions)?;
+        let (req_send, req_recv) = mpsc::channel::<PoolRequest>();
+        let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", id));
         let mut result = ZMQNetworker {
-            config,
-            nodes,
-            remotes,
-            preordered_nodes,
+            id,
+            cmd_send,
+            req_send,
             sender,
             worker: None,
-            requests: HashMap::new(),
-            last_connection: None,
-            pool_connections: BTreeMap::new(),
         };
-        result.poll();
+        result.start(config, cmd_recv, req_recv, nodes, remotes, preordered_nodes);
         Ok(result)
     }
 
-    fn add_request(&mut self, request: Request) -> LedgerResult<()> {
+    fn get_id(&self) -> NetworkerHandle {
+        self.id
+    }
+
+    fn add_request(&mut self, request: PoolRequest) -> LedgerResult<()> {
+        if let Some(worker) = &self.worker {
+            self.req_send.send(request).map_err(|err| {
+                LedgerError::from_msg(LedgerErrorKind::InvalidState, err.to_string())
+            })?;
+            worker.thread().unpark();
+            Ok(())
+        } else {
+            Err(err_msg(
+                LedgerErrorKind::InvalidState,
+                "Networker not running",
+            ))
+        }
+    }
+}
+
+impl Drop for ZMQNetworker {
+    fn drop(&mut self) {
+        if let Err(_) = self.cmd_send.send("exit", 0) {
+            trace!("Networker command socket already closed")
+        } else {
+            trace!("Networker thread told to exit")
+        }
+        if let Some(worker) = self.worker.take() {
+            worker.thread().unpark();
+            info!("Drop networker thread");
+            worker.join().unwrap()
+        }
+    }
+}
+
+impl ZMQNetworker {
+    fn start(
+        &mut self,
+        config: PoolConfig,
+        cmd_recv: zmq::Socket,
+        req_recv: mpsc::Receiver<PoolRequest>,
+        nodes: Nodes,
+        remotes: Vec<RemoteNode>,
+        preordered_nodes: Vec<String>,
+    ) {
+        let sender = self.sender.clone();
+        self.worker.replace(thread::spawn(move || {
+            let mut zmq_thread = ZMQThread::new(
+                config,
+                cmd_recv,
+                req_recv,
+                sender,
+                nodes,
+                remotes,
+                preordered_nodes,
+            );
+            zmq_thread.work().map_err(map_err_err!());
+            // FIXME send pool event when networker exits
+        }));
+    }
+}
+
+// FIXME - impl Drop for ZMQNetworker
+
+struct ZMQThread {
+    config: PoolConfig,
+    cmd_recv: zmq::Socket,
+    req_recv: mpsc::Receiver<PoolRequest>,
+    sender: mpsc::Sender<PoolEvent>,
+    nodes: Nodes,
+    remotes: Vec<RemoteNode>,
+    preordered_nodes: Vec<String>,
+    requests: HashMap<String, PoolRequest>,
+    last_connection: Option<PoolConnectionHandle>,
+    pool_connections: BTreeMap<PoolConnectionHandle, PoolConnection>,
+}
+
+impl ZMQThread {
+    pub fn new(
+        config: PoolConfig,
+        cmd_recv: zmq::Socket,
+        req_recv: mpsc::Receiver<PoolRequest>,
+        sender: mpsc::Sender<PoolEvent>,
+        nodes: Nodes,
+        remotes: Vec<RemoteNode>,
+        preordered_nodes: Vec<String>,
+    ) -> Self {
+        ZMQThread {
+            config,
+            cmd_recv,
+            req_recv,
+            sender,
+            nodes,
+            remotes,
+            preordered_nodes,
+            requests: HashMap::new(),
+            last_connection: None,
+            pool_connections: BTreeMap::new(),
+        }
+    }
+
+    pub fn work(&mut self) -> Result<(), String> {
+        loop {
+            while self.receive_request(false)? {}
+            match self.poll_events() {
+                PollResult::NoSockets => {
+                    // wait until a request is received
+                    thread::park()
+                }
+                PollResult::Exit => {
+                    trace!("Networker thread ended");
+                    break;
+                }
+                _ => (),
+            }
+        }
+        Ok(())
+    }
+
+    fn poll_events(&mut self) -> PollResult {
+        let mut poll_items;
+        poll_items = self.get_poll_items();
+        let ((req_id, node_alias), timeout) = self.get_timeout();
+        let mut events = vec![];
+        poll_items.push(self.cmd_recv.as_poll_item(zmq::POLLIN));
+        let poll_res = zmq::poll(&mut poll_items, ::std::cmp::max(timeout, 0))
+            .map_err(map_err_err!())
+            .map_err(|_| unimplemented!() /* FIXME */)
+            .unwrap();
+        //            trace!("poll_res: {:?}", poll_res);
+        if poll_res == 0 {
+            events.push(NodeEvent::Timeout(req_id, node_alias));
+        } else {
+            self.fetch_events_into(poll_items.as_slice(), &mut events);
+        }
+        if poll_items[poll_items.len() - 1].is_readable() {
+            if let Ok(Ok(msg)) = self.cmd_recv.recv_string(zmq::DONTWAIT) {
+                trace!("received command");
+                if msg == "exit" {
+                    return PollResult::Exit;
+                }
+            } else {
+                // command socket failed
+                return PollResult::Exit;
+            }
+        }
+        if events.len() > 0 {
+            trace!("got events {:?}", events)
+        }
+        if poll_items.len() == 1 {
+            return PollResult::NoSockets;
+        }
+        return PollResult::Default;
+    }
+
+    fn receive_request(&mut self, block: bool) -> Result<bool, String> {
+        let request = if block {
+            self.req_recv.recv().map_err(|err| err.to_string())?
+        } else {
+            match self.req_recv.try_recv() {
+                Ok(request) => request,
+                Err(mpsc::TryRecvError::Empty) => return Ok(false),
+                Err(err) => return Err(err.to_string()),
+            }
+        };
+        let req_id = request.req_id.clone();
+        let result = self.add_request(request);
+        self.sender
+            .send(PoolEvent::SubmitAck(req_id.clone(), result))
+            .map_err(|err| err.to_string())?;
+        Ok(true)
+    }
+
+    fn add_request(&mut self, request: PoolRequest) -> LedgerResult<()> {
         let req_id = request.req_id.clone();
         if self.requests.contains_key(&req_id) {
             trace!("request with duplicate ID ignored");
@@ -174,35 +309,8 @@ impl Networker for ZMQNetworker {
             self.dispatch(request)
         }
     }
-}
 
-impl ZMQNetworker {
-    fn poll(&mut self) {}
-
-    fn _poll(&self) {
-        loop {
-            let mut poll_items = self.get_poll_items();
-            if poll_items.len() == 0 {
-                thread::park();
-                continue;
-            }
-            let ((req_id, node_alias), timeout) = self.get_timeout();
-            let mut events = vec![];
-            // FIXME add commander to poll items
-            let poll_res = zmq::poll(&mut poll_items, ::std::cmp::max(timeout, 0))
-                .map_err(map_err_err!())
-                .map_err(|_| unimplemented!() /* FIXME */)
-                .unwrap();
-            //            trace!("poll_res: {:?}", poll_res);
-            if poll_res == 0 {
-                events.push(NodeEvent::Timeout(req_id, node_alias));
-            } else {
-                self.fetch_events_into(poll_items.as_slice(), &mut events);
-            }
-        }
-    }
-
-    fn get_active_connection(&mut self) -> u32 {
+    fn get_active_connection(&mut self) -> PoolConnectionHandle {
         let conn = self
             .last_connection
             .and_then(|conn_id| self.pool_connections.get(&conn_id))
@@ -214,7 +322,7 @@ impl ZMQNetworker {
                 self.preordered_nodes.clone(),
             );
             trace!("created new connection");
-            let pc_id = next_pool_connection_handle();
+            let pc_id = PoolConnectionHandle::next();
             self.pool_connections.insert(pc_id, conn);
             self.last_connection.replace(pc_id);
             pc_id
@@ -223,7 +331,7 @@ impl ZMQNetworker {
         }
     }
 
-    fn dispatch(&mut self, request: Request) -> LedgerResult<()> {
+    fn dispatch(&mut self, request: PoolRequest) -> LedgerResult<()> {
         let conn = {
             let conn_id = self.get_active_connection();
             unwrap_opt_or_return!(
@@ -235,13 +343,13 @@ impl ZMQNetworker {
             )
         };
         match &request.init_target {
-            RequestTarget::AllNodes => conn.send_request(NetworkerEvent::SendAllRequest(
+            PoolRequestTarget::AllNodes => conn.send_request(NetworkerEvent::SendAllRequest(
                 request.req_json.clone(),
                 request.req_id.clone(),
                 request.init_timeout,
                 None,
             )),
-            RequestTarget::AnyNodes(count) => {
+            PoolRequestTarget::AnyNodes(count) => {
                 conn.send_request(NetworkerEvent::SendOneRequest(
                     request.req_json.clone(),
                     request.req_id.clone(),
@@ -255,7 +363,7 @@ impl ZMQNetworker {
                 }
                 Ok(())
             }
-            RequestTarget::SelectNodes(select_nodes) => {
+            PoolRequestTarget::SelectNodes(select_nodes) => {
                 let nodes = &self.nodes;
                 let found_nodes = select_nodes
                     .iter()
@@ -281,7 +389,7 @@ impl ZMQNetworker {
                     ))
                 }
             }
-        };
+        }?;
         self.requests.insert(request.req_id.clone(), request);
         Ok(())
     }
@@ -485,13 +593,14 @@ impl PoolConnection {
             if let (&Some(ref s), rn) = (&self.sockets[i], &self.nodes[i]) {
                 if poll_items[pi_idx].is_readable() {
                     if let Ok(Ok(msg)) = s.recv_string(zmq::DONTWAIT) {
-                        Message::from_raw_str(msg.as_str()).map(|message| {
-                            vec.push(NodeEvent::Reply(
+                        match Message::from_raw_str(msg.as_str()) {
+                            Ok(message) => vec.push(NodeEvent::Reply(
                                 message.request_id().unwrap_or("".to_string()),
                                 message,
                                 rn.name.clone(),
-                            ))
-                        });
+                            )),
+                            Err(err) => error!("Error parsing received message: {:?}", err),
+                        }
                     }
                 }
                 pi_idx += 1;
@@ -674,8 +783,104 @@ impl RemoteNode {
     }
 }
 
+fn _create_pair_of_sockets(addr: &str) -> (zmq::Socket, zmq::Socket) {
+    let zmq_ctx = zmq::Context::new();
+    let send_cmd_sock = zmq_ctx.socket(zmq::SocketType::PAIR).unwrap();
+    let recv_cmd_sock = zmq_ctx.socket(zmq::SocketType::PAIR).unwrap();
+
+    let inproc_sock_name: String = format!("inproc://{}", addr);
+    recv_cmd_sock.bind(inproc_sock_name.as_str()).unwrap();
+    send_cmd_sock.connect(inproc_sock_name.as_str()).unwrap();
+    (send_cmd_sock, recv_cmd_sock)
+}
+
+fn _get_nodes_and_remotes(transactions: TransactionMap) -> LedgerResult<(Nodes, Vec<RemoteNode>)> {
+    Ok(transactions
+        .iter()
+        .map(|(dest, txn)| {
+            let node_alias = txn.txn.data.data.alias.clone();
+
+            let node_verkey = dest.as_str().from_base58().to_result(
+                LedgerErrorKind::InvalidStructure,
+                "Invalid field dest in genesis transaction",
+            )?;
+
+            let node_verkey = crypto::import_verkey(node_verkey)
+                .and_then(|vk| crypto::vk_to_curve25519(vk))
+                .to_result(
+                    LedgerErrorKind::InvalidStructure,
+                    "Invalid field dest in genesis transaction",
+                )?;
+
+            if txn.txn.data.data.services.is_none()
+                || !txn
+                    .txn
+                    .data
+                    .data
+                    .services
+                    .as_ref()
+                    .unwrap()
+                    .contains(&"VALIDATOR".to_string())
+            {
+                return Err(err_msg(
+                    LedgerErrorKind::InvalidState,
+                    "Node is not a validator",
+                )); // FIXME: review error kind
+            }
+
+            let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
+                (&Some(ref client_ip), &Some(ref client_port)) => {
+                    format!("tcp://{}:{}", client_ip, client_port)
+                }
+                _ => {
+                    return Err(err_msg(
+                        LedgerErrorKind::InvalidState,
+                        "Client address not found",
+                    ))
+                }
+            };
+
+            let remote = RemoteNode {
+                name: node_alias.clone(),
+                public_key: node_verkey[..].to_vec(),
+                // TODO:FIXME
+                zaddr: address,
+                is_blacklisted: false,
+            };
+
+            let verkey: Option<BlsVerKey> = match txn.txn.data.data.blskey {
+                Some(ref blskey) => {
+                    let key = blskey.as_str().from_base58().to_result(
+                        LedgerErrorKind::InvalidStructure,
+                        "Invalid field blskey in genesis transaction",
+                    )?;
+
+                    Some(BlsVerKey::from_bytes(&key).to_result(
+                        LedgerErrorKind::InvalidStructure,
+                        "Invalid field blskey in genesis transaction",
+                    )?)
+                }
+                None => None,
+            };
+            Ok(((node_alias, verkey), remote))
+        })
+        .fold((HashMap::new(), vec![]), |(mut map, mut vec), res| {
+            match res {
+                Err(e) => {
+                    error!("Error during retrieving nodes: {:?}", e);
+                }
+                Ok(((alias, verkey), remote)) => {
+                    map.insert(alias.clone(), verkey);
+                    vec.push(remote);
+                }
+            }
+            (map, vec)
+        }))
+}
+
 #[cfg(test)]
 pub struct MockNetworker {
+    pub id: NetworkerHandle,
     pub events: Vec<Option<NetworkerEvent>>,
 }
 
@@ -683,14 +888,21 @@ pub struct MockNetworker {
 impl Networker for MockNetworker {
     fn new(
         _config: PoolConfig,
-        _transactions: HashMap<String, NodeTransactionV1>,
+        _transactions: TransactionMap,
         _preordered_nodes: Vec<String>,
         _sender: mpsc::Sender<PoolEvent>,
     ) -> LedgerResult<Self> {
-        Ok(Self { events: Vec::new() })
+        Ok(Self {
+            id: NetworkerHandle::next(),
+            events: Vec::new(),
+        })
     }
 
-    fn add_request(&mut self, request: Request) -> LedgerResult<()> {
+    fn get_id(&self) -> NetworkerHandle {
+        self.id
+    }
+
+    fn add_request(&mut self, _request: PoolRequest) -> LedgerResult<()> {
         unimplemented!()
     }
 }

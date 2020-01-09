@@ -1,27 +1,22 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
-use std::rc::Rc;
-use std::time::{SystemTime, UNIX_EPOCH};
+// use std::time::{SystemTime, UNIX_EPOCH};
 
-use log_derive::logfn;
-use rmp_serde;
-use serde_json;
-use serde_json::Value as SJsonValue;
-use ursa::bls::Generator;
+// use log_derive::logfn;
+// use rmp_serde;
+// use serde_json;
+// use serde_json::Value as SJsonValue;
+// use ursa::bls::Generator;
 
 use super::catchup::{
-    build_catchup_req, build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status,
-    CatchupProgress,
+    build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status, CatchupProgress,
 };
-use super::events::{NetworkerEvent, PoolEvent, RequestEvent, RequestUpdate};
-use super::networker::Networker;
-use super::state_proof;
-use super::types::{CatchupRep, CommandHandle, HashableValue, Message, Nodes, PoolConfig};
-use crate::services::pool::get_last_signed_time;
-use crate::utils::base58::FromBase58;
+use super::events::PoolEvent;
+// use super::state_proof;
+use super::types::{Message, Nodes, PoolConfig};
+// use crate::services::pool::get_last_signed_time;
+// use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
@@ -32,20 +27,22 @@ fn _get_f(cnt: usize) -> usize {
     (cnt - 1) / 3
 }
 
+#[derive(Debug)]
 pub enum HandlerEvent {
-    Sent(Request, Nodes),
+    Sent(PoolRequest, Nodes),
     Received(
-        Request,
+        PoolRequest,
         Message,
         String, // node alias
     ),
     Timeout(
-        Request,
+        PoolRequest,
         String, // node_alias
     ),
-    Abort(Request),
+    Abort(PoolRequest),
 }
 
+#[derive(Debug)]
 pub enum HandlerUpdate {
     Continue,
     ExtendTimeout(
@@ -57,45 +54,49 @@ pub enum HandlerUpdate {
     Finish(Option<PoolEvent>),
 }
 
-pub trait RequestHandlerT {
-    fn process_event(&mut self, ore: HandlerEvent) -> HandlerUpdate;
-}
-
-pub enum RequestTarget {
+#[derive(Debug)]
+pub enum PoolRequestTarget {
     AllNodes,
     AnyNodes(u32),
     SelectNodes(Vec<String>),
 }
 
-pub enum RequestSubscribe {
+#[derive(Debug)]
+pub enum PoolRequestSubscribe {
     Default,
     Status,
     Catchup,
 }
 
-pub struct Request {
+pub trait PoolRequestHandler: std::fmt::Debug + Send {
+    fn process_event(&mut self, ore: HandlerEvent) -> HandlerUpdate;
+}
+
+#[derive(Debug)]
+pub struct PoolRequest {
     pub req_id: String,
     pub req_json: String,
     pub init_timeout: i64,
-    pub init_target: RequestTarget,
-    pub subscribe: RequestSubscribe,
-    pub handler: Box<dyn RequestHandlerT>,
+    pub init_target: PoolRequestTarget,
+    pub subscribe: PoolRequestSubscribe,
+    pub handler: Box<dyn PoolRequestHandler>,
 }
 
-pub fn ledger_status_request(merkle: MerkleTree, config: PoolConfig) -> LedgerResult<Request> {
+pub fn ledger_status_request(merkle: MerkleTree, config: PoolConfig) -> LedgerResult<PoolRequest> {
     build_ledger_status_req(&merkle, config.protocol_version).and_then(|(req_id, req_json)| {
         trace!("fetch status");
-        Ok(Request {
+        Ok(PoolRequest {
             req_id: req_id.clone(),
             req_json,
             init_timeout: config.reply_timeout,
-            init_target: RequestTarget::AllNodes,
-            subscribe: RequestSubscribe::Status,
+            init_target: PoolRequestTarget::AllNodes,
+            subscribe: PoolRequestSubscribe::Status,
             handler: Box::new(CatchupConsensusHandler::new(req_id, merkle)),
         })
     })
 }
 
+#[derive(Debug)]
 struct CatchupConsensusHandler {
     req_id: String,
     merkle_tree: MerkleTree,
@@ -175,7 +176,7 @@ impl CatchupConsensusHandler {
     }
 }
 
-impl RequestHandlerT for CatchupConsensusHandler {
+impl PoolRequestHandler for CatchupConsensusHandler {
     fn process_event(&mut self, ore: HandlerEvent) -> HandlerUpdate {
         match ore {
             HandlerEvent::Sent(_, nodes) => {
@@ -208,7 +209,7 @@ impl RequestHandlerT for CatchupConsensusHandler {
             },
             HandlerEvent::Timeout(request, node_alias) => self
                 ._catchup_target_handle_consensus_state("timeout".to_string(), 0, None, node_alias),
-            HandlerEvent::Abort(request) => HandlerUpdate::Finish(None),
+            HandlerEvent::Abort(_request) => HandlerUpdate::Finish(None),
         }
     }
 }

@@ -19,9 +19,9 @@ use serde::de::DeserializeOwned;
 
 // use crate::api::ledger::{CustomFree, CustomTransactionParser};
 use crate::domain::ledger::response::{Message, Reply, ResponseMetadata};
-use crate::services::pool::events::{COMMAND_CONNECT, COMMAND_EXIT, COMMAND_REFRESH};
+// use crate::services::pool::events::{COMMAND_CONNECT, COMMAND_EXIT, COMMAND_REFRESH};
 // use crate::services::pool::types::PoolConfig;
-//use crate::services::pool::pool::{Pool, ZMQPool};
+// use crate::services::pool::pool::{Pool, ZMQPool};
 // use crate::utils::environment;
 use crate::utils::error::prelude::*;
 // use indy_api_types::{CommandHandle, PoolHandle};
@@ -29,7 +29,7 @@ use crate::utils::error::prelude::*;
 // use ursa::bls::VerKey;
 
 mod catchup;
-mod commander;
+//mod commander;
 mod events;
 mod merkle_tree_factory;
 mod networker;
@@ -37,6 +37,10 @@ mod pool;
 mod request_handler;
 mod state_proof;
 mod types;
+
+pub use networker::Networker;
+pub use pool::{Pool, ZMQPool};
+pub use types::PoolConfig;
 
 /* lazy_static! {
     static ref REGISTERED_SP_PARSERS: Mutex<HashMap<String, (CustomTransactionParser, CustomFree)>> =

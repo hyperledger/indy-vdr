@@ -6,7 +6,9 @@ use std::{fs, io};
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use super::types::{JsonTransactions, NodeTransaction, NodeTransactionV0, NodeTransactionV1};
+use super::types::{
+    JsonTransactions, NodeTransaction, NodeTransactionV0, NodeTransactionV1, TransactionMap,
+};
 use crate::domain::pool::ProtocolVersion;
 use crate::utils::merkletree::MerkleTree;
 // use crate::utils::environment;
@@ -210,6 +212,7 @@ fn _dump_vec_to_file(v: &[Vec<u8>], file: &mut fs::File) -> LedgerResult<()> {
 }
 */
 
+/*
 pub fn load_genesis_txns(p: &PathBuf) -> LedgerResult<JsonTransactions> {
     let f = fs::File::open(p).to_result(LedgerErrorKind::IOError, "Can't open genesis txn file")?;
 
@@ -224,32 +227,19 @@ pub fn load_genesis_txns(p: &PathBuf) -> LedgerResult<JsonTransactions> {
     }
     Ok(JsonTransactions::new(txns))
 }
+*/
 
-pub fn make_tree(gen_tnxs: JsonTransactions) -> LedgerResult<MerkleTree> {
+pub fn build_tree(gen_tnxs: &TransactionMap) -> LedgerResult<MerkleTree> {
     let mut bin_txns: Vec<Vec<u8>> = vec![];
-    for json_txn in gen_tnxs.txns.as_ref() {
-        let bin_txn = _parse_txn_from_json(json_txn)?;
+    for txn in gen_tnxs.values() {
+        let bin_txn = rmp_serde::to_vec_named(txn).to_result(
+            LedgerErrorKind::InvalidStructure,
+            "Cannot serialize transaction",
+        )?;
         bin_txns.push(bin_txn)
     }
     MerkleTree::from_vec(bin_txns)
 }
-
-/*
-fn _genesis_to_binary(p: &PathBuf) -> LedgerResult<Vec<Vec<u8>>> {
-    let f = fs::File::open(p).to_result(LedgerErrorKind::IOError, "Can't open genesis txn file")?;
-
-    let reader = io::BufReader::new(&f);
-    let mut txns: Vec<Vec<u8>> = vec![];
-
-    for line in reader.lines() {
-        let line = line.to_result(LedgerErrorKind::IOError, "Can't read from genesis txn file")?;
-
-        txns.push(_parse_txn_from_json(&line)?);
-    }
-
-    Ok(txns)
-}
-*/
 
 fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
     let txn = txn.trim();
@@ -302,14 +292,35 @@ fn _decode_transaction(
     }
 }
 
-pub fn build_node_state(
+pub fn build_node_state_from_tree(
     merkle_tree: &MerkleTree,
     protocol_version: ProtocolVersion,
-) -> LedgerResult<HashMap<String, NodeTransactionV1>> {
-    let mut gen_tnxs: HashMap<String, NodeTransactionV1> = HashMap::new();
+) -> LedgerResult<TransactionMap> {
+    let mut gen_tnxs: TransactionMap = HashMap::new();
 
     for gen_txn in merkle_tree {
         let mut node_txn = _decode_transaction(gen_txn, protocol_version)?;
+        if gen_tnxs.contains_key(&node_txn.txn.data.dest) {
+            gen_tnxs
+                .get_mut(&node_txn.txn.data.dest)
+                .unwrap()
+                .update(&mut node_txn)?;
+        } else {
+            gen_tnxs.insert(node_txn.txn.data.dest.clone(), node_txn);
+        }
+    }
+    Ok(gen_tnxs)
+}
+
+pub fn build_node_state_from_json(
+    json_tnxs: Vec<String>,
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<TransactionMap> {
+    let mut gen_tnxs: TransactionMap = HashMap::new();
+
+    for gen_txn in json_tnxs {
+        let pack_txn = _parse_txn_from_json(&gen_txn)?;
+        let mut node_txn = _decode_transaction(&pack_txn, protocol_version)?;
         if gen_tnxs.contains_key(&node_txn.txn.data.dest) {
             gen_tnxs
                 .get_mut(&node_txn.txn.data.dest)

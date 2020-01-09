@@ -1,7 +1,6 @@
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use ursa::bls::VerKey as BlsVerKey;
 
@@ -17,7 +16,7 @@ pub const DEFAULT_CONN_REQ_LIMIT: usize = 5;
 pub const DEFAULT_NUMBER_READ_NODES: usize = 2;
 pub const DEFAULT_FRESHNESS_TIMEOUT: u64 = 300;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PoolConfig {
     pub protocol_version: ProtocolVersion,
     pub freshness_threshold: u64,
@@ -109,64 +108,7 @@ impl JsonTransactions {
     }
 }
 
-/*
-impl Default for PoolTransactions {
-    fn default() -> Self {
-        Self {
-            active: Box::new(MerkleTree::default()),
-            ordered_nodes: None,
-        }
-    }
-}
-*/
-
-/*
-#[derive(Clone, Debug)]
-pub struct NodeTransactions {
-    pub txns: Box<Vec<u8>>,
-}
-
-impl NodeTransactions {
-    pub fn new(txns: Vec<u8>) -> Self {
-        Self {
-            txns: Box::new(txns.clone()),
-        }
-    }
-}
-*/
-
-pub type PoolHandle = u32;
-pub const INVALID_POOL_HANDLE: PoolHandle = 0;
-
-lazy_static! {
-    static ref PH_COUNTER: AtomicUsize = AtomicUsize::new(1);
-}
-
-pub fn next_pool_handle() -> PoolHandle {
-    (PH_COUNTER.fetch_add(1, Ordering::SeqCst) + 1) as PoolHandle
-}
-
-pub type CommandHandle = u32;
-pub const INVALID_COMMAND_HANDLE: CommandHandle = 0;
-
-lazy_static! {
-    static ref CH_COUNTER: AtomicUsize = AtomicUsize::new(1);
-}
-
-pub fn next_command_handle() -> CommandHandle {
-    (CH_COUNTER.fetch_add(1, Ordering::SeqCst) + 1) as CommandHandle
-}
-
-pub type PoolConnectionHandle = u32;
-pub const INVALID_POOL_CONNECTION_HANDLE: PoolConnectionHandle = 0;
-
-lazy_static! {
-    static ref PC_COUNTER: AtomicUsize = AtomicUsize::new(1);
-}
-
-pub fn next_pool_connection_handle() -> PoolConnectionHandle {
-    (PC_COUNTER.fetch_add(1, Ordering::SeqCst) + 1) as PoolConnectionHandle
-}
+new_handle_type!(CommandHandle, CH_COUNTER);
 
 pub type Nodes = HashMap<String, Option<BlsVerKey>>;
 
@@ -185,6 +127,8 @@ pub struct NodeData {
     pub blskey: Option<String>,
     pub blskey_pop: Option<String>,
 }
+
+pub type TransactionMap = HashMap<String, NodeTransactionV1>;
 
 fn string_or_number<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
@@ -672,14 +616,6 @@ pub struct KeyValuesSubTrieData {
     )>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct RemoteNode {
-    pub name: String,
-    pub public_key: Vec<u8>,
-    pub zaddr: String,
-    pub is_blacklisted: bool,
-}
-
 pub trait MinValue {
     fn get_min_index(&self) -> LedgerResult<usize>;
 }
@@ -734,6 +670,7 @@ pub struct ResendableRequest {
     pub next_try_send_time: Option<time::Tm>,
 }
 
+/*
 #[derive(Debug, PartialEq, Eq)]
 pub struct CommandProcess {
     pub nack_cnt: usize,
@@ -755,3 +692,4 @@ pub struct MessageToProcess {
     pub message: String,
     pub node_idx: usize,
 }
+*/

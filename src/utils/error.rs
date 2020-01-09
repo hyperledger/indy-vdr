@@ -7,8 +7,7 @@ use failure::{Backtrace, Context, Fail};
 
 pub mod prelude {
     pub use super::{
-        err_msg, Context, LedgerError, LedgerErrorExt, LedgerErrorKind, LedgerResult,
-        LedgerResultExt,
+        err_msg, LedgerError, LedgerErrorExt, LedgerErrorKind, LedgerResult, LedgerResultExt,
     };
 }
 

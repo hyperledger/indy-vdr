@@ -1,54 +1,54 @@
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::path::PathBuf;
 use std::{fs, io};
 
 use serde_json;
-use serde_json::Value as SJsonValue;
 
-use crate::domain::pool::{ProtocolVersion, DEFAULT_PROTOCOL_VERSION};
+use crate::domain::pool::ProtocolVersion;
+use crate::services::pool::{Pool, PoolConfig, ZMQPool};
 use crate::utils::error::prelude::*;
-use crate::utils::merkletree::MerkleTree;
 
 #[derive(Debug)]
 pub struct PoolFactory {
-    pub merkle_tree: MerkleTree,
-    pub protocol_version: ProtocolVersion,
+    pub config: PoolConfig,
+    pub transactions: Vec<String>,
 }
 
 impl PoolFactory {
-    pub fn new() -> LedgerResult<PoolFactory> {
-        let tree = MerkleTree::from_vec(Vec::new())?;
-        Ok(PoolFactory {
-            merkle_tree: tree,
-            protocol_version: DEFAULT_PROTOCOL_VERSION,
-        })
-    }
-
     pub fn from_genesis_file(genesis_file: &str) -> LedgerResult<PoolFactory> {
         Self::from_genesis_path(&PathBuf::from(genesis_file))
     }
 
     pub fn from_genesis_path(genesis_path: &PathBuf) -> LedgerResult<PoolFactory> {
-        let tree = _merkle_tree_from_genesis(genesis_path)?;
-        if tree.count() == 0 {
+        let txns = _transactions_from_genesis(genesis_path)?;
+        trace!("loaded transactions");
+        if txns.len() == 0 {
             return Err(err_msg(
                 LedgerErrorKind::InvalidStructure,
                 "Empty genesis transaction file",
             ));
         }
         Ok(PoolFactory {
-            merkle_tree: tree,
-            protocol_version: DEFAULT_PROTOCOL_VERSION,
+            config: PoolConfig::default(),
+            transactions: txns,
         })
     }
 
     pub fn set_protocol_version(&mut self, version: ProtocolVersion) {
-        self.protocol_version = version
+        self.config.protocol_version = version
+    }
+
+    pub fn create_pool(&self) -> LedgerResult<Box<dyn Pool>> {
+        let mut pool = ZMQPool::new(self.config);
+        let cmd_id = pool.connect(self.transactions.clone())?;
+        print!("connected {}\n", cmd_id);
+        Ok(Box::new(pool))
     }
 }
 
-fn _merkle_tree_from_genesis(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
-    let mut mt = MerkleTree::from_vec(Vec::new())?;
+fn _transactions_from_genesis(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
+    let mut result = vec![];
 
     let f = fs::File::open(file_name)
         .to_result(LedgerErrorKind::IOError, "Can't open genesis txn file")?;
@@ -62,26 +62,15 @@ fn _merkle_tree_from_genesis(file_name: &PathBuf) -> LedgerResult<MerkleTree> {
         if line.trim().is_empty() {
             continue;
         };
-        mt.append(_parse_txn_from_json(&line)?)?;
+
+        // just validating, result is discarded
+        let _: HashMap<String, serde_json::Value> = serde_json::from_str(&line).to_result(
+            LedgerErrorKind::InvalidStructure,
+            "Genesis txn is malformed json",
+        )?;
+
+        result.push(line);
     }
 
-    Ok(mt)
-}
-
-fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
-    let txn = txn.trim();
-
-    if txn.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let txn: SJsonValue = serde_json::from_str(txn).to_result(
-        LedgerErrorKind::InvalidStructure,
-        "Genesis txn is mailformed json",
-    )?;
-
-    rmp_serde::encode::to_vec_named(&txn).to_result(
-        LedgerErrorKind::InvalidState,
-        "Can't encode genesis txn as message pack",
-    )
+    Ok(result)
 }

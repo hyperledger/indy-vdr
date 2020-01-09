@@ -3,7 +3,6 @@ use serde_json::Value as SJsonValue;
 
 use super::types::*;
 use crate::domain::ledger::constants;
-use crate::domain::pool::ProtocolVersion;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
@@ -33,39 +32,6 @@ pub const REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST: [&str; 5] = [
 
 pub const REQUESTS_FOR_MULTI_STATE_PROOFS: [&str; 1] = [constants::GET_REVOC_REG_DELTA];
 
-#[derive(Debug, Clone)]
-pub enum NetworkerEvent {
-    SendOneRequest(
-        String, //msg
-        String, //req_id
-        i64,    //timeout
-    ),
-    SendAllRequest(
-        String,              //msg
-        String,              //req_id
-        i64,                 //timeout
-        Option<Vec<String>>, //nodes
-    ),
-    Resend(
-        String, //req_id
-        i64,    //timeout
-    ),
-    NodesStateUpdated(
-        Vec<RemoteNode>,
-        Option<Vec<String>>, // preferred order
-    ),
-    ExtendTimeout(
-        String, //req_id
-        String, //node_alias
-        i64,    //timeout
-    ),
-    CleanTimeout(
-        String,         //req_id
-        Option<String>, //node_alias
-    ),
-    Timeout,
-}
-
 pub const COMMAND_EXIT: &str = "exit";
 pub const COMMAND_CONNECT: &str = "connect";
 pub const COMMAND_REFRESH: &str = "refresh";
@@ -94,6 +60,11 @@ pub enum PoolEvent {
     ),
     NetworkerDone
     */
+    Connect(
+        CommandHandle,
+        Vec<String>, // transactions
+    ),
+    Exit(),
     SubmitAck(
         String, // request ID
         LedgerResult<()>,
@@ -118,6 +89,7 @@ pub enum PoolEvent {
     // NodesBlacklisted,
 }
 
+/*
 #[derive(Debug)]
 pub enum PoolUpdate {
     OpenAck(CommandHandle, PoolHandle, LedgerResult<()>),
@@ -125,6 +97,7 @@ pub enum PoolUpdate {
     RefreshAck(CommandHandle, PoolHandle, LedgerResult<()>),
     SubmitAck(CommandHandle, PoolHandle, LedgerResult<String>),
 }
+*/
 
 #[derive(Clone, Debug)]
 pub enum RequestEvent {
@@ -196,6 +169,7 @@ pub enum RequestEvent {
     Terminate,
 }
 
+/*
 #[derive(Debug)]
 pub enum RequestUpdate {
     SubmitAck(Vec<CommandHandle>, LedgerResult<String>),
@@ -209,6 +183,7 @@ pub enum RequestUpdate {
     CatchupTargetNotFound(LedgerError),
     NodesBlacklisted,
 }
+*/
 
 impl RequestEvent {
     pub fn get_req_id(&self) -> String {
@@ -337,6 +312,7 @@ impl RequestEvent {
     */
 }
 
+/*
 pub trait UpdateHandler {
     fn send(&mut self, update: PoolUpdate) -> LedgerResult<()>;
 }
@@ -357,6 +333,7 @@ impl UpdateHandler for MockUpdateHandler {
         Ok(())
     }
 }
+*/
 
 fn _parse_timestamp_from_req_for_builtin_sp(
     req: &SJsonValue,
