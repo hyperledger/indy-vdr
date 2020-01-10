@@ -5,11 +5,11 @@ use std::thread;
 use std::thread::JoinHandle;
 
 use super::events::PoolEvent;
-use super::merkle_tree_factory::{build_node_state_from_json, build_tree};
+use super::merkle_tree_factory::build_tree;
 use super::networker::{Networker, NetworkerHandle, ZMQNetworker};
 use super::request_handler::ledger_status_request;
 use super::types::{CommandHandle, PoolConfig};
-// use crate::utils::base58::FromBase58;
+use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
 
 pub trait Pool {
@@ -109,31 +109,47 @@ impl<T: Networker> PoolThread<T> {
         }
     }
 
+    fn connect(&mut self, txns: Vec<String>) -> LedgerResult<()> {
+        let merkle_tree = build_tree(&txns)?;
+        let mut networker = T::new(self.config, txns, vec![], self.evt_send.clone())?;
+        let req = ledger_status_request(merkle_tree, self.config)?;
+        // FIXME set up link between cmd_id and request
+        networker.add_request(req)?;
+        self.networker = Some(networker);
+        Ok(())
+    }
+
     fn handle_event(&mut self, event: PoolEvent) -> bool {
         match event {
             PoolEvent::Connect(_cmd_id, txns) => {
-                // FIXME - move to separate function, handle error
-                let merkle_tree = build_tree(&txns).unwrap();
-                let mut networker =
-                    T::new(self.config, txns, vec![], self.evt_send.clone()).unwrap();
-                let req = ledger_status_request(merkle_tree, self.config).unwrap();
-                // FIXME set up link between cmd_id and request
-                networker.add_request(req).unwrap();
-                self.networker = Some(networker);
-                // FIXME send update to listener
+                // FIXME handle error, send update to listener
+                self.connect(txns).unwrap();
             }
             PoolEvent::SubmitAck(req_id, result) => match result {
                 Ok(_) => info!("Request dispatched {}", req_id),
                 Err(err) => warn!("Request dispatch failed {} {}", req_id, err.to_string()),
             },
+            PoolEvent::StatusSynced(_req_id, timing) => {
+                info!("Synced! {:?}", timing)
+                // FIXME send update to listener
+            }
+            PoolEvent::CatchupTargetFound(_req_id, mt_root, mt_size, timing) => {
+                info!(
+                    "Catchup target found {} {} {:?}",
+                    mt_root.to_base58(),
+                    mt_size,
+                    timing
+                )
+                // FIXME start catchup
+            }
+            PoolEvent::CatchupTargetNotFound(req_id, err, _timing) => {
+                print!("Catchup target not found {} {:?}", req_id, err)
+                // FIXME send update to listener
+            }
             PoolEvent::Exit() => {
                 // networker(s) automatically dropped
                 return true;
             }
-            PoolEvent::CatchupTargetNotFound(req_id, err) => {
-                print!("Catchup target not found {} {:?}", req_id, err)
-            }
-            PoolEvent::Synced(req_id, opt_tree) => info!("Synced!"),
             _ => trace!("Unhandled event {:?}", event),
         };
         false

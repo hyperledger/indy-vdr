@@ -1,14 +1,9 @@
 use std::collections::HashMap;
-use std::io::BufRead; // {Read, Write};
-use std::path::PathBuf;
-use std::{fs, io};
 
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use super::types::{
-    JsonTransactions, NodeTransaction, NodeTransactionV0, NodeTransactionV1, TransactionMap,
-};
+use super::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1, TransactionMap};
 use crate::domain::pool::ProtocolVersion;
 use crate::utils::merkletree::MerkleTree;
 // use crate::utils::environment;

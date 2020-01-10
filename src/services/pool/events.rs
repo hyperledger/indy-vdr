@@ -76,17 +76,19 @@ pub enum PoolEvent {
         LedgerResult<String>,
     ),
     CatchupTargetFound(
-        String,  // request ID
-        Vec<u8>, // target_mt_root
-        usize,   // target_mt_size
+        String,                       // request ID
+        Vec<u8>,                      // target_mt_root
+        usize,                        // target_mt_size
+        Option<HashMap<String, f32>>, // node: duration
     ),
     CatchupTargetNotFound(
         String, // request ID
         LedgerError,
+        Option<HashMap<String, f32>>, // node: duration
     ),
     StatusSynced(
-        String,               // request ID
-        HashMap<String, f32>, // node: duration
+        String,                       // request ID
+        Option<HashMap<String, f32>>, // node: duration
     ),
     Synced(
         String, // request ID
