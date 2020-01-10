@@ -198,6 +198,7 @@ pub struct Txn {
     #[serde(rename = "type")]
     pub txn_type: String,
     #[serde(rename = "protocolVersion")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol_version: Option<i32>,
     pub data: TxnData,
     pub metadata: TxnMetadata,
@@ -206,8 +207,11 @@ pub struct Txn {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creation_time: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub seq_no: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub txn_id: Option<String>,
 }
 
@@ -215,7 +219,9 @@ pub struct Metadata {
 #[serde(rename_all = "camelCase")]
 pub struct ReqSignature {
     #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub type_: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub values: Option<Vec<ReqSignatureValue>>,
 }
 
@@ -229,12 +235,14 @@ pub struct ReqSignatureValue {
 pub struct TxnData {
     pub data: NodeData,
     pub dest: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub verkey: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TxnMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub req_id: Option<u64>,
     pub from: String,
 }

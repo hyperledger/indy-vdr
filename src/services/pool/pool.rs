@@ -164,10 +164,10 @@ impl<T: Networker> PoolThread<T> {
             }
             PoolEvent::Synced(_req_id, Some(txns), timing) => {
                 info!("Synced {:?}", timing);
-                trace!(
-                    "New txns: {:?}",
-                    show_transactions(&txns, self.config.protocol_version).unwrap()
-                );
+                let txns = show_transactions(&txns, self.config.protocol_version).unwrap();
+                for txn in txns {
+                    print!("{}\n", txn);
+                }
             }
             PoolEvent::Exit() => {
                 // networker(s) automatically dropped
