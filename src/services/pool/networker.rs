@@ -308,7 +308,7 @@ impl ZMQThread {
     fn process_event(&mut self, event: NodeEvent) {
         match event {
             NodeEvent::Reply(req_id, message, node_alias, time) => match &message {
-                Message::LedgerStatus(_) => {
+                Message::LedgerStatus(_) | Message::ConsistencyProof(_) => {
                     let reqs = self.select_requests(PoolRequestSubscribe::Status);
                     for req_id in reqs {
                         self.process_reply(
@@ -317,8 +317,11 @@ impl ZMQThread {
                         )
                     }
                 }
-                Message::ConsistencyProof(_) => {
-                    let reqs = self.select_requests(PoolRequestSubscribe::Status);
+                Message::CatchupReq(_) => {
+                    warn!("Ignoring catchup request");
+                }
+                Message::CatchupRep(_) => {
+                    let reqs = self.select_requests(PoolRequestSubscribe::Catchup);
                     for req_id in reqs {
                         self.process_reply(
                             req_id.clone(),

@@ -79,7 +79,7 @@ pub enum PoolEvent {
         String,                       // request ID
         Vec<u8>,                      // target_mt_root
         usize,                        // target_mt_size
-        Option<HashMap<String, f32>>, // node: duration
+        Option<HashMap<String, f32>>, // timing
     ),
     CatchupTargetNotFound(
         String, // request ID
@@ -88,11 +88,12 @@ pub enum PoolEvent {
     ),
     StatusSynced(
         String,                       // request ID
-        Option<HashMap<String, f32>>, // node: duration
+        Option<HashMap<String, f32>>, // timing
     ),
     Synced(
-        String, // request ID
-        Option<MerkleTree>,
+        String,                       // request ID
+        Option<Vec<Vec<u8>>>,         // new transactions
+        Option<HashMap<String, f32>>, // timing
     ),
     // NodesBlacklisted,
 }

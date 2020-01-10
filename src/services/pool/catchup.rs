@@ -43,10 +43,12 @@ pub fn build_ledger_status_req(
 pub fn build_catchup_req(
     merkle: &MerkleTree,
     target_mt_size: usize,
-) -> LedgerResult<Option<(String, String)>> {
+) -> LedgerResult<(String, String)> {
     if merkle.count() >= target_mt_size {
-        warn!("No transactions to catch up!");
-        return Ok(None);
+        return Err(err_msg(
+            LedgerErrorKind::InvalidState,
+            "No transactions to catch up",
+        ));
     }
     let seq_no_start = merkle.count() + 1;
     let seq_no_end = target_mt_size;
@@ -66,7 +68,7 @@ pub fn build_catchup_req(
     )?;
 
     trace!("catchup_req msg: {:?}", req_json);
-    Ok(Some((req_id, req_json)))
+    Ok((req_id, req_json))
 }
 
 pub fn check_nodes_responses_on_status(

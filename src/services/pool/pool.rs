@@ -5,10 +5,11 @@ use std::thread;
 use std::thread::JoinHandle;
 
 use super::events::PoolEvent;
-use super::merkle_tree_factory::build_tree;
+use super::merkle_tree_factory::{build_tree, show_transactions};
 use super::networker::{Networker, NetworkerHandle, ZMQNetworker};
-use super::request_handler::ledger_status_request;
+use super::request_handler::{ledger_catchup_request, ledger_status_request};
 use super::types::{CommandHandle, PoolConfig};
+
 use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
 
@@ -73,11 +74,17 @@ impl<T: Networker> Drop for PoolImpl<T> {
     }
 }
 
+struct PoolStatusReq {
+    cmd_id: Option<String>,
+    req_id: String,
+}
+
 struct PoolThread<T: Networker> {
     config: PoolConfig,
     networker: Option<T>,
     evt_recv: Receiver<PoolEvent>,
     evt_send: Sender<PoolEvent>,
+    txns: Vec<String>,
 }
 
 impl<T: Networker> PoolThread<T> {
@@ -91,6 +98,7 @@ impl<T: Networker> PoolThread<T> {
             networker: None,
             evt_recv,
             evt_send,
+            txns: vec![],
         }
     }
 
@@ -110,12 +118,20 @@ impl<T: Networker> PoolThread<T> {
     }
 
     fn connect(&mut self, txns: Vec<String>) -> LedgerResult<()> {
+        self.txns = txns.clone();
         let merkle_tree = build_tree(&txns)?;
         let mut networker = T::new(self.config, txns, vec![], self.evt_send.clone())?;
         let req = ledger_status_request(merkle_tree, self.config)?;
         // FIXME set up link between cmd_id and request
         networker.add_request(req)?;
         self.networker = Some(networker);
+        Ok(())
+    }
+
+    fn catchup(&mut self, mt_root: Vec<u8>, mt_size: usize) -> LedgerResult<()> {
+        let merkle_tree = build_tree(&self.txns)?;
+        let req = ledger_catchup_request(merkle_tree, mt_root, mt_size)?;
+        self.networker.as_mut().unwrap().add_request(req)?;
         Ok(())
     }
 
@@ -139,12 +155,19 @@ impl<T: Networker> PoolThread<T> {
                     mt_root.to_base58(),
                     mt_size,
                     timing
-                )
-                // FIXME start catchup
+                );
+                self.catchup(mt_root, mt_size).unwrap();
             }
             PoolEvent::CatchupTargetNotFound(req_id, err, _timing) => {
-                print!("Catchup target not found {} {:?}", req_id, err)
+                info!("Catchup target not found {} {:?}", req_id, err)
                 // FIXME send update to listener
+            }
+            PoolEvent::Synced(_req_id, Some(txns), timing) => {
+                info!("Synced {:?}", timing);
+                trace!(
+                    "New txns: {:?}",
+                    show_transactions(&txns, self.config.protocol_version).unwrap()
+                );
             }
             PoolEvent::Exit() => {
                 // networker(s) automatically dropped

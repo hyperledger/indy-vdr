@@ -361,6 +361,30 @@ pub struct CatchupRep {
 }
 
 impl CatchupRep {
+    pub fn load_txns(&self) -> LedgerResult<Vec<Vec<u8>>> {
+        let mut keys = self
+            .txns
+            .keys()
+            .map(|k| {
+                k.parse::<usize>().to_result(
+                    LedgerErrorKind::InvalidStructure,
+                    "Invalid key in catchup reply",
+                )
+            })
+            .collect::<LedgerResult<Vec<usize>>>()?;
+        keys.sort();
+        Ok(keys
+            .iter()
+            .flat_map(|k| {
+                let txn = self.txns.get(&k.to_string()).unwrap();
+                rmp_serde::to_vec_named(txn).to_result(
+                    LedgerErrorKind::InvalidStructure,
+                    "Invalid transaction -- can not transform to bytes",
+                )
+            })
+            .collect())
+    }
+
     pub fn min_tx(&self) -> LedgerResult<usize> {
         let mut min = None;
 

@@ -284,6 +284,22 @@ fn _decode_transaction(
     }
 }
 
+pub fn show_transactions(
+    txns: &Vec<Vec<u8>>,
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<Vec<String>> {
+    let mut ret = vec![];
+    for gen_txn in txns {
+        let node_txn = _decode_transaction(gen_txn, protocol_version)?;
+        let txn = serde_json::to_string(&node_txn).to_result(
+            LedgerErrorKind::InvalidStructure,
+            "Genesis txn is mailformed json",
+        )?;
+        ret.push(txn);
+    }
+    Ok(ret)
+}
+
 pub fn build_node_state_from_tree(
     merkle_tree: &MerkleTree,
     protocol_version: ProtocolVersion,

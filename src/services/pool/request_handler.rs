@@ -10,7 +10,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 // use ursa::bls::Generator;
 
 use super::catchup::{
-    build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status, CatchupProgress,
+    build_catchup_req, build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status,
+    CatchupProgress,
 };
 use super::events::PoolEvent;
 // use super::state_proof;
@@ -79,7 +80,8 @@ pub enum PoolRequestTimeout {
 
 pub trait PoolRequestHandler: std::fmt::Debug + Send {
     fn get_target(&self) -> (PoolRequestTarget, PoolRequestSubscribe, PoolRequestTimeout);
-    fn process_event(&mut self, req_id: String, ore: HandlerEvent) -> LedgerResult<HandlerUpdate>;
+    fn process_event(&mut self, req_id: String, event: HandlerEvent)
+        -> LedgerResult<HandlerUpdate>;
 }
 
 #[derive(Debug)]
@@ -87,6 +89,39 @@ pub struct PoolRequest {
     pub req_id: String,
     pub req_json: String,
     pub handler: RefCell<Box<dyn PoolRequestHandler>>,
+}
+
+#[derive(Debug)]
+pub struct PoolRequestTiming {
+    replies: HashMap<String, (SystemTime, f32)>,
+}
+
+impl PoolRequestTiming {
+    fn new() -> Self {
+        Self {
+            replies: HashMap::new(),
+        }
+    }
+
+    fn sent(&mut self, node_alias: String, send_time: SystemTime) {
+        self.replies.insert(node_alias, (send_time, -1.0));
+    }
+
+    fn received(&mut self, node_alias: &String, recv_time: SystemTime) {
+        self.replies.get_mut(node_alias).map(|node| {
+            let duration = recv_time
+                .duration_since(node.0)
+                .unwrap_or(Duration::new(0, 0))
+                .as_secs_f32();
+            node.1 = duration;
+        });
+    }
+
+    fn result(&self) -> Option<HashMap<String, f32>> {
+        Some(HashMap::from_iter(
+            self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
+        ))
+    }
 }
 
 pub fn ledger_status_request(merkle: MerkleTree, config: PoolConfig) -> LedgerResult<PoolRequest> {
@@ -105,7 +140,7 @@ pub fn ledger_status_request(merkle: MerkleTree, config: PoolConfig) -> LedgerRe
 struct CatchupConsensusHandler {
     merkle_tree: MerkleTree,
     replies: HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
-    timing: HashMap<String, (SystemTime, f32)>,
+    timing: PoolRequestTiming,
     nodes_cnt: usize,
 }
 
@@ -115,7 +150,7 @@ impl CatchupConsensusHandler {
         Self {
             merkle_tree,
             replies: HashMap::new(),
-            timing: HashMap::new(),
+            timing: PoolRequestTiming::new(),
             nodes_cnt,
         }
     }
@@ -133,12 +168,6 @@ impl CatchupConsensusHandler {
             Some(result) => Ok(HandlerUpdate::Finish(Some(result))),
             None => Ok(HandlerUpdate::Continue),
         }
-    }
-
-    fn _get_timing(&self) -> Option<HashMap<String, f32>> {
-        Some(HashMap::from_iter(
-            self.timing.iter().map(|(k, (_, v))| (k.clone(), *v)),
-        ))
     }
 
     fn _process_catchup_target(
@@ -161,22 +190,24 @@ impl CatchupConsensusHandler {
             self.replies
                 .insert(key, HashSet::from_iter(vec![(node_alias.to_string())]));
         }
+
         match check_nodes_responses_on_status(
             &self.replies,
             &self.merkle_tree,
             self.nodes_cnt,
             _get_f(self.nodes_cnt),
         ) {
-            Ok(CatchupProgress::NotNeeded) => {
-                Some(PoolEvent::StatusSynced(req_id.clone(), self._get_timing()))
-            }
+            Ok(CatchupProgress::NotNeeded) => Some(PoolEvent::StatusSynced(
+                req_id.clone(),
+                self.timing.result(),
+            )),
             Ok(CatchupProgress::InProgress) => None,
             Ok(CatchupProgress::ConsensusNotReachable) => {
                 //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
                 Some(PoolEvent::CatchupTargetNotFound(
                     req_id.clone(),
                     err_msg(LedgerErrorKind::PoolTimeout, "No consensus possible"),
-                    self._get_timing(),
+                    self.timing.result(),
                 ))
             }
             Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size)) => {
@@ -184,18 +215,18 @@ impl CatchupConsensusHandler {
                     req_id.clone(),
                     target_mt_root,
                     target_mt_size,
-                    self._get_timing(),
+                    self.timing.result(),
                 ))
             }
             Ok(CatchupProgress::Timeout) => Some(PoolEvent::CatchupTargetNotFound(
                 req_id.clone(),
                 err_msg(LedgerErrorKind::PoolTimeout, "Sync timed out"),
-                self._get_timing(),
+                self.timing.result(),
             )),
             Err(err) => Some(PoolEvent::CatchupTargetNotFound(
                 req_id.clone(),
                 err,
-                self._get_timing(),
+                self.timing.result(),
             )),
         }
     }
@@ -210,20 +241,18 @@ impl PoolRequestHandler for CatchupConsensusHandler {
         )
     }
 
-    fn process_event(&mut self, req_id: String, ore: HandlerEvent) -> LedgerResult<HandlerUpdate> {
-        match ore {
+    fn process_event(
+        &mut self,
+        req_id: String,
+        event: HandlerEvent,
+    ) -> LedgerResult<HandlerUpdate> {
+        match event {
             HandlerEvent::Sent(node, send_time, _) => {
-                self.timing.insert(node, (send_time, -1.0));
+                self.timing.sent(node, send_time);
                 Ok(HandlerUpdate::Continue)
             }
             HandlerEvent::Received(node_alias, message, recv_time) => {
-                self.timing.get_mut(&node_alias).map(|node| {
-                    let duration = recv_time
-                        .duration_since(node.0)
-                        .unwrap_or(Duration::new(0, 0))
-                        .as_secs_f32();
-                    node.1 = duration;
-                });
+                self.timing.received(&node_alias, recv_time);
                 match message {
                     Message::LedgerStatus(ls) => {
                         // assert_eq!(ls.merkleRoot, req_id);  // not the case?
@@ -245,7 +274,7 @@ impl PoolRequestHandler for CatchupConsensusHandler {
                             node_alias,
                         )
                     }
-                    _ => Ok(HandlerUpdate::Continue),
+                    _ => Ok(HandlerUpdate::Continue), // unexpected message
                 }
             }
             HandlerEvent::Timeout(node_alias) => self._catchup_target_handle_consensus_state(
@@ -255,6 +284,104 @@ impl PoolRequestHandler for CatchupConsensusHandler {
                 None,
                 node_alias,
             ),
+            HandlerEvent::Abort() => Ok(HandlerUpdate::Finish(None)),
+        }
+    }
+}
+
+pub fn ledger_catchup_request(
+    merkle: MerkleTree,
+    target_mt_root: Vec<u8>,
+    target_mt_size: usize,
+) -> LedgerResult<PoolRequest> {
+    build_catchup_req(&merkle, target_mt_size).and_then(|(req_id, req_json)| {
+        trace!("fetch catchup");
+        let handler = RefCell::new(Box::new(CatchupSingleHandler::new(
+            merkle,
+            target_mt_root,
+            target_mt_size,
+        )));
+        Ok(PoolRequest {
+            req_id,
+            req_json,
+            handler,
+        })
+    })
+}
+
+#[derive(Debug)]
+struct CatchupSingleHandler {
+    merkle_tree: MerkleTree,
+    target_mt_root: Vec<u8>,
+    target_mt_size: usize,
+    timing: PoolRequestTiming,
+}
+
+impl CatchupSingleHandler {
+    fn new(merkle_tree: MerkleTree, target_mt_root: Vec<u8>, target_mt_size: usize) -> Self {
+        Self {
+            merkle_tree,
+            target_mt_root,
+            target_mt_size,
+            timing: PoolRequestTiming::new(),
+        }
+    }
+    fn _process_catchup_reply(
+        &mut self,
+        txns: Vec<Vec<u8>>,
+        cons_proof: Vec<String>,
+    ) -> LedgerResult<Vec<Vec<u8>>> {
+        let mut merkle = self.merkle_tree.clone();
+        for txn in &txns {
+            merkle.append(txn.clone())?;
+        }
+        check_cons_proofs(
+            &merkle,
+            &cons_proof,
+            &self.target_mt_root,
+            self.target_mt_size,
+        )?;
+        // merkle_tree_factory::dump_new_txns(pool_name, &txns_to_drop)?;
+        Ok(txns)
+    }
+}
+
+impl PoolRequestHandler for CatchupSingleHandler {
+    fn get_target(&self) -> (PoolRequestTarget, PoolRequestSubscribe, PoolRequestTimeout) {
+        (
+            PoolRequestTarget::AnyNodes(1),
+            PoolRequestSubscribe::Catchup,
+            PoolRequestTimeout::Ack,
+        )
+    }
+
+    fn process_event(
+        &mut self,
+        req_id: String,
+        event: HandlerEvent,
+    ) -> LedgerResult<HandlerUpdate> {
+        match event {
+            HandlerEvent::Sent(node_alias, send_time, _) => {
+                self.timing.sent(node_alias, send_time);
+                Ok(HandlerUpdate::Continue)
+            }
+            HandlerEvent::Received(node_alias, message, recv_time) => {
+                self.timing.received(&node_alias, recv_time);
+                match message {
+                    Message::CatchupRep(cr) => {
+                        match self._process_catchup_reply(cr.load_txns()?, cr.consProof.clone()) {
+                            Ok(txns) => Ok(HandlerUpdate::Finish(Some(PoolEvent::Synced(
+                                req_id,
+                                Some(txns),
+                                self.timing.result(),
+                            )))),
+                            Err(_) => Ok(HandlerUpdate::Resend(PoolRequestTimeout::Ack)),
+                        }
+                    }
+                    _ => Ok(HandlerUpdate::Continue), // unexpected message
+                }
+            }
+            HandlerEvent::Timeout(_) => Ok(HandlerUpdate::Resend(PoolRequestTimeout::Ack)),
             HandlerEvent::Abort() => Ok(HandlerUpdate::Finish(None)),
         }
     }
