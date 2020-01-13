@@ -1,13 +1,16 @@
 // use std::collections::BTreeMap;
+use futures::executor::block_on;
+use futures::StreamExt;
 use std::marker::PhantomData;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 
+use super::catchup::build_ledger_status_req2;
 use super::events::PoolEvent;
 use super::merkle_tree_factory::{build_tree, show_transactions};
 use super::networker::{Networker, NetworkerHandle, ZMQNetworker};
-use super::request_handler::{ledger_catchup_request, ledger_status_request};
+use super::request_handler::{ledger_catchup_request, ledger_status_request, PoolRequestSubscribe};
 use super::types::{CommandHandle, PoolConfig};
 
 use crate::utils::base58::ToBase58;
@@ -120,10 +123,29 @@ impl<T: Networker> PoolThread<T> {
     fn connect(&mut self, txns: Vec<String>) -> LedgerResult<()> {
         self.txns = txns.clone();
         let merkle_tree = build_tree(&txns)?;
-        let mut networker = T::new(self.config, txns, vec![], self.evt_send.clone())?;
-        let req = ledger_status_request(merkle_tree, self.config)?;
+        let mut networker = T::new(self.config, txns, vec![])?;
+        let req = build_ledger_status_req2(&merkle_tree, self.config.protocol_version)?;
+        block_on(async {
+            let k = networker.create_request(&req).await;
+            trace!("hello..\n");
+            let mut req = k.unwrap();
+            let mut stream = req.get_mut().get_stream();
+            trace!("got result: {:?}", stream.next().await.unwrap())
+        });
+
+        //let req = ledger_status_request(merkle_tree, self.config)?;
         // FIXME set up link between cmd_id and request
-        networker.add_request(req)?;
+        //networker.add_request(req)?;
+
+        /*block_on(async {
+            let k = networker
+                .create_request("one".to_owned(), "two".to_owned())
+                .await;
+            trace!("hello..\n");
+            let mut req = k.unwrap();
+            let mut stream = req.get_mut().get_stream();
+            // trace!("got result: {:?}", stream.next().await.unwrap())
+        });*/
         self.networker = Some(networker);
         Ok(())
     }
@@ -131,7 +153,7 @@ impl<T: Networker> PoolThread<T> {
     fn catchup(&mut self, mt_root: Vec<u8>, mt_size: usize) -> LedgerResult<()> {
         let merkle_tree = build_tree(&self.txns)?;
         let req = ledger_catchup_request(merkle_tree, mt_root, mt_size)?;
-        self.networker.as_mut().unwrap().add_request(req)?;
+        //self.networker.as_mut().unwrap().add_request(req)?;
         Ok(())
     }
 

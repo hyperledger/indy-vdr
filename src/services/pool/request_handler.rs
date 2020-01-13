@@ -29,7 +29,8 @@ fn _get_f(cnt: usize) -> usize {
 }
 
 #[derive(Debug)]
-pub enum HandlerEvent<'a> {
+pub enum HandlerEvent {
+    Init(Nodes),
     Sent(
         String,     // node alias
         SystemTime, // send time
@@ -37,7 +38,7 @@ pub enum HandlerEvent<'a> {
     ),
     Received(
         String, // node alias
-        &'a Message,
+        Message,
         SystemTime, // received time
     ),
     Timeout(
@@ -247,6 +248,7 @@ impl PoolRequestHandler for CatchupConsensusHandler {
         event: HandlerEvent,
     ) -> LedgerResult<HandlerUpdate> {
         match event {
+            HandlerEvent::Init(_) => Ok(HandlerUpdate::Continue),
             HandlerEvent::Sent(node, send_time, _) => {
                 self.timing.sent(node, send_time);
                 Ok(HandlerUpdate::Continue)
@@ -361,6 +363,7 @@ impl PoolRequestHandler for CatchupSingleHandler {
         event: HandlerEvent,
     ) -> LedgerResult<HandlerUpdate> {
         match event {
+            HandlerEvent::Init(_) => Ok(HandlerUpdate::Continue),
             HandlerEvent::Sent(node_alias, send_time, _) => {
                 self.timing.sent(node_alias, send_time);
                 Ok(HandlerUpdate::Continue)

@@ -34,6 +34,9 @@ macro_rules! new_handle_type (($newtype:ident, $counter:ident) => (
         pub fn next() -> $newtype {
             $newtype($counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1)
         }
+        pub fn value(&self) -> usize {
+            return self.0
+        }
     }
 
     impl std::fmt::Display for $newtype {

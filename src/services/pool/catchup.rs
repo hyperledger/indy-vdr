@@ -40,6 +40,21 @@ pub fn build_ledger_status_req(
     Ok((req_id, req_json))
 }
 
+pub fn build_ledger_status_req2(
+    merkle: &MerkleTree,
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<Message> {
+    let lr = LedgerStatus {
+        txnSeqNo: merkle.count(),
+        merkleRoot: merkle.root_hash().as_slice().to_base58(),
+        ledgerId: 0,
+        ppSeqNo: None,
+        viewNo: None,
+        protocolVersion: Some(protocol_version as usize),
+    };
+    Ok(Message::LedgerStatus(lr))
+}
+
 pub fn build_catchup_req(
     merkle: &MerkleTree,
     target_mt_size: usize,
