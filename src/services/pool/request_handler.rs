@@ -3,6 +3,8 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use futures::stream::StreamExt;
+
 // use log_derive::logfn;
 // use rmp_serde;
 // use serde_json;
@@ -10,12 +12,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 // use ursa::bls::Generator;
 
 use super::catchup::{
-    build_catchup_req, build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status,
-    CatchupProgress,
+    build_catchup_req, build_ledger_status_req2, check_cons_proofs,
+    check_nodes_responses_on_status, CatchupProgress,
 };
 use super::events::PoolEvent;
 // use super::state_proof;
-use super::networker::NetworkerRequest;
+use super::networker::{Networker, NetworkerRequest, RequestEvent, RequestTimeout, TimingResult};
 use super::types::{Message, Nodes, PoolConfig};
 // use crate::services::pool::get_last_signed_time;
 // use crate::utils::base58::FromBase58;
@@ -29,62 +31,103 @@ fn _get_f(cnt: usize) -> usize {
     (cnt - 1) / 3
 }
 
-/*
-pub fn ledger_status_request(merkle: MerkleTree, config: PoolConfig) -> LedgerResult<PoolRequest> {
-    build_ledger_status_req(&merkle, config.protocol_version).and_then(|(req_id, req_json)| {
-        trace!("fetch status");
-        let handler = RefCell::new(Box::new(CatchupConsensusHandler::new(merkle)));
-        Ok(PoolRequest {
-            req_id,
-            req_json,
-            handler,
-        })
-    })
+#[derive(Debug)]
+pub enum StatusRequestResult {
+    CatchupTargetFound(
+        Vec<u8>,                      // target_mt_root
+        usize,                        // target_mt_size
+        Option<HashMap<String, f32>>, // timing
+    ),
+    CatchupTargetNotFound(
+        LedgerError,
+        Option<HashMap<String, f32>>, // node: duration
+    ),
+    Synced(
+        Option<HashMap<String, f32>>, // timing
+    ),
+}
+
+pub async fn ledger_status_request<T: Networker>(
+    merkle: MerkleTree,
+    networker: &T,
+) -> LedgerResult<StatusRequestResult> {
+    trace!("fetch status");
+    let message = build_ledger_status_req2(&merkle, networker.protocol_version())?;
+    let mut req = networker.create_request(&message).await?;
+    let mut handler = StatusRequestHandler::new(merkle, networker.nodes_count());
+    req.send_to_all(RequestTimeout::Default)?;
+    loop {
+        let response = match req.next().await {
+            Some(RequestEvent::Received(node_alias, message)) => {
+                match message {
+                    Message::LedgerStatus(ls) => handler.process_catchup_target(
+                        ls.merkleRoot.clone(),
+                        ls.txnSeqNo,
+                        None,
+                        &node_alias,
+                        req.get_timing(),
+                    ),
+                    Message::ConsistencyProof(cp) => handler.process_catchup_target(
+                        cp.newMerkleRoot.clone(),
+                        cp.seqNoEnd,
+                        Some(cp.hashes.clone()),
+                        &node_alias,
+                        req.get_timing(),
+                    ),
+                    _ => {
+                        // FIXME - add req.unexpected(message) to raise an appropriate exception
+                        return Err(err_msg(
+                            LedgerErrorKind::InvalidState,
+                            "Unexpected response",
+                        ));
+                    }
+                }
+            }
+            Some(RequestEvent::Timeout(node_alias)) => handler.process_catchup_target(
+                "timeout".to_string(),
+                0,
+                None,
+                &node_alias,
+                req.get_timing(),
+            ),
+            None => {
+                return Err(err_msg(
+                    LedgerErrorKind::InvalidState,
+                    "Request ended prematurely",
+                ))
+            }
+        };
+        if response.is_some() {
+            return Ok(response.unwrap());
+        }
+    }
 }
 
 #[derive(Debug)]
-struct CatchupConsensusHandler {
+struct StatusRequestHandler {
     merkle_tree: MerkleTree,
     replies: HashMap<(String, usize, Option<Vec<String>>), HashSet<String>>,
-    timing: PoolRequestTiming,
     nodes_cnt: usize,
 }
 
-impl CatchupConsensusHandler {
-    pub fn new(merkle_tree: MerkleTree) -> Self {
-        let nodes_cnt = merkle_tree.count;
+impl StatusRequestHandler {
+    pub fn new(merkle_tree: MerkleTree, nodes_cnt: usize) -> Self {
         Self {
             merkle_tree,
             replies: HashMap::new(),
-            timing: PoolRequestTiming::new(),
             nodes_cnt,
         }
     }
 
-    fn _catchup_target_handle_consensus_state(
+    pub fn process_catchup_target(
         &mut self,
-        req_id: String,
-        mt_root: String,
-        sz: usize,
-        cons_proof: Option<Vec<String>>,
-        node_alias: String,
-    ) -> LedgerResult<HandlerUpdate> {
-        let result = self._process_catchup_target(req_id, mt_root, sz, cons_proof, &node_alias);
-        match result {
-            Some(result) => Ok(HandlerUpdate::Finish(Some(result))),
-            None => Ok(HandlerUpdate::Continue),
-        }
-    }
-
-    fn _process_catchup_target(
-        &mut self,
-        req_id: String,
         merkle_root: String,
         txn_seq_no: usize,
-        hashes: Option<Vec<String>>,
+        cons_proof: Option<Vec<String>>,
         node_alias: &str,
-    ) -> Option<PoolEvent> {
-        let key = (merkle_root, txn_seq_no, hashes);
+        timing: Option<TimingResult>,
+    ) -> Option<StatusRequestResult> {
+        let key = (merkle_root, txn_seq_no, cons_proof);
         let contains = self
             .replies
             .get_mut(&key)
@@ -103,99 +146,26 @@ impl CatchupConsensusHandler {
             self.nodes_cnt,
             _get_f(self.nodes_cnt),
         ) {
-            Ok(CatchupProgress::NotNeeded) => Some(PoolEvent::StatusSynced(
-                req_id.clone(),
-                self.timing.result(),
-            )),
+            Ok(CatchupProgress::NotNeeded) => Some(StatusRequestResult::Synced(timing)),
             Ok(CatchupProgress::InProgress) => None,
             Ok(CatchupProgress::ConsensusNotReachable) => {
                 //TODO: maybe we should change the error, but it was made to escape changing of ErrorCode returned to client
-                Some(PoolEvent::CatchupTargetNotFound(
-                    req_id.clone(),
+                Some(StatusRequestResult::CatchupTargetNotFound(
                     err_msg(LedgerErrorKind::PoolTimeout, "No consensus possible"),
-                    self.timing.result(),
+                    timing,
                 ))
             }
-            Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size)) => {
-                Some(PoolEvent::CatchupTargetFound(
-                    req_id.clone(),
-                    target_mt_root,
-                    target_mt_size,
-                    self.timing.result(),
-                ))
-            }
-            Ok(CatchupProgress::Timeout) => Some(PoolEvent::CatchupTargetNotFound(
-                req_id.clone(),
-                err_msg(LedgerErrorKind::PoolTimeout, "Sync timed out"),
-                self.timing.result(),
-            )),
-            Err(err) => Some(PoolEvent::CatchupTargetNotFound(
-                req_id.clone(),
-                err,
-                self.timing.result(),
-            )),
-        }
-    }
-}
-
-impl PoolRequestHandler for CatchupConsensusHandler {
-    fn get_target(&self) -> (PoolRequestTarget, PoolRequestSubscribe, PoolRequestTimeout) {
-        (
-            PoolRequestTarget::AllNodes,
-            PoolRequestSubscribe::Status,
-            PoolRequestTimeout::Default,
-        )
-    }
-
-    fn process_event(
-        &mut self,
-        req_id: String,
-        event: HandlerEvent,
-    ) -> LedgerResult<HandlerUpdate> {
-        match event {
-            HandlerEvent::Init(_) => Ok(HandlerUpdate::Continue),
-            HandlerEvent::Sent(node, send_time, _) => {
-                self.timing.sent(node, send_time);
-                Ok(HandlerUpdate::Continue)
-            }
-            HandlerEvent::Received(node_alias, message, recv_time) => {
-                self.timing.received(&node_alias, recv_time);
-                match message {
-                    Message::LedgerStatus(ls) => {
-                        // assert_eq!(ls.merkleRoot, req_id);  // not the case?
-                        self._catchup_target_handle_consensus_state(
-                            req_id,
-                            ls.merkleRoot.clone(),
-                            ls.txnSeqNo,
-                            None,
-                            node_alias,
-                        )
-                    }
-                    Message::ConsistencyProof(cp) => {
-                        // assert_eq!(cp.oldMerkleRoot, req_id);
-                        self._catchup_target_handle_consensus_state(
-                            req_id,
-                            cp.newMerkleRoot.clone(),
-                            cp.seqNoEnd,
-                            Some(cp.hashes.clone()),
-                            node_alias,
-                        )
-                    }
-                    _ => Ok(HandlerUpdate::Continue), // unexpected message
-                }
-            }
-            HandlerEvent::Timeout(node_alias) => self._catchup_target_handle_consensus_state(
-                req_id,
-                "timeout".to_string(),
-                0,
-                None,
-                node_alias,
+            Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size)) => Some(
+                StatusRequestResult::CatchupTargetFound(target_mt_root, target_mt_size, timing),
             ),
-            HandlerEvent::Abort() => Ok(HandlerUpdate::Finish(None)),
+            Ok(CatchupProgress::Timeout) => Some(StatusRequestResult::CatchupTargetNotFound(
+                err_msg(LedgerErrorKind::PoolTimeout, "Sync timed out"),
+                timing,
+            )),
+            Err(err) => Some(StatusRequestResult::CatchupTargetNotFound(err, timing)),
         }
     }
 }
-*/
 
 /*
 pub fn ledger_catchup_request(

@@ -33,6 +33,8 @@ new_handle_type!(ZMQConnectionHandle, PHC_COUNTER);
 pub struct ZMQNetworker {
     id: NetworkerHandle,
     instance: Option<Rc<RefCell<ZMQNetworkerInstance>>>,
+    protocol_version: ProtocolVersion,
+    nodes_count: usize,
 }
 
 impl Networker for ZMQNetworker {
@@ -43,7 +45,12 @@ impl Networker for ZMQNetworker {
     ) -> LedgerResult<Self> {
         let id = NetworkerHandle::next();
         let (nodes, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
-        let mut result = ZMQNetworker { id, instance: None };
+        let mut result = ZMQNetworker {
+            id,
+            instance: None,
+            protocol_version: config.protocol_version,
+            nodes_count: nodes.len(),
+        };
         result.start(config, nodes, remotes, preferred_nodes);
         Ok(result)
     }
@@ -53,7 +60,7 @@ impl Networker for ZMQNetworker {
     }
 
     fn create_request<'a>(
-        &'a mut self,
+        &'a self,
         message: &Message,
     ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn NetworkerRequest>>> {
         let req_id = message.request_id().unwrap_or("".to_owned());
@@ -82,6 +89,14 @@ impl Networker for ZMQNetworker {
             }
         })
         .boxed_local()
+    }
+
+    fn protocol_version(&self) -> ProtocolVersion {
+        return self.protocol_version;
+    }
+
+    fn nodes_count(&self) -> usize {
+        return self.nodes_count;
     }
 }
 
@@ -310,7 +325,16 @@ impl ZMQThread {
     fn process_reply(&mut self, handle: RequestHandle, event: RequestExtEvent) {
         if let Some(req) = self.requests.get_mut(&handle) {
             // FIXME - detect cancelled request and clean up
-            req.sender.try_send(event).unwrap()
+            if let Err(err) = req.sender.try_send(event) {
+                if err.is_full() {
+                    trace!("Removing request: buffer full {}", handle);
+                } else if err.is_disconnected() {
+                    trace!("Removing request: sender disconnected {}", handle);
+                } else {
+                    trace!("Removing request: send error {} {:?}", handle, err);
+                }
+                self.remove_request(handle)
+            }
         } else {
             trace!("Request ID not found: {}", handle);
         }

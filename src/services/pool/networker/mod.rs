@@ -14,6 +14,7 @@ use futures::task::{Context, Poll};
 
 use pin_utils::unsafe_pinned;
 
+use crate::domain::pool::ProtocolVersion;
 use crate::utils::error::prelude::*;
 
 use super::types::{Message, Nodes, PoolConfig};
@@ -113,6 +114,8 @@ impl RequestTimeout {
     }
 }
 
+pub type TimingResult = HashMap<String, f32>;
+
 #[derive(Debug)]
 struct RequestTiming {
     replies: HashMap<String, (SystemTime, f32)>,
@@ -140,7 +143,7 @@ impl RequestTiming {
         });
     }
 
-    fn get_result(&self) -> Option<HashMap<String, f32>> {
+    fn get_result(&self) -> Option<TimingResult> {
         Some(HashMap::from_iter(
             self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
         ))
@@ -157,7 +160,7 @@ pub trait NetworkerRequest:
 {
     fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()>;
     fn get_nodes(&self) -> Option<Nodes>;
-    fn get_timing(&self) -> Option<HashMap<String, f32>>;
+    fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
     fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()>;
     fn send_to_any(&self, timeout: RequestTimeout) -> LedgerResult<()>;
@@ -205,7 +208,7 @@ impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
         return self.nodes.clone();
     }
 
-    fn get_timing(&self) -> Option<HashMap<String, f32>> {
+    fn get_timing(&self) -> Option<TimingResult> {
         self.timing.get_result()
     }
 
@@ -246,6 +249,16 @@ impl<T: NetworkerSender> std::fmt::Debug for NetworkerRequestImpl<T> {
             self.handle.value(),
             self.state
         )
+    }
+}
+
+impl<T: NetworkerSender> Drop for NetworkerRequestImpl<T> {
+    fn drop(&mut self) {
+        trace!("Cancel dropped request: {}", self.handle);
+        self.sender
+            .borrow_mut()
+            .send(NetworkerEvent::CancelRequest(self.handle))
+            .unwrap_or(()) // don't mind if the receiver disconnected
     }
 }
 
@@ -338,12 +351,17 @@ pub trait Networker: Sized {
         transactions: Vec<String>,
         preferred_nodes: Vec<String>,
     ) -> LedgerResult<Self>;
+
     fn get_id(&self) -> NetworkerHandle;
-    //fn add_request(&mut self, request: PoolRequest) -> LedgerResult<()>;
+
     fn create_request<'a>(
-        &'a mut self,
+        &'a self,
         message: &Message,
     ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn NetworkerRequest>>>;
+
+    fn protocol_version(&self) -> ProtocolVersion;
+
+    fn nodes_count(&self) -> usize;
 }
 
 /*

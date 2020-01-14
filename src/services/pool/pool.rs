@@ -1,16 +1,14 @@
 // use std::collections::BTreeMap;
 use futures::executor::block_on;
-use futures::StreamExt;
 use std::marker::PhantomData;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 
-use super::catchup::build_ledger_status_req2;
 use super::events::PoolEvent;
 use super::merkle_tree_factory::{build_tree, show_transactions};
 use super::networker::{Networker, ZMQNetworker};
-//use super::request_handler::{ledger_catchup_request, ledger_status_request};
+use super::request_handler::ledger_status_request;
 use super::types::{CommandHandle, PoolConfig};
 
 use crate::utils::base58::ToBase58;
@@ -123,14 +121,13 @@ impl<T: Networker> PoolThread<T> {
     fn connect(&mut self, txns: Vec<String>) -> LedgerResult<()> {
         self.txns = txns.clone();
         let merkle_tree = build_tree(&txns)?;
-        let mut networker = T::new(self.config, txns, vec![])?;
-        let req = build_ledger_status_req2(&merkle_tree, self.config.protocol_version)?;
+        let networker = T::new(self.config, txns, vec![])?;
+        // let req = build_ledger_status_req2(&merkle_tree, self.config.protocol_version)?;
         block_on(async {
-            let k = networker.create_request(&req).await;
-            trace!("hello..\n");
-            let mut req = k.unwrap();
-            // let mut stream = req.get_mut().get_stream();
-            trace!("got result: {:?}", req.next().await.unwrap())
+            let result = ledger_status_request(merkle_tree, &networker)
+                .await
+                .unwrap();
+            trace!("got result: {:?}", result)
         });
 
         //let req = ledger_status_request(merkle_tree, self.config)?;
