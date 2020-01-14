@@ -15,6 +15,7 @@ use super::catchup::{
 };
 use super::events::PoolEvent;
 // use super::state_proof;
+use super::networker::NetworkerRequest;
 use super::types::{Message, Nodes, PoolConfig};
 // use crate::services::pool::get_last_signed_time;
 // use crate::utils::base58::FromBase58;
@@ -28,103 +29,7 @@ fn _get_f(cnt: usize) -> usize {
     (cnt - 1) / 3
 }
 
-#[derive(Debug)]
-pub enum HandlerEvent {
-    Init(Nodes),
-    Sent(
-        String,     // node alias
-        SystemTime, // send time
-        usize,      // send index
-    ),
-    Received(
-        String, // node alias
-        Message,
-        SystemTime, // received time
-    ),
-    Timeout(
-        String, // node_alias
-    ),
-    Abort(),
-}
-
-#[derive(Debug)]
-pub enum HandlerUpdate {
-    Continue,
-    ExtendTimeout(
-        String, // node alias
-        PoolRequestTimeout,
-    ),
-    Resend(PoolRequestTimeout),
-    Finish(Option<PoolEvent>),
-}
-
-#[derive(Debug)]
-pub enum PoolRequestTarget {
-    AllNodes,
-    AnyNodes(usize),
-    SelectNodes(Vec<String>),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum PoolRequestSubscribe {
-    Default,
-    Status,
-    Catchup,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum PoolRequestTimeout {
-    Default,
-    Ack,
-    Seconds(i64),
-}
-
-pub trait PoolRequestHandler: std::fmt::Debug + Send {
-    fn get_target(&self) -> (PoolRequestTarget, PoolRequestSubscribe, PoolRequestTimeout);
-    fn process_event(&mut self, req_id: String, event: HandlerEvent)
-        -> LedgerResult<HandlerUpdate>;
-}
-
-#[derive(Debug)]
-pub struct PoolRequest {
-    pub req_id: String,
-    pub req_json: String,
-    pub handler: RefCell<Box<dyn PoolRequestHandler>>,
-}
-
-#[derive(Debug)]
-pub struct PoolRequestTiming {
-    replies: HashMap<String, (SystemTime, f32)>,
-}
-
-impl PoolRequestTiming {
-    fn new() -> Self {
-        Self {
-            replies: HashMap::new(),
-        }
-    }
-
-    fn sent(&mut self, node_alias: String, send_time: SystemTime) {
-        self.replies.insert(node_alias, (send_time, -1.0));
-    }
-
-    fn received(&mut self, node_alias: &String, recv_time: SystemTime) {
-        self.replies.get_mut(node_alias).map(|node| {
-            let duration = recv_time
-                .duration_since(node.0)
-                .unwrap_or(Duration::new(0, 0))
-                .as_secs_f32();
-            node.1 = duration;
-        });
-    }
-
-    fn result(&self) -> Option<HashMap<String, f32>> {
-        Some(HashMap::from_iter(
-            self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
-        ))
-    }
-}
-
+/*
 pub fn ledger_status_request(merkle: MerkleTree, config: PoolConfig) -> LedgerResult<PoolRequest> {
     build_ledger_status_req(&merkle, config.protocol_version).and_then(|(req_id, req_json)| {
         trace!("fetch status");
@@ -290,7 +195,9 @@ impl PoolRequestHandler for CatchupConsensusHandler {
         }
     }
 }
+*/
 
+/*
 pub fn ledger_catchup_request(
     merkle: MerkleTree,
     target_mt_root: Vec<u8>,
@@ -389,6 +296,7 @@ impl PoolRequestHandler for CatchupSingleHandler {
         }
     }
 }
+*/
 
 pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
 

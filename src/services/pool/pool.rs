@@ -9,8 +9,8 @@ use std::thread::JoinHandle;
 use super::catchup::build_ledger_status_req2;
 use super::events::PoolEvent;
 use super::merkle_tree_factory::{build_tree, show_transactions};
-use super::networker::{Networker, NetworkerHandle, ZMQNetworker};
-use super::request_handler::{ledger_catchup_request, ledger_status_request, PoolRequestSubscribe};
+use super::networker::{Networker, ZMQNetworker};
+//use super::request_handler::{ledger_catchup_request, ledger_status_request};
 use super::types::{CommandHandle, PoolConfig};
 
 use crate::utils::base58::ToBase58;
@@ -129,8 +129,8 @@ impl<T: Networker> PoolThread<T> {
             let k = networker.create_request(&req).await;
             trace!("hello..\n");
             let mut req = k.unwrap();
-            let mut stream = req.get_mut().get_stream();
-            trace!("got result: {:?}", stream.next().await.unwrap())
+            // let mut stream = req.get_mut().get_stream();
+            trace!("got result: {:?}", req.next().await.unwrap())
         });
 
         //let req = ledger_status_request(merkle_tree, self.config)?;
@@ -150,12 +150,12 @@ impl<T: Networker> PoolThread<T> {
         Ok(())
     }
 
-    fn catchup(&mut self, mt_root: Vec<u8>, mt_size: usize) -> LedgerResult<()> {
+    /*fn catchup(&mut self, mt_root: Vec<u8>, mt_size: usize) -> LedgerResult<()> {
         let merkle_tree = build_tree(&self.txns)?;
         let req = ledger_catchup_request(merkle_tree, mt_root, mt_size)?;
         //self.networker.as_mut().unwrap().add_request(req)?;
         Ok(())
-    }
+    }*/
 
     fn handle_event(&mut self, event: PoolEvent) -> bool {
         match event {
@@ -178,7 +178,7 @@ impl<T: Networker> PoolThread<T> {
                     mt_size,
                     timing
                 );
-                self.catchup(mt_root, mt_size).unwrap();
+                // self.catchup(mt_root, mt_size).unwrap();
             }
             PoolEvent::CatchupTargetNotFound(req_id, err, _timing) => {
                 info!("Catchup target not found {} {:?}", req_id, err)

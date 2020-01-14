@@ -21,7 +21,7 @@ pub type HandleType = usize;
 macro_rules! new_handle_type (($newtype:ident, $counter:ident) => (
 
     lazy_static! {
-        static ref $counter: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(1);
+        static ref $counter: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
