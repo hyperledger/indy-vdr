@@ -27,13 +27,12 @@ use crate::utils::error::prelude::*;
 // use indy_utils::{next_command_handle, next_pool_handle};
 // use ursa::bls::VerKey;
 
-mod catchup;
 //mod commander;
 mod events;
 mod merkle_tree_factory;
 mod networker;
 mod pool;
-mod request_handler;
+mod requests;
 mod state_proof;
 mod types;
 
@@ -415,7 +414,7 @@ mod tests {
     // use std::thread;
 
     // use crate::domain::ledger::request::ProtocolVersion;
-    use crate::services::pool::types::*;
+    // use crate::services::pool::types::*;
     // use crate::utils::test;
 
     // use super::*;
@@ -725,6 +724,7 @@ mod tests {
         test::cleanup_storage("pool_drop_works_for_after_close");
     }*/
 
+    /*
     pub mod nodes_emulator {
         use crate::utils::base58::{FromBase58, ToBase58};
         use crate::utils::crypto;
@@ -867,4 +867,5 @@ mod tests {
             }
         }
     }
+    */
 }

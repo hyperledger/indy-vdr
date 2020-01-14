@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use failure::Context;
-use serde_json;
 
 use super::types::{CatchupReq, LedgerStatus, Message};
 use crate::domain::pool::ProtocolVersion;
@@ -23,26 +22,6 @@ pub enum CatchupProgress {
 pub fn build_ledger_status_req(
     merkle: &MerkleTree,
     protocol_version: ProtocolVersion,
-) -> LedgerResult<(String, String)> {
-    let lr = LedgerStatus {
-        txnSeqNo: merkle.count(),
-        merkleRoot: merkle.root_hash().as_slice().to_base58(),
-        ledgerId: 0,
-        ppSeqNo: None,
-        viewNo: None,
-        protocolVersion: Some(protocol_version as usize),
-    };
-    let req_id = lr.merkleRoot.clone();
-    let req_json = serde_json::to_string(&super::types::Message::LedgerStatus(lr)).to_result(
-        LedgerErrorKind::InvalidState,
-        "Cannot serialize LedgerStatus",
-    )?;
-    Ok((req_id, req_json))
-}
-
-pub fn build_ledger_status_req2(
-    merkle: &MerkleTree,
-    protocol_version: ProtocolVersion,
 ) -> LedgerResult<Message> {
     let lr = LedgerStatus {
         txnSeqNo: merkle.count(),
@@ -55,10 +34,7 @@ pub fn build_ledger_status_req2(
     Ok(Message::LedgerStatus(lr))
 }
 
-pub fn build_catchup_req(
-    merkle: &MerkleTree,
-    target_mt_size: usize,
-) -> LedgerResult<(String, String)> {
+pub fn build_catchup_req(merkle: &MerkleTree, target_mt_size: usize) -> LedgerResult<Message> {
     if merkle.count() >= target_mt_size {
         return Err(err_msg(
             LedgerErrorKind::InvalidState,
@@ -74,16 +50,7 @@ pub fn build_catchup_req(
         seqNoEnd: seq_no_end,
         catchupTill: target_mt_size,
     };
-
-    let req_id = format!("{}{}", seq_no_start, seq_no_end);
-
-    let req_json = serde_json::to_string(&Message::CatchupReq(cr)).to_result(
-        LedgerErrorKind::InvalidState,
-        "Cannot serialize CatchupRequest",
-    )?;
-
-    trace!("catchup_req msg: {:?}", req_json);
-    Ok((req_id, req_json))
+    Ok(Message::CatchupReq(cr))
 }
 
 pub fn check_nodes_responses_on_status(

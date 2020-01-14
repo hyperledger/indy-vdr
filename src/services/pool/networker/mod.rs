@@ -101,6 +101,7 @@ impl std::fmt::Display for RequestState {
 pub enum RequestTimeout {
     Default,
     Ack,
+    #[allow(dead_code)]
     Seconds(i64),
 }
 

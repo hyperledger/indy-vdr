@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -12,12 +11,11 @@ use futures::stream::StreamExt;
 // use ursa::bls::Generator;
 
 use super::catchup::{
-    build_catchup_req, build_ledger_status_req2, check_cons_proofs,
-    check_nodes_responses_on_status, CatchupProgress,
+    build_catchup_req, build_ledger_status_req, check_cons_proofs, check_nodes_responses_on_status,
+    CatchupProgress,
 };
-use super::events::PoolEvent;
 // use super::state_proof;
-use super::networker::{Networker, NetworkerRequest, RequestEvent, RequestTimeout, TimingResult};
+use super::networker::{Networker, RequestEvent, RequestTimeout, TimingResult};
 use super::types::{Message, Nodes, PoolConfig};
 // use crate::services::pool::get_last_signed_time;
 // use crate::utils::base58::FromBase58;
@@ -52,7 +50,7 @@ pub async fn ledger_status_request<T: Networker>(
     networker: &T,
 ) -> LedgerResult<StatusRequestResult> {
     trace!("fetch status");
-    let message = build_ledger_status_req2(&merkle, networker.protocol_version())?;
+    let message = build_ledger_status_req(&merkle, networker.protocol_version())?;
     let mut req = networker.create_request(&message).await?;
     let mut handler = StatusRequestHandler::new(merkle, networker.nodes_count());
     req.send_to_all(RequestTimeout::Default)?;

@@ -28,12 +28,15 @@ macro_rules! new_handle_type (($newtype:ident, $counter:ident) => (
     pub struct $newtype(pub usize);
 
     impl $newtype {
+        #[allow(dead_code)]
         pub fn invalid() -> $newtype {
             $newtype(0)
         }
+        #[allow(dead_code)]
         pub fn next() -> $newtype {
             $newtype($counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1)
         }
+        #[allow(dead_code)]
         pub fn value(&self) -> usize {
             return self.0
         }

@@ -69,8 +69,8 @@ impl Networker for ZMQNetworker {
         let instance = self.instance.clone();
         lazy(move |_| {
             if let Some(instance) = instance {
-                trace!("hi from closure");
-                let (tx, rx) = channel(0);
+                // FIXME - use unbounded channel? or dispatch from a queue
+                let (tx, rx) = channel(10);
                 let req_json =
                     req_json.map_err(|err| err_msg(LedgerErrorKind::InvalidState, err))?;
                 let handle = RequestHandle::next();
@@ -324,17 +324,7 @@ impl ZMQThread {
 
     fn process_reply(&mut self, handle: RequestHandle, event: RequestExtEvent) {
         if let Some(req) = self.requests.get_mut(&handle) {
-            // FIXME - detect cancelled request and clean up
-            if let Err(err) = req.sender.try_send(event) {
-                if err.is_full() {
-                    trace!("Removing request: buffer full {}", handle);
-                } else if err.is_disconnected() {
-                    trace!("Removing request: sender disconnected {}", handle);
-                } else {
-                    trace!("Removing request: send error {} {:?}", handle, err);
-                }
-                self.remove_request(handle)
-            }
+            req.send_event(handle, event);
         } else {
             trace!("Request ID not found: {}", handle);
         }
@@ -349,13 +339,13 @@ impl ZMQThread {
         match event {
             NetworkerEvent::NewRequest(handle, sub_id, body, sender) => {
                 // FIXME improve error handling
+                // FIXME set a timer to cancel the request if no messages are sent
                 trace!("New request {}", handle);
                 let nodes = self.nodes.clone();
                 let pending = self.add_request(handle, sub_id, body, sender).unwrap();
-                pending
-                    .sender
-                    .try_send(RequestExtEvent::Init(nodes))
-                    .map_err(|err| err.to_string())?;
+                if !pending.send_event(handle, RequestExtEvent::Init(nodes)) {
+                    self.remove_request(handle);
+                }
                 trace!("sent init");
                 Ok(true)
             }
@@ -384,7 +374,6 @@ impl ZMQThread {
         sender: Sender<RequestExtEvent>,
     ) -> LedgerResult<&mut PendingRequest> {
         let conn_id = self.get_active_connection(self.last_connection, Some(sub_id.clone()))?;
-        // FIXME add sub_id to `seen` for connection - tracked here or at connection level?
         let pending = PendingRequest {
             conn_id,
             send_index: 0,
@@ -401,7 +390,7 @@ impl ZMQThread {
 
     fn remove_request(&mut self, handle: RequestHandle) {
         if let Some(req) = self.requests.remove(&handle) {
-            self.clean_timeout(req.conn_id, &req.sub_id, None)
+            self.clean_timeout(req.conn_id, &req.sub_id, None);
         }
     }
 
@@ -417,13 +406,24 @@ impl ZMQThread {
                 match target {
                     RequestDispatchTarget::AllNodes => {
                         for _ in 0..self.nodes.len() {
-                            conn.send_request(
+                            let node_alias = conn.send_request(
                                 request.sub_id.clone(),
                                 request.body.clone(),
                                 timeout,
                                 request.send_index,
                             )?;
-                            request.send_index += 1
+                            request.send_index += 1;
+                            if !request.send_event(
+                                handle,
+                                RequestExtEvent::Sent(
+                                    node_alias,
+                                    SystemTime::now(),
+                                    request.send_index,
+                                ),
+                            ) {
+                                self.remove_request(handle);
+                                break;
+                            }
                         }
                     }
                     RequestDispatchTarget::AnyNode => {
@@ -893,6 +893,22 @@ struct PendingRequest {
     sender: Sender<RequestExtEvent>,
     sub_id: String,
     body: String,
+}
+
+impl PendingRequest {
+    fn send_event(&mut self, handle: RequestHandle, event: RequestExtEvent) -> bool {
+        if let Err(err) = self.sender.try_send(event) {
+            if err.is_full() {
+                trace!("Removing request: buffer full {}", handle);
+            } else if err.is_disconnected() {
+                trace!("Removing request: sender disconnected {}", handle);
+            } else {
+                trace!("Removing request: send error {} {:?}", handle, err);
+            }
+            return false;
+        }
+        return true;
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
