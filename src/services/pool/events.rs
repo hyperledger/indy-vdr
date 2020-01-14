@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
 use serde_json;
 use serde_json::Value as SJsonValue;
 
 use super::types::*;
 use crate::domain::ledger::constants;
 use crate::utils::error::prelude::*;
-use crate::utils::merkletree::MerkleTree;
 
 pub const REQUESTS_FOR_STATE_PROOFS: [&str; 11] = [
     constants::GET_NYM,
@@ -34,80 +31,16 @@ pub const REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST: [&str; 5] = [
 
 pub const REQUESTS_FOR_MULTI_STATE_PROOFS: [&str; 1] = [constants::GET_REVOC_REG_DELTA];
 
-pub const COMMAND_EXIT: &str = "exit";
-pub const COMMAND_CONNECT: &str = "connect";
-pub const COMMAND_REFRESH: &str = "refresh";
-
 #[derive(Debug)]
 pub enum PoolEvent {
-    /*
-    Open(CommandHandle, Option<JsonTransactions>),
-    Refresh(CommandHandle, Option<JsonTransactions>),
-    NodeReply(
-        String, // reply
-        String, // node alias
-    ),
-    Close(CommandHandle),
-    #[allow(dead_code)] //FIXME
-    PoolOutdated,
-    SendRequest(
-        CommandHandle,
-        String,         // request
-        Option<i32>,    // timeout
-        Option<String>, // node list
-    ),
-    Timeout(
-        String, //req_id
-        String, //node alias
-    ),
-    NetworkerDone
-    */
     Connect(
         CommandHandle,
         Vec<String>, // transactions
     ),
     Exit(),
-    SubmitAck(
-        String, // request ID
-        LedgerResult<()>,
-    ),
-    Response(
-        String, // request ID
-        LedgerResult<String>,
-    ),
-    CatchupTargetFound(
-        String,                       // request ID
-        Vec<u8>,                      // target_mt_root
-        usize,                        // target_mt_size
-        Option<HashMap<String, f32>>, // timing
-    ),
-    CatchupTargetNotFound(
-        String, // request ID
-        LedgerError,
-        Option<HashMap<String, f32>>, // node: duration
-    ),
-    StatusSynced(
-        String,                       // request ID
-        Option<HashMap<String, f32>>, // timing
-    ),
-    Synced(
-        String,                       // request ID
-        Option<Vec<Vec<u8>>>,         // new transactions
-        Option<HashMap<String, f32>>, // timing
-    ),
-    // NodesBlacklisted,
 }
 
 /*
-#[derive(Debug)]
-pub enum PoolUpdate {
-    OpenAck(CommandHandle, PoolHandle, LedgerResult<()>),
-    CloseAck(CommandHandle, PoolHandle, LedgerResult<()>),
-    RefreshAck(CommandHandle, PoolHandle, LedgerResult<()>),
-    SubmitAck(CommandHandle, PoolHandle, LedgerResult<String>),
-}
-*/
-
 #[derive(Clone, Debug)]
 pub enum RequestEvent {
     StatusReq(MerkleTree),
@@ -176,171 +109,6 @@ pub enum RequestEvent {
     Ping,
     Pong,
     Terminate,
-}
-
-/*
-#[derive(Debug)]
-pub enum RequestUpdate {
-    SubmitAck(Vec<CommandHandle>, LedgerResult<String>),
-    Synced(MerkleTree),
-    CatchupTargetFound(
-        Vec<u8>, //target_mt_root
-        usize,   //target_mt_size
-        MerkleTree,
-    ),
-    CatchupRestart(MerkleTree),
-    CatchupTargetNotFound(LedgerError),
-    NodesBlacklisted,
-}
-*/
-
-impl RequestEvent {
-    pub fn get_req_id(&self) -> String {
-        match *self {
-            RequestEvent::CustomSingleRequest(_, ref id, _, _) => id.to_string(),
-            RequestEvent::CustomConsensusRequest(_, ref id) => id.to_string(),
-            RequestEvent::CustomFullRequest(_, ref id, _, _) => id.to_string(),
-            RequestEvent::Reply(_, _, _, ref id) => id.to_string(),
-            RequestEvent::ReqACK(_, _, _, ref id) => id.to_string(),
-            RequestEvent::ReqNACK(_, _, _, ref id) => id.to_string(),
-            RequestEvent::Reject(_, _, _, ref id) => id.to_string(),
-            _ => "".to_string(),
-        }
-    }
-
-    /*
-    pub fn from_pool_event(
-        event: PoolEvent,
-        protocol_version: ProtocolVersion, // FIXME: pass in state proof parser instead of version
-    ) -> Option<RequestEvent> {
-        match event {
-            PoolEvent::NodeReply(msg, node_alias) => {
-                _parse_msg(&msg).and_then(|parsed| match parsed {
-                    Message::CatchupReq(_) => {
-                        warn!("ignoring catchup request");
-                        None
-                        // RequestEvent::CatchupReq(MerkleTree::default(), 0, vec![])
-                    }
-                    Message::CatchupRep(rep) => Some(RequestEvent::CatchupRep(rep, node_alias)),
-                    Message::LedgerStatus(ls) => Some(RequestEvent::StatusRep(ls, node_alias)),
-                    Message::ConsistencyProof(cp) => {
-                        Some(RequestEvent::ConsistencyProof(cp, node_alias))
-                    }
-                    Message::Reply(rep) => {
-                        let req_id = rep.req_id();
-                        Some(RequestEvent::Reply(
-                            rep,
-                            msg,
-                            node_alias,
-                            req_id.to_string(),
-                        ))
-                    }
-                    Message::ReqACK(rep) => {
-                        let req_id = rep.req_id();
-                        Some(RequestEvent::ReqACK(
-                            rep,
-                            msg,
-                            node_alias,
-                            req_id.to_string(),
-                        ))
-                    }
-                    Message::ReqNACK(rep) => {
-                        let req_id = rep.req_id();
-                        Some(RequestEvent::ReqNACK(
-                            rep,
-                            msg,
-                            node_alias,
-                            req_id.to_string(),
-                        ))
-                    }
-                    Message::Reject(rep) => {
-                        let req_id = rep.req_id();
-                        Some(RequestEvent::Reject(
-                            rep,
-                            msg,
-                            node_alias,
-                            req_id.to_string(),
-                        ))
-                    }
-                    Message::PoolLedgerTxns(_) => Some(RequestEvent::PoolLedgerTxns),
-                    Message::Ping => Some(RequestEvent::Ping),
-                    Message::Pong => Some(RequestEvent::Pong),
-                })
-            }
-            PoolEvent::SendRequest(_, msg, timeout, nodes) => {
-                let parsed_req = _parse_req_id_and_op(&msg);
-                if let Ok((ref req, ref req_id, ref op)) = parsed_req {
-                    if REQUEST_FOR_FULL.contains(&op.as_str()) {
-                        Some(RequestEvent::CustomFullRequest(
-                            msg,
-                            req_id.clone(),
-                            timeout,
-                            nodes,
-                        ))
-                    } else if timeout.is_some() || nodes.is_some() {
-                        error!("Timeout {:?} or nodes {:?} is specified for non-supported request operation type {}",
-                               timeout, nodes, op);
-                        None
-                    } else if REQUESTS_FOR_STATE_PROOFS.contains(&op.as_str()) {
-                        let key = super::state_proof::parse_key_from_request_for_builtin_sp(
-                            &req,
-                            protocol_version,
-                        );
-                        let timestamps = _parse_timestamp_from_req_for_builtin_sp(req, &op);
-                        Some(RequestEvent::CustomSingleRequest(
-                            msg,
-                            req_id.clone(),
-                            key,
-                            timestamps,
-                        ))
-                    }
-                    /*
-                    FIXME custom state proof parser
-                    else if PoolService::get_sp_parser(&op.as_str()).is_some() {
-                        Some(RequestEvent::CustomSingleRequest(
-                            msg,
-                            req_id.clone(),
-                            None,
-                            (None, None),
-                        ))
-                    }*/
-                    else {
-                        Some(RequestEvent::CustomConsensusRequest(msg, req_id.clone()))
-                    }
-                } else {
-                    error!("Can't parse parsed_req or op from message {}", msg);
-                    None
-                }
-            }
-            PoolEvent::Timeout(req_id, node_alias) => {
-                Some(RequestEvent::Timeout(req_id, node_alias))
-            }
-            _ => None,
-        }
-    }
-    */
-}
-
-/*
-pub trait UpdateHandler {
-    fn send(&mut self, update: PoolUpdate) -> LedgerResult<()>;
-}
-
-pub struct MockUpdateHandler {
-    pub events: Vec<PoolUpdate>,
-}
-
-impl MockUpdateHandler {
-    pub fn new() -> Self {
-        Self { events: vec![] }
-    }
-}
-
-impl UpdateHandler for MockUpdateHandler {
-    fn send(&mut self, update: PoolUpdate) -> LedgerResult<()> {
-        self.events.push(update);
-        Ok(())
-    }
 }
 */
 

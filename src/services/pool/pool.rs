@@ -119,64 +119,12 @@ impl<T: Networker> PoolThread<T> {
         }
     }
 
-    async fn perform_connect(&mut self, txns: Vec<String>, networker: &T) -> LedgerResult<()> {
-        let merkle_tree = build_tree(&txns)?;
-        let status_result = perform_status_request(merkle_tree, networker).await?;
-        trace!("Got status result: {:?}", &status_result);
-        match status_result {
-            StatusRequestResult::CatchupTargetFound(mt_root, mt_size, timing) => {
-                trace!(
-                    "Catchup target found {} {} {:?}",
-                    mt_root.to_base58(),
-                    mt_size,
-                    timing
-                );
-                let merkle_tree = build_tree(&self.txns)?;
-                let catchup_result =
-                    perform_catchup_request(merkle_tree, mt_root, mt_size, networker).await?;
-                trace!("Got catchup result: {:?}", &catchup_result);
-                match catchup_result {
-                    CatchupRequestResult::Synced(txns, timing) => {
-                        trace!("Catchup synced! {:?}", timing);
-                        let txns = show_transactions(&txns, networker.protocol_version())?;
-                        for txn in txns {
-                            print!("{}\n", txn);
-                        }
-                        Ok(())
-                    }
-                    CatchupRequestResult::Timeout() => {
-                        trace!("Catchup timeout");
-                        Err(err_msg(
-                            LedgerErrorKind::PoolTimeout,
-                            "Timeout on catchup request",
-                        ))
-                    }
-                }
-            }
-            StatusRequestResult::CatchupTargetNotFound(err, timing) => {
-                trace!("Catchup target not found {:?}", timing);
-                Err(err)
-            }
-            StatusRequestResult::Synced(timing) => {
-                trace!("Synced! {:?}", timing);
-                Ok(())
-            }
-        }
-    }
-
     fn connect(&mut self, txns: Vec<String>) -> LedgerResult<()> {
         let networker = T::new(self.config, txns.clone(), vec![])?;
-        block_on(self.perform_connect(txns, &networker)).unwrap();
+        block_on(perform_connect(txns, &networker)).unwrap();
         self.networker = Some(networker);
         Ok(())
     }
-
-    /*fn catchup(&mut self, mt_root: Vec<u8>, mt_size: usize) -> LedgerResult<()> {
-        let merkle_tree = build_tree(&self.txns)?;
-        let req = ledger_catchup_request(merkle_tree, mt_root, mt_size)?;
-        //self.networker.as_mut().unwrap().add_request(req)?;
-        Ok(())
-    }*/
 
     fn handle_event(&mut self, event: PoolEvent) -> bool {
         match event {
@@ -187,10 +135,64 @@ impl<T: Networker> PoolThread<T> {
             PoolEvent::Exit() => {
                 // networker(s) automatically dropped
                 return true;
-            }
-            _ => trace!("Unhandled event {:?}", event),
+            } /*
+              _ => trace!("Unhandled event {:?}", event),
+              */
         };
         false
+    }
+}
+
+async fn perform_connect<T: Networker>(txns: Vec<String>, networker: &T) -> LedgerResult<()> {
+    let merkle_tree = build_tree(&txns)?;
+    let result = perform_status_request(merkle_tree, networker).await?;
+    trace!("Got status result: {:?}", &result);
+    match result {
+        StatusRequestResult::CatchupTargetFound(mt_root, mt_size, timing) => {
+            trace!(
+                "Catchup target found {} {} {:?}",
+                mt_root.to_base58(),
+                mt_size,
+                timing
+            );
+            perform_catchup(txns, networker, mt_root, mt_size).await
+        }
+        StatusRequestResult::CatchupTargetNotFound(err, timing) => {
+            trace!("Catchup target not found {:?}", timing);
+            Err(err)
+        }
+        StatusRequestResult::Synced(timing) => {
+            trace!("Synced! {:?}", timing);
+            Ok(())
+        }
+    }
+}
+
+async fn perform_catchup<T: Networker>(
+    txns: Vec<String>,
+    networker: &T,
+    mt_root: Vec<u8>,
+    mt_size: usize,
+) -> LedgerResult<()> {
+    let merkle_tree = build_tree(&txns)?;
+    let catchup_result = perform_catchup_request(merkle_tree, mt_root, mt_size, networker).await?;
+    trace!("Got catchup result: {:?}", &catchup_result);
+    match catchup_result {
+        CatchupRequestResult::Synced(txns, timing) => {
+            trace!("Catchup synced! {:?}", timing);
+            let txns = show_transactions(&txns, networker.protocol_version())?;
+            for txn in txns {
+                print!("{}\n", txn);
+            }
+            Ok(())
+        }
+        CatchupRequestResult::Timeout() => {
+            trace!("Catchup timeout");
+            Err(err_msg(
+                LedgerErrorKind::PoolTimeout,
+                "Timeout on catchup request",
+            ))
+        }
     }
 }
 
