@@ -8,6 +8,7 @@ use serde_json::Value as SJsonValue;
 
 use ursa::bls::Generator;
 
+use crate::domain::ledger::response::Message as LedgerMessage;
 use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 
@@ -40,7 +41,7 @@ pub async fn perform_single_request<T: Networker>(
         .await?;
     let nodes = networker.get_nodes();
     let f = get_f(nodes.len());
-    let mut state = SingleState::new(state_proof_key, state_proof_timestamps, f, nodes.len());
+    let mut state = SingleState::new(f, nodes.len());
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
 
@@ -50,7 +51,9 @@ pub async fn perform_single_request<T: Networker>(
             "Cannot read from 0 nodes",
         ));
     }
-    for _ in 0..::std::cmp::max(nodes.len(), read_nodes) {
+    let max_read_nodes = ::std::cmp::min(nodes.len(), read_nodes);
+    trace!("{} read nodes");
+    for _ in 0..max_read_nodes {
         req.send_to_any(RequestTimeout::Ack)?;
     }
     loop {
@@ -66,7 +69,8 @@ pub async fn perform_single_request<T: Networker>(
                             let hashable = HashableValue {
                                 inner: result_without_proof,
                             };
-                            let last_write_time = get_last_signed_time(&reply).unwrap_or(0);
+                            let last_write_time =
+                                get_last_signed_time(&reply, &raw_msg).unwrap_or(0);
                             let (cnt, soonest) = {
                                 let set =
                                     state.replies.entry(hashable).or_insert_with(HashSet::new);
@@ -91,8 +95,8 @@ pub async fn perform_single_request<T: Networker>(
                                     &generator,
                                     &nodes,
                                     &raw_msg,
-                                    state.sp_key.as_ref().map(Vec::as_slice),
-                                    state.sp_timestamps,
+                                    state_proof_key.as_ref().map(Vec::as_slice),
+                                    state_proof_timestamps,
                                     last_write_time,
                                     freshness_threshold,
                                 )
@@ -101,21 +105,22 @@ pub async fn perform_single_request<T: Networker>(
                                     if cnt > f { soonest } else { raw_msg },
                                     req.get_timing(),
                                 ));
-                            } else {
-                                // try to continue
                             }
                         } else {
                             state.denied_nodes.insert(node_alias.clone());
-                            // try to continue
                         }
+                        req.clean_timeout(node_alias.clone())?;
+                        continue;
                     }
                     Message::ReqNACK(_) | Message::Reject(_) => {
                         state.timeout_nodes.remove(&node_alias);
                         state.denied_nodes.insert(node_alias.clone());
+                        req.clean_timeout(node_alias.clone())?;
                         // try to continue
                     }
                     Message::ReqACK(_) => {
-                        req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?
+                        req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
+                        continue;
                     }
                     _ => {
                         // FIXME maybe just count as a denied node?
@@ -125,7 +130,6 @@ pub async fn perform_single_request<T: Networker>(
                         ));
                     }
                 };
-                req.clean_timeout(node_alias.clone())?;
                 // try to continue
                 node_alias
             }
@@ -143,8 +147,10 @@ pub async fn perform_single_request<T: Networker>(
             }
         };
         if state.is_consensus_reachable() {
+            req.clean_timeout(node_alias)?;
             req.send_to_any(RequestTimeout::Ack)?;
-            req.send_to_any(RequestTimeout::Ack)?;
+            //req.send_to_any(RequestTimeout::Ack)?;
+            trace!("FIXME Skipped second re-send!");
         } else {
             return Ok(SingleRequestResult::NoConsensus(req.get_timing()));
         }
@@ -156,25 +162,16 @@ struct SingleState {
     denied_nodes: HashSet<String>, // FIXME should be map, may be merged with replies
     replies: HashMap<HashableValue, HashSet<NodeResponse>>,
     timeout_nodes: HashSet<String>,
-    sp_key: Option<Vec<u8>>,
-    sp_timestamps: (Option<u64>, Option<u64>),
     f: usize,
     nodes_count: usize,
 }
 
 impl SingleState {
-    fn new(
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-        f: usize,
-        nodes_count: usize,
-    ) -> Self {
+    fn new(f: usize, nodes_count: usize) -> Self {
         Self {
             denied_nodes: HashSet::new(),
             replies: HashMap::new(),
             timeout_nodes: HashSet::new(),
-            sp_key,
-            sp_timestamps,
             f,
             nodes_count,
         }
@@ -214,33 +211,44 @@ impl Hash for NodeResponse {
     }
 }
 
-pub fn get_last_signed_time(response: &Reply) -> Option<u64> {
-    let c = parse_response_metadata(response);
+pub fn get_last_signed_time(reply: &Reply, raw_msg: &str) -> Option<u64> {
+    let c = parse_response_metadata(reply, raw_msg);
     c.ok().and_then(|resp| resp.last_txn_time)
 }
 
-pub fn parse_response_metadata(response: &Reply) -> LedgerResult<ResponseMetadata> {
-    trace!("parse_response_metadata << response: {:?}", response);
+pub fn parse_response_metadata(reply: &Reply, raw_msg: &str) -> LedgerResult<ResponseMetadata> {
+    trace!("parse_response_metadata << raw_msg: {:?}", raw_msg);
 
-    let response_result = response.result();
+    let message: LedgerMessage<SJsonValue> = serde_json::from_str(raw_msg).to_result(
+        LedgerErrorKind::InvalidTransaction,
+        "Cannot deserialize transaction response",
+    )?;
+    if let LedgerMessage::Reply(response_object) = message {
+        let response_result = response_object.result();
 
-    let response_metadata = match response_result["ver"].as_str() {
-        None => parse_transaction_metadata_v0(&response_result),
-        Some("1") => parse_transaction_metadata_v1(&response_result),
-        ver => {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidTransaction,
-                format!("Unsupported transaction response version: {:?}", ver),
-            ))
-        }
-    };
+        let response_metadata = match response_result["ver"].as_str() {
+            None => parse_transaction_metadata_v0(&response_result),
+            Some("1") => parse_transaction_metadata_v1(&response_result),
+            ver => {
+                return Err(err_msg(
+                    LedgerErrorKind::InvalidTransaction,
+                    format!("Unsupported transaction response version: {:?}", ver),
+                ))
+            }
+        };
 
-    trace!(
-        "indy::services::pool::parse_response_metadata >> response_metadata: {:?}",
-        response_metadata
-    );
+        trace!(
+            "indy::services::pool::parse_response_metadata >> response_metadata: {:?}",
+            response_metadata
+        );
 
-    Ok(response_metadata)
+        Ok(response_metadata)
+    } else {
+        Err(err_msg(
+            LedgerErrorKind::InvalidTransaction,
+            "Error parsing transaction response",
+        ))
+    }
 }
 
 fn parse_transaction_metadata_v0(message: &serde_json::Value) -> ResponseMetadata {

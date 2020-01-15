@@ -177,7 +177,6 @@ pub trait NetworkerRequest:
 struct NetworkerRequestImpl<T: NetworkerSender> {
     handle: RequestHandle,
     events: Option<Receiver<RequestExtEvent>>,
-    nodes: Option<Nodes>,
     sender: Rc<RefCell<T>>,
     state: RequestState,
     timing: RequestTiming,
@@ -194,7 +193,6 @@ impl<T: NetworkerSender> NetworkerRequestImpl<T> {
         Self {
             handle,
             events: Some(events),
-            nodes: None,
             sender,
             state: RequestState::NotStarted,
             timing: RequestTiming::new(),
@@ -318,9 +316,11 @@ impl<T: NetworkerSender> Stream for NetworkerRequestImpl<T> {
                         match events.poll_next(cx) {
                             Poll::Ready(val) => match val {
                                 Some(RequestExtEvent::Sent(alias, when, _index)) => {
+                                    trace!("sent {}", alias);
                                     self.timing.sent(&alias, when)
                                 }
                                 Some(RequestExtEvent::Received(alias, message, meta, when)) => {
+                                    trace!("received {}", alias);
                                     self.timing.received(&alias, when);
                                     return Poll::Ready(Some(RequestEvent::Received(
                                         alias, message, meta,

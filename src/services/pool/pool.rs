@@ -11,11 +11,11 @@ use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 
 use super::events::PoolEvent;
 use super::merkle_tree_factory::{build_tree, show_transactions};
-use super::networker::{Networker, ZMQNetworker};
+use super::networker::{Networker, TimingResult, ZMQNetworker};
 use super::requests::catchup::{perform_catchup_request, CatchupRequestResult};
 use super::requests::single::{perform_single_request, SingleRequestResult};
 use super::requests::status::{perform_status_request, StatusRequestResult};
-use super::types::{CommandHandle, PoolConfig, DEFAULT_FRESHNESS_TIMEOUT, DEFAULT_GENERATOR};
+use super::types::{CommandHandle, PoolConfig, DEFAULT_FRESHNESS_TIMEOUT};
 
 use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
@@ -152,7 +152,7 @@ impl<T: Networker> PoolThread<T> {
     }
 }
 
-async fn perform_connect<T: Networker>(txns: Vec<String>, networker: &T) -> LedgerResult<()> {
+pub async fn perform_connect<T: Networker>(txns: Vec<String>, networker: &T) -> LedgerResult<()> {
     let merkle_tree = build_tree(&txns)?;
     let result = perform_status_request(merkle_tree, networker).await?;
     trace!("Got status result: {:?}", &result);
@@ -177,7 +177,7 @@ async fn perform_connect<T: Networker>(txns: Vec<String>, networker: &T) -> Ledg
     }
 }
 
-async fn perform_catchup<T: Networker>(
+pub async fn perform_catchup<T: Networker>(
     txns: Vec<String>,
     networker: &T,
     mt_root: Vec<u8>,
@@ -225,11 +225,11 @@ fn build_get_txn_request(
     Ok((format!("{}", req_id), body))
 }
 
-async fn perform_get_txn<T: Networker>(
+pub async fn perform_get_txn<T: Networker>(
     ledger_type: LedgerType,
     seq_no: i32,
     networker: &T,
-) -> LedgerResult<String> {
+) -> LedgerResult<(String, TimingResult)> {
     let (req_id, message) = build_get_txn_request(
         ledger_type.to_id(),
         seq_no,
@@ -250,7 +250,7 @@ async fn perform_get_txn<T: Networker>(
     match result {
         SingleRequestResult::Response(message, timing) => {
             trace!("Got request response {} {:?}", &message, timing);
-            Ok(message)
+            Ok((message, timing.unwrap()))
         }
         SingleRequestResult::NoConsensus(timing) => {
             trace!("No consensus {:?}", timing);

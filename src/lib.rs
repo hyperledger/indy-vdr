@@ -90,7 +90,7 @@ mod utils;
 pub mod api;
 pub mod config;
 mod domain;
-mod services;
+pub mod services; // temporarily public?
 
 #[cfg(test)]
 mod tests {

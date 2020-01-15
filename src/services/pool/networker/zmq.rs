@@ -10,6 +10,8 @@ use std::time::{Duration, Instant, SystemTime};
 use futures::channel::mpsc::{channel, Sender};
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
 
+use rand::seq::SliceRandom;
+
 use crate::domain::pool::ProtocolVersion;
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::crypto;
@@ -109,10 +111,10 @@ impl ZMQNetworker {
         remotes: Vec<RemoteNode>,
         preferred_nodes: Vec<String>,
     ) {
-        let mut weights: Vec<(usize, f32)> = (0..remotes.len()).map(|idx| (idx, 1.0)).collect();
+        let mut weights: Vec<f32> = (0..remotes.len()).map(|idx| 1.0).collect();
         for name in preferred_nodes {
             if let Some(index) = remotes.iter().position(|node| node.name == name) {
-                weights[index] = (index, 2.0);
+                weights[index] = 2.0;
             }
         }
         let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", self.id.value()));
@@ -186,7 +188,7 @@ struct ZMQThread {
     evt_recv: mpsc::Receiver<NetworkerEvent>,
     nodes: Nodes,
     remotes: Vec<RemoteNode>,
-    weights: Vec<(usize, f32)>,
+    weights: Vec<f32>,
     requests: BTreeMap<RequestHandle, PendingRequest>,
     last_connection: Option<ZMQConnectionHandle>,
     pool_connections: BTreeMap<ZMQConnectionHandle, ZMQConnection>,
@@ -199,7 +201,7 @@ impl ZMQThread {
         evt_recv: mpsc::Receiver<NetworkerEvent>,
         nodes: Nodes,
         remotes: Vec<RemoteNode>,
-        weights: Vec<(usize, f32)>,
+        weights: Vec<f32>,
     ) -> Self {
         ZMQThread {
             config,
@@ -435,23 +437,43 @@ impl ZMQThread {
                         }
                     }
                     RequestDispatchTarget::AnyNode => {
-                        conn.send_request(
+                        let node_alias = conn.send_request(
                             request.sub_id.clone(),
                             request.body.clone(),
                             timeout,
                             request.send_index,
                         )?;
-                        request.send_index += 1
+                        request.send_index += 1;
+                        if !request.send_event(
+                            handle,
+                            RequestExtEvent::Sent(
+                                node_alias,
+                                SystemTime::now(),
+                                request.send_index,
+                            ),
+                        ) {
+                            self.remove_request(handle);
+                        }
                     }
                     RequestDispatchTarget::SelectNode(named) => {
                         if let Some(index) = conn.get_send_index(named.as_str()) {
-                            conn.send_request(
+                            let node_alias = conn.send_request(
                                 request.sub_id.clone(),
                                 request.body.clone(),
                                 timeout,
                                 index,
                             )?;
-                            request.send_index = index + 1
+                            request.send_index = index + 1;
+                            if !request.send_event(
+                                handle,
+                                RequestExtEvent::Sent(
+                                    node_alias,
+                                    SystemTime::now(),
+                                    request.send_index,
+                                ),
+                            ) {
+                                self.remove_request(handle);
+                            }
                         } else {
                             warn!("Cannot send to unknown node alias: {}", named)
                         }
@@ -516,7 +538,8 @@ impl ZMQThread {
                         .unwrap_or(true)
             });
         if conn.is_none() {
-            let conn = ZMQConnection::new(self.remotes.clone(), self.config.conn_active_timeout);
+            let conn =
+                ZMQConnection::new(self.randomize_remotes(), self.config.conn_active_timeout);
             trace!("Created new pool connection");
             let pc_id = ZMQConnectionHandle::next();
             self.pool_connections.insert(pc_id, conn);
@@ -525,6 +548,23 @@ impl ZMQThread {
         } else {
             Ok(conn_id.unwrap())
         }
+    }
+
+    fn randomize_remotes(&self) -> Vec<RemoteNode> {
+        let mut result = vec![];
+        let mut weights = self
+            .weights
+            .iter()
+            .enumerate()
+            .map(|(idx, w)| (idx, *w))
+            .collect::<Vec<(usize, f32)>>();
+        let mut rng = rand::thread_rng();
+        for _ in 0..weights.len() {
+            let idx = weights.choose_weighted(&mut rng, |item| item.1).unwrap().0;
+            weights[idx].1 = 0f32;
+            result.push(self.remotes[idx].clone());
+        }
+        result
     }
 
     fn fetch_events_into(

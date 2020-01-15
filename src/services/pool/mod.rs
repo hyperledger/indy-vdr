@@ -11,8 +11,11 @@ mod state_proof;
 mod types;
 
 pub use networker::{Networker, ZMQNetworker};
-pub use pool::{Pool, ZMQPool};
+pub use pool::{perform_get_txn, Pool, ZMQPool};
 pub use types::PoolConfig;
+
+use crate::domain::ledger::txn;
+pub use txn::LedgerType; // temporary for HTTP client
 
 #[cfg(test)]
 mod tests {

@@ -49,6 +49,10 @@ ed25519-dalek = "=1.0.0-pre.2"
 # used to derive vk from pk, should match ursa dependency
 curve25519-dalek = "1.2.3"
 
+# bin only
+hyper = "0.13.0"
+tokio = { version = "0.2.9", features = ["rt-util"] }
+
 [dependencies.ursa]
 version = "0.3.0"
 default-features = false
