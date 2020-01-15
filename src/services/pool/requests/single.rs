@@ -14,7 +14,7 @@ use crate::utils::error::prelude::*;
 
 use super::networker::{Networker, RequestEvent, RequestTimeout, TimingResult};
 use super::state_proof;
-use super::types::{HashableValue, Message, Nodes, Reply, DEFAULT_GENERATOR};
+use super::types::{HashableValue, Message, Nodes, DEFAULT_GENERATOR};
 use super::{get_f, get_msg_result_without_state_proof};
 
 #[derive(Debug)]
@@ -60,7 +60,7 @@ pub async fn perform_single_request<T: Networker>(
         let node_alias = match req.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
                 match parsed {
-                    Message::Reply(reply) => {
+                    Message::Reply(_) => {
                         trace!("reply on single request");
                         state.timeout_nodes.remove(&node_alias);
                         if let Ok((result, result_without_proof)) =
@@ -69,8 +69,7 @@ pub async fn perform_single_request<T: Networker>(
                             let hashable = HashableValue {
                                 inner: result_without_proof,
                             };
-                            let last_write_time =
-                                get_last_signed_time(&reply, &raw_msg).unwrap_or(0);
+                            let last_write_time = get_last_signed_time(&raw_msg).unwrap_or(0);
                             let (cnt, soonest) = {
                                 let set =
                                     state.replies.entry(hashable).or_insert_with(HashSet::new);
@@ -211,12 +210,12 @@ impl Hash for NodeResponse {
     }
 }
 
-pub fn get_last_signed_time(reply: &Reply, raw_msg: &str) -> Option<u64> {
-    let c = parse_response_metadata(reply, raw_msg);
+pub fn get_last_signed_time(raw_msg: &str) -> Option<u64> {
+    let c = parse_response_metadata(raw_msg);
     c.ok().and_then(|resp| resp.last_txn_time)
 }
 
-pub fn parse_response_metadata(reply: &Reply, raw_msg: &str) -> LedgerResult<ResponseMetadata> {
+pub fn parse_response_metadata(raw_msg: &str) -> LedgerResult<ResponseMetadata> {
     trace!("parse_response_metadata << raw_msg: {:?}", raw_msg);
 
     let message: LedgerMessage<SJsonValue> = serde_json::from_str(raw_msg).to_result(
