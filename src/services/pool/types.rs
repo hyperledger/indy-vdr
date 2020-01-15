@@ -12,8 +12,8 @@ use crate::utils::validation::Validatable;
 pub const DEFAULT_ACK_TIMEOUT: i64 = 20;
 pub const DEFAULT_REPLY_TIMEOUT: i64 = 60;
 pub const DEFAULT_CONN_ACTIVE_TIMEOUT: i64 = 5;
-pub const DEFAULT_CONN_REQ_LIMIT: usize = 5;
-pub const DEFAULT_NUMBER_READ_NODES: usize = 2;
+pub const DEFAULT_CONN_REQUEST_LIMIT: usize = 5;
+pub const DEFAULT_REQUEST_READ_NODES: usize = 2;
 pub const DEFAULT_FRESHNESS_TIMEOUT: u64 = 300;
 
 pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
@@ -26,7 +26,7 @@ pub struct PoolConfig {
     pub reply_timeout: i64,
     pub conn_request_limit: usize,
     pub conn_active_timeout: i64,
-    pub number_read_nodes: usize,
+    pub request_read_nodes: usize,
 }
 
 impl Validatable for PoolConfig {
@@ -46,8 +46,8 @@ impl Validatable for PoolConfig {
         if self.conn_active_timeout <= 0 {
             return Err(String::from("`conn_active_timeout` must be greater than 0"));
         }
-        if self.number_read_nodes == 0 {
-            return Err(String::from("`number_read_nodes` must be greater than 0"));
+        if self.request_read_nodes == 0 {
+            return Err(String::from("`request_read_nodes` must be greater than 0"));
         }
         Ok(())
     }
@@ -71,15 +71,15 @@ impl PoolConfig {
     }
 
     fn default_conn_request_limit() -> usize {
-        DEFAULT_CONN_REQ_LIMIT
+        DEFAULT_CONN_REQUEST_LIMIT
     }
 
     fn default_conn_active_timeout() -> i64 {
         DEFAULT_CONN_ACTIVE_TIMEOUT
     }
 
-    fn default_number_read_nodes() -> usize {
-        DEFAULT_NUMBER_READ_NODES
+    fn default_request_read_nodes() -> usize {
+        DEFAULT_REQUEST_READ_NODES
     }
 }
 
@@ -92,7 +92,7 @@ impl Default for PoolConfig {
             reply_timeout: Self::default_reply_timeout(),
             conn_request_limit: Self::default_conn_request_limit(),
             conn_active_timeout: Self::default_conn_active_timeout(),
-            number_read_nodes: Self::default_number_read_nodes(),
+            request_read_nodes: Self::default_request_read_nodes(),
         }
     }
 }

@@ -29,10 +29,10 @@ pub enum SingleRequestResult {
 pub async fn perform_single_request<T: Networker>(
     req_id: &str,
     req_json: &str,
-    read_nodes: usize,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
     freshness_threshold: u64,
+    read_nodes: usize,
     networker: &T,
 ) -> LedgerResult<SingleRequestResult> {
     trace!("fetch single request");
@@ -45,17 +45,7 @@ pub async fn perform_single_request<T: Networker>(
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
 
-    if read_nodes == 0 {
-        return Err(err_msg(
-            LedgerErrorKind::InvalidStructure,
-            "Cannot read from 0 nodes",
-        ));
-    }
-    let max_read_nodes = ::std::cmp::min(nodes.len(), read_nodes);
-    trace!("{} read nodes");
-    for _ in 0..max_read_nodes {
-        req.send_to_any(RequestTimeout::Ack)?;
-    }
+    req.send_to_any(read_nodes, RequestTimeout::Ack)?;
     loop {
         let node_alias = match req.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
@@ -63,6 +53,7 @@ pub async fn perform_single_request<T: Networker>(
                     Message::Reply(_) => {
                         trace!("reply on single request");
                         state.timeout_nodes.remove(&node_alias);
+                        state.denied_nodes.remove(&node_alias);
                         if let Ok((result, result_without_proof)) =
                             get_msg_result_without_state_proof(&raw_msg)
                         {
@@ -70,6 +61,7 @@ pub async fn perform_single_request<T: Networker>(
                                 inner: result_without_proof,
                             };
                             let last_write_time = get_last_signed_time(&raw_msg).unwrap_or(0);
+                            trace!("last write {}", last_write_time);
                             let (cnt, soonest) = {
                                 let set =
                                     state.replies.entry(hashable).or_insert_with(HashSet::new);
@@ -111,22 +103,19 @@ pub async fn perform_single_request<T: Networker>(
                         req.clean_timeout(node_alias.clone())?;
                         continue;
                     }
+                    Message::ReqACK(_) => {
+                        req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
+                        continue;
+                    }
                     Message::ReqNACK(_) | Message::Reject(_) => {
                         state.timeout_nodes.remove(&node_alias);
                         state.denied_nodes.insert(node_alias.clone());
                         req.clean_timeout(node_alias.clone())?;
                         // try to continue
                     }
-                    Message::ReqACK(_) => {
-                        req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
-                        continue;
-                    }
                     _ => {
-                        // FIXME maybe just count as a denied node?
-                        return Err(err_msg(
-                            LedgerErrorKind::InvalidState,
-                            "Unexpected response",
-                        ));
+                        state.timeout_nodes.remove(&node_alias);
+                        state.denied_nodes.insert(node_alias.clone());
                     }
                 };
                 // try to continue
@@ -147,9 +136,9 @@ pub async fn perform_single_request<T: Networker>(
         };
         if state.is_consensus_reachable() {
             req.clean_timeout(node_alias)?;
-            req.send_to_any(RequestTimeout::Ack)?;
-            //req.send_to_any(RequestTimeout::Ack)?;
+            req.send_to_any(1, RequestTimeout::Ack)?;
             trace!("FIXME Skipped second re-send!");
+        // return Ok(SingleRequestResult::NoConsensus(req.get_timing()));
         } else {
             return Ok(SingleRequestResult::NoConsensus(req.get_timing()));
         }

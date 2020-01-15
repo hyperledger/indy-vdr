@@ -27,7 +27,7 @@ pub async fn perform_catchup_request<T: Networker>(
     let (req_id, req_json) = serialize_message(&message)?;
     let mut req = networker.create_request(req_id, req_json).await?;
     let mut handler = CatchupSingleHandler::new(merkle, target_mt_root, target_mt_size);
-    req.send_to_any(RequestTimeout::Ack)?;
+    req.send_to_any(1, RequestTimeout::Ack)?;
     loop {
         match req.next().await {
             Some(RequestEvent::Received(_node_alias, _message, parsed)) => {
@@ -38,7 +38,7 @@ pub async fn perform_catchup_request<T: Networker>(
                                 return Ok(CatchupRequestResult::Synced(txns, req.get_timing()))
                             }
                             Err(_) => {
-                                req.send_to_any(RequestTimeout::Ack)?;
+                                req.send_to_any(1, RequestTimeout::Ack)?;
                             }
                         }
                     }
@@ -52,7 +52,7 @@ pub async fn perform_catchup_request<T: Networker>(
                 }
             }
             Some(RequestEvent::Timeout(_node_alias)) => {
-                req.send_to_any(RequestTimeout::Ack)?;
+                req.send_to_any(1, RequestTimeout::Ack)?;
             }
             None => {
                 return Err(err_msg(

@@ -28,7 +28,7 @@ new_handle_type!(NetworkerHandle, NH_COUNTER);
 
 #[derive(Debug)]
 enum NetworkerEvent {
-    CancelRequest(RequestHandle),
+    FinishRequest(RequestHandle),
     NewRequest(
         RequestHandle,
         String, // subscribe to ID
@@ -81,8 +81,8 @@ enum RequestExtEvent {
 #[derive(Debug, PartialEq, Eq)]
 enum RequestDispatchTarget {
     AllNodes,
-    AnyNode,
-    SelectNode(String),
+    AnyNodes(usize),
+    SelectNodes(Vec<String>),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -170,8 +170,8 @@ pub trait NetworkerRequest:
     fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
     fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()>;
-    fn send_to_any(&self, timeout: RequestTimeout) -> LedgerResult<()>;
-    fn send_to(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn send_to_any(&self, count: usize, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()>;
 }
 
 struct NetworkerRequestImpl<T: NetworkerSender> {
@@ -231,18 +231,18 @@ impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
         ))
     }
 
-    fn send_to_any(&self, timeout: RequestTimeout) -> LedgerResult<()> {
+    fn send_to_any(&self, count: usize, timeout: RequestTimeout) -> LedgerResult<()> {
         self.sender.borrow_mut().send(NetworkerEvent::Dispatch(
             self.handle,
-            RequestDispatchTarget::AnyNode,
+            RequestDispatchTarget::AnyNodes(count),
             timeout,
         ))
     }
 
-    fn send_to(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()> {
+    fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()> {
         self.sender.borrow_mut().send(NetworkerEvent::Dispatch(
             self.handle,
-            RequestDispatchTarget::SelectNode(node_alias),
+            RequestDispatchTarget::SelectNodes(node_aliases),
             timeout,
         ))
     }
@@ -261,10 +261,10 @@ impl<T: NetworkerSender> std::fmt::Debug for NetworkerRequestImpl<T> {
 
 impl<T: NetworkerSender> Drop for NetworkerRequestImpl<T> {
     fn drop(&mut self) {
-        trace!("Cancel dropped request: {}", self.handle);
+        trace!("Finish dropped request: {}", self.handle);
         self.sender
             .borrow_mut()
-            .send(NetworkerEvent::CancelRequest(self.handle))
+            .send(NetworkerEvent::FinishRequest(self.handle))
             .unwrap_or(()) // don't mind if the receiver disconnected
     }
 }

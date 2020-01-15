@@ -15,7 +15,9 @@ use super::networker::{Networker, TimingResult, ZMQNetworker};
 use super::requests::catchup::{perform_catchup_request, CatchupRequestResult};
 use super::requests::single::{perform_single_request, SingleRequestResult};
 use super::requests::status::{perform_status_request, StatusRequestResult};
-use super::types::{CommandHandle, PoolConfig, DEFAULT_FRESHNESS_TIMEOUT};
+use super::types::{
+    CommandHandle, PoolConfig, DEFAULT_FRESHNESS_TIMEOUT, DEFAULT_REQUEST_READ_NODES,
+};
 
 use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
@@ -240,10 +242,10 @@ pub async fn perform_get_txn<T: Networker>(
     let result = perform_single_request(
         &req_id,
         &message,
-        2,
         None,
         (None, None),
         DEFAULT_FRESHNESS_TIMEOUT, // FIXME - take from PoolConfig
+        DEFAULT_REQUEST_READ_NODES,
         networker,
     )
     .await?;
