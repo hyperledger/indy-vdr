@@ -20,7 +20,7 @@ use crate::domain::ledger::nym::{
 use crate::domain::ledger::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
-use crate::domain::ledger::request::{Request, TxnAuthrAgrmtAcceptanceData};
+use crate::domain::ledger::request::{get_request_id, Request, TxnAuthrAgrmtAcceptanceData};
 use crate::domain::ledger::response::{Message, Reply, ReplyType};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 use crate::domain::ledger::validator_info::GetValidatorInfoOperation;
@@ -30,8 +30,13 @@ use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 macro_rules! build_result {
     ($proto_ver:expr, $opt_submitter_did:expr, $operation:expr) => {{
-        Request::build_request($operation, $opt_submitter_did, Some($proto_ver as usize))
-            .map_err(|err| LedgerError::from_msg(LedgerErrorKind::InvalidState, err))
+        Request::build_request(
+            get_request_id(),
+            $operation,
+            $opt_submitter_did,
+            Some($proto_ver as usize),
+        )
+        .map_err(|err| LedgerError::from_msg(LedgerErrorKind::InvalidState, err))
     }};
 }
 

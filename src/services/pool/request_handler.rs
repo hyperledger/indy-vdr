@@ -10,8 +10,6 @@ use futures::stream::StreamExt;
 // use serde_json::Value as SJsonValue;
 // use ursa::bls::Generator;
 
-pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
-
 /*
 
 struct RequestSM<T: Networker> {

@@ -9,11 +9,15 @@ pub enum ProtocolVersion {
 }
 
 impl ProtocolVersion {
-    fn display_version(&self) -> String {
+    pub fn display_version(&self) -> String {
         match self {
             Self::Node1_3 => "1.3".to_owned(),
             Self::Node1_4 => "1.4".to_owned(),
         }
+    }
+
+    pub fn to_id(&self) -> usize {
+        *self as usize
     }
 }
 

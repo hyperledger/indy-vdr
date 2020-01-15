@@ -3,9 +3,9 @@ use futures::stream::StreamExt;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-use super::check_cons_proofs;
 use super::networker::{Networker, RequestEvent, RequestTimeout, TimingResult};
 use super::types::{CatchupReq, Message};
+use super::{check_cons_proofs, serialize_message};
 
 #[derive(Debug)]
 pub enum CatchupRequestResult {
@@ -24,13 +24,14 @@ pub async fn perform_catchup_request<T: Networker>(
 ) -> LedgerResult<CatchupRequestResult> {
     trace!("fetch status");
     let message = build_catchup_req(&merkle, target_mt_size)?;
-    let mut req = networker.create_request(&message).await?;
+    let (req_id, req_json) = serialize_message(&message)?;
+    let mut req = networker.create_request(req_id, req_json).await?;
     let mut handler = CatchupSingleHandler::new(merkle, target_mt_root, target_mt_size);
     req.send_to_any(RequestTimeout::Ack)?;
     loop {
         match req.next().await {
-            Some(RequestEvent::Received(_node_alias, message)) => {
-                match message {
+            Some(RequestEvent::Received(_node_alias, _message, parsed)) => {
+                match parsed {
                     Message::CatchupRep(cr) => {
                         match handler.process_catchup_reply(cr.load_txns()?, cr.consProof.clone()) {
                             Ok(txns) => {

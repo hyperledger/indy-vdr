@@ -8,6 +8,10 @@ use crate::utils::validation::Validatable;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DidMethod(pub String);
 
+lazy_static! {
+    pub static ref DEFAULT_LIBINDY_DID: DidValue = DidValue::new("LibindyDid111111111111", None);
+}
+
 impl Validatable for DidMethod {
     fn validate(&self) -> Result<(), String> {
         lazy_static! {

@@ -13,7 +13,7 @@ pub struct TxnAuthrAgrmtAcceptanceData {
     pub time: u64,
 }
 
-fn get_req_id() -> u64 {
+pub fn get_request_id() -> u64 {
     time::get_time().sec as u64 * (1e9 as u64) + time::get_time().nsec as u64
 }
 
@@ -56,12 +56,11 @@ impl<T: serde::Serialize> Request<T> {
     }
 
     pub fn build_request(
+        req_id: u64,
         operation: T,
         identifier: Option<&DidValue>,
         protocol_version: Option<usize>,
     ) -> Result<String, String> {
-        let req_id = get_req_id();
-
         // FIXME - verify that qualified DID is using a known DID method
 
         serde_json::to_string(&Request::new(

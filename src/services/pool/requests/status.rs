@@ -12,7 +12,7 @@ use crate::utils::merkletree::MerkleTree;
 
 use super::networker::{Networker, RequestEvent, RequestTimeout, TimingResult};
 use super::types::{LedgerStatus, Message};
-use super::{check_cons_proofs, get_f};
+use super::{check_cons_proofs, get_f, serialize_message};
 
 #[derive(Debug)]
 pub enum StatusRequestResult {
@@ -42,13 +42,14 @@ pub async fn perform_status_request<T: Networker>(
 ) -> LedgerResult<StatusRequestResult> {
     trace!("fetch status");
     let message = build_ledger_status_req(&merkle, networker.protocol_version())?;
-    let mut req = networker.create_request(&message).await?;
+    let (req_id, req_json) = serialize_message(&message)?;
+    let mut req = networker.create_request(req_id, req_json).await?;
     let mut handler = StatusRequestHandler::new(merkle, networker.nodes_count());
     req.send_to_all(RequestTimeout::Default)?;
     loop {
         let response = match req.next().await {
-            Some(RequestEvent::Received(node_alias, message)) => {
-                match message {
+            Some(RequestEvent::Received(node_alias, _message, parsed)) => {
+                match parsed {
                     Message::LedgerStatus(ls) => handler.process_catchup_target(
                         ls.merkleRoot.clone(),
                         ls.txnSeqNo,

@@ -36,6 +36,10 @@ enum NetworkerEvent {
         Sender<RequestExtEvent>,
     ),
     Dispatch(RequestHandle, RequestDispatchTarget, RequestTimeout),
+    CleanTimeout(
+        RequestHandle,
+        String, // node alias
+    ),
     ExtendTimeout(
         RequestHandle,
         String, // node alias
@@ -46,8 +50,9 @@ enum NetworkerEvent {
 #[derive(Debug)]
 pub enum RequestEvent {
     Received(
-        String, // node alias
-        Message,
+        String,  // node alias
+        String,  // message
+        Message, // parsed
     ),
     Timeout(
         String, // node_alias
@@ -56,15 +61,16 @@ pub enum RequestEvent {
 
 #[derive(Debug)]
 enum RequestExtEvent {
-    Init(Nodes),
+    Init(),
     Sent(
         String,     // node alias
         SystemTime, // send time
         usize,      // send index
     ),
     Received(
-        String, // node alias
-        Message,
+        String,     // node alias
+        String,     // message
+        Message,    // parsed
         SystemTime, // received time
     ),
     Timeout(
@@ -159,8 +165,8 @@ trait NetworkerSender: Sized {
 pub trait NetworkerRequest:
     std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin
 {
+    fn clean_timeout(&self, node_alias: String) -> LedgerResult<()>;
     fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()>;
-    fn get_nodes(&self) -> Option<Nodes>;
     fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
     fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()>;
@@ -197,16 +203,18 @@ impl<T: NetworkerSender> NetworkerRequestImpl<T> {
 }
 
 impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
+    fn clean_timeout(&self, node_alias: String) -> LedgerResult<()> {
+        self.sender
+            .borrow_mut()
+            .send(NetworkerEvent::CleanTimeout(self.handle, node_alias))
+    }
+
     fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()> {
         self.sender.borrow_mut().send(NetworkerEvent::ExtendTimeout(
             self.handle,
             node_alias,
             timeout,
         ))
-    }
-
-    fn get_nodes(&self) -> Option<Nodes> {
-        return self.nodes.clone();
     }
 
     fn get_timing(&self) -> Option<TimingResult> {
@@ -290,9 +298,8 @@ impl<T: NetworkerSender> Stream for NetworkerRequestImpl<T> {
                     if let Some(events) = self.as_mut().events().as_pin_mut() {
                         match events.poll_next(cx) {
                             Poll::Ready(val) => {
-                                if let Some(RequestExtEvent::Init(nodes)) = val {
+                                if let Some(RequestExtEvent::Init()) = val {
                                     trace!("got init!");
-                                    self.nodes.replace(nodes);
                                     self.state = RequestState::Active;
                                 } else {
                                     // events.close(); ?
@@ -313,10 +320,10 @@ impl<T: NetworkerSender> Stream for NetworkerRequestImpl<T> {
                                 Some(RequestExtEvent::Sent(alias, when, _index)) => {
                                     self.timing.sent(&alias, when)
                                 }
-                                Some(RequestExtEvent::Received(alias, message, when)) => {
+                                Some(RequestExtEvent::Received(alias, message, meta, when)) => {
                                     self.timing.received(&alias, when);
                                     return Poll::Ready(Some(RequestEvent::Received(
-                                        alias, message,
+                                        alias, message, meta,
                                     )));
                                 }
                                 Some(RequestExtEvent::Timeout(alias)) => {
@@ -357,10 +364,13 @@ pub trait Networker: Sized {
 
     fn create_request<'a>(
         &'a self,
-        message: &Message,
+        req_id: String,
+        req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn NetworkerRequest>>>;
 
     fn protocol_version(&self) -> ProtocolVersion;
+
+    fn get_nodes(&self) -> Nodes;
 
     fn nodes_count(&self) -> usize;
 }

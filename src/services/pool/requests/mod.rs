@@ -1,5 +1,8 @@
 #[allow(unused_imports)]
+use serde_json::{self, Value as SJsonValue};
+
 use super::networker;
+use super::state_proof;
 use super::types;
 
 use crate::utils::base58::FromBase58;
@@ -7,6 +10,7 @@ use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
 pub mod catchup;
+pub mod single;
 pub mod status;
 
 fn get_f(cnt: usize) -> usize {
@@ -43,4 +47,37 @@ fn check_cons_proofs(
     }
 
     Ok(())
+}
+
+fn serialize_message(message: &types::Message) -> LedgerResult<(String, String)> {
+    let req_id = message.request_id().unwrap_or("".to_owned());
+    let req_json = serde_json::to_string(&message).map_err(|err| {
+        err_msg(
+            LedgerErrorKind::InvalidState,
+            format!("Cannot serialize request: {:?}", err),
+        )
+    })?;
+    Ok((req_id, req_json))
+}
+
+fn get_msg_result_without_state_proof(msg: &str) -> LedgerResult<(SJsonValue, SJsonValue)> {
+    let msg = serde_json::from_str::<SJsonValue>(msg).to_result(
+        LedgerErrorKind::InvalidStructure,
+        "Response is malformed json",
+    )?;
+
+    let msg_result = msg["result"].clone();
+
+    let mut msg_result_without_proof: SJsonValue = msg_result.clone();
+    msg_result_without_proof
+        .as_object_mut()
+        .map(|obj| obj.remove("state_proof"));
+
+    if msg_result_without_proof["data"].is_object() {
+        msg_result_without_proof["data"]
+            .as_object_mut()
+            .map(|obj| obj.remove("stateProofFrom"));
+    }
+
+    Ok((msg_result, msg_result_without_proof))
 }

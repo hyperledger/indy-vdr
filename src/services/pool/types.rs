@@ -2,6 +2,7 @@ use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
+use serde_json::Value as SJsonValue;
 use ursa::bls::VerKey as BlsVerKey;
 
 use crate::domain::pool::ProtocolVersion;
@@ -15,6 +16,8 @@ pub const DEFAULT_CONN_ACTIVE_TIMEOUT: i64 = 5;
 pub const DEFAULT_CONN_REQ_LIMIT: usize = 5;
 pub const DEFAULT_NUMBER_READ_NODES: usize = 2;
 pub const DEFAULT_FRESHNESS_TIMEOUT: u64 = 300;
+
+pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
 
 #[derive(Debug, Copy, Clone)]
 pub struct PoolConfig {
@@ -416,7 +419,7 @@ impl CatchupRep {
     }
 }
 
-#[derive(Serialize, Debug, Deserialize, Clone)]
+#[derive(Serialize, Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Reply {
     ReplyV0(ReplyV0),
@@ -426,33 +429,49 @@ pub enum Reply {
 impl Reply {
     pub fn req_id(&self) -> u64 {
         match *self {
-            Reply::ReplyV0(ref reply) => reply.result.req_id,
+            Reply::ReplyV0(ref reply) => reply
+                .result
+                .get("req_id")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0),
             Reply::ReplyV1(ref reply) => reply.result.txn.metadata.req_id,
+        }
+    }
+    pub fn result(&self) -> SJsonValue {
+        match *self {
+            Reply::ReplyV0(ref reply) => reply.result.clone(),
+            Reply::ReplyV1(ref reply) => reply.data.result[0].result.clone(),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ReplyV0 {
-    pub result: ResponseMetadata,
+    pub result: SJsonValue,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ReplyV1 {
+    pub data: ReplyDataV1,
     pub result: ReplyResultV1,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ReplyResultV1 {
     pub txn: ReplyTxnV1,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ReplyDataV1 {
+    pub result: Vec<ReplyV0>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ReplyTxnV1 {
     pub metadata: ResponseMetadata,
 }
 
-#[derive(Serialize, Debug, Deserialize, Clone)]
+#[derive(Serialize, Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Response {
     ResponseV0(ResponseV0),
