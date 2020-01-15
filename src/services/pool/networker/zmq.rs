@@ -17,7 +17,7 @@ use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::crypto;
 use crate::utils::error::prelude::*;
 
-use super::super::merkle_tree_factory::build_node_state_from_json;
+use super::super::genesis::build_node_state_from_json;
 use super::super::types::{Message, Nodes, PoolConfig};
 use super::{
     Networker, NetworkerEvent, NetworkerHandle, NetworkerRequest, NetworkerRequestImpl,
@@ -111,7 +111,7 @@ impl ZMQNetworker {
         remotes: Vec<RemoteNode>,
         preferred_nodes: Vec<String>,
     ) {
-        let mut weights: Vec<f32> = (0..remotes.len()).map(|idx| 1.0).collect();
+        let mut weights: Vec<f32> = vec![1.0; remotes.len()];
         for name in preferred_nodes {
             if let Some(index) = remotes.iter().position(|node| node.name == name) {
                 weights[index] = 2.0;

@@ -10,7 +10,7 @@ use crate::domain::ledger::request::{get_request_id, Request};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 
 use super::events::PoolEvent;
-use super::merkle_tree_factory::{build_tree, show_transactions};
+use super::genesis::{build_tree, show_transactions};
 use super::networker::{Networker, TimingResult, ZMQNetworker};
 use super::requests::catchup::{perform_catchup_request, CatchupRequestResult};
 use super::requests::single::{perform_single_request, SingleRequestResult};

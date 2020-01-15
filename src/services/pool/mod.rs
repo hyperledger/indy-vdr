@@ -3,7 +3,7 @@ extern crate rmp_serde;
 extern crate time;
 
 mod events;
-mod merkle_tree_factory;
+mod genesis;
 mod networker;
 mod pool;
 mod requests;
