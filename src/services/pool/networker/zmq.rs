@@ -387,7 +387,7 @@ impl ZMQThread {
                     let active = self
                         .pool_connections
                         .get(&req.conn_id)
-                        .map(|pc| !pc.is_idle())
+                        .map(|pc| !pc.has_active_timeouts(&req.sub_id))
                         .unwrap_or(false);
                     Some((*handle, active))
                 } else {
@@ -437,7 +437,7 @@ impl ZMQThread {
     }
 
     fn check_remove_connection(&mut self, handle: ZMQConnectionHandle, sub_id: Option<&str>) {
-        if let Some(delete) = self.pool_connections.get(&handle).and_then(|pc| {
+        if let Some(delete) = self.pool_connections.get_mut(&handle).and_then(|pc| {
             if let Some(sub_id) = sub_id {
                 pc.clean_timeout(sub_id, None);
             }
@@ -520,7 +520,7 @@ impl ZMQThread {
 
     fn clean_timeout(&mut self, handle: RequestHandle, node_alias: String) -> LedgerResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
-            if let Some(conn) = self.pool_connections.get(&request.conn_id) {
+            if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 conn.clean_timeout(request.sub_id.as_str(), Some(node_alias))
             } else {
                 warn!("Pool connection expired for clean timeout: {}", handle)
@@ -538,7 +538,7 @@ impl ZMQThread {
         timeout: RequestTimeout,
     ) -> LedgerResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
-            if let Some(conn) = self.pool_connections.get(&request.conn_id) {
+            if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 conn.extend_timeout(
                     request.sub_id.as_str(),
                     node_alias.as_str(),
@@ -564,7 +564,7 @@ impl ZMQThread {
                 conn.is_active()
                     && conn.req_cnt < self.config.conn_request_limit
                     && sub_id
-                        .map(|sub_id| !conn.seen(sub_id.as_str()))
+                        .map(|sub_id| !conn.seen_request(sub_id.as_str()))
                         .unwrap_or(true)
             });
         if conn.is_none() {
@@ -645,7 +645,7 @@ pub struct ZMQConnection {
     sockets: Vec<Option<ZSocket>>,
     ctx: zmq::Context,
     key_pair: zmq::CurveKeyPair,
-    timeouts: RefCell<HashMap<(String, String), (Instant, bool)>>,
+    timeouts: HashMap<(String, String), (Instant, bool)>,
     time_created: Instant,
     req_cnt: usize,
     req_log: HashSet<String>,
@@ -668,7 +668,7 @@ impl ZMQConnection {
             ctx: zmq::Context::new(),
             key_pair: zmq::CurveKeyPair::new().expect("FIXME"),
             time_created: Instant::now(),
-            timeouts: RefCell::new(HashMap::new()),
+            timeouts: HashMap::new(),
             req_cnt: 0,
             req_log: HashSet::new(),
             active_timeout,
@@ -716,7 +716,6 @@ impl ZMQConnection {
         let (target, expiry) = {
             if let Some((&(ref req_id, ref node_alias), (timeout, _))) = self
                 .timeouts
-                .borrow()
                 .iter()
                 .filter(|&(_, (_, seen))| !seen)
                 .min_by(|&(_, (ref val1, _)), &(_, (ref val2, _))| val1.cmp(&val2))
@@ -768,7 +767,7 @@ impl ZMQConnection {
             let s = self._get_socket(node_index)?;
             s.send(&msg, zmq::DONTWAIT)?;
         }
-        self.timeouts.borrow_mut().insert(
+        self.timeouts.insert(
             (req_id.clone(), name.clone()),
             (
                 Instant::now() + Duration::from_secs(::std::cmp::max(timeout, 0) as u64),
@@ -781,10 +780,9 @@ impl ZMQConnection {
         Ok(name)
     }
 
-    fn extend_timeout(&self, req_id: &str, node_alias: &str, extended_timeout: i64) {
+    fn extend_timeout(&mut self, req_id: &str, node_alias: &str, extended_timeout: i64) {
         if let Some(timeout) = self
             .timeouts
-            .borrow_mut()
             .get_mut(&(req_id.to_string(), node_alias.to_string()))
         {
             timeout.0 =
@@ -798,41 +796,44 @@ impl ZMQConnection {
     fn silence_timeout(&mut self, req_id: &str, node_alias: &str) {
         if let Some(timeout) = self
             .timeouts
-            .borrow_mut()
             .get_mut(&(req_id.to_string(), node_alias.to_string()))
         {
             timeout.1 = true
         }
     }
 
-    fn clean_timeout(&self, req_id: &str, node_alias: Option<String>) {
+    fn clean_timeout(&mut self, req_id: &str, node_alias: Option<String>) {
         match node_alias {
             Some(node_alias) => {
-                self.timeouts
-                    .borrow_mut()
-                    .remove(&(req_id.to_string(), node_alias));
+                self.timeouts.remove(&(req_id.to_string(), node_alias));
             }
             None => {
                 let keys_to_remove: Vec<(String, String)> = self
                     .timeouts
-                    .borrow()
                     .keys()
                     .cloned()
                     .filter(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
                     .collect();
                 keys_to_remove.iter().for_each(|key| {
-                    self.timeouts.borrow_mut().remove(key);
+                    self.timeouts.remove(key);
                 });
             }
         }
     }
 
-    fn seen(&self, req_id: &str) -> bool {
+    fn has_active_timeouts(&self, req_id: &str) -> bool {
+        self.timeouts
+            .keys()
+            .find(|&(req_id_timeout, _)| req_id_timeout == req_id)
+            .is_some()
+    }
+
+    fn seen_request(&self, req_id: &str) -> bool {
         self.req_log.contains(req_id)
     }
 
     fn has_active_requests(&self) -> bool {
-        !self.timeouts.borrow().is_empty()
+        !self.timeouts.is_empty()
     }
 
     fn is_idle(&self) -> bool {
