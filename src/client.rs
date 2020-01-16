@@ -8,7 +8,7 @@ use std::rc::Rc;
 use log::trace;
 
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Error, Request, Response, Server};
+use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
 
 use indy_ledger_client::config::{LedgerResult, PoolFactory};
 use indy_ledger_client::services::pool::{perform_get_txn, LedgerType, Pool};
@@ -24,7 +24,6 @@ fn main() {
 
   let local = tokio::task::LocalSet::new();
   local.block_on(&mut rt, run()).unwrap();
-  //local.block_on(&mut rt, test_get_txn()).unwrap();
 }
 
 async fn test_get_txn(seq_no: i32, pool: Pool) -> LedgerResult<String> {
@@ -41,12 +40,26 @@ async fn test_get_txn(seq_no: i32, pool: Pool) -> LedgerResult<String> {
 }
 
 async fn handle_request(
-  _req: Request<Body>,
+  req: Request<Body>,
   seq_no: i32,
   pool: Pool,
 ) -> Result<Response<Body>, hyper::Error> {
-  let msg = test_get_txn(seq_no, pool).await.unwrap();
-  Ok::<_, Error>(Response::new(Body::from(msg)))
+  match (req.method(), req.uri().path()) {
+    (&Method::GET, "/") => {
+      let msg = test_get_txn(seq_no, pool).await.unwrap();
+      Ok::<_, Error>(Response::new(Body::from(msg)))
+    }
+    (&Method::GET, _) => {
+      let mut not_found = Response::default();
+      *not_found.status_mut() = StatusCode::NOT_FOUND;
+      Ok(not_found)
+    }
+    _ => {
+      let mut not_supported = Response::default();
+      *not_supported.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
+      Ok(not_supported)
+    }
+  }
 }
 
 async fn run() -> LedgerResult<()> {
@@ -61,9 +74,8 @@ async fn run() -> LedgerResult<()> {
     let count = count.clone();
     async move {
       Ok::<_, Error>(service_fn(move |req| {
-        let prev = count.get();
-        count.set(prev + 1);
         let seq_no = count.get();
+        count.set(seq_no + 1);
         handle_request(req, seq_no, pool.to_owned())
       }))
     }
