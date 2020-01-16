@@ -14,6 +14,7 @@ use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
 pub mod catchup;
+pub mod full;
 pub mod single;
 pub mod status;
 

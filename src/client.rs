@@ -11,7 +11,7 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
 
 use indy_ledger_client::config::{LedgerResult, PoolFactory};
-use indy_ledger_client::services::pool::{perform_get_txn, LedgerType, Pool};
+use indy_ledger_client::services::pool::{perform_get_txn_full, LedgerType, Pool};
 
 fn main() {
   env_logger::init();
@@ -27,8 +27,7 @@ fn main() {
 }
 
 async fn test_get_txn(seq_no: i32, pool: Pool) -> LedgerResult<String> {
-  trace!("here");
-  let result = perform_get_txn(&pool, LedgerType::DOMAIN, seq_no)
+  let result = perform_get_txn_full(&pool, LedgerType::DOMAIN, seq_no)
     .await
     .map_err(|err| err.to_string());
   let msg = if let Ok((msg, timing)) = result {

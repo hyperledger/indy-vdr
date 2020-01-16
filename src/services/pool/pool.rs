@@ -15,6 +15,7 @@ use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 use super::genesis::{build_tree, show_transactions};
 use super::networker::{Networker, NetworkerEvent, ZMQNetworker};
 use super::requests::catchup::{perform_catchup_request, CatchupRequestResult};
+use super::requests::full::{perform_full_request, FullRequestReply};
 use super::requests::single::{perform_single_request, SingleRequestResult};
 use super::requests::status::{perform_status_request, StatusRequestResult};
 use super::requests::{
@@ -126,6 +127,31 @@ pub async fn perform_get_txn(
     }
 }
 
+// FIXME testing only
+pub async fn perform_get_txn_full(
+    pool: &Pool,
+    ledger_type: LedgerType,
+    seq_no: i32,
+) -> LedgerResult<(String, TimingResult)> {
+    let (req_id, message) = _build_get_txn_request(
+        ledger_type.to_id(),
+        seq_no,
+        None,
+        Some(pool.config().protocol_version.to_id()),
+    )?;
+    trace!("{} {}", req_id, message);
+    let (result, timing) = perform_full_request(pool, &req_id, &message, None, None).await?;
+    let rows = result
+        .iter()
+        .map(|(node_alias, reply)| match reply {
+            FullRequestReply::Reply(msg) => format!("{} {}", node_alias, msg),
+            FullRequestReply::Failed(msg) => format!("{} failed: {}", node_alias, msg),
+            FullRequestReply::Timeout() => format!("{} timeout", node_alias),
+        })
+        .collect::<Vec<String>>();
+    Ok((rows.join("\n\n"), timing.unwrap()))
+}
+
 #[must_use = "requests do nothing unless polled"]
 pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
     fn clean_timeout(&self, node_alias: String) -> LedgerResult<()>;
@@ -234,22 +260,6 @@ impl Drop for PoolRequestImpl {
             .unwrap_or(()) // don't mind if the receiver disconnected
     }
 }
-
-/*
-impl Drop for ZMQRequest {
-    fn drop(&mut self) {
-        self.events.close();
-        if !self.events.is_terminated() {
-            trace!("draining zmq request");
-            loop {
-                if let Err(_) = self.events.try_next() {
-                    break;
-                }
-            }
-        }
-    }
-}
-*/
 
 impl Stream for PoolRequestImpl {
     type Item = RequestEvent;
