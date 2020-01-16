@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 use std::time::{Duration, SystemTime};
 
@@ -13,10 +14,17 @@ use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-pub mod catchup;
-pub mod full;
-pub mod single;
-pub mod status;
+mod catchup;
+mod consensus;
+mod full;
+mod single;
+mod status;
+
+pub use catchup::{perform_catchup_request, CatchupRequestResult};
+pub use consensus::perform_consensus_request;
+pub use full::perform_full_request;
+pub use single::perform_single_request;
+pub use status::{perform_status_request, StatusRequestResult};
 
 new_handle_type!(RequestHandle, RQ_COUNTER);
 
@@ -153,6 +161,113 @@ impl RequestTiming {
         Some(HashMap::from_iter(
             self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
         ))
+    }
+}
+
+#[derive(Debug)]
+pub enum SingleReply<T> {
+    Reply(T),
+    Failed(String),
+    Timeout(),
+}
+
+pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;
+
+#[derive(Debug)]
+pub struct ReplyState<T> {
+    pub inner: HashMap<String, SingleReply<T>>,
+}
+
+impl<T: ToString> ToString for SingleReply<T> {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Reply(msg) => msg.to_string(),
+            Self::Failed(msg) => msg.clone(),
+            Self::Timeout() => "timeout".to_owned(),
+        }
+    }
+}
+
+impl<T> ReplyState<T> {
+    pub fn new() -> Self {
+        Self {
+            inner: HashMap::new(),
+        }
+    }
+
+    pub fn add_reply(&mut self, node_alias: String, reply: T) {
+        self.inner.insert(node_alias, SingleReply::Reply(reply));
+    }
+
+    pub fn add_failed(&mut self, node_alias: String, raw_msg: String) {
+        self.inner.insert(node_alias, SingleReply::Failed(raw_msg));
+    }
+
+    pub fn add_timeout(&mut self, node_alias: String) {
+        if !self.inner.contains_key(&node_alias) {
+            self.inner.insert(node_alias, SingleReply::Timeout());
+        }
+    }
+
+    pub fn result(self) -> NodeReplies<T> {
+        self.inner
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+#[derive(Debug)]
+pub enum ConsensusResult<T> {
+    NoConsensus(Option<TimingResult>),
+    Reply(T, Option<TimingResult>),
+}
+
+#[derive(Debug)]
+struct ConsensusState<T: Eq + Hash> {
+    consensus: HashMap<HashableValue, HashSet<T>>,
+}
+
+impl<T: Eq + Hash> ConsensusState<T> {
+    fn new() -> Self {
+        Self {
+            consensus: HashMap::new(),
+        }
+    }
+
+    fn max_consensus(&self) -> usize {
+        self.consensus
+            .values()
+            .map(|set| set.len())
+            .max()
+            .unwrap_or(0)
+    }
+
+    pub fn insert(&mut self, hashable: HashableValue, reply: T) -> &mut HashSet<T> {
+        let set = self.consensus.entry(hashable).or_insert_with(HashSet::new);
+        set.insert(reply);
+        set
+    }
+}
+
+#[derive(Debug)]
+pub struct HashableValue {
+    pub inner: SJsonValue,
+}
+
+impl Eq for HashableValue {}
+
+impl Hash for HashableValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // FIXME does to_string produce canonical results??
+        serde_json::to_string(&self.inner).unwrap().hash(state); //TODO
+    }
+}
+
+impl PartialEq for HashableValue {
+    fn eq(&self, other: &HashableValue) -> bool {
+        self.inner.eq(&other.inner)
     }
 }
 

@@ -1,4 +1,3 @@
-use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -14,19 +13,11 @@ use crate::utils::error::prelude::*;
 
 use super::pool::Pool;
 use super::state_proof;
-use super::types::{HashableValue, Message, Nodes, DEFAULT_GENERATOR};
+use super::types::{Message, Nodes, DEFAULT_GENERATOR};
 use super::{
-    get_f, get_msg_result_without_state_proof, RequestEvent, RequestTimeout, TimingResult,
+    get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
+    ReplyState, RequestEvent, RequestTimeout,
 };
-
-#[derive(Debug)]
-pub enum SingleRequestResult {
-    NoConsensus(Option<TimingResult>),
-    Response(
-        String, // transaction
-        Option<TimingResult>,
-    ),
-}
 
 pub async fn perform_single_request(
     pool: &Pool,
@@ -34,99 +25,98 @@ pub async fn perform_single_request(
     req_json: &str,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
-) -> LedgerResult<SingleRequestResult> {
-    trace!("fetch single request");
+) -> LedgerResult<ConsensusResult<String>> {
+    trace!("single request");
     let mut req = pool
         .create_request(req_id.to_owned(), req_json.to_owned())
         .await?;
     let config = pool.config();
     let nodes = pool.nodes();
-    let f = get_f(nodes.len());
-    let mut state = SingleState::new(f, nodes.len());
+    let total_nodes_count = nodes.len();
+    let f = get_f(total_nodes_count);
+    let mut replies = ReplyState::new();
+    let mut state = ConsensusState::new();
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
 
     req.send_to_any(config.request_read_nodes, RequestTimeout::Ack)?;
     loop {
-        let node_alias = match req.next().await {
-            Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
-                match parsed {
-                    Message::Reply(_) => {
-                        trace!("reply on single request");
-                        state.timeout_nodes.remove(&node_alias);
-                        state.denied_nodes.remove(&node_alias);
-                        if let Ok((result, result_without_proof)) =
-                            get_msg_result_without_state_proof(&raw_msg)
-                        {
-                            let hashable = HashableValue {
-                                inner: result_without_proof,
-                            };
-                            let last_write_time = get_last_signed_time(&raw_msg).unwrap_or(0);
-                            trace!("last write {}", last_write_time);
-                            let (cnt, soonest) = {
-                                let set =
-                                    state.replies.entry(hashable).or_insert_with(HashSet::new);
-                                set.insert(NodeResponse {
+        let resend = match req.next().await {
+            Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => match parsed {
+                Message::Reply(_) => {
+                    trace!("reply on single request");
+                    if let Ok((result, result_without_proof)) =
+                        get_msg_result_without_state_proof(&raw_msg)
+                    {
+                        replies.add_reply(node_alias.clone(), true);
+                        let hashable = HashableValue {
+                            inner: result_without_proof,
+                        };
+                        let last_write_time = get_last_signed_time(&raw_msg).unwrap_or(0);
+                        trace!("last write {}", last_write_time);
+                        let (cnt, soonest) = {
+                            let set = state.insert(
+                                hashable,
+                                NodeResponse {
                                     node_alias: node_alias.clone(),
                                     timestamp: last_write_time,
                                     raw_msg: raw_msg.clone(),
-                                });
-                                (
-                                    set.len(),
-                                    set.iter()
-                                        .max_by_key(|resp| resp.timestamp)
-                                        .map(|resp| &resp.raw_msg)
-                                        .unwrap_or(&raw_msg)
-                                        .clone(),
-                                )
-                            };
-                            if cnt > f
-                                || check_state_proof(
-                                    &result,
-                                    f,
-                                    &generator,
-                                    &nodes,
-                                    &raw_msg,
-                                    state_proof_key.as_ref().map(Vec::as_slice),
-                                    state_proof_timestamps,
-                                    last_write_time,
-                                    config.freshness_threshold,
-                                )
-                            {
-                                return Ok(SingleRequestResult::Response(
-                                    if cnt > f { soonest } else { raw_msg },
-                                    req.get_timing(),
-                                ));
-                            }
-                        } else {
-                            state.denied_nodes.insert(node_alias.clone());
+                                },
+                            );
+                            (
+                                set.len(),
+                                set.iter()
+                                    .max_by_key(|resp| resp.timestamp)
+                                    .map(|resp| &resp.raw_msg)
+                                    .unwrap_or(&raw_msg)
+                                    .clone(),
+                            )
+                        };
+                        if cnt > f
+                            || check_state_proof(
+                                &result,
+                                f,
+                                &generator,
+                                &nodes,
+                                &raw_msg,
+                                state_proof_key.as_ref().map(Vec::as_slice),
+                                state_proof_timestamps,
+                                last_write_time,
+                                config.freshness_threshold,
+                            )
+                        {
+                            return Ok(ConsensusResult::Reply(
+                                if cnt > f { soonest } else { raw_msg },
+                                req.get_timing(),
+                            ));
                         }
                         req.clean_timeout(node_alias.clone())?;
-                        continue;
-                    }
-                    Message::ReqACK(_) => {
-                        req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
-                        continue;
-                    }
-                    Message::ReqNACK(_) | Message::Reject(_) => {
-                        state.timeout_nodes.remove(&node_alias);
-                        state.denied_nodes.insert(node_alias.clone());
+                        false
+                    } else {
+                        replies.add_failed(node_alias.clone(), raw_msg);
                         req.clean_timeout(node_alias.clone())?;
-                        // try to continue
+                        true
                     }
-                    _ => {
-                        state.timeout_nodes.remove(&node_alias);
-                        state.denied_nodes.insert(node_alias.clone());
-                    }
-                };
-                // try to continue
-                node_alias
-            }
+                }
+                Message::ReqACK(_) => {
+                    req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
+                    continue;
+                }
+                Message::ReqNACK(_) | Message::Reject(_) => {
+                    replies.add_failed(node_alias.clone(), raw_msg);
+                    req.clean_timeout(node_alias.clone())?;
+                    true
+                }
+                _ => {
+                    replies.add_failed(node_alias.clone(), raw_msg);
+                    req.clean_timeout(node_alias.clone())?;
+                    true
+                }
+            },
             Some(RequestEvent::Timeout(node_alias)) => {
-                state.timeout_nodes.insert(node_alias.clone());
+                replies.add_timeout(node_alias.clone());
                 req.clean_timeout(node_alias.clone())?;
-                // try to continue
-                node_alias
+                true
             }
             None => {
                 return Err(err_msg(
@@ -135,47 +125,13 @@ pub async fn perform_single_request(
                 ))
             }
         };
-        if state.is_consensus_reachable() {
-            req.clean_timeout(node_alias)?;
-            req.send_to_any(1, RequestTimeout::Ack)?;
-            trace!("FIXME Skipped second re-send!");
-        // return Ok(SingleRequestResult::NoConsensus(req.get_timing()));
-        } else {
-            return Ok(SingleRequestResult::NoConsensus(req.get_timing()));
+        if replies.len() >= total_nodes_count {
+            return Ok(ConsensusResult::NoConsensus(req.get_timing()));
         }
-    }
-}
-
-#[derive(Debug)]
-struct SingleState {
-    denied_nodes: HashSet<String>, // FIXME should be map, may be merged with replies
-    replies: HashMap<HashableValue, HashSet<NodeResponse>>,
-    timeout_nodes: HashSet<String>,
-    f: usize,
-    nodes_count: usize,
-}
-
-impl SingleState {
-    fn new(f: usize, nodes_count: usize) -> Self {
-        Self {
-            denied_nodes: HashSet::new(),
-            replies: HashMap::new(),
-            timeout_nodes: HashSet::new(),
-            f,
-            nodes_count,
+        if resend {
+            // FIXME don't send to the same nodes?
+            req.send_to_any(2, RequestTimeout::Ack)?;
         }
-    }
-
-    fn is_consensus_reachable(&self) -> bool {
-        let rep_no: usize = self.replies.values().map(|set| set.len()).sum();
-        let max_no = self
-            .replies
-            .values()
-            .map(|set| set.len())
-            .max()
-            .unwrap_or(0);
-        max_no + self.nodes_count - rep_no - self.timeout_nodes.len() - self.denied_nodes.len()
-            > self.f
     }
 }
 

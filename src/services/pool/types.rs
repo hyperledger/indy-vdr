@@ -1,6 +1,5 @@
 use std::cmp::Eq;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 
 use ursa::bls::VerKey as BlsVerKey;
 
@@ -674,24 +673,5 @@ impl MinValue for Vec<(CatchupRep, usize)> {
         Ok(res
             .ok_or_else(|| err_msg(LedgerErrorKind::InvalidStructure, "Element not Found"))?
             .1)
-    }
-}
-
-#[derive(Debug)]
-pub struct HashableValue {
-    pub inner: serde_json::Value,
-}
-
-impl Eq for HashableValue {}
-
-impl Hash for HashableValue {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        serde_json::to_string(&self.inner).unwrap().hash(state); //TODO
-    }
-}
-
-impl PartialEq for HashableValue {
-    fn eq(&self, other: &HashableValue) -> bool {
-        self.inner.eq(&other.inner)
     }
 }

@@ -1,31 +1,12 @@
-use std::collections::HashMap;
-
 use futures::stream::StreamExt;
 
 use crate::utils::error::prelude::*;
 
 use super::pool::Pool;
 use super::types::Message;
-use super::{RequestEvent, RequestTimeout, TimingResult};
+use super::{NodeReplies, ReplyState, RequestEvent, RequestTimeout, TimingResult};
 
-pub type FullRequestResult = (HashMap<String, FullRequestReply>, Option<TimingResult>);
-
-#[derive(Debug)]
-pub enum FullRequestReply {
-    Reply(String),
-    Failed(String),
-    Timeout(),
-}
-
-impl FullRequestReply {
-    fn to_string(self) -> String {
-        match self {
-            Self::Reply(msg) => msg,
-            Self::Failed(msg) => msg,
-            Self::Timeout() => "timeout".to_owned(),
-        }
-    }
-}
+pub type FullRequestResult = (NodeReplies<String>, Option<TimingResult>);
 
 pub async fn perform_full_request(
     pool: &Pool,
@@ -48,15 +29,15 @@ pub async fn perform_full_request(
         req.send_to_all(timeout)?;
         pool.nodes().len()
     };
-    let mut replies = HashMap::new();
+    let mut replies = ReplyState::new();
     loop {
-        let (node_alias, reply) = match req.next().await {
+        match req.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
                 match parsed {
                     Message::Reply(_) => {
                         trace!("reply on full request");
                         req.clean_timeout(node_alias.clone())?;
-                        (node_alias, FullRequestReply::Reply(raw_msg))
+                        replies.add_reply(node_alias, raw_msg);
                     }
                     Message::ReqACK(_) => {
                         continue;
@@ -64,11 +45,13 @@ pub async fn perform_full_request(
                     _ => {
                         trace!("error on full request");
                         req.clean_timeout(node_alias.clone())?;
-                        (node_alias, FullRequestReply::Failed(raw_msg)) // ReqNACK, Reject
+                        replies.add_failed(node_alias, raw_msg); // ReqNACK, Reject
                     }
                 }
             }
-            Some(RequestEvent::Timeout(node_alias)) => (node_alias, FullRequestReply::Timeout()),
+            Some(RequestEvent::Timeout(node_alias)) => {
+                replies.add_timeout(node_alias);
+            }
             None => {
                 return Err(err_msg(
                     LedgerErrorKind::InvalidState,
@@ -76,9 +59,8 @@ pub async fn perform_full_request(
                 ))
             }
         };
-        replies.insert(node_alias, reply);
         if replies.len() == req_reply_count {
-            return Ok((replies, req.get_timing()));
+            return Ok((replies.result(), req.get_timing()));
         }
     }
 }

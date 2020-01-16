@@ -14,13 +14,11 @@ use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 
 use super::genesis::{build_tree, show_transactions};
 use super::networker::{Networker, NetworkerEvent, ZMQNetworker};
-use super::requests::catchup::{perform_catchup_request, CatchupRequestResult};
-use super::requests::full::{perform_full_request, FullRequestReply};
-use super::requests::single::{perform_single_request, SingleRequestResult};
-use super::requests::status::{perform_status_request, StatusRequestResult};
 use super::requests::{
+    perform_catchup_request, perform_consensus_request, perform_full_request,
+    perform_single_request, perform_status_request, CatchupRequestResult, ConsensusResult,
     RequestDispatchTarget, RequestEvent, RequestExtEvent, RequestHandle, RequestState,
-    RequestTimeout, RequestTiming, TimingResult,
+    RequestTimeout, RequestTiming, SingleReply, StatusRequestResult, TimingResult,
 };
 use super::types::{Nodes, PoolConfig};
 
@@ -116,11 +114,37 @@ pub async fn perform_get_txn(
     trace!("{} {}", req_id, message);
     let result = perform_single_request(pool, &req_id, &message, None, (None, None)).await?;
     match result {
-        SingleRequestResult::Response(message, timing) => {
+        ConsensusResult::Reply(message, timing) => {
             trace!("Got request response {} {:?}", &message, timing);
             Ok((message, timing.unwrap()))
         }
-        SingleRequestResult::NoConsensus(timing) => {
+        ConsensusResult::NoConsensus(timing) => {
+            trace!("No consensus {:?}", timing);
+            Err(err_msg(LedgerErrorKind::PoolTimeout, "No consensus"))
+        }
+    }
+}
+
+// FIXME testing only
+pub async fn perform_get_txn_consensus(
+    pool: &Pool,
+    ledger_type: LedgerType,
+    seq_no: i32,
+) -> LedgerResult<(String, TimingResult)> {
+    let (req_id, message) = _build_get_txn_request(
+        ledger_type.to_id(),
+        seq_no,
+        None,
+        Some(pool.config().protocol_version.to_id()),
+    )?;
+    trace!("{} {}", req_id, message);
+    let result = perform_consensus_request(pool, &req_id, &message).await?;
+    match result {
+        ConsensusResult::Reply(message, timing) => {
+            trace!("Got request response {} {:?}", &message, timing);
+            Ok((message, timing.unwrap()))
+        }
+        ConsensusResult::NoConsensus(timing) => {
             trace!("No consensus {:?}", timing);
             Err(err_msg(LedgerErrorKind::PoolTimeout, "No consensus"))
         }
@@ -140,13 +164,13 @@ pub async fn perform_get_txn_full(
         Some(pool.config().protocol_version.to_id()),
     )?;
     trace!("{} {}", req_id, message);
-    let (result, timing) = perform_full_request(pool, &req_id, &message, None, None).await?;
-    let rows = result
+    let (replies, timing) = perform_full_request(pool, &req_id, &message, None, None).await?;
+    let rows = replies
         .iter()
         .map(|(node_alias, reply)| match reply {
-            FullRequestReply::Reply(msg) => format!("{} {}", node_alias, msg),
-            FullRequestReply::Failed(msg) => format!("{} failed: {}", node_alias, msg),
-            FullRequestReply::Timeout() => format!("{} timeout", node_alias),
+            SingleReply::Reply(msg) => format!("{} {}", node_alias, msg),
+            SingleReply::Failed(msg) => format!("{} failed: {}", node_alias, msg),
+            SingleReply::Timeout() => format!("{} timeout", node_alias),
         })
         .collect::<Vec<String>>();
     Ok((rows.join("\n\n"), timing.unwrap()))
