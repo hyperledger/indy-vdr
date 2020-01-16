@@ -5,13 +5,13 @@ extern crate log;
 use std::cell::Cell;
 use std::rc::Rc;
 
-use log::trace;
-
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
 
 use indy_ledger_client::config::{LedgerResult, PoolFactory};
-use indy_ledger_client::services::pool::{perform_get_txn_full, LedgerType, Pool};
+use indy_ledger_client::services::pool::{
+  perform_get_txn, perform_get_txn_consensus, perform_get_txn_full, LedgerType, Pool,
+};
 
 fn main() {
   env_logger::init();
@@ -26,16 +26,26 @@ fn main() {
   local.block_on(&mut rt, run()).unwrap();
 }
 
-async fn test_get_txn(seq_no: i32, pool: Pool) -> LedgerResult<String> {
-  let result = perform_get_txn_full(&pool, LedgerType::DOMAIN, seq_no)
-    .await
-    .map_err(|err| err.to_string());
-  let msg = if let Ok((msg, timing)) = result {
-    format!("{}\n\n{:?}", msg, timing)
-  } else {
-    format!("{:?}", result)
-  };
-  Ok(msg)
+fn format_result<T: std::fmt::Debug>(result: LedgerResult<(String, T)>) -> LedgerResult<String> {
+  Ok(match result {
+    Ok((msg, timing)) => format!("{}\n\n{:?}", msg, timing),
+    Err(err) => err.to_string(),
+  })
+}
+
+async fn test_get_txn_single(seq_no: i32, pool: Pool) -> LedgerResult<String> {
+  let result = perform_get_txn(&pool, LedgerType::DOMAIN, seq_no).await;
+  format_result(result)
+}
+
+async fn test_get_txn_consensus(seq_no: i32, pool: Pool) -> LedgerResult<String> {
+  let result = perform_get_txn_consensus(&pool, LedgerType::DOMAIN, seq_no).await;
+  format_result(result)
+}
+
+async fn test_get_txn_full(seq_no: i32, pool: Pool) -> LedgerResult<String> {
+  let result = perform_get_txn_full(&pool, LedgerType::DOMAIN, seq_no).await;
+  format_result(result)
 }
 
 async fn handle_request(
@@ -45,7 +55,15 @@ async fn handle_request(
 ) -> Result<Response<Body>, hyper::Error> {
   match (req.method(), req.uri().path()) {
     (&Method::GET, "/") => {
-      let msg = test_get_txn(seq_no, pool).await.unwrap();
+      let msg = test_get_txn_single(seq_no, pool).await.unwrap();
+      Ok::<_, Error>(Response::new(Body::from(msg)))
+    }
+    (&Method::GET, "/consensus") => {
+      let msg = test_get_txn_consensus(seq_no, pool).await.unwrap();
+      Ok::<_, Error>(Response::new(Body::from(msg)))
+    }
+    (&Method::GET, "/full") => {
+      let msg = test_get_txn_full(seq_no, pool).await.unwrap();
       Ok::<_, Error>(Response::new(Body::from(msg)))
     }
     (&Method::GET, _) => {
