@@ -1,162 +1,28 @@
-// use std::collections::BTreeMap;
+/*// use std::collections::BTreeMap;
 use futures::executor::block_on;
 use std::marker::PhantomData;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
-use std::thread::JoinHandle;
+use std::thread::JoinHandle;*/
 
 use crate::domain::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::domain::ledger::request::{get_request_id, Request};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 
-use super::events::PoolEvent;
 use super::genesis::{build_tree, show_transactions};
-use super::networker::{Networker, TimingResult, ZMQNetworker};
+use super::networker::{Pool, TimingResult, ZMQNetworker};
 use super::requests::catchup::{perform_catchup_request, CatchupRequestResult};
 use super::requests::single::{perform_single_request, SingleRequestResult};
 use super::requests::status::{perform_status_request, StatusRequestResult};
-use super::types::{
-    CommandHandle, PoolConfig, DEFAULT_FRESHNESS_TIMEOUT, DEFAULT_REQUEST_READ_NODES,
-};
+use super::types::PoolConfig;
 
 use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
 
-pub trait Pool {
-    fn new(config: PoolConfig) -> Self
-    where
-        Self: Sized;
-    fn connect(&mut self, json_transactions: Vec<String>) -> LedgerResult<CommandHandle>;
-}
-
-pub type ZMQPool = PoolImpl<ZMQNetworker>;
-
-pub struct PoolImpl<T: Networker> {
-    _pd: PhantomData<T>,
-    evt_send: Sender<PoolEvent>,
-    worker: Option<JoinHandle<()>>,
-}
-
-impl<T: Networker> Pool for PoolImpl<T> {
-    fn new(config: PoolConfig) -> PoolImpl<T> {
-        let (evt_send, evt_recv) = channel::<PoolEvent>();
-        let mut result = Self {
-            _pd: PhantomData,
-            evt_send: evt_send.clone(),
-            worker: None,
-        };
-        result.worker.replace(thread::spawn(move || {
-            let mut pool_thread = PoolThread::<T>::new(config, evt_recv, evt_send);
-            pool_thread.work();
-            // FIXME send event when thread exits
-            trace!("Pool thread exited")
-        }));
-        result
-    }
-
-    fn connect(&mut self, json_transactions: Vec<String>) -> LedgerResult<CommandHandle> {
-        let cmd_id = CommandHandle::next();
-        self.send(PoolEvent::Connect(cmd_id, json_transactions))?;
-        Ok(cmd_id)
-    }
-}
-
-impl<T: Networker> PoolImpl<T> {
-    fn send(&self, event: PoolEvent) -> LedgerResult<()> {
-        self.evt_send
-            .send(event)
-            .to_result(LedgerErrorKind::PoolTerminated, "Pool terminated")
-    }
-}
-
-impl<T: Networker> Drop for PoolImpl<T> {
-    fn drop(&mut self) {
-        info!("Drop started");
-        if let Err(_) = self.evt_send.send(PoolEvent::Exit()) {
-            trace!("Pool thread already exited")
-        }
-        if let Some(worker) = self.worker.take() {
-            info!("Drop pool worker");
-            worker.join().unwrap();
-        }
-        info!("Drop finished");
-    }
-}
-
-struct PoolStatusReq {
-    cmd_id: Option<String>,
-    req_id: String,
-}
-
-struct PoolThread<T: Networker> {
-    config: PoolConfig,
-    networker: Option<T>,
-    evt_recv: Receiver<PoolEvent>,
-    evt_send: Sender<PoolEvent>,
-    txns: Vec<String>,
-}
-
-impl<T: Networker> PoolThread<T> {
-    pub fn new(
-        config: PoolConfig,
-        evt_recv: Receiver<PoolEvent>,
-        evt_send: Sender<PoolEvent>,
-    ) -> Self {
-        Self {
-            config,
-            networker: None,
-            evt_recv,
-            evt_send,
-            txns: vec![],
-        }
-    }
-
-    pub fn work(&mut self) {
-        loop {
-            let evt = match self.evt_recv.recv() {
-                Ok(msg) => msg,
-                _ => {
-                    trace!("Pool thread exited");
-                    return;
-                }
-            };
-            if self.handle_event(evt) {
-                break;
-            }
-        }
-    }
-
-    fn connect(&mut self, txns: Vec<String>) -> LedgerResult<()> {
-        let networker = T::new(self.config, txns.clone(), vec![])?;
-        block_on(
-            // perform_connect(txns, &networker)
-            perform_get_txn(LedgerType::DOMAIN, 2, &networker),
-        )
-        .unwrap();
-        self.networker = Some(networker);
-        Ok(())
-    }
-
-    fn handle_event(&mut self, event: PoolEvent) -> bool {
-        match event {
-            PoolEvent::Connect(_cmd_id, txns) => {
-                // FIXME handle error, send update to listener
-                self.connect(txns).unwrap();
-            }
-            PoolEvent::Exit() => {
-                // networker(s) automatically dropped
-                return true;
-            } /*
-              _ => trace!("Unhandled event {:?}", event),
-              */
-        };
-        false
-    }
-}
-
-pub async fn perform_connect<T: Networker>(txns: Vec<String>, networker: &T) -> LedgerResult<()> {
+pub async fn connect(config: PoolConfig, txns: Vec<String>) -> LedgerResult<Pool> {
+    let pool = ZMQNetworker::create_pool(config, txns.clone(), vec![])?;
     let merkle_tree = build_tree(&txns)?;
-    let result = perform_status_request(merkle_tree, networker).await?;
+    let result = perform_status_request(&pool, merkle_tree).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         StatusRequestResult::CatchupTargetFound(mt_root, mt_size, timing) => {
@@ -166,7 +32,8 @@ pub async fn perform_connect<T: Networker>(txns: Vec<String>, networker: &T) -> 
                 mt_size,
                 timing
             );
-            perform_catchup(txns, networker, mt_root, mt_size).await
+            perform_catchup(&pool, txns, mt_root, mt_size).await?;
+            Ok(pool)
         }
         StatusRequestResult::CatchupTargetNotFound(err, timing) => {
             trace!("Catchup target not found {:?}", timing);
@@ -174,24 +41,24 @@ pub async fn perform_connect<T: Networker>(txns: Vec<String>, networker: &T) -> 
         }
         StatusRequestResult::Synced(timing) => {
             trace!("Synced! {:?}", timing);
-            Ok(())
+            Ok(pool)
         }
     }
 }
 
-pub async fn perform_catchup<T: Networker>(
+pub async fn perform_catchup(
+    pool: &Pool,
     txns: Vec<String>,
-    networker: &T,
     mt_root: Vec<u8>,
     mt_size: usize,
 ) -> LedgerResult<()> {
     let merkle_tree = build_tree(&txns)?;
-    let catchup_result = perform_catchup_request(merkle_tree, mt_root, mt_size, networker).await?;
+    let catchup_result = perform_catchup_request(pool, merkle_tree, mt_root, mt_size).await?;
     trace!("Got catchup result: {:?}", &catchup_result);
     match catchup_result {
         CatchupRequestResult::Synced(txns, timing) => {
             trace!("Catchup synced! {:?}", timing);
-            let txns = show_transactions(&txns, networker.protocol_version())?;
+            let txns = show_transactions(&txns, pool.config().protocol_version)?;
             for txn in txns {
                 print!("{}\n", txn);
             }
@@ -207,7 +74,7 @@ pub async fn perform_catchup<T: Networker>(
     }
 }
 
-fn build_get_txn_request(
+fn _build_get_txn_request(
     ledger_type: i32,
     seq_no: i32,
     identifier: Option<&DidValue>,
@@ -227,28 +94,19 @@ fn build_get_txn_request(
     Ok((format!("{}", req_id), body))
 }
 
-pub async fn perform_get_txn<T: Networker>(
+pub async fn perform_get_txn(
+    pool: &Pool,
     ledger_type: LedgerType,
     seq_no: i32,
-    networker: &T,
 ) -> LedgerResult<(String, TimingResult)> {
-    let (req_id, message) = build_get_txn_request(
+    let (req_id, message) = _build_get_txn_request(
         ledger_type.to_id(),
         seq_no,
         None,
-        Some(networker.protocol_version().to_id()),
+        Some(pool.config().protocol_version.to_id()),
     )?;
     trace!("{} {}", req_id, message);
-    let result = perform_single_request(
-        &req_id,
-        &message,
-        None,
-        (None, None),
-        DEFAULT_FRESHNESS_TIMEOUT, // FIXME - take from PoolConfig
-        DEFAULT_REQUEST_READ_NODES,
-        networker,
-    )
-    .await?;
+    let result = perform_single_request(pool, &req_id, &message, None, (None, None)).await?;
     match result {
         SingleRequestResult::Response(message, timing) => {
             trace!("Got request response {} {:?}", &message, timing);

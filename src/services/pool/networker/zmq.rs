@@ -1,14 +1,11 @@
 extern crate zmq;
 
-use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::rc::Rc;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
-use futures::channel::mpsc::{channel, Sender};
-use futures::future::{lazy, FutureExt, LocalBoxFuture};
+use futures::channel::mpsc::Sender;
 
 use rand::seq::SliceRandom;
 
@@ -20,8 +17,8 @@ use crate::utils::error::prelude::*;
 use super::super::genesis::build_node_state_from_json;
 use super::super::types::{Message, Nodes, PoolConfig};
 use super::{
-    Networker, NetworkerEvent, NetworkerHandle, NetworkerRequest, NetworkerRequestImpl,
-    NetworkerSender, RequestDispatchTarget, RequestExtEvent, RequestHandle, RequestTimeout,
+    Networker, NetworkerEvent, Pool, RequestDispatchTarget, RequestExtEvent, RequestHandle,
+    RequestTimeout,
 };
 
 use base64;
@@ -30,132 +27,52 @@ use ursa::bls::VerKey as BlsVerKey;
 use zmq::PollItem;
 use zmq::Socket as ZSocket;
 
-new_handle_type!(ZMQConnectionHandle, PHC_COUNTER);
+new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
+
+new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 
 pub struct ZMQNetworker {
-    id: NetworkerHandle,
-    instance: Option<Rc<RefCell<ZMQNetworkerInstance>>>,
-    protocol_version: ProtocolVersion,
-    nodes: Nodes,
-}
-
-impl Networker for ZMQNetworker {
-    fn new(
-        config: PoolConfig,
-        transactions: Vec<String>,
-        preferred_nodes: Vec<String>,
-    ) -> LedgerResult<Self> {
-        let id = NetworkerHandle::next();
-        let (nodes, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
-        let mut result = ZMQNetworker {
-            id,
-            instance: None,
-            protocol_version: config.protocol_version,
-            nodes: nodes.clone(),
-        };
-        result.start(config, nodes, remotes, preferred_nodes);
-        Ok(result)
-    }
-
-    fn get_id(&self) -> NetworkerHandle {
-        self.id
-    }
-
-    fn create_request<'a>(
-        &'a self,
-        req_id: String,
-        req_json: String,
-    ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn NetworkerRequest>>> {
-        let instance = self.instance.clone();
-        lazy(move |_| {
-            if let Some(instance) = instance {
-                // FIXME - use unbounded channel? or dispatch from a queue
-                let (tx, rx) = channel(10);
-                trace!("{}", &req_json);
-                let handle = RequestHandle::next();
-                instance
-                    .borrow_mut()
-                    .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
-                Ok(
-                    Box::new(NetworkerRequestImpl::new(handle, rx, instance.clone()))
-                        as Box<dyn NetworkerRequest>,
-                )
-            } else {
-                Err(err_msg(
-                    LedgerErrorKind::InvalidState,
-                    "Networker not running",
-                ))
-            }
-        })
-        .boxed_local()
-    }
-
-    fn protocol_version(&self) -> ProtocolVersion {
-        return self.protocol_version;
-    }
-
-    fn get_nodes(&self) -> Nodes {
-        return self.nodes.clone();
-    }
-
-    fn nodes_count(&self) -> usize {
-        return self.nodes.len();
-    }
+    cmd_send: zmq::Socket,
+    evt_send: mpsc::Sender<NetworkerEvent>,
+    worker: Option<thread::JoinHandle<()>>,
 }
 
 impl ZMQNetworker {
-    fn start(
-        &mut self,
+    pub fn create_pool(
         config: PoolConfig,
-        nodes: Nodes,
-        remotes: Vec<RemoteNode>,
+        transactions: Vec<String>,
         preferred_nodes: Vec<String>,
-    ) {
+    ) -> LedgerResult<Pool> {
+        let (nodes, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
         let mut weights: Vec<f32> = vec![1.0; remotes.len()];
         for name in preferred_nodes {
             if let Some(index) = remotes.iter().position(|node| node.name == name) {
                 weights[index] = 2.0;
             }
         }
-        let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", self.id.value()));
-        let (req_send, req_recv) = mpsc::channel::<NetworkerEvent>();
+        let socket_handle = ZMQSocketHandle::next().value();
+        let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
+        let (evt_send, evt_recv) = mpsc::channel::<NetworkerEvent>();
+        let worker_nodes = nodes.clone();
         let worker = thread::spawn(move || {
             let mut zmq_thread =
-                ZMQThread::new(config, cmd_recv, req_recv, nodes, remotes, weights);
+                ZMQThread::new(config, cmd_recv, evt_recv, worker_nodes, remotes, weights);
             if let Err(err) = zmq_thread.work() {
                 error!("ZMQ worker exited with error: {}", err.to_string())
             } else {
                 trace!("ZMQ worker exited");
             }
         });
-        self.instance
-            .replace(Rc::new(RefCell::new(ZMQNetworkerInstance::new(
-                cmd_send, req_send, worker,
-            ))));
-    }
-}
-
-struct ZMQNetworkerInstance {
-    cmd_send: zmq::Socket,
-    evt_send: mpsc::Sender<NetworkerEvent>,
-    worker: Option<thread::JoinHandle<()>>,
-}
-
-impl ZMQNetworkerInstance {
-    fn new(
-        cmd_send: zmq::Socket,
-        evt_send: mpsc::Sender<NetworkerEvent>,
-        worker: thread::JoinHandle<()>,
-    ) -> Self {
-        Self {
+        let instance = Arc::new(RwLock::new(Self {
             cmd_send,
             evt_send,
             worker: Some(worker),
-        }
+        }));
+        Ok(Pool::new(config, instance, nodes))
     }
 }
 
-impl NetworkerSender for ZMQNetworkerInstance {
+impl Networker for ZMQNetworker {
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
         self.evt_send
             .send(event)
@@ -168,7 +85,7 @@ impl NetworkerSender for ZMQNetworkerInstance {
     }
 }
 
-impl Drop for ZMQNetworkerInstance {
+impl Drop for ZMQNetworker {
     fn drop(&mut self) {
         if let Err(_) = self.cmd_send.send("exit", 0) {
             trace!("Networker command socket already closed")

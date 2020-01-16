@@ -12,7 +12,7 @@ use crate::domain::ledger::response::Message as LedgerMessage;
 use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 
-use super::networker::{Networker, RequestEvent, RequestTimeout, TimingResult};
+use super::networker::{Pool, RequestEvent, RequestTimeout, TimingResult};
 use super::state_proof;
 use super::types::{HashableValue, Message, Nodes, DEFAULT_GENERATOR};
 use super::{get_f, get_msg_result_without_state_proof};
@@ -26,26 +26,25 @@ pub enum SingleRequestResult {
     ),
 }
 
-pub async fn perform_single_request<T: Networker>(
+pub async fn perform_single_request(
+    pool: &Pool,
     req_id: &str,
     req_json: &str,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
-    freshness_threshold: u64,
-    read_nodes: usize,
-    networker: &T,
 ) -> LedgerResult<SingleRequestResult> {
     trace!("fetch single request");
-    let mut req = networker
+    let mut req = pool
         .create_request(req_id.to_owned(), req_json.to_owned())
         .await?;
-    let nodes = networker.get_nodes();
+    let config = pool.config();
+    let nodes = pool.nodes();
     let f = get_f(nodes.len());
     let mut state = SingleState::new(f, nodes.len());
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
 
-    req.send_to_any(read_nodes, RequestTimeout::Ack)?;
+    req.send_to_any(config.request_read_nodes, RequestTimeout::Ack)?;
     loop {
         let node_alias = match req.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
@@ -89,7 +88,7 @@ pub async fn perform_single_request<T: Networker>(
                                     state_proof_key.as_ref().map(Vec::as_slice),
                                     state_proof_timestamps,
                                     last_write_time,
-                                    freshness_threshold,
+                                    config.freshness_threshold,
                                 )
                             {
                                 return Ok(SingleRequestResult::Response(

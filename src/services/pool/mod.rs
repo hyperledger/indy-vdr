@@ -10,8 +10,8 @@ mod requests;
 mod state_proof;
 mod types;
 
-pub use networker::{Networker, ZMQNetworker};
-pub use pool::{perform_get_txn, Pool, ZMQPool};
+pub use networker::{Pool, ZMQNetworker};
+pub use pool::perform_get_txn;
 pub use types::PoolConfig;
 
 use crate::domain::ledger::txn;

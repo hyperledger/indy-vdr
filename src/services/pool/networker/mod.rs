@@ -1,20 +1,18 @@
 #![warn(dead_code)]
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::pin::Pin;
-use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
 
-use futures::channel::mpsc::{Receiver, Sender};
-use futures::future::LocalBoxFuture;
+use futures::channel::mpsc::{channel, Receiver, Sender};
+use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use futures::stream::{FusedStream, Stream};
 use futures::task::{Context, Poll};
 
 use pin_utils::unsafe_pinned;
 
-use crate::domain::pool::ProtocolVersion;
 use crate::utils::error::prelude::*;
 
 use super::types::{Message, Nodes, PoolConfig};
@@ -23,8 +21,6 @@ mod zmq;
 pub use self::zmq::ZMQNetworker;
 
 new_handle_type!(RequestHandle, RQ_COUNTER);
-
-new_handle_type!(NetworkerHandle, NH_COUNTER);
 
 #[derive(Debug)]
 enum NetworkerEvent {
@@ -157,14 +153,12 @@ impl RequestTiming {
     }
 }
 
-trait NetworkerSender: Sized {
+pub trait Networker {
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()>;
 }
 
 #[must_use = "requests do nothing unless polled"]
-pub trait NetworkerRequest:
-    std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin
-{
+pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
     fn clean_timeout(&self, node_alias: String) -> LedgerResult<()>;
     fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()>;
     fn get_timing(&self) -> Option<TimingResult>;
@@ -174,41 +168,46 @@ pub trait NetworkerRequest:
     fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()>;
 }
 
-struct NetworkerRequestImpl<T: NetworkerSender> {
+struct PoolRequestImpl {
     handle: RequestHandle,
     events: Option<Receiver<RequestExtEvent>>,
-    sender: Rc<RefCell<T>>,
+    networker: Arc<RwLock<dyn Networker>>,
     state: RequestState,
     timing: RequestTiming,
 }
 
-impl<T: NetworkerSender> NetworkerRequestImpl<T> {
+impl PoolRequestImpl {
     unsafe_pinned!(events: Option<Receiver<RequestExtEvent>>);
 
     fn new(
         handle: RequestHandle,
         events: Receiver<RequestExtEvent>,
-        sender: Rc<RefCell<T>>,
+        networker: Arc<RwLock<dyn Networker>>,
     ) -> Self {
         Self {
             handle,
             events: Some(events),
-            sender,
+            networker,
             state: RequestState::NotStarted,
             timing: RequestTiming::new(),
         }
     }
+
+    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+        self.networker
+            .read()
+            .map_err(|err| err_msg(LedgerErrorKind::InvalidState, "Error sending to networker"))?
+            .send(event)
+    }
 }
 
-impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
+impl PoolRequest for PoolRequestImpl {
     fn clean_timeout(&self, node_alias: String) -> LedgerResult<()> {
-        self.sender
-            .borrow_mut()
-            .send(NetworkerEvent::CleanTimeout(self.handle, node_alias))
+        self.send(NetworkerEvent::CleanTimeout(self.handle, node_alias))
     }
 
     fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.sender.borrow_mut().send(NetworkerEvent::ExtendTimeout(
+        self.send(NetworkerEvent::ExtendTimeout(
             self.handle,
             node_alias,
             timeout,
@@ -224,7 +223,7 @@ impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
     }
 
     fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.sender.borrow_mut().send(NetworkerEvent::Dispatch(
+        self.send(NetworkerEvent::Dispatch(
             self.handle,
             RequestDispatchTarget::AllNodes,
             timeout,
@@ -232,7 +231,7 @@ impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
     }
 
     fn send_to_any(&self, count: usize, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.sender.borrow_mut().send(NetworkerEvent::Dispatch(
+        self.send(NetworkerEvent::Dispatch(
             self.handle,
             RequestDispatchTarget::AnyNodes(count),
             timeout,
@@ -240,7 +239,7 @@ impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
     }
 
     fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.sender.borrow_mut().send(NetworkerEvent::Dispatch(
+        self.send(NetworkerEvent::Dispatch(
             self.handle,
             RequestDispatchTarget::SelectNodes(node_aliases),
             timeout,
@@ -248,23 +247,21 @@ impl<T: NetworkerSender> NetworkerRequest for NetworkerRequestImpl<T> {
     }
 }
 
-impl<T: NetworkerSender> std::fmt::Debug for NetworkerRequestImpl<T> {
+impl std::fmt::Debug for PoolRequestImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "NetworkerRequest({}, state={})",
+            "PoolRequest({}, state={})",
             self.handle.value(),
             self.state
         )
     }
 }
 
-impl<T: NetworkerSender> Drop for NetworkerRequestImpl<T> {
+impl Drop for PoolRequestImpl {
     fn drop(&mut self) {
         trace!("Finish dropped request: {}", self.handle);
-        self.sender
-            .borrow_mut()
-            .send(NetworkerEvent::FinishRequest(self.handle))
+        self.send(NetworkerEvent::FinishRequest(self.handle))
             .unwrap_or(()) // don't mind if the receiver disconnected
     }
 }
@@ -285,7 +282,7 @@ impl Drop for ZMQRequest {
 }
 */
 
-impl<T: NetworkerSender> Stream for NetworkerRequestImpl<T> {
+impl Stream for PoolRequestImpl {
     type Item = RequestEvent;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -347,32 +344,59 @@ impl<T: NetworkerSender> Stream for NetworkerRequestImpl<T> {
     }
 }
 
-impl<T: NetworkerSender> FusedStream for NetworkerRequestImpl<T> {
+impl FusedStream for PoolRequestImpl {
     fn is_terminated(&self) -> bool {
         self.state == RequestState::Terminated
     }
 }
 
-pub trait Networker: Sized {
-    fn new(
-        config: PoolConfig,
-        transactions: Vec<String>,
-        preferred_nodes: Vec<String>,
-    ) -> LedgerResult<Self>;
+pub struct Pool {
+    config: PoolConfig,
+    networker: Arc<RwLock<dyn Networker>>,
+    nodes: Nodes,
+}
 
-    fn get_id(&self) -> NetworkerHandle;
+impl Pool {
+    fn new(config: PoolConfig, networker: Arc<RwLock<dyn Networker>>, nodes: Nodes) -> Self {
+        Self {
+            config,
+            networker,
+            nodes,
+        }
+    }
 
-    fn create_request<'a>(
+    pub fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
-    ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn NetworkerRequest>>>;
+    ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn PoolRequest>>> {
+        let instance = self.networker.clone();
+        lazy(move |_| {
+            // FIXME - use unbounded channel? or require networker to dispatch from a queue
+            let (tx, rx) = channel(10);
+            trace!("{}", &req_json);
+            let handle = RequestHandle::next();
+            instance
+                .read()
+                .unwrap()
+                .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
+            Ok(Box::new(PoolRequestImpl::new(handle, rx, instance.clone()))
+                as Box<dyn PoolRequest>)
+        })
+        .boxed_local()
+    }
 
-    fn protocol_version(&self) -> ProtocolVersion;
+    pub fn config(&self) -> PoolConfig {
+        return self.config;
+    }
 
-    fn get_nodes(&self) -> Nodes;
+    pub fn nodes(&self) -> Nodes {
+        return self.nodes.clone();
+    }
 
-    fn nodes_count(&self) -> usize;
+    pub fn nodes_count(&self) -> usize {
+        return self.nodes.len();
+    }
 }
 
 /*

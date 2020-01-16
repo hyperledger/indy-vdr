@@ -11,7 +11,7 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Request, Response, Server};
 
 use indy_ledger_client::config::{LedgerResult, PoolFactory};
-use indy_ledger_client::services::pool::{perform_get_txn, LedgerType, ZMQNetworker};
+use indy_ledger_client::services::pool::{perform_get_txn, LedgerType, Pool};
 
 fn main() {
   env_logger::init();
@@ -27,9 +27,9 @@ fn main() {
   //local.block_on(&mut rt, test_get_txn()).unwrap();
 }
 
-async fn test_get_txn(seq_no: i32, networker: Rc<ZMQNetworker>) -> LedgerResult<String> {
+async fn test_get_txn(seq_no: i32, pool: Rc<Pool>) -> LedgerResult<String> {
   trace!("here");
-  let result = perform_get_txn(LedgerType::DOMAIN, seq_no, networker.as_ref())
+  let result = perform_get_txn(pool.as_ref(), LedgerType::DOMAIN, seq_no)
     .await
     .map_err(|err| err.to_string());
   let msg = if let Ok((msg, timing)) = result {
@@ -43,9 +43,9 @@ async fn test_get_txn(seq_no: i32, networker: Rc<ZMQNetworker>) -> LedgerResult<
 async fn handle_request(
   _req: Request<Body>,
   seq_no: i32,
-  networker: Rc<ZMQNetworker>,
+  pool: Rc<Pool>,
 ) -> Result<Response<Body>, hyper::Error> {
-  let msg = test_get_txn(seq_no, networker).await.unwrap();
+  let msg = test_get_txn(seq_no, pool).await.unwrap();
   Ok::<_, Error>(Response::new(Body::from(msg)))
 }
 
@@ -53,18 +53,18 @@ async fn run() -> LedgerResult<()> {
   let addr = ([127, 0, 0, 1], 3000).into();
 
   let factory = PoolFactory::from_genesis_file("genesis.txn")?;
-  let networker = Rc::new(factory.create_networker()?);
+  let pool = Rc::new(factory.create_pool()?);
   let count = Rc::new(Cell::new(1i32));
 
   let make_service = make_service_fn(move |_| {
-    let net = networker.clone();
+    let pool = pool.clone();
     let count = count.clone();
     async move {
       Ok::<_, Error>(service_fn(move |req| {
         let prev = count.get();
         count.set(prev + 1);
         let seq_no = count.get();
-        handle_request(req, seq_no, net.to_owned())
+        handle_request(req, seq_no, pool.to_owned())
       }))
     }
   });

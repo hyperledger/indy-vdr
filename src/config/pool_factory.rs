@@ -6,7 +6,7 @@ use std::{fs, io};
 use serde_json;
 
 use crate::domain::pool::ProtocolVersion;
-use crate::services::pool::{Networker, Pool, PoolConfig, ZMQNetworker, ZMQPool};
+use crate::services::pool::{Pool, PoolConfig, ZMQNetworker};
 use crate::utils::error::prelude::*;
 
 #[derive(Debug)]
@@ -39,16 +39,8 @@ impl PoolFactory {
         self.config.protocol_version = version
     }
 
-    pub fn create_pool(&self) -> LedgerResult<Box<dyn Pool>> {
-        let mut pool = ZMQPool::new(self.config);
-        let cmd_id = pool.connect(self.transactions.clone())?;
-        print!("connected {}\n", cmd_id);
-        Ok(Box::new(pool))
-    }
-
-    pub fn create_networker(&self) -> LedgerResult<ZMQNetworker> {
-        let networker = ZMQNetworker::new(self.config, self.transactions.clone(), vec![])?;
-        Ok(networker)
+    pub fn create_pool(&self) -> LedgerResult<Pool> {
+        ZMQNetworker::create_pool(self.config, self.transactions.clone(), vec![])
     }
 }
 

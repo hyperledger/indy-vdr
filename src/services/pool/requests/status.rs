@@ -10,7 +10,7 @@ use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-use super::networker::{Networker, RequestEvent, RequestTimeout, TimingResult};
+use super::networker::{Pool, RequestEvent, RequestTimeout, TimingResult};
 use super::types::{LedgerStatus, Message};
 use super::{check_cons_proofs, get_f, serialize_message};
 
@@ -36,15 +36,15 @@ enum CatchupProgress {
     Timeout,
 }
 
-pub async fn perform_status_request<T: Networker>(
+pub async fn perform_status_request(
+    pool: &Pool,
     merkle: MerkleTree,
-    networker: &T,
 ) -> LedgerResult<StatusRequestResult> {
     trace!("fetch status");
-    let message = build_ledger_status_req(&merkle, networker.protocol_version())?;
+    let message = build_ledger_status_req(&merkle, pool.config().protocol_version)?;
     let (req_id, req_json) = serialize_message(&message)?;
-    let mut req = networker.create_request(req_id, req_json).await?;
-    let mut handler = StatusRequestHandler::new(merkle, networker.nodes_count());
+    let mut req = pool.create_request(req_id, req_json).await?;
+    let mut handler = StatusRequestHandler::new(merkle, pool.nodes_count());
     req.send_to_all(RequestTimeout::Default)?;
     loop {
         let response = match req.next().await {
