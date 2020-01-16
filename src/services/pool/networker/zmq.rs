@@ -302,7 +302,7 @@ impl ZMQThread {
                     let active = self
                         .pool_connections
                         .get(&req.conn_id)
-                        .map(|pc| !pc.has_active_timeouts(&req.sub_id))
+                        .map(|pc| pc.has_active_timeouts(&req.sub_id))
                         .unwrap_or(false);
                     Some((*handle, active))
                 } else {
@@ -737,10 +737,13 @@ impl ZMQConnection {
     }
 
     fn has_active_timeouts(&self, req_id: &str) -> bool {
-        self.timeouts
+        let result = self
+            .timeouts
             .keys()
             .find(|&(req_id_timeout, _)| req_id_timeout == req_id)
-            .is_some()
+            .is_some();
+        trace!("check timeouts {} {} {:?}", result, &req_id, self.timeouts);
+        result
     }
 
     fn seen_request(&self, req_id: &str) -> bool {
