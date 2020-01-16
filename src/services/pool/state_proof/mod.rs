@@ -8,7 +8,7 @@ use rlp::UntrustedRlp;
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use super::events::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
+use super::requests::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
 use super::types::*;
 use crate::domain::ledger::constants;
 use crate::domain::pool::ProtocolVersion;

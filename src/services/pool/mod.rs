@@ -2,7 +2,6 @@ extern crate rand;
 extern crate rmp_serde;
 extern crate time;
 
-mod events;
 mod genesis;
 mod networker;
 mod pool;
@@ -10,8 +9,8 @@ mod requests;
 mod state_proof;
 mod types;
 
-pub use networker::{Pool, ZMQNetworker};
-pub use pool::perform_get_txn;
+pub use networker::{Networker, ZMQNetworker};
+pub use pool::{perform_get_txn, Pool};
 pub use types::PoolConfig;
 
 use crate::domain::ledger::txn;

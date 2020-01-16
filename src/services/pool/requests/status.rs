@@ -10,9 +10,11 @@ use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-use super::networker::{Pool, RequestEvent, RequestTimeout, TimingResult};
+use super::pool::Pool;
 use super::types::{LedgerStatus, Message};
-use super::{check_cons_proofs, get_f, serialize_message};
+use super::{
+    check_cons_proofs, get_f, serialize_message, RequestEvent, RequestTimeout, TimingResult,
+};
 
 #[derive(Debug)]
 pub enum StatusRequestResult {

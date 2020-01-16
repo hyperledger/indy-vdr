@@ -12,10 +12,12 @@ use crate::domain::ledger::response::Message as LedgerMessage;
 use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 
-use super::networker::{Pool, RequestEvent, RequestTimeout, TimingResult};
+use super::pool::Pool;
 use super::state_proof;
 use super::types::{HashableValue, Message, Nodes, DEFAULT_GENERATOR};
-use super::{get_f, get_msg_result_without_state_proof};
+use super::{
+    get_f, get_msg_result_without_state_proof, RequestEvent, RequestTimeout, TimingResult,
+};
 
 #[derive(Debug)]
 pub enum SingleRequestResult {

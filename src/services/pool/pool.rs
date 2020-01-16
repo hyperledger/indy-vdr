@@ -1,20 +1,27 @@
-/*// use std::collections::BTreeMap;
-use futures::executor::block_on;
-use std::marker::PhantomData;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread;
-use std::thread::JoinHandle;*/
+use std::pin::Pin;
+use std::sync::{Arc, RwLock};
+
+use futures::channel::mpsc::{channel, Receiver};
+use futures::future::{lazy, FutureExt, LocalBoxFuture};
+use futures::stream::{FusedStream, Stream};
+use futures::task::{Context, Poll};
+
+use pin_utils::unsafe_pinned;
 
 use crate::domain::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::domain::ledger::request::{get_request_id, Request};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 
 use super::genesis::{build_tree, show_transactions};
-use super::networker::{Pool, TimingResult, ZMQNetworker};
+use super::networker::{Networker, NetworkerEvent, ZMQNetworker};
 use super::requests::catchup::{perform_catchup_request, CatchupRequestResult};
 use super::requests::single::{perform_single_request, SingleRequestResult};
 use super::requests::status::{perform_status_request, StatusRequestResult};
-use super::types::PoolConfig;
+use super::requests::{
+    RequestDispatchTarget, RequestEvent, RequestExtEvent, RequestHandle, RequestState,
+    RequestTimeout, RequestTiming, TimingResult,
+};
+use super::types::{Nodes, PoolConfig};
 
 use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
@@ -116,6 +123,248 @@ pub async fn perform_get_txn(
             trace!("No consensus {:?}", timing);
             Err(err_msg(LedgerErrorKind::PoolTimeout, "No consensus"))
         }
+    }
+}
+
+#[must_use = "requests do nothing unless polled"]
+pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
+    fn clean_timeout(&self, node_alias: String) -> LedgerResult<()>;
+    fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn get_timing(&self) -> Option<TimingResult>;
+    fn is_active(&self) -> bool;
+    fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn send_to_any(&self, count: usize, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()>;
+}
+
+struct PoolRequestImpl {
+    handle: RequestHandle,
+    events: Option<Receiver<RequestExtEvent>>,
+    networker: Arc<RwLock<dyn Networker>>,
+    state: RequestState,
+    timing: RequestTiming,
+}
+
+impl PoolRequestImpl {
+    unsafe_pinned!(events: Option<Receiver<RequestExtEvent>>);
+
+    fn new(
+        handle: RequestHandle,
+        events: Receiver<RequestExtEvent>,
+        networker: Arc<RwLock<dyn Networker>>,
+    ) -> Self {
+        Self {
+            handle,
+            events: Some(events),
+            networker,
+            state: RequestState::NotStarted,
+            timing: RequestTiming::new(),
+        }
+    }
+
+    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+        self.networker
+            .read()
+            .map_err(|_| err_msg(LedgerErrorKind::InvalidState, "Error sending to networker"))?
+            .send(event)
+    }
+}
+
+impl PoolRequest for PoolRequestImpl {
+    fn clean_timeout(&self, node_alias: String) -> LedgerResult<()> {
+        self.send(NetworkerEvent::CleanTimeout(self.handle, node_alias))
+    }
+
+    fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()> {
+        self.send(NetworkerEvent::ExtendTimeout(
+            self.handle,
+            node_alias,
+            timeout,
+        ))
+    }
+
+    fn get_timing(&self) -> Option<TimingResult> {
+        self.timing.get_result()
+    }
+
+    fn is_active(&self) -> bool {
+        self.state == RequestState::Active
+    }
+
+    fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()> {
+        self.send(NetworkerEvent::Dispatch(
+            self.handle,
+            RequestDispatchTarget::AllNodes,
+            timeout,
+        ))
+    }
+
+    fn send_to_any(&self, count: usize, timeout: RequestTimeout) -> LedgerResult<()> {
+        self.send(NetworkerEvent::Dispatch(
+            self.handle,
+            RequestDispatchTarget::AnyNodes(count),
+            timeout,
+        ))
+    }
+
+    fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()> {
+        self.send(NetworkerEvent::Dispatch(
+            self.handle,
+            RequestDispatchTarget::SelectNodes(node_aliases),
+            timeout,
+        ))
+    }
+}
+
+impl std::fmt::Debug for PoolRequestImpl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "PoolRequest({}, state={})",
+            self.handle.value(),
+            self.state
+        )
+    }
+}
+
+impl Drop for PoolRequestImpl {
+    fn drop(&mut self) {
+        trace!("Finish dropped request: {}", self.handle);
+        self.send(NetworkerEvent::FinishRequest(self.handle))
+            .unwrap_or(()) // don't mind if the receiver disconnected
+    }
+}
+
+/*
+impl Drop for ZMQRequest {
+    fn drop(&mut self) {
+        self.events.close();
+        if !self.events.is_terminated() {
+            trace!("draining zmq request");
+            loop {
+                if let Err(_) = self.events.try_next() {
+                    break;
+                }
+            }
+        }
+    }
+}
+*/
+
+impl Stream for PoolRequestImpl {
+    type Item = RequestEvent;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        loop {
+            trace!("poll_next");
+            match self.state {
+                RequestState::NotStarted => {
+                    if let Some(events) = self.as_mut().events().as_pin_mut() {
+                        match events.poll_next(cx) {
+                            Poll::Ready(val) => {
+                                if let Some(RequestExtEvent::Init()) = val {
+                                    trace!("got init!");
+                                    self.state = RequestState::Active;
+                                } else {
+                                    // events.close(); ?
+                                    self.as_mut().events().set(None);
+                                    self.state = RequestState::Terminated
+                                }
+                            }
+                            Poll::Pending => return Poll::Pending,
+                        }
+                    } else {
+                        self.state = RequestState::Terminated
+                    }
+                }
+                RequestState::Active => {
+                    if let Some(events) = self.as_mut().events().as_pin_mut() {
+                        match events.poll_next(cx) {
+                            Poll::Ready(val) => match val {
+                                Some(RequestExtEvent::Sent(alias, when, _index)) => {
+                                    trace!("sent {}", alias);
+                                    self.timing.sent(&alias, when)
+                                }
+                                Some(RequestExtEvent::Received(alias, message, meta, when)) => {
+                                    trace!("received {}", alias);
+                                    self.timing.received(&alias, when);
+                                    return Poll::Ready(Some(RequestEvent::Received(
+                                        alias, message, meta,
+                                    )));
+                                }
+                                Some(RequestExtEvent::Timeout(alias)) => {
+                                    return Poll::Ready(Some(RequestEvent::Timeout(alias)));
+                                }
+                                _ => {
+                                    // events.close(); ?
+                                    self.as_mut().events().set(None);
+                                    self.state = RequestState::Terminated
+                                }
+                            },
+                            Poll::Pending => return Poll::Pending,
+                        }
+                    } else {
+                        self.state = RequestState::Terminated
+                    }
+                }
+                RequestState::Terminated => return Poll::Ready(None),
+            }
+        }
+    }
+}
+
+impl FusedStream for PoolRequestImpl {
+    fn is_terminated(&self) -> bool {
+        self.state == RequestState::Terminated
+    }
+}
+
+pub struct Pool {
+    config: PoolConfig,
+    networker: Arc<RwLock<dyn Networker>>,
+    nodes: Nodes,
+}
+
+impl Pool {
+    pub fn new(config: PoolConfig, networker: Arc<RwLock<dyn Networker>>, nodes: Nodes) -> Self {
+        Self {
+            config,
+            networker,
+            nodes,
+        }
+    }
+
+    pub fn create_request<'a>(
+        &'a self,
+        req_id: String,
+        req_json: String,
+    ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn PoolRequest>>> {
+        let instance = self.networker.clone();
+        lazy(move |_| {
+            // FIXME - use unbounded channel? or require networker to dispatch from a queue
+            let (tx, rx) = channel(10);
+            trace!("{}", &req_json);
+            let handle = RequestHandle::next();
+            instance
+                .read()
+                .unwrap()
+                .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
+            Ok(Box::new(PoolRequestImpl::new(handle, rx, instance.clone()))
+                as Box<dyn PoolRequest>)
+        })
+        .boxed_local()
+    }
+
+    pub fn config(&self) -> PoolConfig {
+        return self.config;
+    }
+
+    pub fn nodes(&self) -> Nodes {
+        return self.nodes.clone();
+    }
+
+    pub fn nodes_count(&self) -> usize {
+        return self.nodes.len();
     }
 }
 

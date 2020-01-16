@@ -695,35 +695,3 @@ impl PartialEq for HashableValue {
         self.inner.eq(&other.inner)
     }
 }
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct ResendableRequest {
-    pub request: String,
-    pub start_node: usize,
-    pub next_node: usize,
-    pub next_try_send_time: Option<time::Tm>,
-}
-
-/*
-#[derive(Debug, PartialEq, Eq)]
-pub struct CommandProcess {
-    pub nack_cnt: usize,
-    pub replies: HashMap<HashableValue, usize>,
-    pub accum_replies: Option<HashableValue>,
-    pub parent_cmd_ids: Vec<CommandHandle>,
-    pub resendable_request: Option<ResendableRequest>,
-    pub full_cmd_timeout: Option<time::Tm>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct RequestToSend {
-    pub request: String,
-    pub id: i32,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct MessageToProcess {
-    pub message: String,
-    pub node_idx: usize,
-}
-*/

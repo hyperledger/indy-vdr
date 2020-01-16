@@ -3,9 +3,9 @@ use futures::stream::StreamExt;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-use super::networker::{Pool, RequestEvent, RequestTimeout, TimingResult};
+use super::pool::Pool;
 use super::types::{CatchupReq, Message};
-use super::{check_cons_proofs, serialize_message};
+use super::{check_cons_proofs, serialize_message, RequestEvent, RequestTimeout, TimingResult};
 
 #[derive(Debug)]
 pub enum CatchupRequestResult {

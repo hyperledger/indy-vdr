@@ -5,27 +5,26 @@ use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
+use base64;
 use futures::channel::mpsc::Sender;
-
 use rand::seq::SliceRandom;
+use ursa::bls::VerKey as BlsVerKey;
+
+use zmq::PollItem;
+use zmq::Socket as ZSocket;
 
 use crate::domain::pool::ProtocolVersion;
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::crypto;
 use crate::utils::error::prelude::*;
 
-use super::super::genesis::build_node_state_from_json;
-use super::super::types::{Message, Nodes, PoolConfig};
+use super::genesis::build_node_state_from_json;
+use super::pool::Pool;
+use super::types::{Message, Nodes, PoolConfig};
 use super::{
-    Networker, NetworkerEvent, Pool, RequestDispatchTarget, RequestExtEvent, RequestHandle,
+    Networker, NetworkerEvent, RequestDispatchTarget, RequestExtEvent, RequestHandle,
     RequestTimeout,
 };
-
-use base64;
-use ursa::bls::VerKey as BlsVerKey;
-
-use zmq::PollItem;
-use zmq::Socket as ZSocket;
 
 new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 
@@ -160,7 +159,6 @@ impl ZMQThread {
     fn poll_connections(&mut self) -> Result<PollResult, String> {
         let (conn_idx, mut poll_items) = self.get_poll_items();
         let (conn_req, timeout) = self.get_timeout();
-        // trace!("timeout {}", timeout);
         let mut events = vec![];
         poll_items.push(self.cmd_recv.as_poll_item(zmq::POLLIN));
         let poll_res = zmq::poll(&mut poll_items, ::std::cmp::max(timeout, 0))
