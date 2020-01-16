@@ -319,6 +319,7 @@ impl FusedStream for PoolRequestImpl {
     }
 }
 
+#[derive(Clone)]
 pub struct Pool {
     config: PoolConfig,
     networker: Arc<RwLock<dyn Networker>>,

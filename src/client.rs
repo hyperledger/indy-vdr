@@ -27,9 +27,9 @@ fn main() {
   //local.block_on(&mut rt, test_get_txn()).unwrap();
 }
 
-async fn test_get_txn(seq_no: i32, pool: Rc<Pool>) -> LedgerResult<String> {
+async fn test_get_txn(seq_no: i32, pool: Pool) -> LedgerResult<String> {
   trace!("here");
-  let result = perform_get_txn(pool.as_ref(), LedgerType::DOMAIN, seq_no)
+  let result = perform_get_txn(&pool, LedgerType::DOMAIN, seq_no)
     .await
     .map_err(|err| err.to_string());
   let msg = if let Ok((msg, timing)) = result {
@@ -43,7 +43,7 @@ async fn test_get_txn(seq_no: i32, pool: Rc<Pool>) -> LedgerResult<String> {
 async fn handle_request(
   _req: Request<Body>,
   seq_no: i32,
-  pool: Rc<Pool>,
+  pool: Pool,
 ) -> Result<Response<Body>, hyper::Error> {
   let msg = test_get_txn(seq_no, pool).await.unwrap();
   Ok::<_, Error>(Response::new(Body::from(msg)))
@@ -53,7 +53,7 @@ async fn run() -> LedgerResult<()> {
   let addr = ([127, 0, 0, 1], 3000).into();
 
   let factory = PoolFactory::from_genesis_file("genesis.txn")?;
-  let pool = Rc::new(factory.create_pool()?);
+  let pool = factory.create_pool()?;
   let count = Rc::new(Cell::new(1i32));
 
   let make_service = make_service_fn(move |_| {
