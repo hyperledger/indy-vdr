@@ -55,6 +55,7 @@ pub async fn perform_full_request(
                 match parsed {
                     Message::Reply(_) => {
                         trace!("reply on full request");
+                        req.clean_timeout(node_alias.clone())?;
                         (node_alias, FullRequestReply::Reply(raw_msg))
                     }
                     Message::ReqACK(_) => {
@@ -62,6 +63,7 @@ pub async fn perform_full_request(
                     }
                     _ => {
                         trace!("error on full request");
+                        req.clean_timeout(node_alias.clone())?;
                         (node_alias, FullRequestReply::Failed(raw_msg)) // ReqNACK, Reject
                     }
                 }
