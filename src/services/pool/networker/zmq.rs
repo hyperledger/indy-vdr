@@ -21,10 +21,7 @@ use crate::utils::error::prelude::*;
 use super::genesis::build_node_state_from_json;
 use super::pool::Pool;
 use super::types::{Message, Nodes, PoolConfig};
-use super::{
-    Networker, NetworkerEvent, RequestDispatchTarget, RequestExtEvent, RequestHandle,
-    RequestTimeout,
-};
+use super::{Networker, NetworkerEvent, RequestExtEvent, RequestHandle, RequestTimeout};
 
 new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 
@@ -33,6 +30,8 @@ new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 pub struct ZMQNetworker {
     cmd_send: zmq::Socket,
     evt_send: mpsc::Sender<NetworkerEvent>,
+    node_keys: Nodes,
+    node_weights: HashMap<String, f32>,
     worker: Option<thread::JoinHandle<()>>,
 }
 
@@ -40,22 +39,15 @@ impl ZMQNetworker {
     pub fn create_pool(
         config: PoolConfig,
         transactions: Vec<String>,
-        preferred_nodes: Vec<String>,
+        node_weights: Option<HashMap<String, f32>>,
     ) -> LedgerResult<Pool> {
-        let (nodes, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
-        let mut weights: Vec<f32> = vec![1.0; remotes.len()];
-        for name in preferred_nodes {
-            if let Some(index) = remotes.iter().position(|node| node.name == name) {
-                weights[index] = 2.0;
-            }
-        }
+        let (node_keys, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
         let socket_handle = ZMQSocketHandle::next().value();
         let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
         let (evt_send, evt_recv) = mpsc::channel::<NetworkerEvent>();
-        let worker_nodes = nodes.clone();
+        let worker_keys = node_keys.clone();
         let worker = thread::spawn(move || {
-            let mut zmq_thread =
-                ZMQThread::new(config, cmd_recv, evt_recv, worker_nodes, remotes, weights);
+            let mut zmq_thread = ZMQThread::new(config, cmd_recv, evt_recv, worker_keys, remotes);
             if let Err(err) = zmq_thread.work() {
                 error!("ZMQ worker exited with error: {}", err.to_string())
             } else {
@@ -65,13 +57,36 @@ impl ZMQNetworker {
         let instance = Arc::new(RwLock::new(Self {
             cmd_send,
             evt_send,
+            node_keys,
+            node_weights: node_weights.unwrap_or_else(HashMap::new),
             worker: Some(worker),
         }));
-        Ok(Pool::new(config, instance, nodes))
+        Ok(Pool::new(config, instance))
     }
 }
 
 impl Networker for ZMQNetworker {
+    fn node_keys(&self) -> Nodes {
+        self.node_keys.clone()
+    }
+
+    fn select_nodes(&self) -> Vec<String> {
+        let aliases = self.node_keys.keys().collect::<Vec<&String>>();
+        let mut weights = aliases
+            .iter()
+            .enumerate()
+            .map(|(idx, &name)| (idx, self.node_weights.get(name).cloned().unwrap_or(1.0)))
+            .collect::<Vec<(usize, f32)>>();
+        let mut rng = rand::thread_rng();
+        let mut result = vec![];
+        for _ in 0..weights.len() {
+            let idx = weights.choose_weighted(&mut rng, |item| item.1).unwrap().0;
+            weights[idx].1 = 0.0;
+            result.push(aliases[idx].clone());
+        }
+        result
+    }
+
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
         self.evt_send
             .send(event)
@@ -102,9 +117,8 @@ struct ZMQThread {
     config: PoolConfig,
     cmd_recv: zmq::Socket,
     evt_recv: mpsc::Receiver<NetworkerEvent>,
-    nodes: Nodes,
+    node_keys: Nodes,
     remotes: Vec<RemoteNode>,
-    weights: Vec<f32>,
     requests: BTreeMap<RequestHandle, PendingRequest>,
     last_connection: Option<ZMQConnectionHandle>,
     pool_connections: BTreeMap<ZMQConnectionHandle, ZMQConnection>,
@@ -115,17 +129,15 @@ impl ZMQThread {
         config: PoolConfig,
         cmd_recv: zmq::Socket,
         evt_recv: mpsc::Receiver<NetworkerEvent>,
-        nodes: Nodes,
+        node_keys: Nodes,
         remotes: Vec<RemoteNode>,
-        weights: Vec<f32>,
     ) -> Self {
         ZMQThread {
             config,
             cmd_recv,
             evt_recv,
-            nodes,
+            node_keys,
             remotes,
-            weights,
             requests: BTreeMap::new(),
             last_connection: None,
             pool_connections: BTreeMap::new(),
@@ -274,10 +286,11 @@ impl ZMQThread {
                 self.remove_request(handle);
                 Ok(true)
             }
-            NetworkerEvent::Dispatch(handle, target, timeout) => {
+            NetworkerEvent::Dispatch(handle, node_aliases, timeout) => {
                 // FIXME improve error handling
-                trace!("Dispatch {} {:?}", handle, target);
-                self.dispatch_request(handle, target, timeout).unwrap();
+                trace!("Dispatch {} {:?}", handle, node_aliases);
+                self.dispatch_request(handle, node_aliases, timeout)
+                    .unwrap();
                 Ok(true)
             }
             NetworkerEvent::CleanTimeout(handle, node_alias) => {
@@ -332,7 +345,6 @@ impl ZMQThread {
         let conn_id = self.get_active_connection(self.last_connection, Some(sub_id.clone()))?;
         let pending = PendingRequest {
             conn_id,
-            send_index: 0,
             sender,
             sub_id,
             body,
@@ -381,46 +393,29 @@ impl ZMQThread {
     fn dispatch_request(
         &mut self,
         handle: RequestHandle,
-        target: RequestDispatchTarget,
+        node_aliases: Vec<String>,
         timeout: RequestTimeout,
     ) -> LedgerResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 let timeout = timeout.expand(&self.config);
-                let indices: Vec<usize> = match target {
-                    RequestDispatchTarget::AllNodes => {
-                        let idx = request.send_index;
-                        (idx..(idx + self.nodes.len())).collect()
+                for node_alias in node_aliases {
+                    if !self.node_keys.contains_key(&node_alias) {
+                        warn!("Cannot send to unknown node alias: {}", node_alias);
+                        continue;
                     }
-                    RequestDispatchTarget::AnyNodes(count) => {
-                        let idx = request.send_index;
-                        (idx..(idx + ::std::cmp::min(count, self.nodes.len()))).collect()
-                    }
-                    RequestDispatchTarget::SelectNodes(named) => named
-                        .iter()
-                        .flat_map(|name| {
-                            conn.get_send_index(name).or_else(|| {
-                                warn!("Cannot send to unknown node alias: {}", name);
-                                None
-                            })
-                        })
-                        .collect(),
-                };
-                for idx in indices {
-                    let node_alias = conn.send_request(
+                    conn.send_request(
                         request.sub_id.clone(),
                         request.body.clone(),
+                        node_alias.clone(),
                         timeout,
-                        idx,
                     )?;
-                    if !request.send_event(
-                        handle,
-                        RequestExtEvent::Sent(node_alias, SystemTime::now(), request.send_index),
-                    ) {
+                    if !request
+                        .send_event(handle, RequestExtEvent::Sent(node_alias, SystemTime::now()))
+                    {
                         self.remove_request(handle);
                         break;
                     }
-                    request.send_index += 1;
                     request.last_active = Instant::now();
                 }
             } else {
@@ -483,8 +478,7 @@ impl ZMQThread {
                         .unwrap_or(true)
             });
         if conn.is_none() {
-            let conn =
-                ZMQConnection::new(self.randomize_remotes(), self.config.conn_active_timeout);
+            let conn = ZMQConnection::new(self.remotes.clone(), self.config.conn_active_timeout);
             trace!("Created new pool connection");
             let pc_id = ZMQConnectionHandle::next();
             self.pool_connections.insert(pc_id, conn);
@@ -493,23 +487,6 @@ impl ZMQThread {
         } else {
             Ok(conn_id.unwrap())
         }
-    }
-
-    fn randomize_remotes(&self) -> Vec<RemoteNode> {
-        let mut result = vec![];
-        let mut weights = self
-            .weights
-            .iter()
-            .enumerate()
-            .map(|(idx, w)| (idx, *w))
-            .collect::<Vec<(usize, f32)>>();
-        let mut rng = rand::thread_rng();
-        for _ in 0..weights.len() {
-            let idx = weights.choose_weighted(&mut rng, |item| item.1).unwrap().0;
-            weights[idx].1 = 0f32;
-            result.push(self.remotes[idx].clone());
-        }
-        result
     }
 
     fn fetch_events_into(
@@ -556,7 +533,7 @@ impl ZMQThread {
 }
 
 pub struct ZMQConnection {
-    nodes: Vec<RemoteNode>,
+    remotes: Vec<RemoteNode>,
     sockets: Vec<Option<ZSocket>>,
     ctx: zmq::Context,
     key_pair: zmq::CurveKeyPair,
@@ -568,17 +545,15 @@ pub struct ZMQConnection {
 }
 
 impl ZMQConnection {
-    fn new(nodes: Vec<RemoteNode>, active_timeout: i64) -> Self {
-        trace!("ZMQConnection::new: from nodes {:?}", nodes);
+    fn new(remotes: Vec<RemoteNode>, active_timeout: i64) -> Self {
+        trace!("ZMQConnection::new: from remotes {:?}", remotes);
 
-        let mut sockets: Vec<Option<ZSocket>> = Vec::with_capacity(nodes.len());
-
-        for _ in 0..nodes.len() {
-            sockets.push(None);
-        }
+        let sockets = (0..remotes.len())
+            .map(|_| None)
+            .collect::<Vec<Option<ZSocket>>>();
 
         Self {
-            nodes,
+            remotes,
             sockets,
             ctx: zmq::Context::new(),
             key_pair: zmq::CurveKeyPair::new().expect("FIXME"),
@@ -591,7 +566,7 @@ impl ZMQConnection {
     }
 
     fn fetch_event(&self, index: usize, poll_item: &zmq::PollItem) -> Option<NodeEvent> {
-        if let (&Some(ref s), rn) = (&self.sockets[index], &self.nodes[index]) {
+        if let (&Some(ref s), rn) = (&self.sockets[index], &self.remotes[index]) {
             if poll_item.is_readable() {
                 if let Ok(Ok(msg)) = s.recv_string(zmq::DONTWAIT) {
                     trace!("got reply {}", &msg);
@@ -664,26 +639,24 @@ impl ZMQConnection {
         res
     }
 
-    fn get_send_index(&self, node_alias: &str) -> Option<usize> {
-        self.nodes.iter().position(|node| node.name == node_alias)
-    }
-
     fn send_request(
         &mut self,
         req_id: String,
         msg: String,
+        node_alias: String,
         timeout: i64,
-        send_index: usize,
-    ) -> LedgerResult<String> {
-        trace!("send_request >> req_id: {} idx: {}", req_id, send_index);
-        let node_index = send_index % self.nodes.len();
-        let name = self.nodes[node_index].name.clone();
-        {
+    ) -> LedgerResult<()> {
+        trace!("send_request >> req_id: {} node: {}", req_id, node_alias);
+        let node_index = self.remotes.iter().position(|node| node.name == node_alias);
+        if let Some(node_index) = node_index {
             let s = self._get_socket(node_index)?;
             s.send(&msg, zmq::DONTWAIT)?;
+        } else {
+            warn!("Cannot send to unknown node alias: {}", node_alias);
+            return Ok(());
         }
         self.timeouts.insert(
-            (req_id.clone(), name.clone()),
+            (req_id.clone(), node_alias),
             (
                 Instant::now() + Duration::from_secs(::std::cmp::max(timeout, 0) as u64),
                 false,
@@ -692,7 +665,7 @@ impl ZMQConnection {
         self.req_cnt += 1;
         self.req_log.insert(req_id);
         trace!("send_request <<");
-        Ok(name)
+        Ok(())
     }
 
     fn extend_timeout(&mut self, req_id: &str, node_alias: &str, extended_timeout: i64) {
@@ -761,7 +734,7 @@ impl ZMQConnection {
     fn _get_socket(&mut self, idx: usize) -> LedgerResult<&ZSocket> {
         if self.sockets[idx].is_none() {
             debug!("_get_socket: open new socket for node {}", idx);
-            let s: ZSocket = self.nodes[idx].connect(&self.ctx, &self.key_pair)?;
+            let s: ZSocket = self.remotes[idx].connect(&self.ctx, &self.key_pair)?;
             self.sockets[idx] = Some(s)
         }
         Ok(self.sockets[idx].as_ref().unwrap())
@@ -932,7 +905,6 @@ enum NodeEvent {
 #[derive(Debug)]
 struct PendingRequest {
     conn_id: ZMQConnectionHandle,
-    send_index: usize,
     sender: Sender<RequestExtEvent>,
     sub_id: String,
     body: String,

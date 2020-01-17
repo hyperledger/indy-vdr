@@ -40,7 +40,7 @@ impl PoolFactory {
     }
 
     pub fn create_pool(&self) -> LedgerResult<Pool> {
-        ZMQNetworker::create_pool(self.config, self.transactions.clone(), vec![])
+        ZMQNetworker::create_pool(self.config, self.transactions.clone(), None)
     }
 }
 

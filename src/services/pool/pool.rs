@@ -17,8 +17,8 @@ use super::networker::{Networker, NetworkerEvent, ZMQNetworker};
 use super::requests::{
     perform_catchup_request, perform_consensus_request, perform_full_request,
     perform_single_request, perform_status_request, CatchupRequestResult, ConsensusResult,
-    RequestDispatchTarget, RequestEvent, RequestExtEvent, RequestHandle, RequestState,
-    RequestTimeout, RequestTiming, SingleReply, StatusRequestResult, TimingResult,
+    RequestEvent, RequestExtEvent, RequestHandle, RequestState, RequestTimeout, RequestTiming,
+    SingleReply, StatusRequestResult, TimingResult,
 };
 use super::types::{Nodes, PoolConfig};
 
@@ -26,7 +26,7 @@ use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
 
 pub async fn connect(config: PoolConfig, txns: Vec<String>) -> LedgerResult<Pool> {
-    let pool = ZMQNetworker::create_pool(config, txns.clone(), vec![])?;
+    let pool = ZMQNetworker::create_pool(config, txns.clone(), None)?;
     let merkle_tree = build_tree(&txns)?;
     let result = perform_status_request(&pool, merkle_tree).await?;
     trace!("Got status result: {:?}", &result);
@@ -182,15 +182,24 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()>;
     fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
-    fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()>;
-    fn send_to_any(&self, count: usize, timeout: RequestTimeout) -> LedgerResult<()>;
-    fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn node_aliases(&self) -> Vec<String>;
+    fn node_count(&self) -> usize;
+    fn node_keys(&self) -> LedgerResult<Nodes>;
+    fn send_to_all(&mut self, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn send_to_any(&mut self, count: usize, timeout: RequestTimeout) -> LedgerResult<Vec<String>>;
+    fn send_to(
+        &mut self,
+        node_aliases: Vec<String>,
+        timeout: RequestTimeout,
+    ) -> LedgerResult<Vec<String>>;
 }
 
 struct PoolRequestImpl {
     handle: RequestHandle,
     events: Option<Receiver<RequestExtEvent>>,
     networker: Arc<RwLock<dyn Networker>>,
+    node_aliases: Vec<String>,
+    send_count: usize,
     state: RequestState,
     timing: RequestTiming,
 }
@@ -202,17 +211,20 @@ impl PoolRequestImpl {
         handle: RequestHandle,
         events: Receiver<RequestExtEvent>,
         networker: Arc<RwLock<dyn Networker>>,
+        node_aliases: Vec<String>,
     ) -> Self {
         Self {
             handle,
             events: Some(events),
             networker,
+            node_aliases,
+            send_count: 0,
             state: RequestState::NotStarted,
             timing: RequestTiming::new(),
         }
     }
 
-    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+    fn trigger(&self, event: NetworkerEvent) -> LedgerResult<()> {
         self.networker
             .read()
             .map_err(|_| err_msg(LedgerErrorKind::InvalidState, "Error sending to networker"))?
@@ -222,11 +234,11 @@ impl PoolRequestImpl {
 
 impl PoolRequest for PoolRequestImpl {
     fn clean_timeout(&self, node_alias: String) -> LedgerResult<()> {
-        self.send(NetworkerEvent::CleanTimeout(self.handle, node_alias))
+        self.trigger(NetworkerEvent::CleanTimeout(self.handle, node_alias))
     }
 
     fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.send(NetworkerEvent::ExtendTimeout(
+        self.trigger(NetworkerEvent::ExtendTimeout(
             self.handle,
             node_alias,
             timeout,
@@ -241,28 +253,70 @@ impl PoolRequest for PoolRequestImpl {
         self.state == RequestState::Active
     }
 
-    fn send_to_all(&self, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.send(NetworkerEvent::Dispatch(
-            self.handle,
-            RequestDispatchTarget::AllNodes,
-            timeout,
-        ))
+    fn node_aliases(&self) -> Vec<String> {
+        self.node_aliases.clone()
     }
 
-    fn send_to_any(&self, count: usize, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.send(NetworkerEvent::Dispatch(
-            self.handle,
-            RequestDispatchTarget::AnyNodes(count),
-            timeout,
-        ))
+    fn node_count(&self) -> usize {
+        self.node_aliases.len()
     }
 
-    fn send_to(&self, node_aliases: Vec<String>, timeout: RequestTimeout) -> LedgerResult<()> {
-        self.send(NetworkerEvent::Dispatch(
-            self.handle,
-            RequestDispatchTarget::SelectNodes(node_aliases),
-            timeout,
-        ))
+    fn node_keys(&self) -> LedgerResult<Nodes> {
+        // FIXME - remove nodes that aren't present in node_aliases?
+        Ok(self
+            .networker
+            .read()
+            .map_err(|_| err_msg(LedgerErrorKind::InvalidState, "Error fetching node keys"))?
+            .node_keys())
+    }
+
+    fn send_to_all(&mut self, timeout: RequestTimeout) -> LedgerResult<()> {
+        let aliases = self.node_aliases();
+        let count = aliases.len();
+        self.trigger(NetworkerEvent::Dispatch(self.handle, aliases, timeout))?;
+        self.send_count += count;
+        Ok(())
+    }
+
+    fn send_to_any(&mut self, count: usize, timeout: RequestTimeout) -> LedgerResult<Vec<String>> {
+        let aliases = self.node_aliases();
+        let max = std::cmp::min(self.send_count + count, aliases.len());
+        let min = std::cmp::min(self.send_count, max);
+        trace!("send to any {} {} {:?}", min, max, aliases);
+        let nodes = (min..max)
+            .map(|idx| aliases[idx].clone())
+            .collect::<Vec<String>>();
+        if nodes.len() > 0 {
+            self.trigger(NetworkerEvent::Dispatch(
+                self.handle,
+                nodes.clone(),
+                timeout,
+            ))?;
+            self.send_count += nodes.len();
+        }
+        Ok(nodes)
+    }
+
+    fn send_to(
+        &mut self,
+        node_aliases: Vec<String>,
+        timeout: RequestTimeout,
+    ) -> LedgerResult<Vec<String>> {
+        let aliases = self
+            .node_aliases()
+            .iter()
+            .filter(|n| node_aliases.contains(n))
+            .cloned()
+            .collect::<Vec<String>>();
+        if aliases.len() > 0 {
+            self.trigger(NetworkerEvent::Dispatch(
+                self.handle,
+                aliases.clone(),
+                timeout,
+            ))?;
+            self.send_count += aliases.len();
+        }
+        Ok(aliases)
     }
 }
 
@@ -280,7 +334,7 @@ impl std::fmt::Debug for PoolRequestImpl {
 impl Drop for PoolRequestImpl {
     fn drop(&mut self) {
         trace!("Finish dropped request: {}", self.handle);
-        self.send(NetworkerEvent::FinishRequest(self.handle))
+        self.trigger(NetworkerEvent::FinishRequest(self.handle))
             .unwrap_or(()) // don't mind if the receiver disconnected
     }
 }
@@ -297,9 +351,10 @@ impl Stream for PoolRequestImpl {
                         match events.poll_next(cx) {
                             Poll::Ready(val) => {
                                 if let Some(RequestExtEvent::Init()) = val {
-                                    trace!("got init!");
-                                    self.state = RequestState::Active;
+                                    trace!("Request active {}", self.handle);
+                                    self.state = RequestState::Active
                                 } else {
+                                    trace!("Request aborted {}", self.handle);
                                     // events.close(); ?
                                     self.as_mut().events().set(None);
                                     self.state = RequestState::Terminated
@@ -315,21 +370,23 @@ impl Stream for PoolRequestImpl {
                     if let Some(events) = self.as_mut().events().as_pin_mut() {
                         match events.poll_next(cx) {
                             Poll::Ready(val) => match val {
-                                Some(RequestExtEvent::Sent(alias, when, _index)) => {
-                                    trace!("sent {}", alias);
+                                Some(RequestExtEvent::Sent(alias, when)) => {
+                                    trace!("{} was sent to {}", self.handle, alias);
                                     self.timing.sent(&alias, when)
                                 }
                                 Some(RequestExtEvent::Received(alias, message, meta, when)) => {
-                                    trace!("received {}", alias);
+                                    trace!("{} response from {}", self.handle, alias);
                                     self.timing.received(&alias, when);
                                     return Poll::Ready(Some(RequestEvent::Received(
                                         alias, message, meta,
                                     )));
                                 }
                                 Some(RequestExtEvent::Timeout(alias)) => {
+                                    trace!("{} timed out {}", self.handle, alias);
                                     return Poll::Ready(Some(RequestEvent::Timeout(alias)));
                                 }
                                 _ => {
+                                    trace!("{} terminated", self.handle);
                                     // events.close(); ?
                                     self.as_mut().events().set(None);
                                     self.state = RequestState::Terminated
@@ -357,16 +414,11 @@ impl FusedStream for PoolRequestImpl {
 pub struct Pool {
     config: PoolConfig,
     networker: Arc<RwLock<dyn Networker>>,
-    nodes: Nodes,
 }
 
 impl Pool {
-    pub fn new(config: PoolConfig, networker: Arc<RwLock<dyn Networker>>, nodes: Nodes) -> Self {
-        Self {
-            config,
-            networker,
-            nodes,
-        }
+    pub fn new(config: PoolConfig, networker: Arc<RwLock<dyn Networker>>) -> Self {
+        Self { config, networker }
     }
 
     pub fn create_request<'a>(
@@ -380,26 +432,21 @@ impl Pool {
             let (tx, rx) = channel(10);
             trace!("{}", &req_json);
             let handle = RequestHandle::next();
-            instance
-                .read()
-                .unwrap()
-                .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
-            Ok(Box::new(PoolRequestImpl::new(handle, rx, instance.clone()))
-                as Box<dyn PoolRequest>)
+            let inst_read = instance.read().unwrap();
+            let node_aliases = inst_read.select_nodes();
+            inst_read.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
+            Ok(Box::new(PoolRequestImpl::new(
+                handle,
+                rx,
+                instance.clone(),
+                node_aliases,
+            )) as Box<dyn PoolRequest>)
         })
         .boxed_local()
     }
 
     pub fn config(&self) -> PoolConfig {
         return self.config;
-    }
-
-    pub fn nodes(&self) -> Nodes {
-        return self.nodes.clone();
-    }
-
-    pub fn nodes_count(&self) -> usize {
-        return self.nodes.len();
     }
 }
 

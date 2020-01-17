@@ -46,7 +46,7 @@ pub async fn perform_status_request(
     let message = build_ledger_status_req(&merkle, pool.config().protocol_version)?;
     let (req_id, req_json) = serialize_message(&message)?;
     let mut req = pool.create_request(req_id, req_json).await?;
-    let mut handler = StatusRequestHandler::new(merkle, pool.nodes_count());
+    let mut handler = StatusRequestHandler::new(merkle, req.node_count());
     req.send_to_all(RequestTimeout::Default)?;
     loop {
         let response = match req.next().await {

@@ -6,8 +6,8 @@ use crate::utils::error::prelude::*;
 
 use super::genesis;
 use super::pool;
-use super::requests::{RequestDispatchTarget, RequestExtEvent, RequestHandle, RequestTimeout};
-use super::types;
+use super::requests::{RequestExtEvent, RequestHandle, RequestTimeout};
+use super::types::{self, Nodes};
 
 mod zmq;
 pub use self::zmq::ZMQNetworker;
@@ -21,7 +21,7 @@ pub enum NetworkerEvent {
         String, // message body
         Sender<RequestExtEvent>,
     ),
-    Dispatch(RequestHandle, RequestDispatchTarget, RequestTimeout),
+    Dispatch(RequestHandle, Vec<String>, RequestTimeout),
     CleanTimeout(
         RequestHandle,
         String, // node alias
@@ -34,6 +34,8 @@ pub enum NetworkerEvent {
 }
 
 pub trait Networker {
+    fn node_keys(&self) -> Nodes;
+    fn select_nodes(&self) -> Vec<String>;
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()>;
 }
 

@@ -21,13 +21,10 @@ pub async fn perform_full_request(
         .await?;
     let timeout = local_timeout.unwrap_or(RequestTimeout::Default);
     let req_reply_count = if let Some(nodes) = nodes_to_send {
-        // FIXME could validate that nodes are in pool.nodes()
-        let count = nodes.len();
-        req.send_to(nodes, timeout)?;
-        count
+        req.send_to(nodes, timeout)?.len()
     } else {
         req.send_to_all(timeout)?;
-        pool.nodes().len()
+        req.node_count()
     };
     let mut replies = ReplyState::new();
     loop {

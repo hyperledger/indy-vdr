@@ -31,8 +31,8 @@ pub async fn perform_single_request(
         .create_request(req_id.to_owned(), req_json.to_owned())
         .await?;
     let config = pool.config();
-    let nodes = pool.nodes();
-    let total_nodes_count = nodes.len();
+    let node_keys = req.node_keys()?;
+    let total_nodes_count = req.node_count();
     let f = get_f(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
@@ -77,7 +77,7 @@ pub async fn perform_single_request(
                                 &result,
                                 f,
                                 &generator,
-                                &nodes,
+                                &node_keys,
                                 &raw_msg,
                                 state_proof_key.as_ref().map(Vec::as_slice),
                                 state_proof_timestamps,
@@ -129,7 +129,6 @@ pub async fn perform_single_request(
             return Ok(ConsensusResult::NoConsensus(req.get_timing()));
         }
         if resend {
-            // FIXME don't send to the same nodes?
             req.send_to_any(2, RequestTimeout::Ack)?;
         }
     }

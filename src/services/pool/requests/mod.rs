@@ -72,7 +72,6 @@ pub enum RequestExtEvent {
     Sent(
         String,     // node alias
         SystemTime, // send time
-        usize,      // send index
     ),
     Received(
         String,     // node alias
@@ -83,13 +82,6 @@ pub enum RequestExtEvent {
     Timeout(
         String, // node_alias
     ),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum RequestDispatchTarget {
-    AllNodes,
-    AnyNodes(usize),
-    SelectNodes(Vec<String>),
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -18,8 +18,7 @@ pub async fn perform_consensus_request(
     let mut req = pool
         .create_request(req_id.to_owned(), req_json.to_owned())
         .await?;
-    let nodes = pool.nodes();
-    let total_nodes_count = nodes.len();
+    let total_nodes_count = req.node_count();
     let f = get_f(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
