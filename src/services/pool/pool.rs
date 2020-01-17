@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use futures::channel::mpsc::channel;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
+use rand::seq::SliceRandom;
 
 use crate::domain::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::domain::ledger::request::{get_request_id, Request};
@@ -20,7 +22,8 @@ use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
 
 pub async fn connect(config: PoolConfig, txns: Vec<String>) -> LedgerResult<Pool> {
-    let pool = ZMQNetworker::create_pool(config, txns.clone(), None)?;
+    let networker = Arc::new(RwLock::new(ZMQNetworker::new(config, txns.clone())?));
+    let pool = Pool::new(config, networker, None);
     let merkle_tree = build_tree(&txns)?;
     let result = perform_status_request(&pool, merkle_tree).await?;
     trace!("Got status result: {:?}", &result);
@@ -170,15 +173,49 @@ pub async fn perform_get_txn_full(
     Ok((rows.join("\n\n"), timing.unwrap()))
 }
 
+pub fn choose_nodes(aliases: Vec<String>, weights: Option<HashMap<String, f32>>) -> Vec<String> {
+    let mut weights = aliases
+        .iter()
+        .enumerate()
+        .map(|(idx, name)| {
+            (
+                idx,
+                weights
+                    .as_ref()
+                    .and_then(|w| w.get(name))
+                    .cloned()
+                    .unwrap_or(1.0),
+            )
+        })
+        .collect::<Vec<(usize, f32)>>();
+    let mut rng = rand::thread_rng();
+    let mut result = vec![];
+    for _ in 0..weights.len() {
+        let idx = weights.choose_weighted(&mut rng, |item| item.1).unwrap().0;
+        weights[idx].1 = 0.0;
+        result.push(aliases[idx].clone());
+    }
+    result
+}
+
 #[derive(Clone)]
 pub struct Pool {
     config: PoolConfig,
     networker: Arc<RwLock<dyn Networker>>,
+    node_weights: Option<HashMap<String, f32>>,
 }
 
 impl Pool {
-    pub fn new(config: PoolConfig, networker: Arc<RwLock<dyn Networker>>) -> Self {
-        Self { config, networker }
+    pub fn new(
+        config: PoolConfig,
+        networker: Arc<RwLock<dyn Networker>>,
+        node_weights: Option<HashMap<String, f32>>,
+    ) -> Self {
+        Self {
+            config,
+            networker,
+            node_weights,
+        }
     }
 
     pub fn create_request<'a>(
@@ -187,13 +224,13 @@ impl Pool {
         req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn PoolRequest>>> {
         let instance = self.networker.clone();
+        let weights = self.node_weights.clone();
         lazy(move |_| {
             // FIXME - use unbounded channel? or require networker to dispatch from a queue
             let (tx, rx) = channel(10);
-            trace!("{}", &req_json);
             let handle = RequestHandle::next();
             let inst_read = instance.read().unwrap();
-            let node_aliases = inst_read.select_nodes();
+            let node_aliases = choose_nodes(inst_read.node_aliases(), weights);
             inst_read.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
             Ok(Box::new(PoolRequestImpl::new(
                 handle,

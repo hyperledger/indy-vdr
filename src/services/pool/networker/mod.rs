@@ -5,7 +5,6 @@ use futures::channel::mpsc::Sender;
 use crate::utils::error::prelude::*;
 
 use super::genesis;
-use super::pool;
 use super::requests::{RequestExtEvent, RequestHandle, RequestTimeout};
 use super::types::{self, Nodes};
 
@@ -34,8 +33,8 @@ pub enum NetworkerEvent {
 }
 
 pub trait Networker {
+    fn node_aliases(&self) -> Vec<String>;
     fn node_keys(&self) -> Nodes;
-    fn select_nodes(&self) -> Vec<String>;
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()>;
 }
 

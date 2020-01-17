@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 use std::{fs, io};
 
 use serde_json;
@@ -40,7 +41,11 @@ impl PoolFactory {
     }
 
     pub fn create_pool(&self) -> LedgerResult<Pool> {
-        ZMQNetworker::create_pool(self.config, self.transactions.clone(), None)
+        let networker = Arc::new(RwLock::new(ZMQNetworker::new(
+            self.config,
+            self.transactions.clone(),
+        )?));
+        Ok(Pool::new(self.config, networker, None))
     }
 }
 

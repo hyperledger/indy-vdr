@@ -1,13 +1,12 @@
 extern crate zmq;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::{mpsc, Arc, RwLock};
+use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use base64;
 use futures::channel::mpsc::Sender;
-use rand::seq::SliceRandom;
 use ursa::bls::VerKey as BlsVerKey;
 
 use zmq::PollItem;
@@ -19,7 +18,6 @@ use crate::utils::crypto;
 use crate::utils::error::prelude::*;
 
 use super::genesis::build_node_state_from_json;
-use super::pool::Pool;
 use super::types::{Message, Nodes, PoolConfig};
 use super::{Networker, NetworkerEvent, RequestExtEvent, RequestHandle, RequestTimeout};
 
@@ -31,16 +29,11 @@ pub struct ZMQNetworker {
     cmd_send: zmq::Socket,
     evt_send: mpsc::Sender<NetworkerEvent>,
     node_keys: Nodes,
-    node_weights: HashMap<String, f32>,
     worker: Option<thread::JoinHandle<()>>,
 }
 
 impl ZMQNetworker {
-    pub fn create_pool(
-        config: PoolConfig,
-        transactions: Vec<String>,
-        node_weights: Option<HashMap<String, f32>>,
-    ) -> LedgerResult<Pool> {
+    pub fn new(config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self> {
         let (node_keys, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
         let socket_handle = ZMQSocketHandle::next().value();
         let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
@@ -54,37 +47,22 @@ impl ZMQNetworker {
                 trace!("ZMQ worker exited");
             }
         });
-        let instance = Arc::new(RwLock::new(Self {
+        Ok(Self {
             cmd_send,
             evt_send,
             node_keys,
-            node_weights: node_weights.unwrap_or_else(HashMap::new),
             worker: Some(worker),
-        }));
-        Ok(Pool::new(config, instance))
+        })
     }
 }
 
 impl Networker for ZMQNetworker {
-    fn node_keys(&self) -> Nodes {
-        self.node_keys.clone()
+    fn node_aliases(&self) -> Vec<String> {
+        self.node_keys.keys().cloned().collect::<Vec<String>>()
     }
 
-    fn select_nodes(&self) -> Vec<String> {
-        let aliases = self.node_keys.keys().collect::<Vec<&String>>();
-        let mut weights = aliases
-            .iter()
-            .enumerate()
-            .map(|(idx, &name)| (idx, self.node_weights.get(name).cloned().unwrap_or(1.0)))
-            .collect::<Vec<(usize, f32)>>();
-        let mut rng = rand::thread_rng();
-        let mut result = vec![];
-        for _ in 0..weights.len() {
-            let idx = weights.choose_weighted(&mut rng, |item| item.1).unwrap().0;
-            weights[idx].1 = 0.0;
-            result.push(aliases[idx].clone());
-        }
-        result
+    fn node_keys(&self) -> Nodes {
+        self.node_keys.clone()
     }
 
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
