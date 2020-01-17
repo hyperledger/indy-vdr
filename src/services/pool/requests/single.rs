@@ -90,11 +90,10 @@ pub async fn perform_single_request(
                                 req.get_timing(),
                             ));
                         }
-                        req.clean_timeout(node_alias.clone())?;
                         false
                     } else {
                         replies.add_failed(node_alias.clone(), raw_msg);
-                        req.clean_timeout(node_alias.clone())?;
+                        req.clean_timeout(node_alias)?;
                         true
                     }
                 }
@@ -104,18 +103,17 @@ pub async fn perform_single_request(
                 }
                 Message::ReqNACK(_) | Message::Reject(_) => {
                     replies.add_failed(node_alias.clone(), raw_msg);
-                    req.clean_timeout(node_alias.clone())?;
+                    req.clean_timeout(node_alias)?;
                     true
                 }
                 _ => {
                     replies.add_failed(node_alias.clone(), raw_msg);
-                    req.clean_timeout(node_alias.clone())?;
+                    req.clean_timeout(node_alias)?;
                     true
                 }
             },
             Some(RequestEvent::Timeout(node_alias)) => {
-                replies.add_timeout(node_alias.clone());
-                req.clean_timeout(node_alias.clone())?;
+                replies.add_timeout(node_alias);
                 true
             }
             None => {

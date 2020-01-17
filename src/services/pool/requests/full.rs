@@ -33,18 +33,17 @@ pub async fn perform_full_request(
                 match parsed {
                     Message::Reply(_) => {
                         trace!("reply on full request");
-                        req.clean_timeout(node_alias.clone())?;
-                        replies.add_reply(node_alias, raw_msg);
+                        replies.add_reply(node_alias.clone(), raw_msg);
                     }
                     Message::ReqACK(_) => {
                         continue;
                     }
                     _ => {
                         trace!("error on full request");
-                        req.clean_timeout(node_alias.clone())?;
-                        replies.add_failed(node_alias, raw_msg); // ReqNACK, Reject
+                        replies.add_failed(node_alias.clone(), raw_msg); // ReqNACK, Reject
                     }
                 }
+                req.clean_timeout(node_alias)?;
             }
             Some(RequestEvent::Timeout(node_alias)) => {
                 replies.add_timeout(node_alias);

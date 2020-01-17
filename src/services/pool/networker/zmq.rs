@@ -141,7 +141,7 @@ impl ZMQThread {
                 }
                 _ => (),
             }
-            self.clean_requests()?
+            // self.clean_requests()?
         }
         Ok(())
     }
@@ -156,9 +156,9 @@ impl ZMQThread {
         if poll_res == 0 {
             if let Some((conn_id, last_req)) = conn_req {
                 if let Some((req_id, node_alias)) = last_req {
-                    events.push((conn_id, NodeEvent::RequestTimeout(req_id, node_alias)));
+                    events.push((conn_id, ConnectionEvent::RequestTimeout(req_id, node_alias)));
                 } else {
-                    events.push((conn_id, NodeEvent::Timeout()));
+                    events.push((conn_id, ConnectionEvent::Timeout()));
                 }
             }
         } else {
@@ -186,43 +186,41 @@ impl ZMQThread {
         return Ok(PollResult::Default);
     }
 
-    fn process_event(&mut self, conn_id: ZMQConnectionHandle, event: NodeEvent) {
-        let (req_id, seen, fwd) = match event {
-            NodeEvent::Reply(message, meta, node_alias, time) => {
+    fn process_event(&mut self, conn_id: ZMQConnectionHandle, event: ConnectionEvent) {
+        let (req_id, fwd) = match event {
+            ConnectionEvent::Reply(message, meta, node_alias, time) => {
                 let req_id = meta.request_id().unwrap_or("".to_owned());
                 (
                     req_id,
-                    Some(node_alias.clone()),
                     RequestExtEvent::Received(node_alias, message, meta, time),
                 )
             }
-            NodeEvent::RequestTimeout(req_id, node_alias) => (
-                req_id,
-                Some(node_alias.clone()),
-                RequestExtEvent::Timeout(node_alias),
-            ),
-            NodeEvent::Timeout() => {
+            ConnectionEvent::RequestTimeout(req_id, node_alias) => {
+                if node_alias.is_empty() {
+                    if let Some(handle) = self.select_request(conn_id, &req_id) {
+                        trace!("Remove idle {}", handle);
+                        self.remove_request(handle);
+                    }
+                    return;
+                }
+                if let Some(conn) = self.pool_connections.get_mut(&conn_id) {
+                    conn.clean_timeout(&req_id, Some(node_alias.clone()));
+                }
+                (req_id, RequestExtEvent::Timeout(node_alias))
+            }
+            ConnectionEvent::Timeout() => {
                 self.check_remove_connection(conn_id, None);
                 return;
             }
         };
-        if seen.is_some() {
-            if let Some(conn) = self.pool_connections.get_mut(&conn_id) {
-                conn.silence_timeout(&req_id, &seen.unwrap())
-            }
-        }
-        if let Some(handle) = self.select_request(conn_id, req_id.clone()) {
+        if let Some(handle) = self.select_request(conn_id, &req_id) {
             self.process_reply(handle, fwd)
         } else {
             trace!("Unknown request ID: {}", req_id)
         }
     }
 
-    fn select_request(
-        &self,
-        conn_id: ZMQConnectionHandle,
-        sub_id: String,
-    ) -> Option<RequestHandle> {
+    fn select_request(&self, conn_id: ZMQConnectionHandle, sub_id: &str) -> Option<RequestHandle> {
         self.requests.iter().find_map(|(handle, req)| {
             if req.conn_id == conn_id && req.sub_id == sub_id {
                 Some(*handle)
@@ -282,37 +280,6 @@ impl ZMQThread {
         }
     }
 
-    fn clean_requests(&mut self) -> Result<(), String> {
-        let checked = self
-            .requests
-            .iter()
-            .flat_map(|(handle, req)| {
-                if req.last_active.elapsed()
-                    > Duration::from_secs(self.config.conn_active_timeout as u64)
-                {
-                    let active = self
-                        .pool_connections
-                        .get(&req.conn_id)
-                        .map(|pc| pc.has_active_timeouts(&req.sub_id))
-                        .unwrap_or(false);
-                    Some((*handle, active))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<(RequestHandle, bool)>>();
-        for (handle, active) in checked {
-            if active {
-                trace!("Request still active: {}", handle);
-                self.extend_active_request(handle)
-            } else {
-                trace!("Removing idle request: {}", handle);
-                self.remove_request(handle)
-            }
-        }
-        Ok(())
-    }
-
     fn add_request(
         &mut self,
         handle: RequestHandle,
@@ -320,13 +287,12 @@ impl ZMQThread {
         body: String,
         sender: Sender<RequestExtEvent>,
     ) -> LedgerResult<&mut PendingRequest> {
-        let conn_id = self.get_active_connection(self.last_connection, Some(sub_id.clone()))?;
+        let conn_id = self.get_active_connection(self.last_connection, sub_id.clone())?;
         let pending = PendingRequest {
             conn_id,
             sender,
             sub_id,
             body,
-            last_active: Instant::now(),
         };
         self.requests.insert(handle, pending);
         self.requests.get_mut(&handle).ok_or(err_msg(
@@ -362,12 +328,6 @@ impl ZMQThread {
         }
     }
 
-    fn extend_active_request(&mut self, handle: RequestHandle) {
-        if let Some(req) = self.requests.get_mut(&handle) {
-            req.last_active = Instant::now();
-        }
-    }
-
     fn dispatch_request(
         &mut self,
         handle: RequestHandle,
@@ -394,7 +354,6 @@ impl ZMQThread {
                         self.remove_request(handle);
                         break;
                     }
-                    request.last_active = Instant::now();
                 }
             } else {
                 warn!("Pool connection expired for request: {}", handle);
@@ -444,25 +403,25 @@ impl ZMQThread {
     fn get_active_connection(
         &mut self,
         conn_id: Option<ZMQConnectionHandle>,
-        sub_id: Option<String>,
+        sub_id: String,
     ) -> LedgerResult<ZMQConnectionHandle> {
+        let req_limit = self.config.conn_request_limit;
         let conn = conn_id
-            .and_then(|conn_id| self.pool_connections.get(&conn_id))
+            .and_then(|conn_id| self.pool_connections.get_mut(&conn_id))
             .filter(|conn| {
-                conn.is_active()
-                    && conn.req_cnt < self.config.conn_request_limit
-                    && sub_id
-                        .map(|sub_id| !conn.seen_request(sub_id.as_str()))
-                        .unwrap_or(true)
+                conn.is_active() && conn.req_cnt < req_limit && !conn.seen_request(sub_id.as_str())
             });
         if conn.is_none() {
-            let conn = ZMQConnection::new(self.remotes.clone(), self.config.conn_active_timeout);
+            let mut conn =
+                ZMQConnection::new(self.remotes.clone(), self.config.conn_active_timeout);
             trace!("Created new pool connection");
+            conn.init_request(sub_id);
             let pc_id = ZMQConnectionHandle::next();
             self.pool_connections.insert(pc_id, conn);
             self.last_connection.replace(pc_id);
             Ok(pc_id)
         } else {
+            conn.unwrap().init_request(sub_id);
             Ok(conn_id.unwrap())
         }
     }
@@ -471,7 +430,7 @@ impl ZMQThread {
         &self,
         conn_idx: &[(ZMQConnectionHandle, usize)],
         poll_items: &[PollItem],
-        events: &mut Vec<(ZMQConnectionHandle, NodeEvent)>,
+        events: &mut Vec<(ZMQConnectionHandle, ConnectionEvent)>,
     ) {
         // FIXME - can avoid duplicate lookups for the same connection
         conn_idx
@@ -515,7 +474,8 @@ pub struct ZMQConnection {
     sockets: Vec<Option<ZSocket>>,
     ctx: zmq::Context,
     key_pair: zmq::CurveKeyPair,
-    timeouts: HashMap<(String, String), (Instant, bool)>,
+    idle_timeouts: HashMap<String, Instant>,
+    socket_timeouts: HashMap<(String, String), Instant>,
     time_created: Instant,
     req_cnt: usize,
     req_log: HashSet<String>,
@@ -536,21 +496,22 @@ impl ZMQConnection {
             ctx: zmq::Context::new(),
             key_pair: zmq::CurveKeyPair::new().expect("FIXME"),
             time_created: Instant::now(),
-            timeouts: HashMap::new(),
+            idle_timeouts: HashMap::new(),
+            socket_timeouts: HashMap::new(),
             req_cnt: 0,
             req_log: HashSet::new(),
             active_timeout,
         }
     }
 
-    fn fetch_event(&self, index: usize, poll_item: &zmq::PollItem) -> Option<NodeEvent> {
+    fn fetch_event(&self, index: usize, poll_item: &zmq::PollItem) -> Option<ConnectionEvent> {
         if let (&Some(ref s), rn) = (&self.sockets[index], &self.remotes[index]) {
             if poll_item.is_readable() {
                 if let Ok(Ok(msg)) = s.recv_string(zmq::DONTWAIT) {
                     trace!("got reply {}", &msg);
                     match Message::from_raw_str(msg.as_str()) {
                         Ok(meta) => {
-                            return Some(NodeEvent::Reply(
+                            return Some(ConnectionEvent::Reply(
                                 msg,
                                 meta,
                                 rn.name.clone(),
@@ -582,11 +543,17 @@ impl ZMQConnection {
     fn get_timeout(&self) -> (Option<(String, String)>, i64) {
         let now = Instant::now();
         let (target, expiry) = {
-            if let Some((&(ref req_id, ref node_alias), (timeout, _))) = self
-                .timeouts
+            let min_idle = self
+                .idle_timeouts
                 .iter()
-                .filter(|&(_, (_, seen))| !seen)
-                .min_by(|&(_, (ref val1, _)), &(_, (ref val2, _))| val1.cmp(&val2))
+                .min_by(|&(_, ref val1), &(_, ref val2)| val1.cmp(&val2))
+                .map(|(req_id, inst)| ((req_id.as_str(), ""), inst));
+            if let Some(((req_id, node_alias), timeout)) = self
+                .socket_timeouts
+                .iter()
+                .map(|((req_id, alias), inst)| ((req_id.as_str(), alias.as_str()), inst))
+                .chain(min_idle)
+                .min_by(|(_, ref val1), (_, ref val2)| val1.cmp(&val2))
             {
                 (Some((req_id.to_string(), node_alias.to_string())), *timeout)
             } else {
@@ -633,68 +600,68 @@ impl ZMQConnection {
             warn!("Cannot send to unknown node alias: {}", node_alias);
             return Ok(());
         }
-        self.timeouts.insert(
+        self.idle_timeouts.remove(&req_id);
+        self.socket_timeouts.insert(
             (req_id.clone(), node_alias),
-            (
-                Instant::now() + Duration::from_secs(::std::cmp::max(timeout, 0) as u64),
-                false,
-            ),
+            Instant::now() + Duration::from_secs(::std::cmp::max(timeout, 0) as u64),
         );
-        self.req_cnt += 1;
-        self.req_log.insert(req_id);
         trace!("send_request <<");
         Ok(())
     }
 
     fn extend_timeout(&mut self, req_id: &str, node_alias: &str, extended_timeout: i64) {
         if let Some(timeout) = self
-            .timeouts
+            .socket_timeouts
             .get_mut(&(req_id.to_string(), node_alias.to_string()))
         {
-            timeout.0 =
-                Instant::now() + Duration::from_secs(::std::cmp::max(extended_timeout, 0) as u64);
-            timeout.1 = false
+            *timeout =
+                Instant::now() + Duration::from_secs(::std::cmp::max(extended_timeout, 0) as u64)
         } else {
             debug!("late REQACK for req_id {}, node {}", req_id, node_alias);
-        }
-    }
-
-    fn silence_timeout(&mut self, req_id: &str, node_alias: &str) {
-        if let Some(timeout) = self
-            .timeouts
-            .get_mut(&(req_id.to_string(), node_alias.to_string()))
-        {
-            timeout.1 = true
         }
     }
 
     fn clean_timeout(&mut self, req_id: &str, node_alias: Option<String>) {
         match node_alias {
             Some(node_alias) => {
-                self.timeouts.remove(&(req_id.to_string(), node_alias));
+                if self
+                    .socket_timeouts
+                    .remove(&(req_id.to_string(), node_alias))
+                    .is_some()
+                    && self
+                        .socket_timeouts
+                        .keys()
+                        .find(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
+                        .is_none()
+                {
+                    self.idle_timeouts.insert(
+                        req_id.to_owned(),
+                        Instant::now() + Duration::from_secs(self.active_timeout as u64),
+                    );
+                }
             }
             None => {
                 let keys_to_remove: Vec<(String, String)> = self
-                    .timeouts
+                    .socket_timeouts
                     .keys()
                     .cloned()
                     .filter(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
                     .collect();
                 keys_to_remove.iter().for_each(|key| {
-                    self.timeouts.remove(key);
+                    self.socket_timeouts.remove(key);
                 });
+                self.idle_timeouts.remove(req_id);
             }
         }
     }
 
-    fn has_active_timeouts(&self, req_id: &str) -> bool {
-        let result = self
-            .timeouts
-            .keys()
-            .find(|&(req_id_timeout, _)| req_id_timeout == req_id)
-            .is_some();
-        trace!("check timeouts {} {} {:?}", result, &req_id, self.timeouts);
-        result
+    fn init_request(&mut self, req_id: String) {
+        self.req_cnt += 1;
+        self.req_log.insert(req_id.clone());
+        self.idle_timeouts.insert(
+            req_id,
+            Instant::now() + Duration::from_secs(self.active_timeout as u64),
+        );
     }
 
     fn seen_request(&self, req_id: &str) -> bool {
@@ -702,7 +669,7 @@ impl ZMQConnection {
     }
 
     fn has_active_requests(&self) -> bool {
-        !self.timeouts.is_empty()
+        !(self.socket_timeouts.is_empty() && self.idle_timeouts.is_empty())
     }
 
     fn is_idle(&self) -> bool {
@@ -860,13 +827,13 @@ fn _get_nodes_and_remotes(
 #[derive(Debug)]
 enum PollResult {
     Default,
-    Events(Vec<(ZMQConnectionHandle, NodeEvent)>),
+    Events(Vec<(ZMQConnectionHandle, ConnectionEvent)>),
     NoSockets,
     Exit,
 }
 
 #[derive(Debug)]
-enum NodeEvent {
+enum ConnectionEvent {
     Reply(
         String,     // message
         Message,    // parsed
@@ -886,7 +853,6 @@ struct PendingRequest {
     sender: Sender<RequestExtEvent>,
     sub_id: String,
     body: String,
-    last_active: Instant,
 }
 
 impl PendingRequest {

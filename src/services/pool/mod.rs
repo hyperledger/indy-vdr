@@ -10,7 +10,9 @@ mod state_proof;
 mod types;
 
 pub use networker::{Networker, ZMQNetworker};
-pub use pool::{perform_get_txn, perform_get_txn_consensus, perform_get_txn_full, Pool};
+pub use pool::{
+    perform_get_txn, perform_get_txn_consensus, perform_get_txn_full, perform_refresh, Pool,
+};
 pub use types::PoolConfig;
 
 use crate::domain::ledger::txn;

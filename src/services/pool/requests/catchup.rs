@@ -22,7 +22,7 @@ pub async fn perform_catchup_request(
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
 ) -> LedgerResult<CatchupRequestResult> {
-    trace!("fetch status");
+    trace!("catchup request");
     let message = build_catchup_req(&merkle, target_mt_size)?;
     let (req_id, req_json) = serialize_message(&message)?;
     let mut req = pool.create_request(req_id, req_json).await?;
@@ -30,7 +30,7 @@ pub async fn perform_catchup_request(
     req.send_to_any(1, RequestTimeout::Ack)?;
     loop {
         match req.next().await {
-            Some(RequestEvent::Received(_node_alias, _message, parsed)) => {
+            Some(RequestEvent::Received(node_alias, _message, parsed)) => {
                 match parsed {
                     Message::CatchupRep(cr) => {
                         match handler.process_catchup_reply(cr.load_txns()?, cr.consProof.clone()) {
@@ -38,6 +38,7 @@ pub async fn perform_catchup_request(
                                 return Ok(CatchupRequestResult::Synced(txns, req.get_timing()))
                             }
                             Err(_) => {
+                                req.clean_timeout(node_alias)?;
                                 req.send_to_any(1, RequestTimeout::Ack)?;
                             }
                         }

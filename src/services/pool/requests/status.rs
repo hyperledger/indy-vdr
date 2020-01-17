@@ -42,7 +42,7 @@ pub async fn perform_status_request(
     pool: &Pool,
     merkle: MerkleTree,
 ) -> LedgerResult<StatusRequestResult> {
-    trace!("fetch status");
+    trace!("status request");
     let message = build_ledger_status_req(&merkle, pool.config().protocol_version)?;
     let (req_id, req_json) = serialize_message(&message)?;
     let mut req = pool.create_request(req_id, req_json).await?;
@@ -51,7 +51,7 @@ pub async fn perform_status_request(
     loop {
         let response = match req.next().await {
             Some(RequestEvent::Received(node_alias, _message, parsed)) => {
-                match parsed {
+                let result = match parsed {
                     Message::LedgerStatus(ls) => handler.process_catchup_target(
                         ls.merkleRoot.clone(),
                         ls.txnSeqNo,
@@ -73,13 +73,15 @@ pub async fn perform_status_request(
                             "Unexpected response",
                         ));
                     }
-                }
+                };
+                req.clean_timeout(node_alias)?;
+                result
             }
-            Some(RequestEvent::Timeout(node_alias)) => handler.process_catchup_target(
+            Some(RequestEvent::Timeout(ref node_alias)) => handler.process_catchup_target(
                 "timeout".to_string(),
                 0,
                 None,
-                &node_alias,
+                node_alias,
                 req.get_timing(),
             ),
             None => {

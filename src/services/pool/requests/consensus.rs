@@ -44,7 +44,6 @@ pub async fn perform_consensus_request(
                         } else {
                             replies.add_failed(node_alias.clone(), raw_msg);
                         }
-                        req.clean_timeout(node_alias.clone())?;
                     }
                     Message::ReqACK(_) => {
                         req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
@@ -52,17 +51,15 @@ pub async fn perform_consensus_request(
                     }
                     Message::ReqNACK(_) | Message::Reject(_) => {
                         replies.add_failed(node_alias.clone(), raw_msg);
-                        req.clean_timeout(node_alias.clone())?;
                     }
                     _ => {
                         replies.add_failed(node_alias.clone(), raw_msg);
-                        req.clean_timeout(node_alias.clone())?;
                     }
-                };
+                }
+                req.clean_timeout(node_alias)?;
             }
             Some(RequestEvent::Timeout(node_alias)) => {
-                replies.add_timeout(node_alias.clone());
-                req.clean_timeout(node_alias.clone())?;
+                replies.add_timeout(node_alias);
             }
             None => {
                 return Err(err_msg(

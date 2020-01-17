@@ -24,6 +24,11 @@ use crate::utils::error::prelude::*;
 pub async fn connect(config: PoolConfig, txns: Vec<String>) -> LedgerResult<Pool> {
     let networker = Arc::new(RwLock::new(ZMQNetworker::new(config, txns.clone())?));
     let pool = Pool::new(config, networker, None);
+    perform_refresh(&pool, txns).await?;
+    Ok(pool) // FIXME - return new transactions
+}
+
+pub async fn perform_refresh(pool: &Pool, txns: Vec<String>) -> LedgerResult<()> {
     let merkle_tree = build_tree(&txns)?;
     let result = perform_status_request(&pool, merkle_tree).await?;
     trace!("Got status result: {:?}", &result);
@@ -36,7 +41,7 @@ pub async fn connect(config: PoolConfig, txns: Vec<String>) -> LedgerResult<Pool
                 timing
             );
             perform_catchup(&pool, txns, mt_root, mt_size).await?;
-            Ok(pool)
+            Ok(()) // FIXME - return transactions
         }
         StatusRequestResult::CatchupTargetNotFound(err, timing) => {
             trace!("Catchup target not found {:?}", timing);
@@ -44,7 +49,7 @@ pub async fn connect(config: PoolConfig, txns: Vec<String>) -> LedgerResult<Pool
         }
         StatusRequestResult::Synced(timing) => {
             trace!("Synced! {:?}", timing);
-            Ok(pool)
+            Ok(())
         }
     }
 }
