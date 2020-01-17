@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime};
 
 use serde_json::{self, Value as SJsonValue};
 
+use super::networker;
 use super::pool;
 use super::state_proof;
 use super::types::{self, Message, PoolConfig};
@@ -17,16 +18,16 @@ use crate::utils::merkletree::MerkleTree;
 mod catchup;
 mod consensus;
 mod full;
+mod request;
 mod single;
 mod status;
 
 pub use catchup::{perform_catchup_request, CatchupRequestResult};
 pub use consensus::perform_consensus_request;
 pub use full::perform_full_request;
+pub use request::{PoolRequest, PoolRequestImpl, RequestHandle};
 pub use single::perform_single_request;
 pub use status::{perform_status_request, StatusRequestResult};
-
-new_handle_type!(RequestHandle, RQ_COUNTER);
 
 pub const REQUESTS_FOR_STATE_PROOFS: [&str; 11] = [
     constants::GET_NYM,
