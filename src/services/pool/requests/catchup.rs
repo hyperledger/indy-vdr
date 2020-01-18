@@ -16,8 +16,8 @@ pub enum CatchupRequestResult {
     Timeout(),
 }
 
-pub async fn perform_catchup_request(
-    pool: &Pool,
+pub async fn perform_catchup_request<T: Pool>(
+    pool: &T,
     merkle: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,

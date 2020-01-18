@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::sync::Arc;
 
 use futures::channel::mpsc::channel;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
@@ -9,28 +10,42 @@ use crate::domain::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::domain::ledger::request::{get_request_id, Request};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 
-use super::genesis::{build_tree, show_transactions};
-use super::networker::{Networker, NetworkerEvent, ZMQNetworker};
+use super::genesis::{build_tree, dump_transactions};
+use super::networker::{Networker, NetworkerEvent};
 use super::requests::{
     perform_catchup_request, perform_consensus_request, perform_full_request,
     perform_single_request, perform_status_request, CatchupRequestResult, ConsensusResult,
     PoolRequest, PoolRequestImpl, RequestHandle, SingleReply, StatusRequestResult, TimingResult,
 };
-use super::types::PoolConfig;
+use super::types::{NodeKeys, PoolConfig};
 
 use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
 
-pub async fn connect(config: PoolConfig, txns: Vec<String>) -> LedgerResult<Pool> {
+/*
+// handled by PoolFactory
+pub async fn connect(
+    config: PoolConfig,
+    txns: Vec<String>,
+    refresh: bool,
+) -> LedgerResult<(Pool, Option<Vec<String>>)> {
     let networker = Arc::new(RwLock::new(ZMQNetworker::new(config, txns.clone())?));
     let pool = Pool::new(config, networker, None);
-    perform_refresh(&pool, txns).await?;
-    Ok(pool) // FIXME - return new transactions
+    let txns = if refresh {
+        perform_refresh(&pool, txns).await?
+    } else {
+        None
+    };
+    Ok((pool, txns))
 }
+*/
 
-pub async fn perform_refresh(pool: &Pool, txns: Vec<String>) -> LedgerResult<()> {
+pub async fn perform_refresh<T: Pool>(
+    pool: &T,
+    txns: Vec<String>,
+) -> LedgerResult<Option<Vec<String>>> {
     let merkle_tree = build_tree(&txns)?;
-    let result = perform_status_request(&pool, merkle_tree).await?;
+    let result = perform_status_request(pool, merkle_tree).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         StatusRequestResult::CatchupTargetFound(mt_root, mt_size, timing) => {
@@ -40,8 +55,8 @@ pub async fn perform_refresh(pool: &Pool, txns: Vec<String>) -> LedgerResult<()>
                 mt_size,
                 timing
             );
-            perform_catchup(&pool, txns, mt_root, mt_size).await?;
-            Ok(()) // FIXME - return transactions
+            let txns = perform_catchup(pool, txns, mt_root, mt_size).await?;
+            Ok(Some(txns)) // FIXME - return transactions
         }
         StatusRequestResult::CatchupTargetNotFound(err, timing) => {
             trace!("Catchup target not found {:?}", timing);
@@ -49,28 +64,25 @@ pub async fn perform_refresh(pool: &Pool, txns: Vec<String>) -> LedgerResult<()>
         }
         StatusRequestResult::Synced(timing) => {
             trace!("Synced! {:?}", timing);
-            Ok(())
+            Ok(None)
         }
     }
 }
 
-pub async fn perform_catchup(
-    pool: &Pool,
+pub async fn perform_catchup<T: Pool>(
+    pool: &T,
     txns: Vec<String>,
     mt_root: Vec<u8>,
     mt_size: usize,
-) -> LedgerResult<()> {
+) -> LedgerResult<Vec<String>> {
     let merkle_tree = build_tree(&txns)?;
     let catchup_result = perform_catchup_request(pool, merkle_tree, mt_root, mt_size).await?;
     trace!("Got catchup result: {:?}", &catchup_result);
     match catchup_result {
         CatchupRequestResult::Synced(txns, timing) => {
             trace!("Catchup synced! {:?}", timing);
-            let txns = show_transactions(&txns, pool.config().protocol_version)?;
-            for txn in txns {
-                print!("{}\n", txn);
-            }
-            Ok(())
+            let txns = dump_transactions(&txns, pool.config().protocol_version)?;
+            Ok(txns)
         }
         CatchupRequestResult::Timeout() => {
             trace!("Catchup timeout");
@@ -102,8 +114,8 @@ fn _build_get_txn_request(
     Ok((format!("{}", req_id), body))
 }
 
-pub async fn perform_get_txn(
-    pool: &Pool,
+pub async fn perform_get_txn<T: Pool>(
+    pool: &T,
     ledger_type: LedgerType,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
@@ -128,8 +140,8 @@ pub async fn perform_get_txn(
 }
 
 // FIXME testing only
-pub async fn perform_get_txn_consensus(
-    pool: &Pool,
+pub async fn perform_get_txn_consensus<T: Pool>(
+    pool: &T,
     ledger_type: LedgerType,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
@@ -154,8 +166,8 @@ pub async fn perform_get_txn_consensus(
 }
 
 // FIXME testing only
-pub async fn perform_get_txn_full(
-    pool: &Pool,
+pub async fn perform_get_txn_full<T: Pool>(
+    pool: &T,
     ledger_type: LedgerType,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
@@ -178,42 +190,52 @@ pub async fn perform_get_txn_full(
     Ok((rows.join("\n\n"), timing.unwrap()))
 }
 
-pub fn choose_nodes(aliases: Vec<String>, weights: Option<HashMap<String, f32>>) -> Vec<String> {
-    let mut weights = aliases
-        .iter()
-        .enumerate()
-        .map(|(idx, name)| {
+pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>) -> Vec<String> {
+    let mut weighted = node_keys
+        .keys()
+        .map(|name| {
             (
-                idx,
                 weights
                     .as_ref()
                     .and_then(|w| w.get(name))
                     .cloned()
                     .unwrap_or(1.0),
+                name.as_str(),
             )
         })
-        .collect::<Vec<(usize, f32)>>();
+        .collect::<Vec<(f32, &str)>>();
     let mut rng = rand::thread_rng();
     let mut result = vec![];
-    for _ in 0..weights.len() {
-        let idx = weights.choose_weighted(&mut rng, |item| item.1).unwrap().0;
-        weights[idx].1 = 0.0;
-        result.push(aliases[idx].clone());
+    for _ in 0..weighted.len() {
+        let found = weighted
+            .choose_weighted_mut(&mut rng, |item| item.0)
+            .unwrap();
+        found.0 = 0.0;
+        result.push(found.1.to_string());
     }
     result
 }
 
-#[derive(Clone)]
-pub struct Pool {
+pub trait Pool {
+    fn config(&self) -> PoolConfig;
+    fn create_request<'a>(
+        &'a self,
+        req_id: String,
+        req_json: String,
+    ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn PoolRequest>>>;
+    fn transactions(&self) -> Vec<String>;
+}
+
+pub struct AbstractPool<T: Networker> {
     config: PoolConfig,
-    networker: Arc<RwLock<dyn Networker>>,
+    networker: T,
     node_weights: Option<HashMap<String, f32>>,
 }
 
-impl Pool {
+impl<T: Networker> AbstractPool<T> {
     pub fn new(
         config: PoolConfig,
-        networker: Arc<RwLock<dyn Networker>>,
+        networker: T,
         node_weights: Option<HashMap<String, f32>>,
     ) -> Self {
         Self {
@@ -222,8 +244,20 @@ impl Pool {
             node_weights,
         }
     }
+}
 
-    pub fn create_request<'a>(
+impl<T: Networker + Clone> Clone for AbstractPool<T> {
+    fn clone(&self) -> Self {
+        Self {
+            config: self.config,
+            networker: self.networker.clone(),
+            node_weights: self.node_weights.clone(),
+        }
+    }
+}
+
+impl<T: Networker + Clone + 'static> Pool for AbstractPool<T> {
+    fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
@@ -234,23 +268,32 @@ impl Pool {
             // FIXME - use unbounded channel? or require networker to dispatch from a queue
             let (tx, rx) = channel(10);
             let handle = RequestHandle::next();
-            let inst_read = instance.read().unwrap();
-            let node_aliases = choose_nodes(inst_read.node_aliases(), weights);
-            inst_read.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
+            let node_keys = instance.node_keys();
+            let node_order = choose_nodes(&node_keys, weights);
+            instance.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
             Ok(Box::new(PoolRequestImpl::new(
                 handle,
                 rx,
-                instance.clone(),
-                node_aliases,
+                instance.to_owned(),
+                node_keys,
+                node_order,
             )) as Box<dyn PoolRequest>)
         })
         .boxed_local()
     }
 
-    pub fn config(&self) -> PoolConfig {
-        return self.config;
+    fn config(&self) -> PoolConfig {
+        self.config
+    }
+
+    fn transactions(&self) -> Vec<String> {
+        vec![]
     }
 }
+
+pub type SharedPool = AbstractPool<Arc<dyn Networker>>;
+
+pub type LocalPool = AbstractPool<Rc<dyn Networker>>;
 
 /*
 #[cfg(test)]

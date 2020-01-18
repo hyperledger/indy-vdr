@@ -13,14 +13,14 @@ use crate::utils::error::prelude::*;
 
 use super::pool::Pool;
 use super::state_proof;
-use super::types::{Message, Nodes, DEFAULT_GENERATOR};
+use super::types::{Message, NodeKeys, DEFAULT_GENERATOR};
 use super::{
     get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
     ReplyState, RequestEvent, RequestTimeout,
 };
 
-pub async fn perform_single_request(
-    pool: &Pool,
+pub async fn perform_single_request<T: Pool>(
+    pool: &T,
     req_id: &str,
     req_json: &str,
     state_proof_key: Option<Vec<u8>>,
@@ -31,7 +31,7 @@ pub async fn perform_single_request(
         .create_request(req_id.to_owned(), req_json.to_owned())
         .await?;
     let config = pool.config();
-    let node_keys = req.node_keys()?;
+    let node_keys = req.node_keys();
     let total_nodes_count = req.node_count();
     let f = get_f(total_nodes_count);
     let mut replies = ReplyState::new();
@@ -216,7 +216,7 @@ fn check_state_proof(
     msg_result: &SJsonValue,
     f: usize,
     gen: &Generator,
-    bls_keys: &Nodes,
+    bls_keys: &NodeKeys,
     raw_msg: &str,
     sp_key: Option<&[u8]>,
     requested_timestamps: (Option<u64>, Option<u64>),

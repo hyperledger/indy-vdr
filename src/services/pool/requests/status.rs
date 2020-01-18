@@ -38,8 +38,8 @@ enum CatchupProgress {
     Timeout,
 }
 
-pub async fn perform_status_request(
-    pool: &Pool,
+pub async fn perform_status_request<T: Pool>(
+    pool: &T,
     merkle: MerkleTree,
 ) -> LedgerResult<StatusRequestResult> {
     trace!("status request");

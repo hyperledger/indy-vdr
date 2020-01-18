@@ -36,15 +36,18 @@ macro_rules! new_handle_type (($newtype:ident, $counter:ident) => (
         pub fn next() -> $newtype {
             $newtype($counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1)
         }
-        #[allow(dead_code)]
-        pub fn value(&self) -> usize {
-            return self.0
-        }
     }
 
     impl std::fmt::Display for $newtype {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}({})", stringify!($newtype), self.0)
+        }
+    }
+
+    impl std::ops::Deref for $newtype {
+        type Target = usize;
+        fn deref(&self) -> &usize {
+            &self.0
         }
     }
 ));

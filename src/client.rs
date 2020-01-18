@@ -33,37 +33,37 @@ fn format_result<T: std::fmt::Debug>(result: LedgerResult<(String, T)>) -> Ledge
   })
 }
 
-async fn test_get_txn_single(seq_no: i32, pool: Pool) -> LedgerResult<String> {
-  let result = perform_get_txn(&pool, LedgerType::DOMAIN, seq_no).await;
+async fn test_get_txn_single<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
+  let result = perform_get_txn(pool, LedgerType::DOMAIN, seq_no).await;
   format_result(result)
 }
 
-async fn test_get_txn_consensus(seq_no: i32, pool: Pool) -> LedgerResult<String> {
-  let result = perform_get_txn_consensus(&pool, LedgerType::DOMAIN, seq_no).await;
+async fn test_get_txn_consensus<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
+  let result = perform_get_txn_consensus(pool, LedgerType::DOMAIN, seq_no).await;
   format_result(result)
 }
 
-async fn test_get_txn_full(seq_no: i32, pool: Pool) -> LedgerResult<String> {
-  let result = perform_get_txn_full(&pool, LedgerType::DOMAIN, seq_no).await;
+async fn test_get_txn_full<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
+  let result = perform_get_txn_full(pool, LedgerType::DOMAIN, seq_no).await;
   format_result(result)
 }
 
-async fn handle_request(
+async fn handle_request<T: Pool>(
   req: Request<Body>,
   seq_no: i32,
-  pool: Pool,
+  pool: T,
 ) -> Result<Response<Body>, hyper::Error> {
   match (req.method(), req.uri().path()) {
     (&Method::GET, "/") => {
-      let msg = test_get_txn_single(seq_no, pool).await.unwrap();
+      let msg = test_get_txn_single(seq_no, &pool).await.unwrap();
       Ok::<_, Error>(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/consensus") => {
-      let msg = test_get_txn_consensus(seq_no, pool).await.unwrap();
+      let msg = test_get_txn_consensus(seq_no, &pool).await.unwrap();
       Ok::<_, Error>(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/full") => {
-      let msg = test_get_txn_full(seq_no, pool).await.unwrap();
+      let msg = test_get_txn_full(seq_no, &pool).await.unwrap();
       Ok::<_, Error>(Response::new(Body::from(msg)))
     }
     (&Method::GET, _) => {
@@ -83,7 +83,7 @@ async fn run() -> LedgerResult<()> {
   let addr = ([127, 0, 0, 1], 3000).into();
 
   let factory = PoolFactory::from_genesis_file("genesis.txn")?;
-  let pool = factory.create_pool()?;
+  let pool = factory.create_local()?;
   let count = Rc::new(Cell::new(1i32));
 
   let make_service = make_service_fn(move |_| {

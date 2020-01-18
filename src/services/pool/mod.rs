@@ -11,7 +11,8 @@ mod types;
 
 pub use networker::{Networker, ZMQNetworker};
 pub use pool::{
-    perform_get_txn, perform_get_txn_consensus, perform_get_txn_full, perform_refresh, Pool,
+    perform_get_txn, perform_get_txn_consensus, perform_get_txn_full, perform_refresh,
+    AbstractPool, LocalPool, Pool, SharedPool,
 };
 pub use types::PoolConfig;
 

@@ -1,4 +1,6 @@
 #![warn(dead_code)]
+use std::rc::Rc;
+use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 
@@ -6,7 +8,7 @@ use crate::utils::error::prelude::*;
 
 use super::genesis;
 use super::requests::{RequestExtEvent, RequestHandle, RequestTimeout};
-use super::types::{self, Nodes};
+use super::types::{self, NodeKeys};
 
 mod zmq;
 pub use self::zmq::ZMQNetworker;
@@ -33,9 +35,26 @@ pub enum NetworkerEvent {
 }
 
 pub trait Networker {
-    fn node_aliases(&self) -> Vec<String>;
-    fn node_keys(&self) -> Nodes;
+    fn node_keys(&self) -> NodeKeys;
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()>;
+}
+
+impl<T: Networker + ?Sized> Networker for Rc<T> {
+    fn node_keys(&self) -> NodeKeys {
+        T::node_keys(self.as_ref())
+    }
+    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+        T::send(self.as_ref(), event)
+    }
+}
+
+impl<T: Networker + ?Sized> Networker for Arc<T> {
+    fn node_keys(&self) -> NodeKeys {
+        T::node_keys(self.as_ref())
+    }
+    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+        T::send(self.as_ref(), event)
+    }
 }
 
 /*

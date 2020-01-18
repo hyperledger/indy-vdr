@@ -9,8 +9,8 @@ use super::{
     ReplyState, RequestEvent, RequestTimeout,
 };
 
-pub async fn perform_consensus_request(
-    pool: &Pool,
+pub async fn perform_consensus_request<T: Pool>(
+    pool: &T,
     req_id: &str,
     req_json: &str,
 ) -> LedgerResult<ConsensusResult<String>> {

@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
+use std::sync::Arc;
 use std::{fs, io};
 
 use serde_json;
 
 use crate::domain::pool::ProtocolVersion;
-use crate::services::pool::{Pool, PoolConfig, ZMQNetworker};
+use crate::services::pool::{
+    AbstractPool, LocalPool, Networker, PoolConfig, SharedPool, ZMQNetworker,
+};
 use crate::utils::error::prelude::*;
 
 #[derive(Debug)]
@@ -40,12 +43,22 @@ impl PoolFactory {
         self.config.protocol_version = version
     }
 
-    pub fn create_pool(&self) -> LedgerResult<Pool> {
-        let networker = Arc::new(RwLock::new(ZMQNetworker::new(
+    pub fn create_local(&self) -> LedgerResult<LocalPool> {
+        let networker = Rc::new(ZMQNetworker::create(
             self.config,
             self.transactions.clone(),
-        )?));
-        Ok(Pool::new(self.config, networker, None))
+        )?) as Rc<dyn Networker>;
+        let pool = AbstractPool::new(self.config, networker, None);
+        Ok(pool)
+    }
+
+    pub fn create_shared(&self) -> LedgerResult<SharedPool> {
+        let networker = Arc::new(ZMQNetworker::create(
+            self.config,
+            self.transactions.clone(),
+        )?) as Arc<dyn Networker>;
+        let pool = AbstractPool::new(self.config, networker, None);
+        Ok(pool)
     }
 }
 

@@ -68,7 +68,7 @@ fn _decode_transaction(
     }
 }
 
-pub fn show_transactions(
+pub fn dump_transactions(
     txns: &Vec<Vec<u8>>,
     protocol_version: ProtocolVersion,
 ) -> LedgerResult<Vec<String>> {

@@ -8,8 +8,8 @@ use super::{NodeReplies, ReplyState, RequestEvent, RequestTimeout, TimingResult}
 
 pub type FullRequestResult = (NodeReplies<String>, Option<TimingResult>);
 
-pub async fn perform_full_request(
-    pool: &Pool,
+pub async fn perform_full_request<T: Pool>(
+    pool: &T,
     req_id: &str,
     req_json: &str,
     local_timeout: Option<RequestTimeout>,

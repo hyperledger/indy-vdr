@@ -111,7 +111,7 @@ impl JsonTransactions {
 
 new_handle_type!(CommandHandle, CH_COUNTER);
 
-pub type Nodes = HashMap<String, Option<BlsVerKey>>;
+pub type NodeKeys = HashMap<String, Option<BlsVerKey>>;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct NodeData {

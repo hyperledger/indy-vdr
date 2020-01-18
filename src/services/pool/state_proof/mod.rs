@@ -91,7 +91,7 @@ pub fn parse_generic_reply_for_proof_checking(
 
 pub fn verify_parsed_sp(
     parsed_sps: Vec<ParsedSP>,
-    nodes: &Nodes,
+    nodes: &NodeKeys,
     f: usize,
     gen: &Generator,
 ) -> bool {
@@ -911,7 +911,7 @@ fn _verify_proof_signature(
     signature: &str,
     participants: &[&str],
     value: &[u8],
-    nodes: &Nodes,
+    nodes: &NodeKeys,
     f: usize,
     gen: &Generator,
 ) -> LedgerResult<bool> {

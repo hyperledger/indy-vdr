@@ -18,7 +18,7 @@ use crate::utils::crypto;
 use crate::utils::error::prelude::*;
 
 use super::genesis::build_node_state_from_json;
-use super::types::{Message, Nodes, PoolConfig};
+use super::types::{Message, NodeKeys, PoolConfig};
 use super::{Networker, NetworkerEvent, RequestExtEvent, RequestHandle, RequestTimeout};
 
 new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
@@ -28,14 +28,14 @@ new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 pub struct ZMQNetworker {
     cmd_send: zmq::Socket,
     evt_send: mpsc::Sender<NetworkerEvent>,
-    node_keys: Nodes,
+    node_keys: NodeKeys,
     worker: Option<thread::JoinHandle<()>>,
 }
 
 impl ZMQNetworker {
-    pub fn new(config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self> {
+    pub fn create(config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self> {
         let (node_keys, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
-        let socket_handle = ZMQSocketHandle::next().value();
+        let socket_handle = *ZMQSocketHandle::next();
         let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
         let (evt_send, evt_recv) = mpsc::channel::<NetworkerEvent>();
         let worker_keys = node_keys.clone();
@@ -57,11 +57,7 @@ impl ZMQNetworker {
 }
 
 impl Networker for ZMQNetworker {
-    fn node_aliases(&self) -> Vec<String> {
-        self.node_keys.keys().cloned().collect::<Vec<String>>()
-    }
-
-    fn node_keys(&self) -> Nodes {
+    fn node_keys(&self) -> NodeKeys {
         self.node_keys.clone()
     }
 
@@ -95,7 +91,7 @@ struct ZMQThread {
     config: PoolConfig,
     cmd_recv: zmq::Socket,
     evt_recv: mpsc::Receiver<NetworkerEvent>,
-    node_keys: Nodes,
+    node_keys: NodeKeys,
     remotes: Vec<RemoteNode>,
     requests: BTreeMap<RequestHandle, PendingRequest>,
     last_connection: Option<ZMQConnectionHandle>,
@@ -107,7 +103,7 @@ impl ZMQThread {
         config: PoolConfig,
         cmd_recv: zmq::Socket,
         evt_recv: mpsc::Receiver<NetworkerEvent>,
-        node_keys: Nodes,
+        node_keys: NodeKeys,
         remotes: Vec<RemoteNode>,
     ) -> Self {
         ZMQThread {
@@ -739,7 +735,7 @@ fn _create_pair_of_sockets(addr: &str) -> (zmq::Socket, zmq::Socket) {
 fn _get_nodes_and_remotes(
     transactions: Vec<String>,
     protocol_version: ProtocolVersion,
-) -> LedgerResult<(Nodes, Vec<RemoteNode>)> {
+) -> LedgerResult<(NodeKeys, Vec<RemoteNode>)> {
     let txn_map = build_node_state_from_json(transactions, protocol_version)?;
     Ok(txn_map
         .iter()
