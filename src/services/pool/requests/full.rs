@@ -4,7 +4,7 @@ use crate::utils::error::prelude::*;
 
 use super::pool::Pool;
 use super::types::Message;
-use super::{NodeReplies, ReplyState, RequestEvent, RequestTimeout, TimingResult};
+use super::{NodeReplies, ReplyState, RequestEvent, TimingResult};
 
 pub type FullRequestResult = (NodeReplies<String>, Option<TimingResult>);
 
@@ -12,14 +12,14 @@ pub async fn perform_full_request<T: Pool>(
     pool: &T,
     req_id: &str,
     req_json: &str,
-    local_timeout: Option<RequestTimeout>,
+    local_timeout: Option<i64>,
     nodes_to_send: Option<Vec<String>>,
 ) -> LedgerResult<FullRequestResult> {
     trace!("full request");
     let mut req = pool
         .create_request(req_id.to_owned(), req_json.to_owned())
         .await?;
-    let timeout = local_timeout.unwrap_or(RequestTimeout::Default);
+    let timeout = local_timeout.unwrap_or(pool.config().reply_timeout);
     let req_reply_count = if let Some(nodes) = nodes_to_send {
         req.send_to(nodes, timeout)?.len()
     } else {

@@ -8,7 +8,7 @@ use serde_json::{self, Value as SJsonValue};
 use super::networker;
 use super::pool;
 use super::state_proof;
-use super::types::{self, Message, PoolConfig};
+use super::types::{self, Message};
 
 use crate::domain::ledger::constants;
 use crate::utils::base58::FromBase58;
@@ -24,7 +24,7 @@ mod status;
 
 pub use catchup::{perform_catchup_request, CatchupRequestResult};
 pub use consensus::perform_consensus_request;
-pub use full::perform_full_request;
+pub use full::{perform_full_request, FullRequestResult};
 pub use request::{PoolRequest, PoolRequestImpl, RequestHandle};
 pub use single::perform_single_request;
 pub use status::{perform_status_request, StatusRequestResult};
@@ -100,24 +100,6 @@ impl std::fmt::Display for RequestState {
             Self::Terminated => "Terminated",
         };
         f.write_str(state)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum RequestTimeout {
-    Default,
-    Ack,
-    #[allow(dead_code)]
-    Seconds(i64),
-}
-
-impl RequestTimeout {
-    pub fn expand(&self, config: &PoolConfig) -> i64 {
-        match self {
-            Self::Default => config.reply_timeout,
-            Self::Ack => config.ack_timeout,
-            Self::Seconds(n) => *n,
-        }
     }
 }
 

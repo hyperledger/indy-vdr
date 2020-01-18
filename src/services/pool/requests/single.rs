@@ -16,7 +16,7 @@ use super::state_proof;
 use super::types::{Message, NodeKeys, DEFAULT_GENERATOR};
 use super::{
     get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
-    ReplyState, RequestEvent, RequestTimeout,
+    ReplyState, RequestEvent,
 };
 
 pub async fn perform_single_request<T: Pool>(
@@ -39,7 +39,7 @@ pub async fn perform_single_request<T: Pool>(
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
 
-    req.send_to_any(config.request_read_nodes, RequestTimeout::Ack)?;
+    req.send_to_any(config.request_read_nodes, config.ack_timeout)?;
     loop {
         let resend = match req.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => match parsed {
@@ -98,7 +98,7 @@ pub async fn perform_single_request<T: Pool>(
                     }
                 }
                 Message::ReqACK(_) => {
-                    req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
+                    req.extend_timeout(node_alias.clone(), config.reply_timeout)?;
                     continue;
                 }
                 Message::ReqNACK(_) | Message::Reject(_) => {
@@ -127,7 +127,7 @@ pub async fn perform_single_request<T: Pool>(
             return Ok(ConsensusResult::NoConsensus(req.get_timing()));
         }
         if resend {
-            req.send_to_any(2, RequestTimeout::Ack)?;
+            req.send_to_any(2, config.ack_timeout)?;
         }
     }
 }

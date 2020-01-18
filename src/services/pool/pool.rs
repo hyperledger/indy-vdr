@@ -15,7 +15,8 @@ use super::networker::{Networker, NetworkerEvent};
 use super::requests::{
     perform_catchup_request, perform_consensus_request, perform_full_request,
     perform_single_request, perform_status_request, CatchupRequestResult, ConsensusResult,
-    PoolRequest, PoolRequestImpl, RequestHandle, SingleReply, StatusRequestResult, TimingResult,
+    FullRequestResult, PoolRequest, PoolRequestImpl, RequestHandle, SingleReply,
+    StatusRequestResult, TimingResult,
 };
 use super::types::{NodeKeys, PoolConfig};
 
@@ -230,11 +231,13 @@ pub struct AbstractPool<T: Networker> {
     config: PoolConfig,
     networker: T,
     node_weights: Option<HashMap<String, f32>>,
+    transactions: Vec<String>,
 }
 
-impl<T: Networker> AbstractPool<T> {
+impl<T: Networker + Clone + 'static> AbstractPool<T> {
     pub fn new(
         config: PoolConfig,
+        transactions: Vec<String>,
         networker: T,
         node_weights: Option<HashMap<String, f32>>,
     ) -> Self {
@@ -242,7 +245,43 @@ impl<T: Networker> AbstractPool<T> {
             config,
             networker,
             node_weights,
+            transactions,
         }
+    }
+
+    pub async fn perform_single_request(
+        &self,
+        req_id: &str,
+        req_json: &str,
+        state_proof_key: Option<Vec<u8>>,
+        state_proof_timestamps: (Option<u64>, Option<u64>),
+    ) -> LedgerResult<ConsensusResult<String>> {
+        perform_single_request(
+            self,
+            req_id,
+            req_json,
+            state_proof_key,
+            state_proof_timestamps,
+        )
+        .await
+    }
+
+    pub async fn perform_consensus_request(
+        &self,
+        req_id: &str,
+        req_json: &str,
+    ) -> LedgerResult<ConsensusResult<String>> {
+        perform_consensus_request(self, req_id, req_json).await
+    }
+
+    pub async fn perform_full_request(
+        &self,
+        req_id: &str,
+        req_json: &str,
+        timeout: Option<i64>,
+        nodes_to_send: Option<Vec<String>>,
+    ) -> LedgerResult<FullRequestResult> {
+        perform_full_request(self, req_id, req_json, timeout, nodes_to_send).await
     }
 }
 
@@ -252,6 +291,7 @@ impl<T: Networker + Clone> Clone for AbstractPool<T> {
             config: self.config,
             networker: self.networker.clone(),
             node_weights: self.node_weights.clone(),
+            transactions: self.transactions.clone(),
         }
     }
 }
@@ -287,13 +327,13 @@ impl<T: Networker + Clone + 'static> Pool for AbstractPool<T> {
     }
 
     fn transactions(&self) -> Vec<String> {
-        vec![]
+        self.transactions.clone()
     }
 }
 
-pub type SharedPool = AbstractPool<Arc<dyn Networker>>;
-
 pub type LocalPool = AbstractPool<Rc<dyn Networker>>;
+
+pub type SharedPool = AbstractPool<Arc<dyn Networker>>;
 
 /*
 #[cfg(test)]

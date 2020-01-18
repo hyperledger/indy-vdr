@@ -7,7 +7,7 @@ use futures::channel::mpsc::Sender;
 use crate::utils::error::prelude::*;
 
 use super::genesis;
-use super::requests::{RequestExtEvent, RequestHandle, RequestTimeout};
+use super::requests::{RequestExtEvent, RequestHandle};
 use super::types::{self, NodeKeys};
 
 mod zmq;
@@ -22,7 +22,11 @@ pub enum NetworkerEvent {
         String, // message body
         Sender<RequestExtEvent>,
     ),
-    Dispatch(RequestHandle, Vec<String>, RequestTimeout),
+    Dispatch(
+        RequestHandle,
+        Vec<String>, // node aliases
+        i64,         // timeout
+    ),
     CleanTimeout(
         RequestHandle,
         String, // node alias
@@ -30,7 +34,7 @@ pub enum NetworkerEvent {
     ExtendTimeout(
         RequestHandle,
         String, // node alias
-        RequestTimeout,
+        i64,    // timeout
     ),
 }
 

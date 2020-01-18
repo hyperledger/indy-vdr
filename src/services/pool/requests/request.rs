@@ -10,28 +10,22 @@ use crate::utils::error::prelude::*;
 
 use super::networker::{Networker, NetworkerEvent};
 use super::types::NodeKeys;
-use super::{
-    RequestEvent, RequestExtEvent, RequestState, RequestTimeout, RequestTiming, TimingResult,
-};
+use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming, TimingResult};
 
 new_handle_type!(RequestHandle, RQ_COUNTER);
 
 #[must_use = "requests do nothing unless polled"]
 pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
     fn clean_timeout(&self, node_alias: String) -> LedgerResult<()>;
-    fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()>;
+    fn extend_timeout(&self, node_alias: String, timeout: i64) -> LedgerResult<()>;
     fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
     fn node_count(&self) -> usize;
     fn node_keys(&self) -> NodeKeys;
     fn node_order(&self) -> Vec<String>;
-    fn send_to_all(&mut self, timeout: RequestTimeout) -> LedgerResult<()>;
-    fn send_to_any(&mut self, count: usize, timeout: RequestTimeout) -> LedgerResult<Vec<String>>;
-    fn send_to(
-        &mut self,
-        node_aliases: Vec<String>,
-        timeout: RequestTimeout,
-    ) -> LedgerResult<Vec<String>>;
+    fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()>;
+    fn send_to_any(&mut self, count: usize, timeout: i64) -> LedgerResult<Vec<String>>;
+    fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> LedgerResult<Vec<String>>;
 }
 
 pub struct PoolRequestImpl<T: Networker> {
@@ -79,7 +73,7 @@ impl<T: Networker> PoolRequest for PoolRequestImpl<T> {
         self.trigger(NetworkerEvent::CleanTimeout(self.handle, node_alias))
     }
 
-    fn extend_timeout(&self, node_alias: String, timeout: RequestTimeout) -> LedgerResult<()> {
+    fn extend_timeout(&self, node_alias: String, timeout: i64) -> LedgerResult<()> {
         self.trigger(NetworkerEvent::ExtendTimeout(
             self.handle,
             node_alias,
@@ -108,7 +102,7 @@ impl<T: Networker> PoolRequest for PoolRequestImpl<T> {
         self.node_keys.clone()
     }
 
-    fn send_to_all(&mut self, timeout: RequestTimeout) -> LedgerResult<()> {
+    fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()> {
         let aliases = self.node_order();
         let count = aliases.len();
         self.trigger(NetworkerEvent::Dispatch(self.handle, aliases, timeout))?;
@@ -116,7 +110,7 @@ impl<T: Networker> PoolRequest for PoolRequestImpl<T> {
         Ok(())
     }
 
-    fn send_to_any(&mut self, count: usize, timeout: RequestTimeout) -> LedgerResult<Vec<String>> {
+    fn send_to_any(&mut self, count: usize, timeout: i64) -> LedgerResult<Vec<String>> {
         let aliases = self.node_order();
         let max = std::cmp::min(self.send_count + count, aliases.len());
         let min = std::cmp::min(self.send_count, max);
@@ -135,11 +129,7 @@ impl<T: Networker> PoolRequest for PoolRequestImpl<T> {
         Ok(nodes)
     }
 
-    fn send_to(
-        &mut self,
-        node_aliases: Vec<String>,
-        timeout: RequestTimeout,
-    ) -> LedgerResult<Vec<String>> {
+    fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> LedgerResult<Vec<String>> {
         let aliases = self
             .node_order
             .iter()

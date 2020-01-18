@@ -19,7 +19,7 @@ use crate::utils::error::prelude::*;
 
 use super::genesis::build_node_state_from_json;
 use super::types::{Message, NodeKeys, PoolConfig};
-use super::{Networker, NetworkerEvent, RequestExtEvent, RequestHandle, RequestTimeout};
+use super::{Networker, NetworkerEvent, RequestExtEvent, RequestHandle};
 
 new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 
@@ -328,11 +328,10 @@ impl ZMQThread {
         &mut self,
         handle: RequestHandle,
         node_aliases: Vec<String>,
-        timeout: RequestTimeout,
+        timeout: i64,
     ) -> LedgerResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
-                let timeout = timeout.expand(&self.config);
                 for node_alias in node_aliases {
                     if !self.node_keys.contains_key(&node_alias) {
                         warn!("Cannot send to unknown node alias: {}", node_alias);
@@ -378,15 +377,11 @@ impl ZMQThread {
         &mut self,
         handle: RequestHandle,
         node_alias: String,
-        timeout: RequestTimeout,
+        timeout: i64,
     ) -> LedgerResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
-                conn.extend_timeout(
-                    request.sub_id.as_str(),
-                    node_alias.as_str(),
-                    timeout.expand(&self.config),
-                )
+                conn.extend_timeout(request.sub_id.as_str(), node_alias.as_str(), timeout)
             } else {
                 warn!("Pool connection expired for extend timeout: {}", handle)
             }

@@ -5,7 +5,7 @@ use crate::utils::merkletree::MerkleTree;
 
 use super::pool::Pool;
 use super::types::{CatchupReq, Message};
-use super::{check_cons_proofs, serialize_message, RequestEvent, RequestTimeout, TimingResult};
+use super::{check_cons_proofs, serialize_message, RequestEvent, TimingResult};
 
 #[derive(Debug)]
 pub enum CatchupRequestResult {
@@ -27,7 +27,8 @@ pub async fn perform_catchup_request<T: Pool>(
     let (req_id, req_json) = serialize_message(&message)?;
     let mut req = pool.create_request(req_id, req_json).await?;
     let mut handler = CatchupSingleHandler::new(merkle, target_mt_root, target_mt_size);
-    req.send_to_any(1, RequestTimeout::Ack)?;
+    let ack_timeout = pool.config().ack_timeout;
+    req.send_to_any(1, ack_timeout)?;
     loop {
         match req.next().await {
             Some(RequestEvent::Received(node_alias, _message, parsed)) => {
@@ -39,7 +40,7 @@ pub async fn perform_catchup_request<T: Pool>(
                             }
                             Err(_) => {
                                 req.clean_timeout(node_alias)?;
-                                req.send_to_any(1, RequestTimeout::Ack)?;
+                                req.send_to_any(1, ack_timeout)?;
                             }
                         }
                     }
@@ -53,7 +54,7 @@ pub async fn perform_catchup_request<T: Pool>(
                 }
             }
             Some(RequestEvent::Timeout(_node_alias)) => {
-                req.send_to_any(1, RequestTimeout::Ack)?;
+                req.send_to_any(1, ack_timeout)?;
             }
             None => {
                 return Err(err_msg(

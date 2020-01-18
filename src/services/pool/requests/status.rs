@@ -12,9 +12,7 @@ use crate::utils::merkletree::MerkleTree;
 
 use super::pool::Pool;
 use super::types::{LedgerStatus, Message};
-use super::{
-    check_cons_proofs, get_f, serialize_message, RequestEvent, RequestTimeout, TimingResult,
-};
+use super::{check_cons_proofs, get_f, serialize_message, RequestEvent, TimingResult};
 
 #[derive(Debug)]
 pub enum StatusRequestResult {
@@ -47,7 +45,7 @@ pub async fn perform_status_request<T: Pool>(
     let (req_id, req_json) = serialize_message(&message)?;
     let mut req = pool.create_request(req_id, req_json).await?;
     let mut handler = StatusRequestHandler::new(merkle, req.node_count());
-    req.send_to_all(RequestTimeout::Default)?;
+    req.send_to_all(pool.config().reply_timeout)?;
     loop {
         let response = match req.next().await {
             Some(RequestEvent::Received(node_alias, _message, parsed)) => {

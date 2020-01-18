@@ -6,7 +6,7 @@ use super::pool::Pool;
 use super::types::Message;
 use super::{
     get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
-    ReplyState, RequestEvent, RequestTimeout,
+    ReplyState, RequestEvent,
 };
 
 pub async fn perform_consensus_request<T: Pool>(
@@ -22,8 +22,9 @@ pub async fn perform_consensus_request<T: Pool>(
     let f = get_f(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
+    let config = pool.config();
 
-    req.send_to_all(RequestTimeout::Ack)?;
+    req.send_to_all(config.ack_timeout)?;
     loop {
         match req.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
@@ -46,7 +47,7 @@ pub async fn perform_consensus_request<T: Pool>(
                         }
                     }
                     Message::ReqACK(_) => {
-                        req.extend_timeout(node_alias.clone(), RequestTimeout::Default)?;
+                        req.extend_timeout(node_alias.clone(), config.reply_timeout)?;
                         continue;
                     }
                     Message::ReqNACK(_) | Message::Reject(_) => {

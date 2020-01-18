@@ -48,7 +48,7 @@ impl PoolFactory {
             self.config,
             self.transactions.clone(),
         )?) as Rc<dyn Networker>;
-        let pool = AbstractPool::new(self.config, networker, None);
+        let pool = AbstractPool::new(self.config, self.transactions.clone(), networker, None);
         Ok(pool)
     }
 
@@ -57,7 +57,7 @@ impl PoolFactory {
             self.config,
             self.transactions.clone(),
         )?) as Arc<dyn Networker>;
-        let pool = AbstractPool::new(self.config, networker, None);
+        let pool = AbstractPool::new(self.config, self.transactions.clone(), networker, None);
         Ok(pool)
     }
 }
