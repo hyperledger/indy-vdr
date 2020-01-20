@@ -1,0 +1,20 @@
+[package]
+name = "indy-vdr-proxy"
+version = "0.1.0"
+authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
+edition = "2018"
+
+description = ""
+license = "MIT/Apache-2.0"
+
+[dependencies]
+env_logger = "0.7.1"
+hyper = "0.13.0"
+log = "0.4.10"
+tokio = { version = "0.2.9", features = ["rt-util"] }
+indy-vdr = { path = "../indy-vdr" }
+
+[[bin]]
+name = "indy-vdr-proxy"
+path = "src/main.rs"
+# FIXME set max log level on release mode

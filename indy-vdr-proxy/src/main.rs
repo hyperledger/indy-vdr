@@ -1,5 +1,5 @@
 extern crate env_logger;
-extern crate indy_ledger_client;
+extern crate indy_vdr;
 extern crate log;
 
 use std::cell::Cell;
@@ -8,8 +8,8 @@ use std::rc::Rc;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
 
-use indy_ledger_client::config::{LedgerResult, PoolFactory};
-use indy_ledger_client::services::pool::{
+use indy_vdr::config::{LedgerResult, PoolFactory};
+use indy_vdr::services::pool::{
   perform_get_txn, perform_get_txn_consensus, perform_get_txn_full, LedgerType, Pool,
 };
 
