@@ -9,10 +9,8 @@ mod requests;
 mod state_proof;
 mod types;
 
+pub use crate::config::PoolConfig;
 pub use networker::{Networker, ZMQNetworker};
-pub use types::PoolConfig;
-
-use crate::domain::ledger::txn;
 pub use txn::LedgerType; // temporary for HTTP client
 
 use std::collections::HashMap;
@@ -25,6 +23,7 @@ use rand::seq::SliceRandom;
 
 use crate::domain::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::domain::ledger::request::{get_request_id, Request};
+use crate::domain::ledger::txn;
 use crate::utils::base58::ToBase58;
 use crate::utils::error::prelude::*;
 

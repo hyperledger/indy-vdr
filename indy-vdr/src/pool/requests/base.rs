@@ -6,10 +6,11 @@ use futures::task::{Context, Poll};
 
 use pin_utils::unsafe_pinned;
 
+use crate::config::PoolConfig;
 use crate::utils::error::prelude::*;
 
 use super::networker::{Networker, NetworkerEvent};
-use super::types::{NodeKeys, PoolConfig};
+use super::types::NodeKeys;
 use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming, TimingResult};
 
 new_handle_type!(RequestHandle, RQ_COUNTER);
