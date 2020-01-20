@@ -8,21 +8,6 @@ use crate::utils::error::prelude::*;
 
 pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
 
-#[derive(Clone, Debug)]
-pub struct JsonTransactions {
-    pub txns: Box<Vec<String>>,
-}
-
-impl JsonTransactions {
-    pub fn new(txns: Vec<String>) -> Self {
-        Self {
-            txns: Box::new(txns.clone()),
-        }
-    }
-}
-
-new_handle_type!(CommandHandle, CH_COUNTER);
-
 pub type NodeKeys = HashMap<String, Option<BlsVerKey>>;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
@@ -40,8 +25,6 @@ pub struct NodeData {
     pub blskey: Option<String>,
     pub blskey_pop: Option<String>,
 }
-
-pub type TransactionMap = HashMap<String, NodeTransactionV1>;
 
 fn string_or_number<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where

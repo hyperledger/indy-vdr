@@ -3,10 +3,12 @@ use std::collections::HashMap;
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use super::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1, TransactionMap};
+use super::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1};
 use crate::domain::pool::ProtocolVersion;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
+
+pub type TransactionMap = HashMap<String, NodeTransactionV1>;
 
 pub fn build_tree(json_tnxs: &Vec<String>) -> LedgerResult<MerkleTree> {
     let mut bin_txns: Vec<Vec<u8>> = vec![];
@@ -84,6 +86,7 @@ pub fn dump_transactions(
     Ok(ret)
 }
 
+#[allow(dead_code)] // FIXME to be used in exporting transactions
 pub fn build_node_state_from_tree(
     merkle_tree: &MerkleTree,
     protocol_version: ProtocolVersion,

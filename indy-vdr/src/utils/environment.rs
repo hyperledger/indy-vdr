@@ -1,4 +1,4 @@
-extern crate dirs;
+#![allow(dead_code)]
 
 use std::env;
 use std::path::PathBuf;

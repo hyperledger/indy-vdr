@@ -15,8 +15,6 @@ pub mod validation;
 #[allow(unused_macros)]
 pub mod test;
 
-pub type HandleType = usize;
-
 #[macro_export]
 macro_rules! new_handle_type (($newtype:ident, $counter:ident) => (
 

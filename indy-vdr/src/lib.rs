@@ -1,8 +1,6 @@
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
-#![allow(dead_code)]
 
 extern crate failure;
-// #[macro_use]
 extern crate failure_derive;
 
 #[macro_use]
@@ -24,7 +22,6 @@ extern crate serde_derive;
 extern crate serde_json;
 
 extern crate base64;
-extern crate byteorder;
 extern crate hex;
 extern crate rand;
 extern crate rlp;

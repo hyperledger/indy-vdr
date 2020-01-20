@@ -27,8 +27,10 @@ pub const REQUESTS_FOR_STATE_PROOFS: [&str; 11] = [
     constants::GET_TXN,
 ];
 
+#[allow(dead_code)] // FIXME to be used in request recognition
 const REQUEST_FOR_FULL: [&str; 2] = [constants::POOL_RESTART, constants::GET_VALIDATOR_INFO];
 
+#[allow(dead_code)] // FIXME to be used in request recognition
 pub const REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST: [&str; 5] = [
     constants::GET_REVOC_REG,
     constants::GET_REVOC_REG_DELTA,

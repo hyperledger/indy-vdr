@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::environment;
 
 pub fn gen_txns() -> Vec<String> {

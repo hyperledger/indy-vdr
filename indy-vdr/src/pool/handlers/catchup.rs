@@ -52,12 +52,7 @@ pub async fn handle_catchup_request<Request: PoolRequest>(
             Some(RequestEvent::Timeout(_node_alias)) => {
                 request.send_to_any(1, ack_timeout)?;
             }
-            None => {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidState,
-                    "Request ended prematurely",
-                ))
-            }
+            None => return Ok(CatchupRequestResult::Timeout()),
         }
     }
 }

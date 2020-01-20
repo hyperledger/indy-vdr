@@ -1,5 +1,3 @@
-#![warn(dead_code)]
-
 use futures::channel::mpsc::Sender;
 
 use crate::utils::error::prelude::*;
