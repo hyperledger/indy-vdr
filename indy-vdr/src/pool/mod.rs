@@ -5,7 +5,6 @@ extern crate time;
 mod genesis;
 mod handlers;
 mod networker;
-mod pool;
 mod requests;
 mod state_proof;
 mod types;
