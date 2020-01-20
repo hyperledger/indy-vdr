@@ -3,9 +3,8 @@ use futures::stream::StreamExt;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-use super::pool::Pool;
 use super::types::{CatchupReq, Message};
-use super::{check_cons_proofs, serialize_message, RequestEvent, TimingResult};
+use super::{check_cons_proofs, PoolRequest, RequestEvent, TimingResult};
 
 #[derive(Debug)]
 pub enum CatchupRequestResult {
@@ -16,31 +15,28 @@ pub enum CatchupRequestResult {
     Timeout(),
 }
 
-pub async fn perform_catchup_request<T: Pool>(
-    pool: &T,
+pub async fn handle_catchup_request<Request: PoolRequest>(
+    mut request: Request,
     merkle: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
 ) -> LedgerResult<CatchupRequestResult> {
     trace!("catchup request");
-    let message = build_catchup_req(&merkle, target_mt_size)?;
-    let (req_id, req_json) = serialize_message(&message)?;
-    let mut req = pool.create_request(req_id, req_json).await?;
     let mut handler = CatchupSingleHandler::new(merkle, target_mt_root, target_mt_size);
-    let ack_timeout = pool.config().ack_timeout;
-    req.send_to_any(1, ack_timeout)?;
+    let ack_timeout = request.pool_config().ack_timeout;
+    request.send_to_any(1, ack_timeout)?;
     loop {
-        match req.next().await {
+        match request.next().await {
             Some(RequestEvent::Received(node_alias, _message, parsed)) => {
                 match parsed {
                     Message::CatchupRep(cr) => {
                         match handler.process_catchup_reply(cr.load_txns()?, cr.consProof.clone()) {
                             Ok(txns) => {
-                                return Ok(CatchupRequestResult::Synced(txns, req.get_timing()))
+                                return Ok(CatchupRequestResult::Synced(txns, request.get_timing()))
                             }
                             Err(_) => {
-                                req.clean_timeout(node_alias)?;
-                                req.send_to_any(1, ack_timeout)?;
+                                request.clean_timeout(node_alias)?;
+                                request.send_to_any(1, ack_timeout)?;
                             }
                         }
                     }
@@ -54,7 +50,7 @@ pub async fn perform_catchup_request<T: Pool>(
                 }
             }
             Some(RequestEvent::Timeout(_node_alias)) => {
-                req.send_to_any(1, ack_timeout)?;
+                request.send_to_any(1, ack_timeout)?;
             }
             None => {
                 return Err(err_msg(
@@ -64,6 +60,25 @@ pub async fn perform_catchup_request<T: Pool>(
             }
         }
     }
+}
+
+pub fn build_catchup_req(merkle: &MerkleTree, target_mt_size: usize) -> LedgerResult<Message> {
+    if merkle.count() >= target_mt_size {
+        return Err(err_msg(
+            LedgerErrorKind::InvalidState,
+            "No transactions to catch up",
+        ));
+    }
+    let seq_no_start = merkle.count() + 1;
+    let seq_no_end = target_mt_size;
+
+    let cr = CatchupReq {
+        ledgerId: 0,
+        seqNoStart: seq_no_start,
+        seqNoEnd: seq_no_end,
+        catchupTill: target_mt_size,
+    };
+    Ok(Message::CatchupReq(cr))
 }
 
 #[derive(Debug)]
@@ -99,23 +114,4 @@ impl CatchupSingleHandler {
         )?;
         Ok(txns)
     }
-}
-
-fn build_catchup_req(merkle: &MerkleTree, target_mt_size: usize) -> LedgerResult<Message> {
-    if merkle.count() >= target_mt_size {
-        return Err(err_msg(
-            LedgerErrorKind::InvalidState,
-            "No transactions to catch up",
-        ));
-    }
-    let seq_no_start = merkle.count() + 1;
-    let seq_no_end = target_mt_size;
-
-    let cr = CatchupReq {
-        ledgerId: 0,
-        seqNoStart: seq_no_start,
-        seqNoEnd: seq_no_end,
-        catchupTill: target_mt_size,
-    };
-    Ok(Message::CatchupReq(cr))
 }

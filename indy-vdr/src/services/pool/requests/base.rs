@@ -9,7 +9,7 @@ use pin_utils::unsafe_pinned;
 use crate::utils::error::prelude::*;
 
 use super::networker::{Networker, NetworkerEvent};
-use super::types::NodeKeys;
+use super::types::{NodeKeys, PoolConfig};
 use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming, TimingResult};
 
 new_handle_type!(RequestHandle, RQ_COUNTER);
@@ -23,6 +23,7 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn node_count(&self) -> usize;
     fn node_keys(&self) -> NodeKeys;
     fn node_order(&self) -> Vec<String>;
+    fn pool_config(&self) -> PoolConfig;
     fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()>;
     fn send_to_any(&mut self, count: usize, timeout: i64) -> LedgerResult<Vec<String>>;
     fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> LedgerResult<Vec<String>>;
@@ -31,6 +32,7 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
 pub struct PoolRequestImpl<T: Networker> {
     handle: RequestHandle,
     events: Option<Receiver<RequestExtEvent>>,
+    pool_config: PoolConfig,
     networker: T,
     node_keys: NodeKeys,
     node_order: Vec<String>,
@@ -45,6 +47,7 @@ impl<T: Networker> PoolRequestImpl<T> {
     pub fn new(
         handle: RequestHandle,
         events: Receiver<RequestExtEvent>,
+        pool_config: PoolConfig,
         networker: T,
         node_keys: NodeKeys,
         node_order: Vec<String>,
@@ -52,6 +55,7 @@ impl<T: Networker> PoolRequestImpl<T> {
         Self {
             handle,
             events: Some(events),
+            pool_config,
             networker,
             node_keys,
             node_order,
@@ -100,6 +104,10 @@ impl<T: Networker> PoolRequest for PoolRequestImpl<T> {
     fn node_keys(&self) -> NodeKeys {
         // FIXME - remove nodes that aren't present in node_aliases?
         self.node_keys.clone()
+    }
+
+    fn pool_config(&self) -> PoolConfig {
+        self.pool_config
     }
 
     fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()> {

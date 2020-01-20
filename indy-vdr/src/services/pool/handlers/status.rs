@@ -10,9 +10,8 @@ use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
-use super::pool::Pool;
 use super::types::{LedgerStatus, Message};
-use super::{check_cons_proofs, get_f, serialize_message, RequestEvent, TimingResult};
+use super::{check_cons_proofs, get_f, PoolRequest, RequestEvent, TimingResult};
 
 #[derive(Debug)]
 pub enum StatusRequestResult {
@@ -36,18 +35,15 @@ enum CatchupProgress {
     Timeout,
 }
 
-pub async fn perform_status_request<T: Pool>(
-    pool: &T,
-    merkle: MerkleTree,
+pub async fn handle_status_request<Request: PoolRequest>(
+    mut request: Request,
+    merkle_tree: MerkleTree,
 ) -> LedgerResult<StatusRequestResult> {
     trace!("status request");
-    let message = build_ledger_status_req(&merkle, pool.config().protocol_version)?;
-    let (req_id, req_json) = serialize_message(&message)?;
-    let mut req = pool.create_request(req_id, req_json).await?;
-    let mut handler = StatusRequestHandler::new(merkle, req.node_count());
-    req.send_to_all(pool.config().reply_timeout)?;
+    let mut handler = StatusRequestHandler::new(merkle_tree, request.node_count());
+    request.send_to_all(request.pool_config().reply_timeout)?;
     loop {
-        let response = match req.next().await {
+        let response = match request.next().await {
             Some(RequestEvent::Received(node_alias, _message, parsed)) => {
                 let result = match parsed {
                     Message::LedgerStatus(ls) => handler.process_catchup_target(
@@ -55,14 +51,14 @@ pub async fn perform_status_request<T: Pool>(
                         ls.txnSeqNo,
                         None,
                         &node_alias,
-                        req.get_timing(),
+                        request.get_timing(),
                     ),
                     Message::ConsistencyProof(cp) => handler.process_catchup_target(
                         cp.newMerkleRoot.clone(),
                         cp.seqNoEnd,
                         Some(cp.hashes.clone()),
                         &node_alias,
-                        req.get_timing(),
+                        request.get_timing(),
                     ),
                     _ => {
                         // FIXME - add req.unexpected(message) to raise an appropriate exception
@@ -72,7 +68,7 @@ pub async fn perform_status_request<T: Pool>(
                         ));
                     }
                 };
-                req.clean_timeout(node_alias)?;
+                request.clean_timeout(node_alias)?;
                 result
             }
             Some(RequestEvent::Timeout(ref node_alias)) => handler.process_catchup_target(
@@ -80,7 +76,7 @@ pub async fn perform_status_request<T: Pool>(
                 0,
                 None,
                 node_alias,
-                req.get_timing(),
+                request.get_timing(),
             ),
             None => {
                 return Err(err_msg(
@@ -159,7 +155,7 @@ impl StatusRequestHandler {
     }
 }
 
-fn build_ledger_status_req(
+pub fn build_ledger_status_req(
     merkle: &MerkleTree,
     protocol_version: ProtocolVersion,
 ) -> LedgerResult<Message> {

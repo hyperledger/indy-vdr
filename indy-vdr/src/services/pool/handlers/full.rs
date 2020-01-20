@@ -2,33 +2,27 @@ use futures::stream::StreamExt;
 
 use crate::utils::error::prelude::*;
 
-use super::pool::Pool;
 use super::types::Message;
-use super::{NodeReplies, ReplyState, RequestEvent, TimingResult};
+use super::{NodeReplies, PoolRequest, ReplyState, RequestEvent, TimingResult};
 
 pub type FullRequestResult = (NodeReplies<String>, Option<TimingResult>);
 
-pub async fn perform_full_request<T: Pool>(
-    pool: &T,
-    req_id: &str,
-    req_json: &str,
+pub async fn handle_full_request<Request: PoolRequest>(
+    mut request: Request,
     local_timeout: Option<i64>,
     nodes_to_send: Option<Vec<String>>,
 ) -> LedgerResult<FullRequestResult> {
     trace!("full request");
-    let mut req = pool
-        .create_request(req_id.to_owned(), req_json.to_owned())
-        .await?;
-    let timeout = local_timeout.unwrap_or(pool.config().reply_timeout);
+    let timeout = local_timeout.unwrap_or(request.pool_config().reply_timeout);
     let req_reply_count = if let Some(nodes) = nodes_to_send {
-        req.send_to(nodes, timeout)?.len()
+        request.send_to(nodes, timeout)?.len()
     } else {
-        req.send_to_all(timeout)?;
-        req.node_count()
+        request.send_to_all(timeout)?;
+        request.node_count()
     };
     let mut replies = ReplyState::new();
     loop {
-        match req.next().await {
+        match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
                 match parsed {
                     Message::Reply(_) => {
@@ -43,7 +37,7 @@ pub async fn perform_full_request<T: Pool>(
                         replies.add_failed(node_alias.clone(), raw_msg); // ReqNACK, Reject
                     }
                 }
-                req.clean_timeout(node_alias)?;
+                request.clean_timeout(node_alias)?;
             }
             Some(RequestEvent::Timeout(node_alias)) => {
                 replies.add_timeout(node_alias);
@@ -56,7 +50,7 @@ pub async fn perform_full_request<T: Pool>(
             }
         };
         if replies.len() == req_reply_count {
-            return Ok((replies.result(), req.get_timing()));
+            return Ok((replies.result(), request.get_timing()));
         }
     }
 }

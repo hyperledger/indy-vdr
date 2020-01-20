@@ -1,6 +1,4 @@
 #![warn(dead_code)]
-use std::rc::Rc;
-use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 
@@ -43,21 +41,12 @@ pub trait Networker {
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()>;
 }
 
-impl<T: Networker + ?Sized> Networker for Rc<T> {
+impl<T: AsRef<dyn Networker>> Networker for T {
     fn node_keys(&self) -> NodeKeys {
-        T::node_keys(self.as_ref())
+        self.as_ref().node_keys()
     }
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
-        T::send(self.as_ref(), event)
-    }
-}
-
-impl<T: Networker + ?Sized> Networker for Arc<T> {
-    fn node_keys(&self) -> NodeKeys {
-        T::node_keys(self.as_ref())
-    }
-    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
-        T::send(self.as_ref(), event)
+        self.as_ref().send(event)
     }
 }
 

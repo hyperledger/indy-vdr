@@ -2,31 +2,25 @@ use futures::stream::StreamExt;
 
 use crate::utils::error::prelude::*;
 
-use super::pool::Pool;
 use super::types::Message;
 use super::{
     get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
-    ReplyState, RequestEvent,
+    PoolRequest, ReplyState, RequestEvent,
 };
 
-pub async fn perform_consensus_request<T: Pool>(
-    pool: &T,
-    req_id: &str,
-    req_json: &str,
+pub async fn handle_consensus_request<Request: PoolRequest>(
+    mut request: Request,
 ) -> LedgerResult<ConsensusResult<String>> {
     trace!("consensus request");
-    let mut req = pool
-        .create_request(req_id.to_owned(), req_json.to_owned())
-        .await?;
-    let total_nodes_count = req.node_count();
+    let total_nodes_count = request.node_count();
     let f = get_f(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
-    let config = pool.config();
+    let config = request.pool_config();
 
-    req.send_to_all(config.ack_timeout)?;
+    request.send_to_all(config.ack_timeout)?;
     loop {
-        match req.next().await {
+        match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
                 match parsed {
                     Message::Reply(_) => {
@@ -40,14 +34,14 @@ pub async fn perform_consensus_request<T: Pool>(
                             };
                             let cnt = state.insert(hashable, node_alias.clone()).len();
                             if cnt > f {
-                                return Ok(ConsensusResult::Reply(raw_msg, req.get_timing()));
+                                return Ok(ConsensusResult::Reply(raw_msg, request.get_timing()));
                             }
                         } else {
                             replies.add_failed(node_alias.clone(), raw_msg);
                         }
                     }
                     Message::ReqACK(_) => {
-                        req.extend_timeout(node_alias.clone(), config.reply_timeout)?;
+                        request.extend_timeout(node_alias.clone(), config.reply_timeout)?;
                         continue;
                     }
                     Message::ReqNACK(_) | Message::Reject(_) => {
@@ -57,7 +51,7 @@ pub async fn perform_consensus_request<T: Pool>(
                         replies.add_failed(node_alias.clone(), raw_msg);
                     }
                 }
-                req.clean_timeout(node_alias)?;
+                request.clean_timeout(node_alias)?;
             }
             Some(RequestEvent::Timeout(node_alias)) => {
                 replies.add_timeout(node_alias);
@@ -70,7 +64,7 @@ pub async fn perform_consensus_request<T: Pool>(
             }
         };
         if state.max_consensus() + total_nodes_count - replies.len() <= f {
-            return Ok(ConsensusResult::NoConsensus(req.get_timing()));
+            return Ok(ConsensusResult::NoConsensus(request.get_timing()));
         }
     }
 }

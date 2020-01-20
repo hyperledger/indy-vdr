@@ -3,6 +3,7 @@ extern crate rmp_serde;
 extern crate time;
 
 mod genesis;
+mod handlers;
 mod networker;
 mod pool;
 mod requests;

@@ -11,37 +11,31 @@ use crate::domain::ledger::response::Message as LedgerMessage;
 use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 
-use super::pool::Pool;
 use super::state_proof;
 use super::types::{Message, NodeKeys, DEFAULT_GENERATOR};
 use super::{
     get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
-    ReplyState, RequestEvent,
+    PoolRequest, ReplyState, RequestEvent,
 };
 
-pub async fn perform_single_request<T: Pool>(
-    pool: &T,
-    req_id: &str,
-    req_json: &str,
+pub async fn handle_single_request<Request: PoolRequest>(
+    mut request: Request,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
 ) -> LedgerResult<ConsensusResult<String>> {
     trace!("single request");
-    let mut req = pool
-        .create_request(req_id.to_owned(), req_json.to_owned())
-        .await?;
-    let config = pool.config();
-    let node_keys = req.node_keys();
-    let total_nodes_count = req.node_count();
+    let config = request.pool_config();
+    let node_keys = request.node_keys();
+    let total_nodes_count = request.node_count();
     let f = get_f(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
 
-    req.send_to_any(config.request_read_nodes, config.ack_timeout)?;
+    request.send_to_any(config.request_read_nodes, config.ack_timeout)?;
     loop {
-        let resend = match req.next().await {
+        let resend = match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => match parsed {
                 Message::Reply(_) => {
                     trace!("reply on single request");
@@ -87,28 +81,28 @@ pub async fn perform_single_request<T: Pool>(
                         {
                             return Ok(ConsensusResult::Reply(
                                 if cnt > f { soonest } else { raw_msg },
-                                req.get_timing(),
+                                request.get_timing(),
                             ));
                         }
                         false
                     } else {
                         replies.add_failed(node_alias.clone(), raw_msg);
-                        req.clean_timeout(node_alias)?;
+                        request.clean_timeout(node_alias)?;
                         true
                     }
                 }
                 Message::ReqACK(_) => {
-                    req.extend_timeout(node_alias.clone(), config.reply_timeout)?;
+                    request.extend_timeout(node_alias.clone(), config.reply_timeout)?;
                     continue;
                 }
                 Message::ReqNACK(_) | Message::Reject(_) => {
                     replies.add_failed(node_alias.clone(), raw_msg);
-                    req.clean_timeout(node_alias)?;
+                    request.clean_timeout(node_alias)?;
                     true
                 }
                 _ => {
                     replies.add_failed(node_alias.clone(), raw_msg);
-                    req.clean_timeout(node_alias)?;
+                    request.clean_timeout(node_alias)?;
                     true
                 }
             },
@@ -124,10 +118,10 @@ pub async fn perform_single_request<T: Pool>(
             }
         };
         if replies.len() >= total_nodes_count {
-            return Ok(ConsensusResult::NoConsensus(req.get_timing()));
+            return Ok(ConsensusResult::NoConsensus(request.get_timing()));
         }
         if resend {
-            req.send_to_any(2, config.ack_timeout)?;
+            request.send_to_any(2, config.ack_timeout)?;
         }
     }
 }

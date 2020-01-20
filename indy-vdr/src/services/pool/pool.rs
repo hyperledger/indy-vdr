@@ -11,12 +11,14 @@ use crate::domain::ledger::request::{get_request_id, Request};
 use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
 
 use super::genesis::{build_tree, dump_transactions};
+use super::handlers::{
+    build_catchup_req, build_ledger_status_req, handle_catchup_request, handle_consensus_request,
+    handle_full_request, handle_single_request, handle_status_request, CatchupRequestResult,
+    ConsensusResult, FullRequestResult, SingleReply, StatusRequestResult,
+};
 use super::networker::{Networker, NetworkerEvent};
 use super::requests::{
-    perform_catchup_request, perform_consensus_request, perform_full_request,
-    perform_single_request, perform_status_request, CatchupRequestResult, ConsensusResult,
-    FullRequestResult, PoolRequest, PoolRequestImpl, RequestHandle, SingleReply,
-    StatusRequestResult, TimingResult,
+    serialize_message, PoolRequest, PoolRequestImpl, RequestHandle, TimingResult,
 };
 use super::types::{NodeKeys, PoolConfig};
 
@@ -46,7 +48,10 @@ pub async fn perform_refresh<T: Pool>(
     txns: Vec<String>,
 ) -> LedgerResult<Option<Vec<String>>> {
     let merkle_tree = build_tree(&txns)?;
-    let result = perform_status_request(pool, merkle_tree).await?;
+    let message = build_ledger_status_req(&merkle_tree, pool.config().protocol_version)?;
+    let (req_id, req_json) = serialize_message(&message)?;
+    let request = pool.create_request(req_id, req_json).await?;
+    let result = handle_status_request(request, merkle_tree).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         StatusRequestResult::CatchupTargetFound(mt_root, mt_size, timing) => {
@@ -77,7 +82,10 @@ pub async fn perform_catchup<T: Pool>(
     mt_size: usize,
 ) -> LedgerResult<Vec<String>> {
     let merkle_tree = build_tree(&txns)?;
-    let catchup_result = perform_catchup_request(pool, merkle_tree, mt_root, mt_size).await?;
+    let message = build_catchup_req(&merkle_tree, mt_size)?;
+    let (req_id, req_json) = serialize_message(&message)?;
+    let request = pool.create_request(req_id, req_json).await?;
+    let catchup_result = handle_catchup_request(request, merkle_tree, mt_root, mt_size).await?;
     trace!("Got catchup result: {:?}", &catchup_result);
     match catchup_result {
         CatchupRequestResult::Synced(txns, timing) => {
@@ -112,7 +120,7 @@ fn _build_get_txn_request(
     let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
     let body = Request::build_request(req_id, operation, identifier, protocol_version)
         .map_err(|err| err_msg(LedgerErrorKind::InvalidStructure, err))?;
-    Ok((format!("{}", req_id), body))
+    Ok((req_id.to_string(), body))
 }
 
 pub async fn perform_get_txn<T: Pool>(
@@ -191,6 +199,43 @@ pub async fn perform_get_txn_full<T: Pool>(
     Ok((rows.join("\n\n"), timing.unwrap()))
 }
 
+pub async fn perform_single_request<T: Pool>(
+    pool: &T,
+    req_id: &str,
+    req_json: &str,
+    state_proof_key: Option<Vec<u8>>,
+    state_proof_timestamps: (Option<u64>, Option<u64>),
+) -> LedgerResult<ConsensusResult<String>> {
+    let request = pool
+        .create_request(req_id.to_string(), req_json.to_string())
+        .await?;
+    handle_single_request(request, state_proof_key, state_proof_timestamps).await
+}
+
+pub async fn perform_consensus_request<T: Pool>(
+    pool: &T,
+    req_id: &str,
+    req_json: &str,
+) -> LedgerResult<ConsensusResult<String>> {
+    let request = pool
+        .create_request(req_id.to_string(), req_json.to_string())
+        .await?;
+    handle_consensus_request(request).await
+}
+
+pub async fn perform_full_request<T: Pool>(
+    pool: &T,
+    req_id: &str,
+    req_json: &str,
+    timeout: Option<i64>,
+    nodes_to_send: Option<Vec<String>>,
+) -> LedgerResult<FullRequestResult> {
+    let request = pool
+        .create_request(req_id.to_string(), req_json.to_string())
+        .await?;
+    handle_full_request(request, timeout, nodes_to_send).await
+}
+
 pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>) -> Vec<String> {
     let mut weighted = node_keys
         .keys()
@@ -218,23 +263,26 @@ pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>)
 }
 
 pub trait Pool {
+    type Request: PoolRequest;
+
     fn config(&self) -> PoolConfig;
     fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
-    ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn PoolRequest>>>;
+    ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>>;
     fn transactions(&self) -> Vec<String>;
 }
 
-pub struct AbstractPool<T: Networker> {
+#[derive(Clone)]
+pub struct AbstractPool<T: Networker + Clone> {
     config: PoolConfig,
     networker: T,
     node_weights: Option<HashMap<String, f32>>,
     transactions: Vec<String>,
 }
 
-impl<T: Networker + Clone + 'static> AbstractPool<T> {
+impl<T: Networker + Clone> AbstractPool<T> {
     pub fn new(
         config: PoolConfig,
         transactions: Vec<String>,
@@ -248,60 +296,16 @@ impl<T: Networker + Clone + 'static> AbstractPool<T> {
             transactions,
         }
     }
-
-    pub async fn perform_single_request(
-        &self,
-        req_id: &str,
-        req_json: &str,
-        state_proof_key: Option<Vec<u8>>,
-        state_proof_timestamps: (Option<u64>, Option<u64>),
-    ) -> LedgerResult<ConsensusResult<String>> {
-        perform_single_request(
-            self,
-            req_id,
-            req_json,
-            state_proof_key,
-            state_proof_timestamps,
-        )
-        .await
-    }
-
-    pub async fn perform_consensus_request(
-        &self,
-        req_id: &str,
-        req_json: &str,
-    ) -> LedgerResult<ConsensusResult<String>> {
-        perform_consensus_request(self, req_id, req_json).await
-    }
-
-    pub async fn perform_full_request(
-        &self,
-        req_id: &str,
-        req_json: &str,
-        timeout: Option<i64>,
-        nodes_to_send: Option<Vec<String>>,
-    ) -> LedgerResult<FullRequestResult> {
-        perform_full_request(self, req_id, req_json, timeout, nodes_to_send).await
-    }
 }
 
-impl<T: Networker + Clone> Clone for AbstractPool<T> {
-    fn clone(&self) -> Self {
-        Self {
-            config: self.config,
-            networker: self.networker.clone(),
-            node_weights: self.node_weights.clone(),
-            transactions: self.transactions.clone(),
-        }
-    }
-}
+impl<T: Networker + Clone> Pool for AbstractPool<T> {
+    type Request = PoolRequestImpl<T>;
 
-impl<T: Networker + Clone + 'static> Pool for AbstractPool<T> {
     fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
-    ) -> LocalBoxFuture<'a, LedgerResult<Box<dyn PoolRequest>>> {
+    ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>> {
         let instance = self.networker.clone();
         let weights = self.node_weights.clone();
         lazy(move |_| {
@@ -311,13 +315,14 @@ impl<T: Networker + Clone + 'static> Pool for AbstractPool<T> {
             let node_keys = instance.node_keys();
             let node_order = choose_nodes(&node_keys, weights);
             instance.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
-            Ok(Box::new(PoolRequestImpl::new(
+            Ok(PoolRequestImpl::new(
                 handle,
                 rx,
+                self.config,
                 instance.to_owned(),
                 node_keys,
                 node_order,
-            )) as Box<dyn PoolRequest>)
+            ))
         })
         .boxed_local()
     }
