@@ -8,9 +8,7 @@ use std::{fs, io};
 use serde_json;
 
 use crate::domain::pool::ProtocolVersion;
-use crate::services::pool::{
-    AbstractPool, LocalPool, Networker, PoolConfig, SharedPool, ZMQNetworker,
-};
+use crate::pool::{AbstractPool, LocalPool, Networker, PoolConfig, SharedPool, ZMQNetworker};
 use crate::utils::error::prelude::*;
 
 #[derive(Debug)]

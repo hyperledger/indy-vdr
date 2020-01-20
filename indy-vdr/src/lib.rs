@@ -89,8 +89,9 @@ mod utils;
 
 pub mod api;
 pub mod config;
-mod domain;
-pub mod services; // temporarily public?
+pub mod domain;
+pub mod ledger;
+pub mod pool;
 
 #[cfg(test)]
 mod tests {

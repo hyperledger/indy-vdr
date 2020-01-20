@@ -1,3 +1,21 @@
+extern crate rand;
+extern crate rmp_serde;
+extern crate time;
+
+mod genesis;
+mod handlers;
+mod networker;
+mod pool;
+mod requests;
+mod state_proof;
+mod types;
+
+pub use networker::{Networker, ZMQNetworker};
+pub use types::PoolConfig;
+
+use crate::domain::ledger::txn;
+pub use txn::LedgerType; // temporary for HTTP client
+
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -8,22 +26,18 @@ use rand::seq::SliceRandom;
 
 use crate::domain::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::domain::ledger::request::{get_request_id, Request};
-use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
+use crate::utils::base58::ToBase58;
+use crate::utils::error::prelude::*;
 
-use super::genesis::{build_tree, dump_transactions};
-use super::handlers::{
+use genesis::{build_tree, dump_transactions};
+use handlers::{
     build_catchup_req, build_ledger_status_req, handle_catchup_request, handle_consensus_request,
     handle_full_request, handle_single_request, handle_status_request, CatchupRequestResult,
     ConsensusResult, FullRequestResult, SingleReply, StatusRequestResult,
 };
-use super::networker::{Networker, NetworkerEvent};
-use super::requests::{
-    serialize_message, PoolRequest, PoolRequestImpl, RequestHandle, TimingResult,
-};
-use super::types::{NodeKeys, PoolConfig};
-
-use crate::utils::base58::ToBase58;
-use crate::utils::error::prelude::*;
+use networker::NetworkerEvent;
+use requests::{serialize_message, PoolRequest, PoolRequestImpl, RequestHandle, TimingResult};
+use types::NodeKeys;
 
 /*
 // handled by PoolFactory
@@ -115,7 +129,7 @@ fn _build_get_txn_request(
             "Transaction number must be > 0",
         ));
     }
-    let operation = GetTxnOperation::new(seq_no, ledger_type);
+    let operation = txn::GetTxnOperation::new(seq_no, ledger_type);
     let req_id = get_request_id();
     let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
     let body = Request::build_request(req_id, operation, identifier, protocol_version)
