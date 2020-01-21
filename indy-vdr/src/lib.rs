@@ -89,6 +89,7 @@ pub mod config;
 pub mod domain;
 pub mod ledger;
 pub mod pool;
+pub mod state_proof;
 
 #[cfg(test)]
 mod tests {

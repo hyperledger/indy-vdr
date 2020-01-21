@@ -3,8 +3,7 @@ use std::hash::{Hash, Hasher};
 
 use serde_json::{self, Value as SJsonValue};
 
-use super::state_proof;
-
+use crate::state_proof;
 use crate::utils::base58::FromBase58;
 use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;

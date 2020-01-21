@@ -1,26 +1,28 @@
+extern crate base64;
 extern crate log_derive;
 extern crate rmp_serde;
+extern crate serde_json;
+
+pub mod constants;
+mod node;
+pub mod types;
 
 use std::collections::HashMap;
 
-use base64;
 use rlp::UntrustedRlp;
-use serde_json;
 use serde_json::Value as SJsonValue;
+use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
-use super::requests::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
-use super::types::*;
-use crate::domain::ledger::constants;
 use crate::domain::pool::ProtocolVersion;
+use crate::pool::NodeKeys;
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::error::prelude::*;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
+use self::constants::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
 use self::log_derive::logfn;
 use self::node::{Node, TrieDB};
-use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
-
-mod node;
+use self::types::*;
 
 pub fn parse_generic_reply_for_proof_checking(
     json_msg: &SJsonValue,
@@ -678,7 +680,6 @@ fn _verify_merkle_tree(
             return false;
         }
     };
-    trace!("_verify_merkle_tree >> nodes: {:?}", nodes);
     let hashes: Vec<String> = match serde_json::from_str(nodes) {
         Ok(vec) => vec,
         Err(err) => {
@@ -717,12 +718,8 @@ fn _verify_merkle_tree(
         }
     };
 
-    trace!("Value to hash: {}", value);
-
     let value = unwrap_or_return!(serde_json::from_str::<serde_json::Value>(&value), false);
-    trace!("serde json success: {:?}", value);
     let value = unwrap_or_return!(rmp_serde::to_vec(&value), false);
-    trace!("rmp serde success: {:?}", value);
     let mut hash = match Hash::hash_leaf(&value) {
         Ok(hash) => hash,
         Err(err) => {
@@ -750,12 +747,6 @@ fn _verify_merkle_tree(
     }
 
     let result = hash.as_slice() == root_hash;
-    trace!(
-        "_verify_merkle_tree << res: {}, hash: {:?}, root_hash: {:?}",
-        result,
-        hash,
-        root_hash
-    );
 
     result
 }

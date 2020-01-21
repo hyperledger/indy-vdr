@@ -6,12 +6,12 @@ mod genesis;
 mod handlers;
 mod networker;
 mod requests;
-mod state_proof;
 mod types;
 
 pub use crate::config::PoolConfig;
 pub use networker::{Networker, ZMQNetworker};
 pub use txn::LedgerType; // temporary for HTTP client
+pub use types::NodeKeys;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -35,7 +35,6 @@ use handlers::{
 use networker::NetworkerEvent;
 use requests::{serialize_message, PoolRequest, PoolRequestImpl, RequestHandle, TimingResult};
 // use state_proof::parse_key_from_request_for_builtin_sp;
-use types::NodeKeys;
 
 /*
 // handled by PoolFactory
