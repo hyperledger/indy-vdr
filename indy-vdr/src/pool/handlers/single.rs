@@ -7,7 +7,7 @@ use serde_json::Value as SJsonValue;
 use ursa::bls::Generator;
 
 use crate::common::error::prelude::*;
-use crate::config::types::DEFAULT_GENERATOR;
+use crate::config::constants::DEFAULT_GENERATOR;
 use crate::ledger::domain::response::Message as LedgerMessage;
 use crate::state_proof::{check_state_proof, get_msg_result_without_state_proof};
 use crate::utils::base58::FromBase58;

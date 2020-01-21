@@ -1,15 +1,8 @@
 pub use crate::pool::ProtocolVersion;
 
-use crate::utils::validation::Validatable;
+use super::constants;
 
-pub const DEFAULT_ACK_TIMEOUT: i64 = 20;
-pub const DEFAULT_REPLY_TIMEOUT: i64 = 60;
-pub const DEFAULT_CONN_ACTIVE_TIMEOUT: i64 = 5;
-pub const DEFAULT_CONN_REQUEST_LIMIT: usize = 5;
-pub const DEFAULT_REQUEST_READ_NODES: usize = 2;
-pub const DEFAULT_FRESHNESS_TIMEOUT: u64 = 300;
-pub const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::Node1_4;
-pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
+use crate::utils::validation::Validatable;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PoolConfig {
@@ -48,31 +41,31 @@ impl Validatable for PoolConfig {
 
 impl PoolConfig {
     fn default_freshness_threshold() -> u64 {
-        DEFAULT_FRESHNESS_TIMEOUT
+        constants::DEFAULT_FRESHNESS_TIMEOUT
     }
 
     fn default_protocol_version() -> ProtocolVersion {
-        DEFAULT_PROTOCOL_VERSION
+        constants::DEFAULT_PROTOCOL_VERSION
     }
 
     fn default_ack_timeout() -> i64 {
-        DEFAULT_ACK_TIMEOUT
+        constants::DEFAULT_ACK_TIMEOUT
     }
 
     fn default_reply_timeout() -> i64 {
-        DEFAULT_REPLY_TIMEOUT
+        constants::DEFAULT_REPLY_TIMEOUT
     }
 
     fn default_conn_request_limit() -> usize {
-        DEFAULT_CONN_REQUEST_LIMIT
+        constants::DEFAULT_CONN_REQUEST_LIMIT
     }
 
     fn default_conn_active_timeout() -> i64 {
-        DEFAULT_CONN_ACTIVE_TIMEOUT
+        constants::DEFAULT_CONN_ACTIVE_TIMEOUT
     }
 
     fn default_request_read_nodes() -> usize {
-        DEFAULT_REQUEST_READ_NODES
+        constants::DEFAULT_REQUEST_READ_NODES
     }
 }
 

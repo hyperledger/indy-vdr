@@ -5,7 +5,7 @@ use ursa::bls::VerKey as BlsVerKey;
 
 use crate::common::error::prelude::*;
 use crate::common::verkey::VerKey;
-use crate::config::types::DEFAULT_PROTOCOL_VERSION;
+use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ProtocolVersion {
