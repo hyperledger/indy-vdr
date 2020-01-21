@@ -1,6 +1,6 @@
+use super::error::prelude::*;
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::crypto::DEFAULT_CRYPTO_TYPE;
-use crate::utils::error::prelude::*;
 
 pub const VERKEY_ENC_BASE58: &str = "base58";
 pub const DEFAULT_VERKEY_ENC: &str = VERKEY_ENC_BASE58;

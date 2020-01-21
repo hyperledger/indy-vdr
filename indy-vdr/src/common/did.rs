@@ -1,4 +1,3 @@
-use named_type::NamedType;
 use regex::Regex;
 
 use crate::utils::base58::FromBase58;

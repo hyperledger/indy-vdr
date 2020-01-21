@@ -1,7 +1,7 @@
 use futures::stream::StreamExt;
 
-use crate::utils::error::prelude::*;
-use crate::utils::merkletree::MerkleTree;
+use crate::common::error::prelude::*;
+use crate::common::merkle_tree::MerkleTree;
 
 use super::types::{CatchupReq, Message};
 use super::{check_cons_proofs, PoolRequest, RequestEvent, RequestResult, TimingResult};

@@ -1,7 +1,7 @@
-use super::constants::NODE;
-
-use crate::domain::did::ShortDidValue;
 use crate::utils::validation::Validatable;
+
+use super::constants::NODE;
+use super::did::ShortDidValue;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NodeOperation {

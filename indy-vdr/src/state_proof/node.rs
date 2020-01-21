@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rlp::{DecoderError as RlpDecoderError, Prototype as RlpPrototype, RlpStream, UntrustedRlp};
 
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum Node {

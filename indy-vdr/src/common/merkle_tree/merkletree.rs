@@ -1,9 +1,10 @@
 use crate::hex;
 
+use crate::common::error::LedgerResult;
+use crate::utils::hash::{DefaultHash as Hash, TreeHash, EMPTY_HASH_BYTES};
+
 use super::proof::{Lemma, Proof};
 use super::tree::{LeavesIntoIterator, LeavesIterator, Tree, TreeLeafData};
-use crate::utils::error::LedgerResult;
-use crate::utils::hash::{DefaultHash as Hash, TreeHash, EMPTY_HASH_BYTES};
 
 /// A Merkle tree is a binary tree, with values of type `T` at the leafs,
 /// and where every internal node holds the hash of the concatenation of the hashes of its children nodes.

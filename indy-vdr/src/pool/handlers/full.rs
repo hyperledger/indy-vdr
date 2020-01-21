@@ -1,6 +1,6 @@
 use futures::stream::StreamExt;
 
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
 
 use super::types::Message;
 use super::{NodeReplies, PoolRequest, ReplyState, RequestEvent, RequestResult, TimingResult};

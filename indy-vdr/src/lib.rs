@@ -85,8 +85,8 @@ macro_rules! unwrap_or_return {
 mod utils;
 
 pub mod api;
+pub mod common;
 pub mod config;
-pub mod domain;
 pub mod ledger;
 pub mod pool;
 pub mod state_proof;

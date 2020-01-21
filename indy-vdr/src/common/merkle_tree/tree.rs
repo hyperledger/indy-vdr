@@ -1,7 +1,7 @@
 use std::cmp;
 
 pub use super::proof::{Lemma, Positioned, Proof};
-use crate::utils::error::LedgerResult;
+use crate::common::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 pub type TreeLeafData = Vec<u8>;

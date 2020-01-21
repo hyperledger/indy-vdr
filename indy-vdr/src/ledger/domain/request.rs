@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use serde;
 use serde_json;
 use time;
 
-use crate::domain::did::{DidValue, ShortDidValue};
-use std::collections::HashMap;
+use super::did::{DidValue, ShortDidValue};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]

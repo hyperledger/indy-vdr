@@ -11,7 +11,7 @@ mod types;
 pub use crate::config::PoolConfig;
 pub use networker::{Networker, ZMQNetworker};
 pub use txn::LedgerType; // temporary for HTTP client
-pub use types::NodeKeys;
+pub use types::{NodeKeys, ProtocolVersion};
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -21,11 +21,11 @@ use futures::channel::mpsc::unbounded;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
 
-use crate::domain::did::{DidValue, DEFAULT_LIBINDY_DID};
-use crate::domain::ledger::request::{get_request_id, Request};
-use crate::domain::ledger::txn;
+use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
+use crate::common::error::prelude::*;
+use crate::ledger::domain::request::{get_request_id, Request};
+use crate::ledger::domain::txn;
 use crate::utils::base58::ToBase58;
-use crate::utils::error::prelude::*;
 
 use genesis::{build_tree, dump_transactions};
 use handlers::{

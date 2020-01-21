@@ -1,6 +1,6 @@
 use super::constants::{GET_NYM, NYM};
+use super::did::ShortDidValue;
 use super::response::{GetReplyResultV0, GetReplyResultV1, ReplyType};
-use crate::domain::did::ShortDidValue;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {

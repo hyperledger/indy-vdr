@@ -6,8 +6,8 @@ use futures::task::{Context, Poll};
 
 use pin_utils::unsafe_pinned;
 
+use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
-use crate::utils::error::prelude::*;
 
 use super::networker::{Networker, NetworkerEvent};
 use super::types::NodeKeys;

@@ -8,21 +8,167 @@ mod node;
 pub mod types;
 
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use rlp::UntrustedRlp;
 use serde_json::Value as SJsonValue;
 use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
-use crate::domain::pool::ProtocolVersion;
-use crate::pool::NodeKeys;
+use crate::common::error::prelude::*;
+use crate::pool::{NodeKeys, ProtocolVersion};
 use crate::utils::base58::{FromBase58, ToBase58};
-use crate::utils::error::prelude::*;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 use self::constants::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
 use self::log_derive::logfn;
 use self::node::{Node, TrieDB};
 use self::types::*;
+
+pub fn check_state_proof(
+    msg_result: &SJsonValue,
+    f: usize,
+    gen: &Generator,
+    bls_keys: &NodeKeys,
+    raw_msg: &str,
+    sp_key: Option<&[u8]>,
+    requested_timestamps: (Option<u64>, Option<u64>),
+    last_write_time: u64,
+    threshold: u64,
+) -> bool {
+    debug!("process_reply: Try to verify proof and signature >>");
+
+    let proof_checking_res =
+        match parse_generic_reply_for_proof_checking(&msg_result, raw_msg, sp_key) {
+            Some(parsed_sps) => {
+                debug!("process_reply: Proof and signature are present");
+                verify_parsed_sp(parsed_sps, bls_keys, f, gen)
+            }
+            None => false,
+        };
+
+    let res = proof_checking_res
+        && check_freshness(msg_result, requested_timestamps, last_write_time, threshold);
+
+    debug!(
+        "process_reply: Try to verify proof and signature << {}",
+        res
+    );
+    res
+}
+
+pub fn check_freshness(
+    msg_result: &SJsonValue,
+    requested_timestamps: (Option<u64>, Option<u64>),
+    last_write_time: u64,
+    threshold: u64,
+) -> bool {
+    debug!(
+        "check_freshness: requested_timestamps: {:?} >>",
+        requested_timestamps
+    );
+
+    let res = match requested_timestamps {
+        (Some(from), Some(to)) => {
+            let left_last_write_time = extract_left_last_write_time(msg_result).unwrap_or(0);
+            trace!("Last last signed time: {}", left_last_write_time);
+            trace!("Last right signed time: {}", last_write_time);
+
+            let left_time_for_freshness_check = from;
+            let right_time_for_freshness_check = to;
+
+            trace!(
+                "Left time for freshness check: {}",
+                left_time_for_freshness_check
+            );
+            trace!(
+                "Right time for freshness check: {}",
+                right_time_for_freshness_check
+            );
+
+            left_time_for_freshness_check <= threshold + left_last_write_time
+                && right_time_for_freshness_check <= threshold + last_write_time
+        }
+        (None, Some(to)) => {
+            let time_for_freshness_check = to;
+
+            trace!("Last signed time: {}", last_write_time);
+            trace!("Time for freshness check: {}", time_for_freshness_check);
+
+            time_for_freshness_check <= threshold + last_write_time
+        }
+        (Some(from), None) => {
+            let left_last_write_time = extract_left_last_write_time(msg_result).unwrap_or(0);
+
+            trace!("Last last signed time: {}", left_last_write_time);
+            trace!("Last right signed time: {}", last_write_time);
+
+            let left_time_for_freshness_check = from;
+            let time_for_freshness_check = get_cur_time();
+
+            trace!(
+                "Left time for freshness check: {}",
+                left_time_for_freshness_check
+            );
+            trace!("Time for freshness check: {}", time_for_freshness_check);
+
+            left_time_for_freshness_check <= threshold + left_last_write_time
+                && time_for_freshness_check <= threshold + last_write_time
+        }
+        (None, None) => {
+            let time_for_freshness_check = get_cur_time();
+
+            trace!("Last signed time: {}", last_write_time);
+            trace!("Time for freshness check: {}", time_for_freshness_check);
+
+            time_for_freshness_check <= threshold + last_write_time
+        }
+    };
+
+    debug!("check_freshness << {:?} ", res);
+
+    res
+}
+
+pub fn get_cur_time() -> u64 {
+    let since_epoch = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time has gone backwards");
+    let res = since_epoch.as_secs();
+    trace!("Current time: {}", res);
+    res
+}
+
+// #[logfn(Trace)]
+fn extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
+    match msg_result["type"].as_str() {
+        Some(constants::GET_REVOC_REG_DELTA) => {
+            msg_result["data"]["stateProofFrom"]["multi_signature"]["value"]["timestamp"].as_u64()
+        }
+        _ => None,
+    }
+}
+
+pub fn get_msg_result_without_state_proof(msg: &str) -> LedgerResult<(SJsonValue, SJsonValue)> {
+    let msg = serde_json::from_str::<SJsonValue>(msg).to_result(
+        LedgerErrorKind::InvalidStructure,
+        "Response is malformed json",
+    )?;
+
+    let msg_result = msg["result"].clone();
+
+    let mut msg_result_without_proof: SJsonValue = msg_result.clone();
+    msg_result_without_proof
+        .as_object_mut()
+        .map(|obj| obj.remove("state_proof"));
+
+    if msg_result_without_proof["data"].is_object() {
+        msg_result_without_proof["data"]
+            .as_object_mut()
+            .map(|obj| obj.remove("stateProofFrom"));
+    }
+
+    Ok((msg_result, msg_result_without_proof))
+}
 
 pub fn parse_generic_reply_for_proof_checking(
     json_msg: &SJsonValue,

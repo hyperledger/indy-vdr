@@ -3,10 +3,46 @@ use std::collections::HashMap;
 
 use ursa::bls::VerKey as BlsVerKey;
 
-use crate::domain::verkey::VerKey;
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
+use crate::common::verkey::VerKey;
+use crate::config::types::DEFAULT_PROTOCOL_VERSION;
 
-pub const DEFAULT_GENERATOR: &str = "3LHpUjiyFC2q2hD7MnwwNmVXiuaFbQx2XkAFJWzswCjgN1utjsCeLzHsKk1nJvFEaS4fcrUmVAkdhtPCYbrVyATZcmzwJReTcJqwqBCPTmTQ9uWPwz6rEncKb2pYYYFcdHa8N17HzVyTqKfgPi4X9pMetfT3A5xCHq54R2pDNYWVLDX";
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ProtocolVersion {
+    Node1_3 = 1,
+    Node1_4 = 2,
+}
+
+impl ProtocolVersion {
+    pub fn display_version(&self) -> String {
+        match self {
+            Self::Node1_3 => "1.3".to_owned(),
+            Self::Node1_4 => "1.4".to_owned(),
+        }
+    }
+
+    pub fn to_id(&self) -> usize {
+        *self as usize
+    }
+}
+
+impl PartialEq<usize> for ProtocolVersion {
+    fn eq(&self, other: &usize) -> bool {
+        (*self as usize) == *other
+    }
+}
+
+impl Default for ProtocolVersion {
+    fn default() -> Self {
+        DEFAULT_PROTOCOL_VERSION
+    }
+}
+
+impl std::fmt::Display for ProtocolVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.display_version())
+    }
+}
 
 pub type NodeKeys = HashMap<String, Option<BlsVerKey>>;
 

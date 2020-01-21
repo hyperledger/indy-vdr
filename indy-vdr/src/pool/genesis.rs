@@ -4,9 +4,9 @@ use serde_json;
 use serde_json::Value as SJsonValue;
 
 use super::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1};
-use crate::domain::pool::ProtocolVersion;
-use crate::utils::error::prelude::*;
-use crate::utils::merkletree::MerkleTree;
+use crate::common::error::prelude::*;
+use crate::common::merkle_tree::MerkleTree;
+use crate::pool::ProtocolVersion;
 
 pub type TransactionMap = HashMap<String, NodeTransactionV1>;
 

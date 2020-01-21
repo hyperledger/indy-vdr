@@ -4,7 +4,7 @@ pub mod tree;
 
 pub use self::merkletree::*;
 pub use self::tree::*;
-use crate::utils::error::LedgerResult;
+use crate::common::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 impl MerkleTree {

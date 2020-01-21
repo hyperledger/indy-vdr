@@ -7,9 +7,10 @@ use std::{fs, io};
 
 use serde_json;
 
-use crate::domain::pool::ProtocolVersion;
-use crate::pool::{AbstractPool, LocalPool, Networker, PoolConfig, SharedPool, ZMQNetworker};
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
+use crate::pool::{
+    AbstractPool, LocalPool, Networker, PoolConfig, ProtocolVersion, SharedPool, ZMQNetworker,
+};
 
 #[derive(Debug)]
 pub struct PoolFactory {
@@ -37,8 +38,16 @@ impl PoolFactory {
         })
     }
 
+    pub fn get_protocol_version(&self) -> ProtocolVersion {
+        self.config.protocol_version
+    }
+
     pub fn set_protocol_version(&mut self, version: ProtocolVersion) {
         self.config.protocol_version = version
+    }
+
+    pub fn get_transactions(&self) -> Vec<String> {
+        self.transactions.clone()
     }
 
     pub fn create_local(&self) -> LedgerResult<LocalPool> {

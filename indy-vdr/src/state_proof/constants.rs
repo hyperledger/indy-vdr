@@ -1,4 +1,4 @@
-pub use crate::domain::ledger::constants::*;
+pub use crate::ledger::constants::*;
 
 pub const REQUESTS_FOR_STATE_PROOFS: [&str; 11] = [
     GET_NYM,

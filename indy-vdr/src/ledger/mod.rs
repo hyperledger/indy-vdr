@@ -1,32 +1,34 @@
+pub mod constants;
+pub mod domain;
+
 use hex::FromHex;
 use log_derive::logfn;
 use serde::de::DeserializeOwned;
-use serde_json;
-use serde_json::Value;
+use serde_json::{self, Value as SJsonValue};
 
-use crate::domain::did::DidValue;
-use crate::domain::ledger::attrib::{AttribOperation, GetAttribOperation};
-use crate::domain::ledger::auth_rule::*;
-use crate::domain::ledger::author_agreement::*;
-use crate::domain::ledger::constants::{
+use self::domain::attrib::{AttribOperation, GetAttribOperation};
+use self::domain::auth_rule::*;
+use self::domain::author_agreement::*;
+use self::domain::ddo::GetDdoOperation;
+use self::domain::node::{NodeOperation, NodeOperationData};
+use self::domain::nym::{
+    GetNymOperation, GetNymReplyResult, GetNymResultDataV0, NymData, NymOperation,
+};
+use self::domain::pool::{
+    PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
+};
+use self::domain::request::{get_request_id, Request, TxnAuthrAgrmtAcceptanceData};
+use self::domain::response::{Message, Reply, ReplyType};
+use self::domain::txn::{GetTxnOperation, LedgerType};
+use self::domain::validator_info::GetValidatorInfoOperation;
+use crate::common::did::DidValue;
+use crate::common::error::prelude::*;
+use crate::pool::ProtocolVersion;
+use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use constants::{
     txn_name_to_code, ENDORSER, GET_VALIDATOR_INFO, NETWORK_MONITOR, POOL_RESTART, ROLES,
     ROLE_REMOVE, STEWARD, TRUSTEE,
 };
-use crate::domain::ledger::ddo::GetDdoOperation;
-use crate::domain::ledger::node::{NodeOperation, NodeOperationData};
-use crate::domain::ledger::nym::{
-    GetNymOperation, GetNymReplyResult, GetNymResultDataV0, NymData, NymOperation,
-};
-use crate::domain::ledger::pool::{
-    PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
-};
-use crate::domain::ledger::request::{get_request_id, Request, TxnAuthrAgrmtAcceptanceData};
-use crate::domain::ledger::response::{Message, Reply, ReplyType};
-use crate::domain::ledger::txn::{GetTxnOperation, LedgerType};
-use crate::domain::ledger::validator_info::GetValidatorInfoOperation;
-use crate::domain::pool::ProtocolVersion;
-use crate::utils::error::prelude::*;
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 macro_rules! build_result {
     ($proto_ver:expr, $opt_submitter_did:expr, $operation:expr) => {{
@@ -66,7 +68,7 @@ impl LedgerService {
     ) -> LedgerResult<String> {
         let role = if let Some(r) = role {
             Some(if r == ROLE_REMOVE {
-                Value::Null
+                SJsonValue::Null
             } else {
                 json!(match r {
                     "STEWARD" => STEWARD,
@@ -173,7 +175,7 @@ impl LedgerService {
         identifier: &DidValue,
         dest: &DidValue,
         hash: Option<&str>,
-        raw: Option<&serde_json::Value>,
+        raw: Option<&SJsonValue>,
         enc: Option<&str>,
     ) -> LedgerResult<String> {
         build_result!(
@@ -182,7 +184,7 @@ impl LedgerService {
             AttribOperation::new(
                 dest.to_short(),
                 hash.map(String::from),
-                raw.map(serde_json::Value::to_string),
+                raw.map(SJsonValue::to_string),
                 enc.map(String::from)
             )
         )
@@ -485,7 +487,7 @@ impl LedgerService {
     where
         T: DeserializeOwned + ReplyType + ::std::fmt::Debug,
     {
-        let message: serde_json::Value = serde_json::from_str(&response).to_result(
+        let message: SJsonValue = serde_json::from_str(&response).to_result(
             LedgerErrorKind::InvalidTransaction,
             "Response is invalid json",
         )?;
@@ -513,7 +515,7 @@ impl LedgerService {
 
     #[logfn(Info)]
     pub fn validate_action(&self, request: &str) -> LedgerResult<()> {
-        let request: Request<serde_json::Value> = serde_json::from_str(request).map_err(|err| {
+        let request: Request<SJsonValue> = serde_json::from_str(request).map_err(|err| {
             LedgerError::from_msg(
                 LedgerErrorKind::InvalidStructure,
                 format!("Request is invalid json: {:?}", err),
@@ -615,12 +617,10 @@ impl LedgerService {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
-    use crate::domain::ledger::constants::*;
-    use crate::domain::ledger::node::Services;
-
-    use super::*;
+    use self::domain::node::Services;
 
     const IDENTIFIER: &str = "NcYxiDXkpYi6ov5FcYDi1e";
     const DEST: &str = "VsKV7grR1BUE29mG2Fm2kX";
@@ -656,7 +656,7 @@ mod tests {
         let expected_result = json!({
             "type": NYM,
             "dest": DEST,
-            "role": serde_json::Value::Null,
+            "role": SJsonValue::Null,
         });
 
         let request = ledger_service
@@ -672,7 +672,7 @@ mod tests {
         let expected_result = json!({
             "type": NYM,
             "dest": DEST,
-            "role": serde_json::Value::Null,
+            "role": SJsonValue::Null,
             "alias": "some_alias",
             "verkey": VERKEY,
         });
@@ -1347,8 +1347,9 @@ mod tests {
         );
     }
 
-    fn check_request(request: &str, expected_result: serde_json::Value) {
-        let request: serde_json::Value = serde_json::from_str(request).unwrap();
+    fn check_request(request: &str, expected_result: SJsonValue) {
+        let request: SJsonValue = serde_json::from_str(request).unwrap();
         assert_eq!(request["operation"], expected_result);
     }
 }
+*/

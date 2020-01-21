@@ -7,7 +7,7 @@ use serde_json;
 use super::networker;
 use super::types::{self, Message};
 
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
 
 mod base;
 pub use base::{PoolRequest, PoolRequestImpl, RequestHandle};

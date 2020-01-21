@@ -1,6 +1,7 @@
-use super::tree::{Tree, TreeLeafData};
-use crate::utils::error::LedgerResult;
+use crate::common::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+
+use super::tree::{Tree, TreeLeafData};
 
 /// An inclusion proof represent the fact that a `value` is a member
 /// of a `MerkleTree` with root hash `root_hash`.

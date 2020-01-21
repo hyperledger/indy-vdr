@@ -1,6 +1,6 @@
 use futures::channel::mpsc::UnboundedSender;
 
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
 
 use super::genesis;
 use super::requests::{RequestExtEvent, RequestHandle};

@@ -2,7 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 use serde_json;
 
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
 
 use super::constants::GET_TXN;
 

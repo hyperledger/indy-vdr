@@ -12,10 +12,10 @@ use ursa::bls::VerKey as BlsVerKey;
 use zmq::PollItem;
 use zmq::Socket as ZSocket;
 
+use crate::common::error::prelude::*;
 use crate::config::{PoolConfig, ProtocolVersion};
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::crypto;
-use crate::utils::error::prelude::*;
 
 use super::genesis::build_node_state_from_json;
 use super::types::{Message, NodeKeys};

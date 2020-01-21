@@ -1,4 +1,4 @@
-pub use crate::utils::error::prelude::*;
+pub use crate::common::error::prelude::*;
 
 pub mod pool_factory;
 pub mod types;

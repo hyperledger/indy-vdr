@@ -1,11 +1,12 @@
 use futures::stream::StreamExt;
 
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
+use crate::state_proof::get_msg_result_without_state_proof;
 
 use super::types::Message;
 use super::{
-    get_msg_result_without_state_proof, min_consensus, ConsensusState, HashableValue, PoolRequest,
-    ReplyState, RequestEvent, RequestResult, TimingResult,
+    min_consensus, ConsensusState, HashableValue, PoolRequest, ReplyState, RequestEvent,
+    RequestResult, TimingResult,
 };
 
 pub async fn handle_consensus_request<Request: PoolRequest>(

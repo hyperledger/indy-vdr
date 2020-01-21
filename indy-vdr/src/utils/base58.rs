@@ -1,6 +1,6 @@
 use bs58;
 
-use super::error::prelude::*;
+use crate::common::error::prelude::*;
 
 pub trait FromBase58 {
     fn from_base58(&self) -> LedgerResult<Vec<u8>>;

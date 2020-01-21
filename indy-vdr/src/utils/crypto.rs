@@ -2,7 +2,7 @@ use curve25519_dalek::edwards::CompressedEdwardsY;
 pub use ed25519_dalek::{Keypair, PublicKey, SecretKey};
 use rand::rngs::OsRng;
 
-use crate::utils::error::prelude::*;
+use crate::common::error::prelude::*;
 
 pub const CRYPTO_TYPE_ED25519: &str = "ed25519";
 pub const DEFAULT_CRYPTO_TYPE: &str = CRYPTO_TYPE_ED25519;

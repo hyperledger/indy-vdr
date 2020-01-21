@@ -2,10 +2,10 @@ use failure::Context;
 
 use futures::stream::StreamExt;
 
-use crate::domain::pool::ProtocolVersion;
+use crate::common::error::prelude::*;
+use crate::common::merkle_tree::MerkleTree;
+use crate::pool::ProtocolVersion;
 use crate::utils::base58::{FromBase58, ToBase58};
-use crate::utils::error::prelude::*;
-use crate::utils::merkletree::MerkleTree;
 
 use super::types::{LedgerStatus, Message};
 use super::{

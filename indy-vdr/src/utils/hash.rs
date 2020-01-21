@@ -1,4 +1,4 @@
-use super::error::prelude::*;
+use crate::common::error::prelude::*;
 
 use crate::sha2::{Digest, Sha256};
 
