@@ -535,7 +535,7 @@ fn _parse_reply_for_sp(
             proof,
             root_hash,
             KeyValueSimpleDataVerificationType::MerkleTree(len),
-            json_msg["state_proof"]["multi_signature"].clone(),
+            parsed_data["multi_signature"].clone(),
         )
     };
 
