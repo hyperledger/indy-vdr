@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use futures::channel::mpsc::channel;
+use futures::channel::mpsc::unbounded;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
 
@@ -321,8 +321,7 @@ impl<T: Networker + Clone> Pool for AbstractPool<T> {
         let instance = self.networker.clone();
         let weights = self.node_weights.clone();
         lazy(move |_| {
-            // FIXME - use unbounded channel? or require networker to dispatch from a queue
-            let (tx, rx) = channel(10);
+            let (tx, rx) = unbounded();
             let handle = RequestHandle::next();
             let node_keys = instance.node_keys();
             let node_order = choose_nodes(&node_keys, weights);

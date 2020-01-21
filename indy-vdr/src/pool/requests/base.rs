@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use futures::channel::mpsc::Receiver;
+use futures::channel::mpsc::UnboundedReceiver;
 use futures::stream::{FusedStream, Stream};
 use futures::task::{Context, Poll};
 
@@ -32,7 +32,7 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
 
 pub struct PoolRequestImpl<T: Networker> {
     handle: RequestHandle,
-    events: Option<Receiver<RequestExtEvent>>,
+    events: Option<UnboundedReceiver<RequestExtEvent>>,
     pool_config: PoolConfig,
     networker: T,
     node_keys: NodeKeys,
@@ -43,11 +43,11 @@ pub struct PoolRequestImpl<T: Networker> {
 }
 
 impl<T: Networker> PoolRequestImpl<T> {
-    unsafe_pinned!(events: Option<Receiver<RequestExtEvent>>);
+    unsafe_pinned!(events: Option<UnboundedReceiver<RequestExtEvent>>);
 
     pub fn new(
         handle: RequestHandle,
-        events: Receiver<RequestExtEvent>,
+        events: UnboundedReceiver<RequestExtEvent>,
         pool_config: PoolConfig,
         networker: T,
         node_keys: NodeKeys,

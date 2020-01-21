@@ -1,4 +1,4 @@
-use futures::channel::mpsc::Sender;
+use futures::channel::mpsc::UnboundedSender;
 
 use crate::utils::error::prelude::*;
 
@@ -16,7 +16,7 @@ pub enum NetworkerEvent {
         RequestHandle,
         String, // subscribe to ID
         String, // message body
-        Sender<RequestExtEvent>,
+        UnboundedSender<RequestExtEvent>,
     ),
     Dispatch(
         RequestHandle,

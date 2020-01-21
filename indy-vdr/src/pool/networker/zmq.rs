@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use base64;
-use futures::channel::mpsc::Sender;
+use futures::channel::mpsc::UnboundedSender;
 use ursa::bls::VerKey as BlsVerKey;
 
 use zmq::PollItem;
@@ -228,7 +228,8 @@ impl ZMQThread {
 
     fn process_reply(&mut self, handle: RequestHandle, event: RequestExtEvent) {
         if let Some(req) = self.requests.get_mut(&handle) {
-            if !req.send_event(handle, event) {
+            if !req.send_event(event) {
+                trace!("Removing, sender disconnected {}", handle);
                 self.remove_request(handle)
             }
         } else {
@@ -248,13 +249,14 @@ impl ZMQThread {
                 // FIXME set a timer to cancel the request if no messages are sent
                 trace!("New request {}", handle);
                 let pending = self.add_request(handle, sub_id, body, sender).unwrap();
-                if !pending.send_event(handle, RequestExtEvent::Init()) {
-                    trace!("Request sender dropped before Init");
+                if !pending.send_event(RequestExtEvent::Init()) {
+                    trace!("Removing, sender dropped before Init {}", handle);
                     self.remove_request(handle);
                 }
                 Ok(true)
             }
             NetworkerEvent::FinishRequest(handle) => {
+                trace!("Removing, finished {}", handle);
                 self.remove_request(handle);
                 Ok(true)
             }
@@ -281,7 +283,7 @@ impl ZMQThread {
         handle: RequestHandle,
         sub_id: String,
         body: String,
-        sender: Sender<RequestExtEvent>,
+        sender: UnboundedSender<RequestExtEvent>,
     ) -> LedgerResult<&mut PendingRequest> {
         let conn_id = self.get_active_connection(self.last_connection, sub_id.clone())?;
         let pending = PendingRequest {
@@ -343,19 +345,18 @@ impl ZMQThread {
                         node_alias.clone(),
                         timeout,
                     )?;
-                    if !request
-                        .send_event(handle, RequestExtEvent::Sent(node_alias, SystemTime::now()))
-                    {
+                    if !request.send_event(RequestExtEvent::Sent(node_alias, SystemTime::now())) {
+                        trace!("Removing, sender disconnected {}", handle);
                         self.remove_request(handle);
                         break;
                     }
                 }
             } else {
-                warn!("Pool connection expired for request: {}", handle);
+                warn!("Removing, pool connection expired {}", handle);
                 self.remove_request(handle)
             }
         } else {
-            warn!("Unknown request ID for dispatch: {}", handle)
+            debug!("Unknown request ID for dispatch: {}", handle)
         }
         Ok(())
     }
@@ -841,22 +842,14 @@ enum ConnectionEvent {
 #[derive(Debug)]
 struct PendingRequest {
     conn_id: ZMQConnectionHandle,
-    sender: Sender<RequestExtEvent>,
+    sender: UnboundedSender<RequestExtEvent>,
     sub_id: String,
     body: String,
 }
 
 impl PendingRequest {
-    fn send_event(&mut self, handle: RequestHandle, event: RequestExtEvent) -> bool {
-        if let Err(err) = self.sender.try_send(event) {
-            // FIXME - return an enum that can be converted into log message
-            if err.is_full() {
-                trace!("Removing request: buffer full {}", handle);
-            } else if err.is_disconnected() {
-                trace!("Removing request: sender disconnected {}", handle);
-            } else {
-                trace!("Removing request: send error {} {:?}", handle, err);
-            }
+    fn send_event(&mut self, event: RequestExtEvent) -> bool {
+        if let Err(_) = self.sender.unbounded_send(event) {
             return false;
         }
         return true;
