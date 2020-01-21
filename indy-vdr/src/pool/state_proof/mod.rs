@@ -28,18 +28,14 @@ pub fn parse_generic_reply_for_proof_checking(
     sp_key: Option<&[u8]>,
 ) -> Option<Vec<ParsedSP>> {
     let type_ = if let Some(type_) = json_msg["type"].as_str() {
-        trace!(
-            "TransactionHandler::parse_generic_reply_for_proof_checking: type_: {:?}",
-            type_
-        );
+        trace!("type_: {:?}", type_);
         type_
     } else {
-        debug!("TransactionHandler::parse_generic_reply_for_proof_checking: <<< No type field");
+        debug!("parse_generic_reply_for_proof_checking: <<< No type field");
         return None;
     };
 
     if REQUESTS_FOR_STATE_PROOFS.contains(&type_) {
-        trace!("TransactionHandler::parse_generic_reply_for_proof_checking: built-in");
         if let Some(sp_key) = sp_key {
             _parse_reply_for_builtin_sp(json_msg, type_, sp_key)
         } else {
@@ -50,14 +46,14 @@ pub fn parse_generic_reply_for_proof_checking(
     /*
     FIXME restore custom state proof parsers
     else if let Some((parser, free)) = PoolService::get_sp_parser(type_) {
-        trace!("TransactionHandler::parse_generic_reply_for_proof_checking: plugged: parser {:?}, free {:?}",
+        trace!("parse_generic_reply_for_proof_checking: plugged: parser {:?}, free {:?}",
                parser, free);
 
         let msg = CString::new(raw_msg).ok()?;
         let mut parsed_c_str = ::std::ptr::null();
         let err = parser(msg.as_ptr(), &mut parsed_c_str);
         if err != ErrorCode::Success {
-            debug!("TransactionHandler::parse_generic_reply_for_proof_checking: <<< plugin return err {:?}", err);
+            debug!("parse_generic_reply_for_proof_checking: <<< plugin return err {:?}", err);
             return None;
         }
         let c_str = if parsed_c_str.is_null() {
@@ -70,21 +66,19 @@ pub fn parse_generic_reply_for_proof_checking(
             .and_then(|c_str|
                 serde_json::from_str::<Vec<ParsedSP>>(c_str)
                     .map_err(|err|
-                        debug!("TransactionHandler::parse_generic_reply_for_proof_checking: <<< can't parse plugin response {}", err))
+                        debug!("parse_generic_reply_for_proof_checking: <<< can't parse plugin response {}", err))
                     .ok());
 
         let err = free(parsed_c_str);
         trace!(
-            "TransactionHandler::parse_generic_reply_for_proof_checking: plugin free res {:?}",
+            "parse_generic_reply_for_proof_checking: plugin free res {:?}",
             err
         );
 
         parsed_sps
     }*/
     else {
-        trace!(
-            "TransactionHandler::parse_generic_reply_for_proof_checking: <<< type not supported"
-        );
+        trace!("parse_generic_reply_for_proof_checking: <<< type not supported");
         None
     }
 }
@@ -188,7 +182,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 .or_else(|| json_msg["hash"].as_str())
             {
                 trace!(
-                    "TransactionHandler::parse_reply_for_builtin_sp: GET_ATTR attr_name {:?}",
+                    "parse_key_from_request_for_builtin_sp: GET_ATTR attr_name {:?}",
                     attr_name
                 );
 
@@ -196,9 +190,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 let hash = Hash::hash(attr_name.as_bytes()).ok()?;
                 format!(":{}:{}", marker, hex::encode(hash))
             } else {
-                trace!(
-                    "TransactionHandler::parse_reply_for_builtin_sp: <<< GET_ATTR No key suffix"
-                );
+                trace!("parse_key_from_request_for_builtin_sp: <<< GET_ATTR No key suffix");
                 return None;
             }
         }
@@ -207,7 +199,11 @@ pub fn parse_key_from_request_for_builtin_sp(
                 json_msg["signature_type"].as_str(),
                 json_msg["ref"].as_u64(),
             ) {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_CRED_DEF sign_type {:?}, sch_seq_no: {:?}", sign_type, sch_seq_no);
+                trace!(
+                    "parse_key_from_request_for_builtin_sp: GET_CRED_DEF sign_type {:?}, sch_seq_no: {:?}",
+                    sign_type,
+                    sch_seq_no
+                );
                 let marker = if is_node_1_3 { '\x03' } else { '3' };
                 let tag = if is_node_1_3 {
                     None
@@ -219,12 +215,12 @@ pub fn parse_key_from_request_for_builtin_sp(
                     .unwrap_or_else(|| "".to_owned());
                 format!(":{}:{}:{}{}", marker, sign_type, sch_seq_no, tag)
             } else {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_CRED_DEF No key suffix");
+                trace!("parse_key_from_request_for_builtin_sp: <<< GET_CRED_DEF No key suffix");
                 return None;
             }
         }
         constants::GET_NYM | constants::GET_REVOC_REG_DEF => {
-            trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_NYM");
+            trace!("parse_key_from_request_for_builtin_sp: GET_NYM");
             "".to_string()
         }
         constants::GET_SCHEMA => {
@@ -232,24 +228,29 @@ pub fn parse_key_from_request_for_builtin_sp(
                 json_msg["data"]["name"].as_str(),
                 json_msg["data"]["version"].as_str(),
             ) {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_SCHEMA name {:?}, ver: {:?}", name, ver);
+                trace!(
+                    "parse_key_from_request_for_builtin_sp: GET_SCHEMA name {:?}, ver: {:?}",
+                    name,
+                    ver
+                );
                 let marker = if is_node_1_3 { '\x02' } else { '2' };
                 format!(":{}:{}:{}", marker, name, ver)
             } else {
-                trace!(
-                    "TransactionHandler::parse_reply_for_builtin_sp: <<< GET_SCHEMA No key suffix"
-                );
+                trace!("parse_key_from_request_for_builtin_sp: <<< GET_SCHEMA No key suffix");
                 return None;
             }
         }
         constants::GET_REVOC_REG => {
             //{MARKER}:{REVOC_REG_DEF_ID} MARKER = 6
             if let Some(revoc_reg_def_id) = json_msg["revocRegDefId"].as_str() {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_REVOC_REG revoc_reg_def_id {:?}", revoc_reg_def_id);
+                trace!(
+                    "parse_key_from_request_for_builtin_sp: GET_REVOC_REG revoc_reg_def_id {:?}",
+                    revoc_reg_def_id
+                );
                 let marker = if is_node_1_3 { '\x06' } else { '6' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_REVOC_REG No key suffix");
+                trace!("parse_key_from_request_for_builtin_sp: <<< GET_REVOC_REG No key suffix");
                 return None;
             }
         }
@@ -262,7 +263,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 json_msg["old_value"].as_str(),
             ) {
                 trace!(
-                    "TransactionHandler::parse_reply_for_builtin_sp: GET_AUTH_RULE auth_type {:?}",
+                    "parse_key_from_request_for_builtin_sp: GET_AUTH_RULE auth_type {:?}",
                     auth_type
                 );
                 let default_old_value = if auth_action == "ADD" { "*" } else { "" };
@@ -275,18 +276,23 @@ pub fn parse_key_from_request_for_builtin_sp(
                     new_value.unwrap_or("")
                 )
             } else {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_AUTH_RULE No key suffix");
+                trace!("parse_key_from_request_for_builtin_sp: <<< GET_AUTH_RULE No key suffix");
                 return None;
             }
         }
         constants::GET_REVOC_REG_DELTA if json_msg["from"].is_null() => {
             //{MARKER}:{REVOC_REG_DEF_ID} MARKER = 5
             if let Some(revoc_reg_def_id) = json_msg["revocRegDefId"].as_str() {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_REVOC_REG_DELTA revoc_reg_def_id {:?}", revoc_reg_def_id);
+                trace!(
+                    "parse_key_from_request_for_builtin_sp: GET_REVOC_REG_DELTA revoc_reg_def_id {:?}",
+                    revoc_reg_def_id
+                );
                 let marker = if is_node_1_3 { '\x05' } else { '5' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix");
+                trace!(
+                    "parse_key_from_request_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix"
+                );
                 return None;
             }
         }
@@ -294,11 +300,16 @@ pub fn parse_key_from_request_for_builtin_sp(
         constants::GET_REVOC_REG_DELTA if !json_msg["from"].is_null() => {
             //{MARKER}:{REVOC_REG_DEF_ID} MARKER = 6 for both
             if let Some(revoc_reg_def_id) = json_msg["revocRegDefId"].as_str() {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: GET_REVOC_REG_DELTA revoc_reg_def_id {:?}", revoc_reg_def_id);
+                trace!(
+                    "parse_key_from_request_for_builtin_sp: GET_REVOC_REG_DELTA revoc_reg_def_id {:?}",
+                    revoc_reg_def_id
+                );
                 let marker = if is_node_1_3 { '\x06' } else { '6' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix");
+                trace!(
+                    "parse_key_from_request_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix"
+                );
                 return None;
             }
         }
@@ -333,7 +344,7 @@ pub fn parse_key_from_request_for_builtin_sp(
             }
         }
         _ => {
-            trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< Unsupported transaction");
+            trace!("parse_key_from_request_for_builtin_sp: <<< Unsupported transaction");
             return None;
         }
     };
@@ -346,7 +357,7 @@ pub fn parse_key_from_request_for_builtin_sp(
             if let Some(dest) = dest {
                 Hash::hash(dest.as_bytes()).ok()?
             } else {
-                debug!("TransactionHandler::parse_reply_for_builtin_sp: <<< No dest");
+                debug!("parse_key_from_request_for_builtin_sp: <<< No dest");
                 return None;
             }
         }
@@ -360,7 +371,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 //FIXME
                 id.as_bytes().to_vec()
             } else {
-                debug!("TransactionHandler::parse_reply_for_builtin_sp: <<< No dest");
+                debug!("parse_key_from_request_for_builtin_sp: <<< No dest");
                 return None;
             }
         }
@@ -369,7 +380,7 @@ pub fn parse_key_from_request_for_builtin_sp(
             if let Some(dest) = dest {
                 dest.as_bytes().to_vec()
             } else {
-                debug!("TransactionHandler::parse_reply_for_builtin_sp: <<< No dest");
+                debug!("parse_key_from_request_for_builtin_sp: <<< No dest");
                 return None;
             }
         }
@@ -386,10 +397,7 @@ fn _parse_reply_for_builtin_sp(
     type_: &str,
     key: &[u8],
 ) -> Option<Vec<ParsedSP>> {
-    trace!(
-        "TransactionHandler::parse_reply_for_builtin_sp: >>> json_msg: {:?}",
-        json_msg
-    );
+    trace!("parse_reply_for_builtin_sp: >>> json_msg: {:?}", json_msg);
 
     assert!(REQUESTS_FOR_STATE_PROOFS.contains(&type_));
 
@@ -399,45 +407,37 @@ fn _parse_reply_for_builtin_sp(
     // See https://jira.hyperledger.org/browse/INDY-699
     let (data, parsed_data): (Option<String>, SJsonValue) = match json_msg["data"] {
         SJsonValue::Null => {
-            trace!("TransactionHandler::parse_reply_for_builtin_sp: Data is null");
+            trace!("parse_reply_for_builtin_sp: Data is null");
             (None, SJsonValue::Null)
         }
-        SJsonValue::String(ref str) => {
-            trace!("TransactionHandler::parse_reply_for_builtin_sp: Data is string");
-            if let Ok(parsed_data) = serde_json::from_str(str) {
-                (Some(str.to_owned()), parsed_data)
+        SJsonValue::String(ref strval) => {
+            trace!("parse_reply_for_builtin_sp: Data is string");
+            if let Ok(parsed_data) = serde_json::from_str(strval) {
+                (Some(strval.to_owned()), parsed_data)
             } else {
-                trace!("TransactionHandler::parse_reply_for_builtin_sp: <<< Data field is invalid json");
+                trace!("parse_reply_for_builtin_sp: <<< Data field is invalid json");
                 return None;
             }
         }
         SJsonValue::Object(ref map) => {
-            trace!("TransactionHandler::parse_reply_for_builtin_sp: Data is object");
+            trace!("parse_reply_for_builtin_sp: Data is object");
             (
                 Some(json_msg["data"].to_string()),
                 SJsonValue::from(map.clone()),
             )
         }
         SJsonValue::Array(ref array) => {
-            trace!("TransactionHandler::parse_reply_for_builtin_sp: Data is array");
+            trace!("parse_reply_for_builtin_sp: Data is array");
             (
                 Some(json_msg["data"].to_string()),
                 SJsonValue::from(array.clone()),
             )
         }
         _ => {
-            trace!(
-                "TransactionHandler::parse_reply_for_builtin_sp: <<< Data field is invalid type"
-            );
+            trace!("parse_reply_for_builtin_sp: <<< Data field is invalid type");
             return None;
         }
     };
-
-    trace!(
-        "TransactionHandler::parse_reply_for_builtin_sp: data: {:?}, parsed_data: {:?}",
-        data,
-        parsed_data
-    );
 
     let mut state_proofs = vec![];
 
@@ -448,15 +448,9 @@ fn _parse_reply_for_builtin_sp(
         type_,
         key,
     ) {
-        Ok(state_proof) => {
-            trace!(
-                "TransactionHandler::_parse_reply_for_sp: proof: {:?}",
-                state_proof
-            );
-            state_proofs.push(state_proof)
-        }
+        Ok(state_proof) => state_proofs.push(state_proof),
         Err(err) => {
-            trace!("TransactionHandler::_parse_reply_for_sp: <<<  {:?}", err);
+            trace!("_parse_reply_for_sp: <<<  {:?}", err);
             return None;
         }
     }
@@ -470,20 +464,14 @@ fn _parse_reply_for_builtin_sp(
             key,
         ) {
             Ok(Some(state_proof)) => {
-                trace!(
-                    "TransactionHandler::_parse_reply_for_multi_sp: proof: {:?}",
-                    state_proof
-                );
+                trace!("_parse_reply_for_multi_sp: proof: {:?}", state_proof);
                 state_proofs.push(state_proof);
             }
             Ok(None) => {
-                trace!("TransactionHandler::_parse_reply_for_multi_sp: <<<  No proof");
+                trace!("_parse_reply_for_multi_sp: <<<  No proof");
             }
             Err(err) => {
-                trace!(
-                    "TransactionHandler::_parse_reply_for_multi_sp: <<<  {:?}",
-                    err
-                );
+                trace!("_parse_reply_for_multi_sp: <<<  {:?}", err);
                 return None;
             }
         }
@@ -499,28 +487,16 @@ fn _parse_reply_for_sp(
     xtype: &str,
     sp_key: &[u8],
 ) -> Result<ParsedSP, String> {
-    trace!(
-        "TransactionHandler::_parse_reply_for_sp: data: {:?}, parsed_data: {:?}",
-        data,
-        parsed_data
-    );
-
     let (proof, root_hash, ver_type, multi_sig) = if xtype != constants::GET_TXN {
         let proof = if let Some(proof) = json_msg["state_proof"]["proof_nodes"].as_str() {
-            trace!(
-                "TransactionHandler::parse_reply_for_builtin_sp: proof: {:?}",
-                proof
-            );
+            trace!("_parse_reply_for_sp: proof: {:?}", proof);
             proof.to_string()
         } else {
             return Err("No proof".to_string());
         };
 
         let root_hash = if let Some(root_hash) = json_msg["state_proof"]["root_hash"].as_str() {
-            trace!(
-                "TransactionHandler::parse_reply_for_builtin_sp: root_hash: {:?}",
-                root_hash
-            );
+            trace!("_parse_reply_for_sp: root_hash: {:?}", root_hash);
             root_hash
         } else {
             return Err("No root hash".to_string());
@@ -535,20 +511,14 @@ fn _parse_reply_for_sp(
     } else {
         let proof = if let Some(path) = parsed_data["auditPath"].as_array() {
             let path_str = json!(path).to_string();
-            trace!(
-                "TransactionHandler::parse_reply_for_builtin_sp: proof: {:?}",
-                path
-            );
+            trace!("parse_reply_for_builtin_sp: proof: {:?}", path);
             base64::encode(&path_str)
         } else {
             return Err("No proof".to_string());
         };
 
         let root_hash = if let Some(root_hash) = parsed_data["rootHash"].as_str() {
-            trace!(
-                "TransactionHandler::parse_reply_for_builtin_sp: root_hash: {:?}",
-                root_hash
-            );
+            trace!("_parse_reply_for_sp: root_hash: {:?}", root_hash);
             root_hash
         } else {
             return Err("No root hash".to_string());
@@ -578,7 +548,7 @@ fn _parse_reply_for_sp(
         };
 
     trace!(
-        "parse_reply_for_builtin_sp: <<< proof {:?}, root_hash: {:?}, dest: {:?}, value: {:?}",
+        "_parse_reply_for_sp: <<< proof {:?}, root_hash: {:?}, dest: {:?}, value: {:?}",
         proof,
         root_hash,
         sp_key,
@@ -604,7 +574,7 @@ fn _parse_reply_for_multi_sp(
     sp_key: &[u8],
 ) -> Result<Option<ParsedSP>, String> {
     trace!(
-        "TransactionHandler::_parse_reply_for_multi_sp: data: {:?}, parsed_data: {:?}",
+        "_parse_reply_for_multi_sp: data: {:?}, parsed_data: {:?}",
         data,
         parsed_data
     );
@@ -612,10 +582,7 @@ fn _parse_reply_for_multi_sp(
     let (proof_nodes, root_hash, multi_signature, value) = match xtype {
         constants::GET_REVOC_REG_DELTA if _if_rev_delta_multi_state_proof_expected(sp_key) => {
             let proof = if let Some(proof) = parsed_data["stateProofFrom"]["proof_nodes"].as_str() {
-                trace!(
-                    "TransactionHandler::_parse_reply_for_multi_sp: proof: {:?}",
-                    proof
-                );
+                trace!("_parse_reply_for_multi_sp: proof: {:?}", proof);
                 proof
             } else {
                 return Err("No proof".to_string());
@@ -623,10 +590,7 @@ fn _parse_reply_for_multi_sp(
 
             let root_hash =
                 if let Some(root_hash) = parsed_data["stateProofFrom"]["root_hash"].as_str() {
-                    trace!(
-                        "TransactionHandler::_parse_reply_for_multi_sp: root_hash: {:?}",
-                        root_hash
-                    );
+                    trace!("_parse_reply_for_multi_sp: root_hash: {:?}", root_hash);
                     root_hash
                 } else {
                     return Err("No root hash".to_string());

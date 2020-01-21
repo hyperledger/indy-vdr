@@ -84,7 +84,8 @@ pub async fn handle_single_request<Request: PoolRequest>(
                                 request.get_timing(),
                             ));
                         }
-                        false
+                        request.clean_timeout(node_alias)?;
+                        true
                     } else {
                         replies.add_failed(node_alias.clone(), raw_msg);
                         request.clean_timeout(node_alias)?;

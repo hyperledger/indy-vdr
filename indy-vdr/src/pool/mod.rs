@@ -35,6 +35,7 @@ use handlers::{
 };
 use networker::NetworkerEvent;
 use requests::{serialize_message, PoolRequest, PoolRequestImpl, RequestHandle, TimingResult};
+// use state_proof::parse_key_from_request_for_builtin_sp;
 use types::NodeKeys;
 
 /*
@@ -115,12 +116,35 @@ pub async fn perform_catchup<T: Pool>(
     }
 }
 
+pub struct PreparedRequest {
+    req_id: String,
+    req_json: String,
+    sp_key: Option<Vec<u8>>,
+    sp_timestamps: (Option<u64>, Option<u64>),
+}
+
+impl PreparedRequest {
+    fn new(
+        req_id: String,
+        req_json: String,
+        sp_key: Option<Vec<u8>>,
+        sp_timestamps: (Option<u64>, Option<u64>),
+    ) -> Self {
+        PreparedRequest {
+            req_id,
+            req_json,
+            sp_key,
+            sp_timestamps,
+        }
+    }
+}
+
 fn _build_get_txn_request(
     ledger_type: i32,
     seq_no: i32,
     identifier: Option<&DidValue>,
     protocol_version: Option<usize>,
-) -> LedgerResult<(String, String)> {
+) -> LedgerResult<PreparedRequest> {
     if seq_no <= 0 {
         return Err(err_msg(
             LedgerErrorKind::InvalidStructure,
@@ -132,7 +156,13 @@ fn _build_get_txn_request(
     let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
     let body = Request::build_request(req_id, operation, identifier, protocol_version)
         .map_err(|err| err_msg(LedgerErrorKind::InvalidStructure, err))?;
-    Ok((req_id.to_string(), body))
+    let sp_key = seq_no.to_string().into_bytes();
+    Ok(PreparedRequest::new(
+        req_id.to_string(),
+        body,
+        Some(sp_key),
+        (None, Some(0)),
+    ))
 }
 
 pub async fn perform_get_txn<T: Pool>(
@@ -140,14 +170,15 @@ pub async fn perform_get_txn<T: Pool>(
     ledger_type: LedgerType,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
-    let (req_id, message) = _build_get_txn_request(
+    let prepared = _build_get_txn_request(
         ledger_type.to_id(),
         seq_no,
         None,
         Some(pool.config().protocol_version.to_id()),
     )?;
-    trace!("{} {}", req_id, message);
-    let result = perform_single_request(pool, &req_id, &message, None, (None, None)).await?;
+    // let msg_json = serde_json::from_str(&message).unwrap();
+    // let sp_key = parse_key_from_request_for_builtin_sp(&msg_json, pool.config().protocol_version);
+    let result = perform_single_request(pool, prepared).await?;
     match result {
         ConsensusResult::Reply(message, timing) => {
             trace!("Got request response {} {:?}", &message, timing);
@@ -155,7 +186,7 @@ pub async fn perform_get_txn<T: Pool>(
         }
         ConsensusResult::NoConsensus(timing) => {
             trace!("No consensus {:?}", timing);
-            Err(err_msg(LedgerErrorKind::PoolTimeout, "No consensus"))
+            Err(err_msg(LedgerErrorKind::NoConsensus, "No consensus"))
         }
     }
 }
@@ -166,14 +197,13 @@ pub async fn perform_get_txn_consensus<T: Pool>(
     ledger_type: LedgerType,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
-    let (req_id, message) = _build_get_txn_request(
+    let prepared = _build_get_txn_request(
         ledger_type.to_id(),
         seq_no,
         None,
         Some(pool.config().protocol_version.to_id()),
     )?;
-    trace!("{} {}", req_id, message);
-    let result = perform_consensus_request(pool, &req_id, &message).await?;
+    let result = perform_consensus_request(pool, prepared).await?;
     match result {
         ConsensusResult::Reply(message, timing) => {
             trace!("Got request response {} {:?}", &message, timing);
@@ -192,14 +222,13 @@ pub async fn perform_get_txn_full<T: Pool>(
     ledger_type: LedgerType,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
-    let (req_id, message) = _build_get_txn_request(
+    let prepared = _build_get_txn_request(
         ledger_type.to_id(),
         seq_no,
         None,
         Some(pool.config().protocol_version.to_id()),
     )?;
-    trace!("{} {}", req_id, message);
-    let (replies, timing) = perform_full_request(pool, &req_id, &message, None, None).await?;
+    let (replies, timing) = perform_full_request(pool, prepared, None, None).await?;
     let rows = replies
         .iter()
         .map(|(node_alias, reply)| match reply {
@@ -213,37 +242,32 @@ pub async fn perform_get_txn_full<T: Pool>(
 
 pub async fn perform_single_request<T: Pool>(
     pool: &T,
-    req_id: &str,
-    req_json: &str,
-    state_proof_key: Option<Vec<u8>>,
-    state_proof_timestamps: (Option<u64>, Option<u64>),
+    prepared: PreparedRequest,
 ) -> LedgerResult<ConsensusResult<String>> {
     let request = pool
-        .create_request(req_id.to_string(), req_json.to_string())
+        .create_request(prepared.req_id, prepared.req_json)
         .await?;
-    handle_single_request(request, state_proof_key, state_proof_timestamps).await
+    handle_single_request(request, prepared.sp_key, prepared.sp_timestamps).await
 }
 
 pub async fn perform_consensus_request<T: Pool>(
     pool: &T,
-    req_id: &str,
-    req_json: &str,
+    prepared: PreparedRequest,
 ) -> LedgerResult<ConsensusResult<String>> {
     let request = pool
-        .create_request(req_id.to_string(), req_json.to_string())
+        .create_request(prepared.req_id, prepared.req_json)
         .await?;
     handle_consensus_request(request).await
 }
 
 pub async fn perform_full_request<T: Pool>(
     pool: &T,
-    req_id: &str,
-    req_json: &str,
+    prepared: PreparedRequest,
     timeout: Option<i64>,
     nodes_to_send: Option<Vec<String>>,
 ) -> LedgerResult<FullRequestResult> {
     let request = pool
-        .create_request(req_id.to_string(), req_json.to_string())
+        .create_request(prepared.req_id, prepared.req_json)
         .await?;
     handle_full_request(request, timeout, nodes_to_send).await
 }

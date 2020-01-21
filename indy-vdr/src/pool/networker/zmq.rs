@@ -500,7 +500,7 @@ impl ZMQConnection {
         if let (&Some(ref s), rn) = (&self.sockets[index], &self.remotes[index]) {
             if poll_item.is_readable() {
                 if let Ok(Ok(msg)) = s.recv_string(zmq::DONTWAIT) {
-                    trace!("got reply {}", &msg);
+                    trace!("Socket reply {} {}", &rn.name, &msg);
                     match Message::from_raw_str(msg.as_str()) {
                         Ok(meta) => {
                             return Some(ConnectionEvent::Reply(
