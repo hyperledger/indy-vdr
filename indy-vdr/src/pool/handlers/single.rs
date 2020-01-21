@@ -14,15 +14,15 @@ use crate::utils::error::prelude::*;
 use super::state_proof;
 use super::types::{Message, NodeKeys, DEFAULT_GENERATOR};
 use super::{
-    get_msg_result_without_state_proof, min_consensus, ConsensusResult, ConsensusState,
-    HashableValue, PoolRequest, ReplyState, RequestEvent,
+    get_msg_result_without_state_proof, min_consensus, ConsensusState, HashableValue, PoolRequest,
+    ReplyState, RequestEvent, RequestResult, TimingResult,
 };
 
 pub async fn handle_single_request<Request: PoolRequest>(
     mut request: Request,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
-) -> LedgerResult<ConsensusResult<String>> {
+) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("single request");
     let config = request.pool_config();
     let node_keys = request.node_keys();
@@ -79,8 +79,8 @@ pub async fn handle_single_request<Request: PoolRequest>(
                                 config.freshness_threshold,
                             )
                         {
-                            return Ok(ConsensusResult::Reply(
-                                if cnt > f { soonest } else { raw_msg },
+                            return Ok((
+                                RequestResult::Reply(if cnt > f { soonest } else { raw_msg }),
                                 request.get_timing(),
                             ));
                         }
@@ -112,14 +112,20 @@ pub async fn handle_single_request<Request: PoolRequest>(
                 true
             }
             None => {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidState,
-                    "Request ended prematurely",
+                return Ok((
+                    RequestResult::Failed(err_msg(
+                        LedgerErrorKind::InvalidState,
+                        "Request ended prematurely",
+                    )),
+                    request.get_timing(),
                 ))
             }
         };
         if replies.len() >= total_nodes_count {
-            return Ok(ConsensusResult::NoConsensus(request.get_timing()));
+            return Ok((
+                RequestResult::Failed(err_msg(LedgerErrorKind::NoConsensus, "No consensus")),
+                request.get_timing(),
+            ));
         }
         if resend {
             request.send_to_any(2, config.ack_timeout)?;

@@ -4,18 +4,18 @@ use crate::utils::error::prelude::*;
 
 use super::types::Message;
 use super::{
-    get_msg_result_without_state_proof, min_consensus, ConsensusResult, ConsensusState,
-    HashableValue, PoolRequest, ReplyState, RequestEvent,
+    get_msg_result_without_state_proof, min_consensus, ConsensusState, HashableValue, PoolRequest,
+    ReplyState, RequestEvent, RequestResult, TimingResult,
 };
 
 pub async fn handle_consensus_request<Request: PoolRequest>(
     mut request: Request,
-) -> LedgerResult<ConsensusResult<String>> {
+) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("consensus request");
     let total_nodes_count = request.node_count();
     let f = min_consensus(total_nodes_count);
     let mut replies = ReplyState::new();
-    let mut state = ConsensusState::new();
+    let mut consensus = ConsensusState::new();
     let config = request.pool_config();
 
     request.send_to_all(config.ack_timeout)?;
@@ -32,9 +32,9 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
                             let hashable = HashableValue {
                                 inner: result_without_proof,
                             };
-                            let cnt = state.insert(hashable, node_alias.clone()).len();
+                            let cnt = consensus.insert(hashable, node_alias.clone()).len();
                             if cnt > f {
-                                return Ok(ConsensusResult::Reply(raw_msg, request.get_timing()));
+                                return Ok((RequestResult::Reply(raw_msg), request.get_timing()));
                             }
                         } else {
                             replies.add_failed(node_alias.clone(), raw_msg);
@@ -57,14 +57,20 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
                 replies.add_timeout(node_alias);
             }
             None => {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidState,
-                    "Request ended prematurely",
+                return Ok((
+                    RequestResult::Failed(err_msg(
+                        LedgerErrorKind::InvalidState,
+                        "Request ended prematurely",
+                    )),
+                    request.get_timing(),
                 ))
             }
         };
-        if state.max_consensus() + total_nodes_count - replies.len() <= f {
-            return Ok(ConsensusResult::NoConsensus(request.get_timing()));
+        if consensus.max_len() + total_nodes_count - replies.len() <= f {
+            return Ok((
+                RequestResult::Failed(err_msg(LedgerErrorKind::NoConsensus, "No consensus")),
+                request.get_timing(),
+            ));
         }
     }
 }

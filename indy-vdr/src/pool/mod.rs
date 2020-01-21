@@ -30,8 +30,7 @@ use crate::utils::error::prelude::*;
 use genesis::{build_tree, dump_transactions};
 use handlers::{
     build_catchup_req, build_ledger_status_req, handle_catchup_request, handle_consensus_request,
-    handle_full_request, handle_single_request, handle_status_request, CatchupRequestResult,
-    ConsensusResult, FullRequestResult, SingleReply, StatusRequestResult,
+    handle_full_request, handle_single_request, handle_status_request, NodeReplies, RequestResult,
 };
 use networker::NetworkerEvent;
 use requests::{serialize_message, PoolRequest, PoolRequestImpl, RequestHandle, TimingResult};
@@ -64,26 +63,28 @@ pub async fn perform_refresh<T: Pool>(
     let message = build_ledger_status_req(&merkle_tree, pool.config().protocol_version)?;
     let (req_id, req_json) = serialize_message(&message)?;
     let request = pool.create_request(req_id, req_json).await?;
-    let result = handle_status_request(request, merkle_tree).await?;
+    let (result, timing) = handle_status_request(request, merkle_tree).await?;
     trace!("Got status result: {:?}", &result);
     match result {
-        StatusRequestResult::CatchupTargetFound(mt_root, mt_size, timing) => {
-            trace!(
-                "Catchup target found {} {} {:?}",
-                mt_root.to_base58(),
-                mt_size,
-                timing
-            );
-            let txns = perform_catchup(pool, txns, mt_root, mt_size).await?;
-            Ok(Some(txns)) // FIXME - return transactions
-        }
-        StatusRequestResult::CatchupTargetNotFound(err, timing) => {
-            trace!("Catchup target not found {:?}", timing);
+        RequestResult::Reply(target) => match target {
+            Some((mt_root, mt_size)) => {
+                info!(
+                    "Catchup target found {} {} {:?}",
+                    mt_root.to_base58(),
+                    mt_size,
+                    timing
+                );
+                let txns = perform_catchup(pool, txns, mt_root, mt_size).await?;
+                Ok(Some(txns))
+            }
+            _ => {
+                info!("No catchup required {:?}", timing);
+                Ok(None)
+            }
+        },
+        RequestResult::Failed(err) => {
+            warn!("Catchup target not found {:?}", timing);
             Err(err)
-        }
-        StatusRequestResult::Synced(timing) => {
-            trace!("Synced! {:?}", timing);
-            Ok(None)
         }
     }
 }
@@ -98,20 +99,20 @@ pub async fn perform_catchup<T: Pool>(
     let message = build_catchup_req(&merkle_tree, mt_size)?;
     let (req_id, req_json) = serialize_message(&message)?;
     let request = pool.create_request(req_id, req_json).await?;
-    let catchup_result = handle_catchup_request(request, merkle_tree, mt_root, mt_size).await?;
-    trace!("Got catchup result: {:?}", &catchup_result);
+    let (catchup_result, timing) =
+        handle_catchup_request(request, merkle_tree, mt_root, mt_size).await?;
     match catchup_result {
-        CatchupRequestResult::Synced(txns, timing) => {
-            trace!("Catchup synced! {:?}", timing);
+        RequestResult::Reply(txns) => {
+            info!("Catchup completed {:?}", timing);
             let txns = dump_transactions(&txns, pool.config().protocol_version)?;
+            for txn in txns.iter() {
+                trace!("New transaction: {}", txn);
+            }
             Ok(txns)
         }
-        CatchupRequestResult::Timeout() => {
-            trace!("Catchup timeout");
-            Err(err_msg(
-                LedgerErrorKind::PoolTimeout,
-                "Timeout on catchup request",
-            ))
+        RequestResult::Failed(err) => {
+            trace!("Catchup failed {:?}", timing);
+            Err(err)
         }
     }
 }
@@ -165,6 +166,21 @@ fn _build_get_txn_request(
     ))
 }
 
+fn format_proxy_result<T: std::fmt::Display>(
+    (result, timing): (RequestResult<T>, Option<TimingResult>),
+) -> LedgerResult<(T, TimingResult)> {
+    match result {
+        RequestResult::Reply(message) => {
+            trace!("Got request response {} {:?}", &message, timing);
+            Ok((message, timing.unwrap()))
+        }
+        RequestResult::Failed(err) => {
+            trace!("No consensus {:?}", timing);
+            Err(err)
+        }
+    }
+}
+
 pub async fn perform_get_txn<T: Pool>(
     pool: &T,
     ledger_type: LedgerType,
@@ -178,17 +194,7 @@ pub async fn perform_get_txn<T: Pool>(
     )?;
     // let msg_json = serde_json::from_str(&message).unwrap();
     // let sp_key = parse_key_from_request_for_builtin_sp(&msg_json, pool.config().protocol_version);
-    let result = perform_single_request(pool, prepared).await?;
-    match result {
-        ConsensusResult::Reply(message, timing) => {
-            trace!("Got request response {} {:?}", &message, timing);
-            Ok((message, timing.unwrap()))
-        }
-        ConsensusResult::NoConsensus(timing) => {
-            trace!("No consensus {:?}", timing);
-            Err(err_msg(LedgerErrorKind::NoConsensus, "No consensus"))
-        }
-    }
+    format_proxy_result(perform_single_request(pool, prepared).await?)
 }
 
 // FIXME testing only
@@ -203,17 +209,7 @@ pub async fn perform_get_txn_consensus<T: Pool>(
         None,
         Some(pool.config().protocol_version.to_id()),
     )?;
-    let result = perform_consensus_request(pool, prepared).await?;
-    match result {
-        ConsensusResult::Reply(message, timing) => {
-            trace!("Got request response {} {:?}", &message, timing);
-            Ok((message, timing.unwrap()))
-        }
-        ConsensusResult::NoConsensus(timing) => {
-            trace!("No consensus {:?}", timing);
-            Err(err_msg(LedgerErrorKind::PoolTimeout, "No consensus"))
-        }
-    }
+    format_proxy_result(perform_consensus_request(pool, prepared).await?)
 }
 
 // FIXME testing only
@@ -228,22 +224,22 @@ pub async fn perform_get_txn_full<T: Pool>(
         None,
         Some(pool.config().protocol_version.to_id()),
     )?;
-    let (replies, timing) = perform_full_request(pool, prepared, None, None).await?;
+    let (result, timing) = perform_full_request(pool, prepared, None, None).await?;
+    format_proxy_result((result.map(format_full_reply), timing))
+}
+
+fn format_full_reply(replies: NodeReplies<String>) -> String {
     let rows = replies
         .iter()
-        .map(|(node_alias, reply)| match reply {
-            SingleReply::Reply(msg) => format!("{} {}", node_alias, msg),
-            SingleReply::Failed(msg) => format!("{} failed: {}", node_alias, msg),
-            SingleReply::Timeout() => format!("{} timeout", node_alias),
-        })
+        .map(|(node_alias, reply)| format!("{} {}", node_alias, reply.to_string()))
         .collect::<Vec<String>>();
-    Ok((rows.join("\n\n"), timing.unwrap()))
+    rows.join("\n\n")
 }
 
 pub async fn perform_single_request<T: Pool>(
     pool: &T,
     prepared: PreparedRequest,
-) -> LedgerResult<ConsensusResult<String>> {
+) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
     let request = pool
         .create_request(prepared.req_id, prepared.req_json)
         .await?;
@@ -253,7 +249,7 @@ pub async fn perform_single_request<T: Pool>(
 pub async fn perform_consensus_request<T: Pool>(
     pool: &T,
     prepared: PreparedRequest,
-) -> LedgerResult<ConsensusResult<String>> {
+) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
     let request = pool
         .create_request(prepared.req_id, prepared.req_json)
         .await?;
@@ -265,7 +261,7 @@ pub async fn perform_full_request<T: Pool>(
     prepared: PreparedRequest,
     timeout: Option<i64>,
     nodes_to_send: Option<Vec<String>>,
-) -> LedgerResult<FullRequestResult> {
+) -> LedgerResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
     let request = pool
         .create_request(prepared.req_id, prepared.req_json)
         .await?;

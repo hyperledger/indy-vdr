@@ -4,23 +4,14 @@ use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
 use super::types::{CatchupReq, Message};
-use super::{check_cons_proofs, PoolRequest, RequestEvent, TimingResult};
-
-#[derive(Debug)]
-pub enum CatchupRequestResult {
-    Synced(
-        Vec<Vec<u8>>, // new transactions
-        Option<TimingResult>,
-    ),
-    Timeout(),
-}
+use super::{check_cons_proofs, PoolRequest, RequestEvent, RequestResult, TimingResult};
 
 pub async fn handle_catchup_request<Request: PoolRequest>(
     mut request: Request,
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
-) -> LedgerResult<CatchupRequestResult> {
+) -> LedgerResult<(RequestResult<Vec<Vec<u8>>>, Option<TimingResult>)> {
     trace!("catchup request");
     let ack_timeout = request.pool_config().ack_timeout;
     request.send_to_any(1, ack_timeout)?;
@@ -37,7 +28,7 @@ pub async fn handle_catchup_request<Request: PoolRequest>(
                             cr.consProof.clone(),
                         ) {
                             Ok(txns) => {
-                                return Ok(CatchupRequestResult::Synced(txns, request.get_timing()))
+                                return Ok((RequestResult::Reply(txns), request.get_timing()))
                             }
                             Err(_) => {
                                 request.clean_timeout(node_alias)?;
@@ -46,11 +37,13 @@ pub async fn handle_catchup_request<Request: PoolRequest>(
                         }
                     }
                     _ => {
-                        // FIXME - add req.unexpected(message) to raise an appropriate exception
-                        // should be more tolerant of ReqNACK etc
-                        return Err(err_msg(
-                            LedgerErrorKind::InvalidState,
-                            "Unexpected response",
+                        // FIXME could be more tolerant of ReqNACK etc
+                        return Ok((
+                            RequestResult::Failed(err_msg(
+                                LedgerErrorKind::InvalidState,
+                                "Unexpected response",
+                            )),
+                            request.get_timing(),
                         ));
                     }
                 }
@@ -58,7 +51,12 @@ pub async fn handle_catchup_request<Request: PoolRequest>(
             Some(RequestEvent::Timeout(_node_alias)) => {
                 request.send_to_any(1, ack_timeout)?;
             }
-            None => return Ok(CatchupRequestResult::Timeout()),
+            None => {
+                return Ok((
+                    RequestResult::Failed(err_msg(LedgerErrorKind::PoolTimeout, "Request timeout")),
+                    request.get_timing(),
+                ))
+            }
         }
     }
 }

@@ -212,7 +212,7 @@ impl ZMQThread {
         if let Some(handle) = self.select_request(conn_id, &req_id) {
             self.process_reply(handle, fwd)
         } else {
-            trace!("Unknown request ID: {}", req_id)
+            debug!("Unknown request ID: {}", req_id)
         }
     }
 

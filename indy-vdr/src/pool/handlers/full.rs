@@ -3,15 +3,13 @@ use futures::stream::StreamExt;
 use crate::utils::error::prelude::*;
 
 use super::types::Message;
-use super::{NodeReplies, PoolRequest, ReplyState, RequestEvent, TimingResult};
-
-pub type FullRequestResult = (NodeReplies<String>, Option<TimingResult>);
+use super::{NodeReplies, PoolRequest, ReplyState, RequestEvent, RequestResult, TimingResult};
 
 pub async fn handle_full_request<Request: PoolRequest>(
     mut request: Request,
     local_timeout: Option<i64>,
     nodes_to_send: Option<Vec<String>>,
-) -> LedgerResult<FullRequestResult> {
+) -> LedgerResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
     trace!("full request");
     let timeout = local_timeout.unwrap_or(request.pool_config().reply_timeout);
     let req_reply_count = if let Some(nodes) = nodes_to_send {
@@ -43,14 +41,17 @@ pub async fn handle_full_request<Request: PoolRequest>(
                 replies.add_timeout(node_alias);
             }
             None => {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidState,
-                    "Request ended prematurely",
+                return Ok((
+                    RequestResult::Failed(err_msg(
+                        LedgerErrorKind::InvalidState,
+                        "Request ended prematurely",
+                    )),
+                    request.get_timing(),
                 ))
             }
         };
         if replies.len() == req_reply_count {
-            return Ok((replies.result(), request.get_timing()));
+            return Ok((RequestResult::Reply(replies.result()), request.get_timing()));
         }
     }
 }

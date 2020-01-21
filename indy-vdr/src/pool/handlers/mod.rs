@@ -18,24 +18,17 @@ mod full;
 mod single;
 mod status;
 
-pub use catchup::{build_catchup_req, handle_catchup_request, CatchupRequestResult};
+pub use catchup::{build_catchup_req, handle_catchup_request};
 pub use consensus::handle_consensus_request;
-pub use full::{handle_full_request, FullRequestResult};
+pub use full::handle_full_request;
 pub use single::handle_single_request;
-pub use status::{build_ledger_status_req, handle_status_request, StatusRequestResult};
+pub use status::{build_ledger_status_req, handle_status_request};
 
 #[derive(Debug)]
 pub enum SingleReply<T> {
     Reply(T),
     Failed(String),
     Timeout(),
-}
-
-pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;
-
-#[derive(Debug)]
-pub struct ReplyState<T> {
-    pub inner: HashMap<String, SingleReply<T>>,
 }
 
 impl<T: ToString> ToString for SingleReply<T> {
@@ -46,6 +39,13 @@ impl<T: ToString> ToString for SingleReply<T> {
             Self::Timeout() => "timeout".to_owned(),
         }
     }
+}
+
+pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;
+
+#[derive(Debug)]
+pub struct ReplyState<T> {
+    pub inner: HashMap<String, SingleReply<T>>,
 }
 
 impl<T> ReplyState<T> {
@@ -79,33 +79,48 @@ impl<T> ReplyState<T> {
 }
 
 #[derive(Debug)]
-pub enum ConsensusResult<T> {
-    NoConsensus(Option<TimingResult>),
-    Reply(T, Option<TimingResult>),
+pub enum RequestResult<T> {
+    Reply(T),
+    Failed(LedgerError),
+}
+
+impl<T> RequestResult<T> {
+    pub fn map<F, R>(self, f: F) -> RequestResult<R>
+    where
+        F: FnOnce(T) -> R,
+    {
+        match self {
+            Self::Reply(reply) => RequestResult::Reply(f(reply)),
+            Self::Failed(err) => RequestResult::Failed(err),
+        }
+    }
 }
 
 #[derive(Debug)]
-struct ConsensusState<T: Eq + Hash> {
-    consensus: HashMap<HashableValue, HashSet<T>>,
+struct ConsensusState<K: Eq + Hash, T: Eq + Hash> {
+    inner: HashMap<K, HashSet<T>>,
 }
 
-impl<T: Eq + Hash> ConsensusState<T> {
+impl<K: Eq + Hash, T: Eq + Hash> ConsensusState<K, T> {
     fn new() -> Self {
         Self {
-            consensus: HashMap::new(),
+            inner: HashMap::new(),
         }
     }
 
-    fn max_consensus(&self) -> usize {
-        self.consensus
-            .values()
-            .map(|set| set.len())
-            .max()
-            .unwrap_or(0)
+    fn max_entry(&self) -> Option<(&K, usize)> {
+        self.inner
+            .iter()
+            .map(|(key, set)| (key, set.len()))
+            .max_by_key(|entry| entry.1)
     }
 
-    pub fn insert(&mut self, hashable: HashableValue, reply: T) -> &mut HashSet<T> {
-        let set = self.consensus.entry(hashable).or_insert_with(HashSet::new);
+    fn max_len(&self) -> usize {
+        self.max_entry().map(|entry| entry.1).unwrap_or(0)
+    }
+
+    pub fn insert(&mut self, key: K, reply: T) -> &mut HashSet<T> {
+        let set = self.inner.entry(key).or_insert_with(HashSet::new);
         set.insert(reply);
         set
     }
@@ -115,8 +130,6 @@ impl<T: Eq + Hash> ConsensusState<T> {
 pub struct HashableValue {
     pub inner: SJsonValue,
 }
-
-impl Eq for HashableValue {}
 
 impl Hash for HashableValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -130,6 +143,8 @@ impl PartialEq for HashableValue {
         self.inner.eq(&other.inner)
     }
 }
+
+impl Eq for HashableValue {}
 
 fn min_consensus(cnt: usize) -> usize {
     if cnt < 4 {
