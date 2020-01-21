@@ -4,8 +4,8 @@ use crate::utils::error::prelude::*;
 
 use super::types::Message;
 use super::{
-    get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
-    PoolRequest, ReplyState, RequestEvent,
+    get_msg_result_without_state_proof, min_consensus, ConsensusResult, ConsensusState,
+    HashableValue, PoolRequest, ReplyState, RequestEvent,
 };
 
 pub async fn handle_consensus_request<Request: PoolRequest>(
@@ -13,7 +13,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
 ) -> LedgerResult<ConsensusResult<String>> {
     trace!("consensus request");
     let total_nodes_count = request.node_count();
-    let f = get_f(total_nodes_count);
+    let f = min_consensus(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
     let config = request.pool_config();

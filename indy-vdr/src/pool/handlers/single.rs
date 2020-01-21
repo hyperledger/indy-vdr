@@ -14,8 +14,8 @@ use crate::utils::error::prelude::*;
 use super::state_proof;
 use super::types::{Message, NodeKeys, DEFAULT_GENERATOR};
 use super::{
-    get_f, get_msg_result_without_state_proof, ConsensusResult, ConsensusState, HashableValue,
-    PoolRequest, ReplyState, RequestEvent,
+    get_msg_result_without_state_proof, min_consensus, ConsensusResult, ConsensusState,
+    HashableValue, PoolRequest, ReplyState, RequestEvent,
 };
 
 pub async fn handle_single_request<Request: PoolRequest>(
@@ -27,7 +27,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
     let config = request.pool_config();
     let node_keys = request.node_keys();
     let total_nodes_count = request.node_count();
-    let f = get_f(total_nodes_count);
+    let f = min_consensus(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
     let generator: Generator =

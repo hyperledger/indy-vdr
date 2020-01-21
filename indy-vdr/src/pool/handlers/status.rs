@@ -11,7 +11,7 @@ use crate::utils::error::prelude::*;
 use crate::utils::merkletree::MerkleTree;
 
 use super::types::{LedgerStatus, Message};
-use super::{check_cons_proofs, get_f, PoolRequest, RequestEvent, TimingResult};
+use super::{check_cons_proofs, min_consensus, PoolRequest, RequestEvent, TimingResult};
 
 #[derive(Debug)]
 pub enum StatusRequestResult {
@@ -132,7 +132,7 @@ impl StatusRequestHandler {
             &self.replies,
             &self.merkle_tree,
             self.nodes_cnt,
-            get_f(self.nodes_cnt),
+            min_consensus(self.nodes_cnt),
         ) {
             Ok(CatchupProgress::NotNeeded) => Some(StatusRequestResult::Synced(timing)),
             Ok(CatchupProgress::InProgress) => None,

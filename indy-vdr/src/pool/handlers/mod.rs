@@ -131,7 +131,7 @@ impl PartialEq for HashableValue {
     }
 }
 
-fn get_f(cnt: usize) -> usize {
+fn min_consensus(cnt: usize) -> usize {
     if cnt < 4 {
         return 0;
     }
