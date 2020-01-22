@@ -22,6 +22,7 @@ use rand::seq::SliceRandom;
 
 use crate::common::error::prelude::*;
 use crate::ledger::{PreparedRequest, RequestBuilder};
+use crate::state_proof::constants::REQUEST_FOR_FULL;
 use crate::utils::base58::ToBase58;
 
 use genesis::{build_tree, dump_transactions};
@@ -203,6 +204,26 @@ pub async fn perform_full_request<T: Pool>(
     handle_full_request(request, timeout, nodes_to_send).await
 }
 
+pub async fn perform_request<T: Pool>(
+    pool: &T,
+    prepared: PreparedRequest,
+) -> LedgerResult<(String, TimingResult)> {
+    let request = pool
+        .create_request(prepared.req_id, prepared.req_json)
+        .await?;
+    let (result, timing) = if prepared.sp_key.is_some() {
+        handle_single_request(request, prepared.sp_key, prepared.sp_timestamps).await?
+    } else if REQUEST_FOR_FULL.contains(&prepared.txn_type.as_str()) {
+        // FIXME specify timeout and nodes_to_send when?
+        let (result, timing) = handle_full_request(request, None, None).await?;
+        (result.map(format_full_reply), timing)
+    } else {
+        handle_consensus_request(request).await?
+    };
+    format_proxy_result((result, timing))
+    // FIXME - support status and catchup
+}
+
 pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>) -> Vec<String> {
     let mut weighted = node_keys
         .keys()
@@ -239,6 +260,10 @@ pub trait Pool {
         req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>>;
     fn transactions(&self) -> Vec<String>;
+
+    fn request_builder(&self) -> RequestBuilder {
+        RequestBuilder::new(self.config().protocol_version)
+    }
 }
 
 #[derive(Clone)]
