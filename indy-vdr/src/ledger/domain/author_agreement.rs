@@ -100,6 +100,10 @@ impl RequestType for GetTxnAuthorAgreementOperation {
         };
         Ok(Some(key_str.as_bytes().to_vec()))
     }
+
+    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+        Ok((None, self.timestamp))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -187,5 +191,9 @@ impl RequestType for GetAcceptanceMechanismOperation {
             "3:latest".to_owned()
         };
         Ok(Some(key_str.as_bytes().to_vec()))
+    }
+
+    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+        Ok((None, self.timestamp))
     }
 }
