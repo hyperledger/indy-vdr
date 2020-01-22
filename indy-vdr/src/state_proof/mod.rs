@@ -172,7 +172,7 @@ pub fn get_msg_result_without_state_proof(msg: &str) -> LedgerResult<(SJsonValue
 
 pub fn parse_generic_reply_for_proof_checking(
     json_msg: &SJsonValue,
-    raw_msg: &str,
+    _raw_msg: &str,
     sp_key: Option<&[u8]>,
 ) -> Option<Vec<ParsedSP>> {
     let type_ = if let Some(type_) = json_msg["type"].as_str() {

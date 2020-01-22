@@ -8,9 +8,11 @@ mod networker;
 mod requests;
 mod types;
 
+pub use self::handlers::{CatchupTarget, NodeReplies, RequestResult};
+pub use self::networker::{Networker, ZMQNetworker};
+pub use self::requests::{RequestTarget, TimingResult};
+pub use self::types::{NodeKeys, ProtocolVersion};
 pub use crate::config::PoolConfig;
-pub use networker::{Networker, ZMQNetworker};
-pub use types::{NodeKeys, ProtocolVersion};
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -27,40 +29,42 @@ use crate::utils::base58::ToBase58;
 
 use genesis::{build_tree, dump_transactions};
 use handlers::{
-    build_catchup_req, build_ledger_status_req, handle_catchup_request, handle_consensus_request,
-    handle_full_request, handle_single_request, handle_status_request, NodeReplies, RequestResult,
+    build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
+    handle_consensus_request, handle_full_request, handle_single_request, handle_status_request,
 };
 use networker::NetworkerEvent;
-use requests::{serialize_message, PoolRequest, PoolRequestImpl, RequestHandle, TimingResult};
+use requests::{PoolRequest, PoolRequestImpl, RequestHandle};
 // use state_proof::parse_key_from_request_for_builtin_sp;
 
-/*
-// handled by PoolFactory
-pub async fn connect(
-    config: PoolConfig,
-    txns: Vec<String>,
-    refresh: bool,
-) -> LedgerResult<(Pool, Option<Vec<String>>)> {
-    let networker = Arc::new(RwLock::new(ZMQNetworker::new(config, txns.clone())?));
-    let pool = Pool::new(config, networker, None);
-    let txns = if refresh {
-        perform_refresh(&pool, txns).await?
-    } else {
-        None
-    };
-    Ok((pool, txns))
+pub async fn perform_pool_status_request<T: Pool>(
+    pool: &T,
+    txns: &Vec<String>,
+) -> LedgerResult<(RequestResult<Option<CatchupTarget>>, Option<TimingResult>)> {
+    let merkle_tree = build_tree(txns)?;
+    let message = build_pool_status_request(&merkle_tree, pool.get_config().protocol_version)?;
+    let req_json = message.serialize()?.to_string();
+    let request = pool.create_request("".to_string(), req_json).await?;
+    handle_status_request(request, merkle_tree).await
 }
-*/
+
+pub async fn perform_pool_catchup_request<T: Pool>(
+    pool: &T,
+    txns: &Vec<String>,
+    mt_root: Vec<u8>,
+    mt_size: usize,
+) -> LedgerResult<(RequestResult<Vec<Vec<u8>>>, Option<TimingResult>)> {
+    let merkle_tree = build_tree(txns)?;
+    let message = build_pool_catchup_request(&merkle_tree, mt_size)?;
+    let req_json = message.serialize()?.to_string();
+    let request = pool.create_request("".to_string(), req_json).await?;
+    handle_catchup_request(request, merkle_tree, mt_root, mt_size).await
+}
 
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
-    txns: Vec<String>,
+    txns: &Vec<String>,
 ) -> LedgerResult<Option<Vec<String>>> {
-    let merkle_tree = build_tree(&txns)?;
-    let message = build_ledger_status_req(&merkle_tree, pool.config().protocol_version)?;
-    let (req_id, req_json) = serialize_message(&message)?;
-    let request = pool.create_request(req_id, req_json).await?;
-    let (result, timing) = handle_status_request(request, merkle_tree).await?;
+    let (result, timing) = perform_pool_status_request(pool, txns).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {
@@ -88,20 +92,16 @@ pub async fn perform_refresh<T: Pool>(
 
 pub async fn perform_catchup<T: Pool>(
     pool: &T,
-    txns: Vec<String>,
+    txns: &Vec<String>,
     mt_root: Vec<u8>,
     mt_size: usize,
 ) -> LedgerResult<Vec<String>> {
-    let merkle_tree = build_tree(&txns)?;
-    let message = build_catchup_req(&merkle_tree, mt_size)?;
-    let (req_id, req_json) = serialize_message(&message)?;
-    let request = pool.create_request(req_id, req_json).await?;
     let (catchup_result, timing) =
-        handle_catchup_request(request, merkle_tree, mt_root, mt_size).await?;
+        perform_pool_catchup_request(pool, txns, mt_root, mt_size).await?;
     match catchup_result {
         RequestResult::Reply(txns) => {
             info!("Catchup completed {:?}", timing);
-            let txns = dump_transactions(&txns, pool.config().protocol_version)?;
+            let txns = dump_transactions(&txns, pool.get_config().protocol_version)?;
             for txn in txns.iter() {
                 trace!("New transaction: {}", txn);
             }
@@ -114,42 +114,16 @@ pub async fn perform_catchup<T: Pool>(
     }
 }
 
-fn format_proxy_result<T: std::fmt::Display>(
-    (result, timing): (RequestResult<T>, Option<TimingResult>),
-) -> LedgerResult<(T, TimingResult)> {
-    match result {
-        RequestResult::Reply(message) => {
-            trace!("Got request response {} {:?}", &message, timing);
-            Ok((message, timing.unwrap()))
-        }
-        RequestResult::Failed(err) => {
-            trace!("No consensus {:?}", timing);
-            Err(err)
-        }
-    }
-}
-
 pub async fn perform_get_txn<T: Pool>(
     pool: &T,
     ledger_type: i32,
     seq_no: i32,
-) -> LedgerResult<(String, TimingResult)> {
-    let builder = RequestBuilder::new(pool.config().protocol_version);
+) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
+    let builder = RequestBuilder::new(pool.get_config().protocol_version);
     let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
     // let msg_json = serde_json::from_str(&message).unwrap();
     // let sp_key = parse_key_from_request_for_builtin_sp(&msg_json, pool.config().protocol_version);
-    format_proxy_result(perform_single_request(pool, prepared).await?)
-}
-
-// FIXME testing only
-pub async fn perform_get_txn_consensus<T: Pool>(
-    pool: &T,
-    ledger_type: i32,
-    seq_no: i32,
-) -> LedgerResult<(String, TimingResult)> {
-    let builder = RequestBuilder::new(pool.config().protocol_version);
-    let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
-    format_proxy_result(perform_consensus_request(pool, prepared).await?)
+    perform_ledger_request(pool, prepared, None).await
 }
 
 // FIXME testing only
@@ -157,14 +131,14 @@ pub async fn perform_get_txn_full<T: Pool>(
     pool: &T,
     ledger_type: i32,
     seq_no: i32,
-) -> LedgerResult<(String, TimingResult)> {
-    let builder = RequestBuilder::new(pool.config().protocol_version);
+    timeout: Option<i64>,
+) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
+    let builder = RequestBuilder::new(pool.get_config().protocol_version);
     let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
-    let (result, timing) = perform_full_request(pool, prepared, None, None).await?;
-    format_proxy_result((result.map(format_full_reply), timing))
+    perform_ledger_request(pool, prepared, Some(RequestTarget::Full(None, timeout))).await
 }
 
-fn format_full_reply(replies: NodeReplies<String>) -> String {
+pub fn format_full_reply(replies: NodeReplies<String>) -> String {
     let rows = replies
         .iter()
         .map(|(node_alias, reply)| format!("{} {}", node_alias, reply.to_string()))
@@ -172,56 +146,27 @@ fn format_full_reply(replies: NodeReplies<String>) -> String {
     rows.join("\n\n")
 }
 
-pub async fn perform_single_request<T: Pool>(
+pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
     prepared: PreparedRequest,
+    target: Option<RequestTarget>,
 ) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
     let request = pool
-        .create_request(prepared.req_id, prepared.req_json)
+        .create_request(prepared.req_id, prepared.req_json.to_string())
         .await?;
-    handle_single_request(request, prepared.sp_key, prepared.sp_timestamps).await
-}
-
-pub async fn perform_consensus_request<T: Pool>(
-    pool: &T,
-    prepared: PreparedRequest,
-) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
-    let request = pool
-        .create_request(prepared.req_id, prepared.req_json)
-        .await?;
-    handle_consensus_request(request).await
-}
-
-pub async fn perform_full_request<T: Pool>(
-    pool: &T,
-    prepared: PreparedRequest,
-    timeout: Option<i64>,
-    nodes_to_send: Option<Vec<String>>,
-) -> LedgerResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
-    let request = pool
-        .create_request(prepared.req_id, prepared.req_json)
-        .await?;
-    handle_full_request(request, timeout, nodes_to_send).await
-}
-
-pub async fn perform_request<T: Pool>(
-    pool: &T,
-    prepared: PreparedRequest,
-) -> LedgerResult<(String, TimingResult)> {
-    let request = pool
-        .create_request(prepared.req_id, prepared.req_json)
-        .await?;
-    let (result, timing) = if prepared.sp_key.is_some() {
-        handle_single_request(request, prepared.sp_key, prepared.sp_timestamps).await?
-    } else if REQUEST_FOR_FULL.contains(&prepared.txn_type.as_str()) {
-        // FIXME specify timeout and nodes_to_send when?
-        let (result, timing) = handle_full_request(request, None, None).await?;
-        (result.map(format_full_reply), timing)
-    } else {
-        handle_consensus_request(request).await?
-    };
-    format_proxy_result((result, timing))
-    // FIXME - support status and catchup
+    match target {
+        Some(RequestTarget::Full(node_aliases, timeout)) => {
+            let (result, timing) = handle_full_request(request, node_aliases, timeout).await?;
+            Ok((result.map(format_full_reply), timing))
+        }
+        _ => {
+            if prepared.sp_key.is_some() {
+                handle_single_request(request, prepared.sp_key, prepared.sp_timestamps).await
+            } else {
+                handle_consensus_request(request).await
+            }
+        }
+    }
 }
 
 pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>) -> Vec<String> {
@@ -253,16 +198,16 @@ pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>)
 pub trait Pool {
     type Request: PoolRequest;
 
-    fn config(&self) -> PoolConfig;
+    fn get_config(&self) -> PoolConfig;
     fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>>;
-    fn transactions(&self) -> Vec<String>;
+    fn get_transactions(&self) -> Vec<String>;
 
-    fn request_builder(&self) -> RequestBuilder {
-        RequestBuilder::new(self.config().protocol_version)
+    fn get_request_builder(&self) -> RequestBuilder {
+        RequestBuilder::new(self.get_config().protocol_version)
     }
 }
 
@@ -273,6 +218,10 @@ pub struct AbstractPool<T: Networker + Clone> {
     node_weights: Option<HashMap<String, f32>>,
     transactions: Vec<String>,
 }
+
+pub type LocalPool = AbstractPool<Rc<dyn Networker>>;
+
+pub type SharedPool = AbstractPool<Arc<dyn Networker>>;
 
 impl<T: Networker + Clone> AbstractPool<T> {
     pub fn new(
@@ -318,18 +267,14 @@ impl<T: Networker + Clone> Pool for AbstractPool<T> {
         .boxed_local()
     }
 
-    fn config(&self) -> PoolConfig {
+    fn get_config(&self) -> PoolConfig {
         self.config
     }
 
-    fn transactions(&self) -> Vec<String> {
+    fn get_transactions(&self) -> Vec<String> {
         self.transactions.clone()
     }
 }
-
-pub type LocalPool = AbstractPool<Rc<dyn Networker>>;
-
-pub type SharedPool = AbstractPool<Arc<dyn Networker>>;
 
 /*
 #[cfg(test)]

@@ -3,7 +3,7 @@ use futures::stream::StreamExt;
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 
-use super::types::{CatchupReq, Message};
+use super::types::Message;
 use super::{check_cons_proofs, PoolRequest, RequestEvent, RequestResult, TimingResult};
 
 pub async fn handle_catchup_request<Request: PoolRequest>(
@@ -74,23 +74,4 @@ fn process_catchup_reply(
     }
     check_cons_proofs(&merkle, &cons_proof, target_mt_root, target_mt_size)?;
     Ok(txns)
-}
-
-pub fn build_catchup_req(merkle: &MerkleTree, target_mt_size: usize) -> LedgerResult<Message> {
-    if merkle.count() >= target_mt_size {
-        return Err(err_msg(
-            LedgerErrorKind::InvalidState,
-            "No transactions to catch up",
-        ));
-    }
-    let seq_no_start = merkle.count() + 1;
-    let seq_no_end = target_mt_size;
-
-    let cr = CatchupReq {
-        ledgerId: 0,
-        seqNoStart: seq_no_start,
-        seqNoEnd: seq_no_end,
-        catchupTill: target_mt_size,
-    };
-    Ok(Message::CatchupReq(cr))
 }

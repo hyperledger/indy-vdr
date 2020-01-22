@@ -7,12 +7,13 @@ use std::rc::Rc;
 
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
+use log::trace;
 
 use indy_vdr::config::{LedgerResult, PoolFactory};
 use indy_vdr::ledger::domain::txn::LedgerType;
 use indy_vdr::pool::{
-  perform_get_txn, perform_get_txn_consensus, perform_get_txn_full, perform_refresh,
-  perform_request, Pool,
+  perform_get_txn, perform_get_txn_full, perform_ledger_request, perform_refresh, Pool,
+  RequestResult, TimingResult,
 };
 
 fn main() {
@@ -28,6 +29,21 @@ fn main() {
   local.block_on(&mut rt, run()).unwrap();
 }
 
+fn format_request_result<T: std::fmt::Display>(
+  (result, timing): (RequestResult<T>, Option<TimingResult>),
+) -> LedgerResult<(T, TimingResult)> {
+  match result {
+    RequestResult::Reply(message) => {
+      trace!("Got request response {} {:?}", &message, timing);
+      Ok((message, timing.unwrap()))
+    }
+    RequestResult::Failed(err) => {
+      trace!("No consensus {:?}", timing);
+      Err(err)
+    }
+  }
+}
+
 fn format_result<T: std::fmt::Debug>(result: LedgerResult<(String, T)>) -> LedgerResult<String> {
   Ok(match result {
     Ok((msg, timing)) => format!("{}\n\n{:?}", msg, timing),
@@ -36,34 +52,34 @@ fn format_result<T: std::fmt::Debug>(result: LedgerResult<(String, T)>) -> Ledge
 }
 
 async fn test_get_txn_single<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
-  let result = perform_get_txn(pool, LedgerType::DOMAIN as i32, seq_no).await;
-  format_result(result)
-}
-
-async fn test_get_txn_consensus<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
-  let result = perform_get_txn_consensus(pool, LedgerType::DOMAIN as i32, seq_no).await;
-  format_result(result)
+  let result = perform_get_txn(pool, LedgerType::DOMAIN as i32, seq_no).await?;
+  format_result(format_request_result(result))
 }
 
 async fn test_get_txn_full<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
-  let result = perform_get_txn_full(pool, LedgerType::DOMAIN as i32, seq_no).await;
-  format_result(result)
+  let result = perform_get_txn_full(pool, LedgerType::DOMAIN as i32, seq_no, None).await?;
+  format_result(format_request_result(result))
+}
+
+async fn get_genesis<T: Pool>(pool: &T) -> LedgerResult<String> {
+  let txns = pool.get_transactions();
+  Ok(txns.join("\n"))
 }
 
 async fn get_taa<T: Pool>(pool: &T) -> LedgerResult<String> {
   let request = pool
-    .request_builder()
+    .get_request_builder()
     .build_get_txn_author_agreement_request(None, None)?;
-  let result = perform_request(pool, request).await;
-  format_result(result)
+  let result = perform_ledger_request(pool, request, None).await?;
+  format_result(format_request_result(result))
 }
 
 async fn get_aml<T: Pool>(pool: &T) -> LedgerResult<String> {
   let request = pool
-    .request_builder()
+    .get_request_builder()
     .build_get_acceptance_mechanisms_request(None, None, None)?;
-  let result = perform_request(pool, request).await;
-  format_result(result)
+  let result = perform_ledger_request(pool, request, None).await?;
+  format_result(format_request_result(result))
 }
 
 async fn handle_request<T: Pool>(
@@ -76,12 +92,12 @@ async fn handle_request<T: Pool>(
       let msg = test_get_txn_single(seq_no, &pool).await.unwrap();
       Ok::<_, Error>(Response::new(Body::from(msg)))
     }
-    (&Method::GET, "/consensus") => {
-      let msg = test_get_txn_consensus(seq_no, &pool).await.unwrap();
-      Ok::<_, Error>(Response::new(Body::from(msg)))
-    }
     (&Method::GET, "/full") => {
       let msg = test_get_txn_full(seq_no, &pool).await.unwrap();
+      Ok::<_, Error>(Response::new(Body::from(msg)))
+    }
+    (&Method::GET, "/genesis") => {
+      let msg = get_genesis(&pool).await.unwrap();
       Ok::<_, Error>(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/taa") => {
@@ -110,7 +126,7 @@ async fn run() -> LedgerResult<()> {
 
   let factory = PoolFactory::from_genesis_file("genesis.txn")?;
   let pool = factory.create_local()?;
-  perform_refresh(&pool, factory.get_transactions()).await?;
+  perform_refresh(&pool, &factory.get_transactions()).await?;
   let count = Rc::new(Cell::new(1i32));
 
   let make_service = make_service_fn(move |_| {

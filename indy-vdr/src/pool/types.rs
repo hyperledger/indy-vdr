@@ -1,6 +1,7 @@
 use std::cmp::Eq;
 use std::collections::HashMap;
 
+use serde_json;
 use ursa::bls::VerKey as BlsVerKey;
 
 use crate::common::error::prelude::*;
@@ -488,5 +489,14 @@ impl Message {
             }
             _ => None,
         }
+    }
+
+    pub fn serialize(&self) -> LedgerResult<serde_json::Value> {
+        serde_json::to_value(&self).map_err(|err| {
+            err_msg(
+                LedgerErrorKind::InvalidStructure,
+                format!("Cannot serialize Request: {:?}", err),
+            )
+        })
     }
 }

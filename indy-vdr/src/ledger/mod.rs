@@ -65,7 +65,7 @@ fn compare_hash(text: &str, version: &str, hash: &str) -> LedgerResult<()> {
 pub struct PreparedRequest {
     pub txn_type: String,
     pub req_id: String,
-    pub req_json: String,
+    pub req_json: SJsonValue,
     pub sp_key: Option<Vec<u8>>,
     pub sp_timestamps: (Option<u64>, Option<u64>),
 }
@@ -74,7 +74,7 @@ impl PreparedRequest {
     fn new(
         txn_type: String,
         req_id: String,
-        req_json: String,
+        req_json: SJsonValue,
         sp_key: Option<Vec<u8>>,
         sp_timestamps: (Option<u64>, Option<u64>),
     ) -> Self {
@@ -117,9 +117,8 @@ impl RequestBuilder {
             req_id,
             operation,
             identifier,
-            Some(self.protocol_version.to_id()),
-        )
-        .map_err(|err| err_msg(LedgerErrorKind::InvalidStructure, err))?;
+            Some(self.protocol_version as usize),
+        )?;
         Ok(PreparedRequest::new(
             txn_type,
             req_id.to_string(),

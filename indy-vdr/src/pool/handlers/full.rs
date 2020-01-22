@@ -7,8 +7,8 @@ use super::{NodeReplies, PoolRequest, ReplyState, RequestEvent, RequestResult, T
 
 pub async fn handle_full_request<Request: PoolRequest>(
     mut request: Request,
-    local_timeout: Option<i64>,
     nodes_to_send: Option<Vec<String>>,
+    local_timeout: Option<i64>,
 ) -> LedgerResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
     trace!("full request");
     let timeout = local_timeout.unwrap_or(request.pool_config().reply_timeout);

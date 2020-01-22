@@ -5,10 +5,10 @@ use serde_json::{self, Value as SJsonValue};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58::FromBase58;
+use crate::utils::base58::{FromBase58, ToBase58};
 
 use super::requests::{PoolRequest, RequestEvent, TimingResult};
-use super::types;
+use super::types::{self, CatchupReq, LedgerStatus, Message, ProtocolVersion};
 
 mod catchup;
 mod consensus;
@@ -16,11 +16,11 @@ mod full;
 mod single;
 mod status;
 
-pub use catchup::{build_catchup_req, handle_catchup_request};
+pub use catchup::handle_catchup_request;
 pub use consensus::handle_consensus_request;
 pub use full::handle_full_request;
 pub use single::handle_single_request;
-pub use status::{build_ledger_status_req, handle_status_request};
+pub use status::{handle_status_request, CatchupTarget};
 
 #[derive(Debug)]
 pub enum SingleReply<T> {
@@ -178,4 +178,41 @@ fn check_cons_proofs(
     }
 
     Ok(())
+}
+
+pub fn build_pool_status_request(
+    merkle: &MerkleTree,
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<Message> {
+    let lr = LedgerStatus {
+        txnSeqNo: merkle.count(),
+        merkleRoot: merkle.root_hash().as_slice().to_base58(),
+        ledgerId: 0,
+        ppSeqNo: None,
+        viewNo: None,
+        protocolVersion: Some(protocol_version as usize),
+    };
+    Ok(Message::LedgerStatus(lr))
+}
+
+pub fn build_pool_catchup_request(
+    merkle: &MerkleTree,
+    target_mt_size: usize,
+) -> LedgerResult<Message> {
+    if merkle.count() >= target_mt_size {
+        return Err(err_msg(
+            LedgerErrorKind::InvalidState,
+            "No transactions to catch up",
+        ));
+    }
+    let seq_no_start = merkle.count() + 1;
+    let seq_no_end = target_mt_size;
+
+    let cr = CatchupReq {
+        ledgerId: 0,
+        seqNoStart: seq_no_start,
+        seqNoEnd: seq_no_end,
+        catchupTill: target_mt_size,
+    };
+    Ok(Message::CatchupReq(cr))
 }

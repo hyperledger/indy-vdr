@@ -2,12 +2,8 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::time::{Duration, SystemTime};
 
-use serde_json;
-
 use super::networker;
 use super::types::{self, Message};
-
-use crate::common::error::prelude::*;
 
 mod base;
 pub use base::{PoolRequest, PoolRequestImpl, RequestHandle};
@@ -63,6 +59,15 @@ impl std::fmt::Display for RequestState {
 pub type TimingResult = HashMap<String, f32>;
 
 #[derive(Debug)]
+pub enum RequestTarget {
+    Default(),
+    Full(
+        Option<Vec<String>>, // nodes to send
+        Option<i64>,         // timeout
+    ),
+}
+
+#[derive(Debug)]
 pub struct RequestTiming {
     replies: HashMap<String, (SystemTime, f32)>,
 }
@@ -94,15 +99,4 @@ impl RequestTiming {
             self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
         ))
     }
-}
-
-pub fn serialize_message(message: &types::Message) -> LedgerResult<(String, String)> {
-    let req_id = message.request_id().unwrap_or("".to_owned());
-    let req_json = serde_json::to_string(&message).map_err(|err| {
-        err_msg(
-            LedgerErrorKind::InvalidState,
-            format!("Cannot serialize request: {:?}", err),
-        )
-    })?;
-    Ok((req_id, req_json))
 }

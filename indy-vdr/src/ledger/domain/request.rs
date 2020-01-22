@@ -6,7 +6,7 @@ use time;
 
 use super::did::{DidValue, ShortDidValue};
 use super::ProtocolVersion;
-use crate::common::error::LedgerResult;
+use crate::common::error::prelude::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -63,16 +63,21 @@ impl<T: serde::Serialize> Request<T> {
         operation: T,
         identifier: Option<&DidValue>,
         protocol_version: Option<usize>,
-    ) -> Result<String, String> {
+    ) -> LedgerResult<serde_json::Value> {
         // FIXME - verify that qualified DID is using a known DID method
 
-        serde_json::to_string(&Request::new(
+        serde_json::to_value(&Request::new(
             req_id,
             operation,
             identifier.map(DidValue::to_short),
             protocol_version,
         ))
-        .map_err(|err| format!("Cannot serialize Request: {:?}", err))
+        .map_err(|err| {
+            err_msg(
+                LedgerErrorKind::InvalidStructure,
+                format!("Cannot serialize Request: {:?}", err),
+            )
+        })
     }
 }
 

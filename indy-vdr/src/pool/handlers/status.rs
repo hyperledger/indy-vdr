@@ -4,16 +4,15 @@ use futures::stream::StreamExt;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::pool::ProtocolVersion;
 use crate::utils::base58::{FromBase58, ToBase58};
 
-use super::types::{LedgerStatus, Message};
+use super::types::Message;
 use super::{
     check_cons_proofs, min_consensus, ConsensusState, PoolRequest, ReplyState, RequestEvent,
     RequestResult, TimingResult,
 };
 
-type CatchupTarget = (Vec<u8>, usize);
+pub type CatchupTarget = (Vec<u8>, usize);
 
 pub async fn handle_status_request<Request: PoolRequest>(
     mut request: Request,
@@ -167,19 +166,4 @@ fn try_to_catch_up(
             "Local merkle tree greater than mt from ledger",
         ))
     }
-}
-
-pub fn build_ledger_status_req(
-    merkle: &MerkleTree,
-    protocol_version: ProtocolVersion,
-) -> LedgerResult<Message> {
-    let lr = LedgerStatus {
-        txnSeqNo: merkle.count(),
-        merkleRoot: merkle.root_hash().as_slice().to_base58(),
-        ledgerId: 0,
-        ppSeqNo: None,
-        viewNo: None,
-        protocolVersion: Some(protocol_version as usize),
-    };
-    Ok(Message::LedgerStatus(lr))
 }
