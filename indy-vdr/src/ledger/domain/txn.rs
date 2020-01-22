@@ -5,6 +5,8 @@ use serde_json;
 use crate::common::error::prelude::*;
 
 use super::constants::GET_TXN;
+use super::request::RequestType;
+use super::ProtocolVersion;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetTxnOperation {
@@ -18,10 +20,24 @@ pub struct GetTxnOperation {
 impl GetTxnOperation {
     pub fn new(data: i32, ledger_id: i32) -> GetTxnOperation {
         GetTxnOperation {
-            _type: GET_TXN.to_string(),
+            _type: Self::get_txn_type().to_string(),
             data,
             ledger_id,
         }
+    }
+}
+
+impl RequestType for GetTxnOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_TXN
+    }
+
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+        Ok(Some(self.data.to_string().into_bytes()))
+    }
+
+    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+        Ok((None, Some(0)))
     }
 }
 

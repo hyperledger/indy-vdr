@@ -1,6 +1,10 @@
 use super::constants::{ATTRIB, GET_ATTR};
 use super::did::ShortDidValue;
+use super::request::{get_sp_key_marker, RequestType};
 use super::response::GetReplyResultV1;
+use super::ProtocolVersion;
+use crate::common::error::LedgerResult;
+use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 use named_type::NamedType;
 
@@ -25,12 +29,18 @@ impl AttribOperation {
         enc: Option<String>,
     ) -> AttribOperation {
         AttribOperation {
-            _type: ATTRIB.to_string(),
+            _type: Self::get_txn_type().to_string(),
             dest,
             hash,
             raw,
             enc,
         }
+    }
+}
+
+impl RequestType for AttribOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        ATTRIB
     }
 }
 
@@ -50,17 +60,41 @@ pub struct GetAttribOperation {
 impl GetAttribOperation {
     pub fn new(
         dest: ShortDidValue,
-        raw: Option<&str>,
-        hash: Option<&str>,
-        enc: Option<&str>,
+        raw: Option<String>,
+        hash: Option<String>,
+        enc: Option<String>,
     ) -> GetAttribOperation {
         GetAttribOperation {
-            _type: GET_ATTR.to_string(),
+            _type: Self::get_txn_type().to_string(),
             dest,
-            raw: raw.map(String::from),
-            hash: hash.map(String::from),
-            enc: enc.map(String::from),
+            raw,
+            hash,
+            enc,
         }
+    }
+}
+
+impl RequestType for GetAttribOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_ATTR
+    }
+
+    fn get_sp_key(&self, protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+        if let Some(attr_name) = self
+            .raw
+            .as_ref()
+            .or(self.enc.as_ref())
+            .or(self.hash.as_ref())
+        {
+            let marker = get_sp_key_marker(1, protocol_version);
+            let hash = Hash::hash(attr_name.as_bytes())?;
+            return Ok(Some(
+                format!("{}:{}:{}", self.dest.to_string(), marker, hex::encode(hash))
+                    .as_bytes()
+                    .to_vec(),
+            ));
+        }
+        Ok(None)
     }
 }
 

@@ -50,4 +50,11 @@ macro_rules! qualifiable_type (($newtype:ident) => (
             self.0.starts_with($newtype::PREFIX) && qualifier::is_fully_qualified(&self.0)
         }
     }
+
+    impl std::ops::Deref for $newtype {
+        type Target = String;
+        fn deref(&self) -> &String {
+            &self.0
+        }
+    }
 ));

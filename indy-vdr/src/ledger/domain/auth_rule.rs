@@ -2,12 +2,22 @@ use serde_json::Value;
 use std::ops::Not;
 
 use super::constants::{AUTH_RULE, AUTH_RULES, GET_AUTH_RULE};
+use super::request::RequestType;
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug, Serialize, PartialEq)]
 pub enum AuthAction {
     ADD,
-    EDIT
+    EDIT,
+}
+
+impl AuthAction {
+    pub fn to_string(&self) -> &str {
+        match self {
+            Self::ADD => "ADD",
+            Self::EDIT => "EDIT",
+        }
+    }
 }
 
 /**
@@ -60,7 +70,7 @@ pub struct RoleConstraint {
 */
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct CombinationConstraint {
-    pub auth_constraints: Vec<Constraint>
+    pub auth_constraints: Vec<Constraint>,
 }
 
 /**
@@ -101,29 +111,39 @@ pub struct EditAuthRuleOperation {
 }
 
 impl AuthRuleOperation {
-    pub fn new(auth_type: String, field: String, auth_action: AuthAction,
-               old_value: Option<String>, new_value: Option<String>, constraint: Constraint) -> AuthRuleOperation {
+    pub fn new(
+        auth_type: String,
+        field: String,
+        auth_action: AuthAction,
+        old_value: Option<String>,
+        new_value: Option<String>,
+        constraint: Constraint,
+    ) -> AuthRuleOperation {
         match auth_action {
-            AuthAction::ADD =>
-                AuthRuleOperation::Add(AddAuthRuleOperation {
-                    _type: AUTH_RULE.to_string(),
-                    auth_type,
-                    field,
-                    auth_action,
-                    new_value,
-                    constraint,
-                }),
-            AuthAction::EDIT =>
-                AuthRuleOperation::Edit(EditAuthRuleOperation {
-                    _type: AUTH_RULE.to_string(),
-                    auth_type,
-                    field,
-                    auth_action,
-                    old_value,
-                    new_value,
-                    constraint,
-                })
+            AuthAction::ADD => AuthRuleOperation::Add(AddAuthRuleOperation {
+                _type: Self::get_txn_type().to_string(),
+                auth_type,
+                field,
+                auth_action,
+                new_value,
+                constraint,
+            }),
+            AuthAction::EDIT => AuthRuleOperation::Edit(EditAuthRuleOperation {
+                _type: Self::get_txn_type().to_string(),
+                auth_type,
+                field,
+                auth_action,
+                old_value,
+                new_value,
+                constraint,
+            }),
         }
+    }
+}
+
+impl RequestType for AuthRuleOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        AUTH_RULE
     }
 }
 
@@ -165,31 +185,40 @@ pub struct GetEditAuthRuleOperation {
 impl GetAuthRuleOperation {
     pub fn get_all() -> GetAuthRuleOperation {
         GetAuthRuleOperation::All(GetAllAuthRuleOperation {
-            _type: GET_AUTH_RULE.to_string(),
+            _type: Self::get_txn_type().to_string(),
         })
     }
 
-    pub fn get_one(auth_type: String, field: String, auth_action: AuthAction,
-                   old_value: Option<String>, new_value: Option<String>) -> GetAuthRuleOperation {
+    pub fn get_one(
+        auth_type: String,
+        field: String,
+        auth_action: AuthAction,
+        old_value: Option<String>,
+        new_value: Option<String>,
+    ) -> GetAuthRuleOperation {
         match auth_action {
-            AuthAction::ADD =>
-                GetAuthRuleOperation::Add(GetAddAuthRuleOperation {
-                    _type: GET_AUTH_RULE.to_string(),
-                    auth_type,
-                    field,
-                    auth_action,
-                    new_value,
-                }),
-            AuthAction::EDIT =>
-                GetAuthRuleOperation::Edit(GetEditAuthRuleOperation {
-                    _type: GET_AUTH_RULE.to_string(),
-                    auth_type,
-                    field,
-                    auth_action,
-                    old_value,
-                    new_value,
-                })
+            AuthAction::ADD => GetAuthRuleOperation::Add(GetAddAuthRuleOperation {
+                _type: Self::get_txn_type().to_string(),
+                auth_type,
+                field,
+                auth_action,
+                new_value,
+            }),
+            AuthAction::EDIT => GetAuthRuleOperation::Edit(GetEditAuthRuleOperation {
+                _type: Self::get_txn_type().to_string(),
+                auth_type,
+                field,
+                auth_action,
+                old_value,
+                new_value,
+            }),
         }
+    }
+}
+
+impl RequestType for GetAuthRuleOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_AUTH_RULE
     }
 }
 
@@ -223,7 +252,7 @@ pub struct EditAuthRuleData {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct GetAuthRuleResult {
-    pub data: Vec<AuthRule>
+    pub data: Vec<AuthRule>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -240,11 +269,20 @@ pub struct AuthRule {
 pub struct AuthRulesOperation {
     #[serde(rename = "type")]
     pub _type: String,
-    pub rules: AuthRules
+    pub rules: AuthRules,
 }
 
 impl AuthRulesOperation {
     pub fn new(rules: AuthRules) -> AuthRulesOperation {
-        AuthRulesOperation { _type: AUTH_RULES.to_string(), rules }
+        AuthRulesOperation {
+            _type: Self::get_txn_type().to_string(),
+            rules,
+        }
+    }
+}
+
+impl RequestType for AuthRulesOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        AUTH_RULES
     }
 }

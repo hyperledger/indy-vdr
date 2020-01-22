@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
+use crate::common::error::LedgerResult;
 use crate::utils::validation::Validatable;
 
 use super::constants::{
     GET_TXN_AUTHR_AGRMT, GET_TXN_AUTHR_AGRMT_AML, TXN_AUTHR_AGRMT, TXN_AUTHR_AGRMT_AML,
 };
+use super::request::RequestType;
+use super::ProtocolVersion;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct TxnAuthorAgreementOperation {
@@ -17,10 +20,16 @@ pub struct TxnAuthorAgreementOperation {
 impl TxnAuthorAgreementOperation {
     pub fn new(text: String, version: String) -> TxnAuthorAgreementOperation {
         TxnAuthorAgreementOperation {
-            _type: TXN_AUTHR_AGRMT.to_string(),
+            _type: Self::get_txn_type().to_string(),
             text,
             version,
         }
+    }
+}
+
+impl RequestType for TxnAuthorAgreementOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        TXN_AUTHR_AGRMT
     }
 }
 
@@ -65,11 +74,31 @@ pub struct GetTxnAuthorAgreementOperation {
 impl GetTxnAuthorAgreementOperation {
     pub fn new(data: Option<&GetTxnAuthorAgreementData>) -> GetTxnAuthorAgreementOperation {
         GetTxnAuthorAgreementOperation {
-            _type: GET_TXN_AUTHR_AGRMT.to_string(),
+            _type: Self::get_txn_type().to_string(),
             digest: data.as_ref().and_then(|d| d.digest.clone()),
             version: data.as_ref().and_then(|d| d.version.clone()),
             timestamp: data.as_ref().and_then(|d| d.timestamp),
         }
+    }
+}
+
+impl RequestType for GetTxnAuthorAgreementOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_TXN_AUTHR_AGRMT
+    }
+
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+        let key_str = match (
+            self.version.as_ref(),
+            self.digest.as_ref(),
+            self.timestamp.as_ref(),
+        ) {
+            (None, None, _ts) => "2:latest".to_owned(),
+            (None, Some(digest), None) => format!("2:d:{}", digest),
+            (Some(version), None, None) => format!("2:v:{}", version),
+            _ => return Ok(None),
+        };
+        Ok(Some(key_str.as_bytes().to_vec()))
     }
 }
 
@@ -112,11 +141,17 @@ impl SetAcceptanceMechanismOperation {
         aml_context: Option<String>,
     ) -> SetAcceptanceMechanismOperation {
         SetAcceptanceMechanismOperation {
-            _type: TXN_AUTHR_AGRMT_AML.to_string(),
+            _type: Self::get_txn_type().to_string(),
             aml,
             version,
             aml_context,
         }
+    }
+}
+
+impl RequestType for SetAcceptanceMechanismOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        TXN_AUTHR_AGRMT_AML
     }
 }
 
@@ -133,9 +168,24 @@ pub struct GetAcceptanceMechanismOperation {
 impl GetAcceptanceMechanismOperation {
     pub fn new(timestamp: Option<u64>, version: Option<String>) -> GetAcceptanceMechanismOperation {
         GetAcceptanceMechanismOperation {
-            _type: GET_TXN_AUTHR_AGRMT_AML.to_string(),
+            _type: Self::get_txn_type().to_string(),
             timestamp,
             version,
         }
+    }
+}
+
+impl RequestType for GetAcceptanceMechanismOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_TXN_AUTHR_AGRMT_AML
+    }
+
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+        let key_str = if let Some(version) = self.version.as_ref() {
+            format!("3:v:{}", version)
+        } else {
+            "3:latest".to_owned()
+        };
+        Ok(Some(key_str.as_bytes().to_vec()))
     }
 }

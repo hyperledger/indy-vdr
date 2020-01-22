@@ -10,7 +10,6 @@ mod types;
 
 pub use crate::config::PoolConfig;
 pub use networker::{Networker, ZMQNetworker};
-pub use txn::LedgerType; // temporary for HTTP client
 pub use types::{NodeKeys, ProtocolVersion};
 
 use std::collections::HashMap;
@@ -21,10 +20,8 @@ use futures::channel::mpsc::unbounded;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
 
-use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
-use crate::ledger::domain::request::{get_request_id, Request};
-use crate::ledger::domain::txn;
+use crate::ledger::{PreparedRequest, RequestBuilder};
 use crate::utils::base58::ToBase58;
 
 use genesis::{build_tree, dump_transactions};
@@ -116,55 +113,6 @@ pub async fn perform_catchup<T: Pool>(
     }
 }
 
-pub struct PreparedRequest {
-    req_id: String,
-    req_json: String,
-    sp_key: Option<Vec<u8>>,
-    sp_timestamps: (Option<u64>, Option<u64>),
-}
-
-impl PreparedRequest {
-    fn new(
-        req_id: String,
-        req_json: String,
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-    ) -> Self {
-        PreparedRequest {
-            req_id,
-            req_json,
-            sp_key,
-            sp_timestamps,
-        }
-    }
-}
-
-fn _build_get_txn_request(
-    ledger_type: i32,
-    seq_no: i32,
-    identifier: Option<&DidValue>,
-    protocol_version: Option<usize>,
-) -> LedgerResult<PreparedRequest> {
-    if seq_no <= 0 {
-        return Err(err_msg(
-            LedgerErrorKind::InvalidStructure,
-            "Transaction number must be > 0",
-        ));
-    }
-    let operation = txn::GetTxnOperation::new(seq_no, ledger_type);
-    let req_id = get_request_id();
-    let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
-    let body = Request::build_request(req_id, operation, identifier, protocol_version)
-        .map_err(|err| err_msg(LedgerErrorKind::InvalidStructure, err))?;
-    let sp_key = seq_no.to_string().into_bytes();
-    Ok(PreparedRequest::new(
-        req_id.to_string(),
-        body,
-        Some(sp_key),
-        (None, Some(0)),
-    ))
-}
-
 fn format_proxy_result<T: std::fmt::Display>(
     (result, timing): (RequestResult<T>, Option<TimingResult>),
 ) -> LedgerResult<(T, TimingResult)> {
@@ -182,15 +130,11 @@ fn format_proxy_result<T: std::fmt::Display>(
 
 pub async fn perform_get_txn<T: Pool>(
     pool: &T,
-    ledger_type: LedgerType,
+    ledger_type: i32,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
-    let prepared = _build_get_txn_request(
-        ledger_type.to_id(),
-        seq_no,
-        None,
-        Some(pool.config().protocol_version.to_id()),
-    )?;
+    let builder = RequestBuilder::new(pool.config().protocol_version);
+    let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
     // let msg_json = serde_json::from_str(&message).unwrap();
     // let sp_key = parse_key_from_request_for_builtin_sp(&msg_json, pool.config().protocol_version);
     format_proxy_result(perform_single_request(pool, prepared).await?)
@@ -199,30 +143,22 @@ pub async fn perform_get_txn<T: Pool>(
 // FIXME testing only
 pub async fn perform_get_txn_consensus<T: Pool>(
     pool: &T,
-    ledger_type: LedgerType,
+    ledger_type: i32,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
-    let prepared = _build_get_txn_request(
-        ledger_type.to_id(),
-        seq_no,
-        None,
-        Some(pool.config().protocol_version.to_id()),
-    )?;
+    let builder = RequestBuilder::new(pool.config().protocol_version);
+    let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
     format_proxy_result(perform_consensus_request(pool, prepared).await?)
 }
 
 // FIXME testing only
 pub async fn perform_get_txn_full<T: Pool>(
     pool: &T,
-    ledger_type: LedgerType,
+    ledger_type: i32,
     seq_no: i32,
 ) -> LedgerResult<(String, TimingResult)> {
-    let prepared = _build_get_txn_request(
-        ledger_type.to_id(),
-        seq_no,
-        None,
-        Some(pool.config().protocol_version.to_id()),
-    )?;
+    let builder = RequestBuilder::new(pool.config().protocol_version);
+    let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
     let (result, timing) = perform_full_request(pool, prepared, None, None).await?;
     format_proxy_result((result.map(format_full_reply), timing))
 }

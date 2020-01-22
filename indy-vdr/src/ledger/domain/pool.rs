@@ -1,4 +1,5 @@
-use super::constants::{POOL_CONFIG, POOL_UPGRADE, POOL_RESTART};
+use super::constants::{POOL_CONFIG, POOL_RESTART, POOL_UPGRADE};
+use super::request::RequestType;
 
 use std::collections::HashMap;
 
@@ -7,16 +8,22 @@ pub struct PoolConfigOperation {
     #[serde(rename = "type")]
     pub _type: String,
     pub writes: bool,
-    pub force: bool
+    pub force: bool,
 }
 
 impl PoolConfigOperation {
     pub fn new(writes: bool, force: bool) -> PoolConfigOperation {
         PoolConfigOperation {
-            _type: POOL_CONFIG.to_string(),
+            _type: Self::get_txn_type().to_string(),
             writes,
-            force
+            force,
         }
+    }
+}
+
+impl RequestType for PoolConfigOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        POOL_CONFIG
     }
 }
 
@@ -33,10 +40,16 @@ pub struct PoolRestartOperation {
 impl PoolRestartOperation {
     pub fn new(action: &str, datetime: Option<String>) -> PoolRestartOperation {
         PoolRestartOperation {
-            _type: POOL_RESTART.to_string(),
+            _type: Self::get_txn_type().to_string(),
             action: action.to_string(),
             datetime,
         }
+    }
+}
+
+impl RequestType for PoolRestartOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        POOL_RESTART
     }
 }
 
@@ -58,14 +71,24 @@ pub struct PoolUpgradeOperation {
     pub reinstall: bool,
     pub force: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub package: Option<String>
+    pub package: Option<String>,
 }
 
 impl PoolUpgradeOperation {
-    pub fn new(name: &str, version: &str, action: &str, sha256: &str, timeout: Option<u32>, schedule: Option<HashMap<String, String>>,
-               justification: Option<&str>, reinstall: bool, force: bool, package: Option<&str>) -> PoolUpgradeOperation {
+    pub fn new(
+        name: &str,
+        version: &str,
+        action: &str,
+        sha256: &str,
+        timeout: Option<u32>,
+        schedule: Option<HashMap<String, String>>,
+        justification: Option<&str>,
+        reinstall: bool,
+        force: bool,
+        package: Option<&str>,
+    ) -> PoolUpgradeOperation {
         PoolUpgradeOperation {
-            _type: POOL_UPGRADE.to_string(),
+            _type: Self::get_txn_type().to_string(),
             name: name.to_string(),
             version: version.to_string(),
             action: action.to_string(),
@@ -77,6 +100,12 @@ impl PoolUpgradeOperation {
             force,
             package: package.map(String::from),
         }
+    }
+}
+
+impl RequestType for PoolUpgradeOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        POOL_UPGRADE
     }
 }
 

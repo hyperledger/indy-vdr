@@ -6,6 +6,11 @@ use log_derive::logfn;
 use serde::de::DeserializeOwned;
 use serde_json::{self, Value as SJsonValue};
 
+use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
+use crate::common::error::prelude::*;
+use crate::pool::ProtocolVersion;
+use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+
 use self::domain::attrib::{AttribOperation, GetAttribOperation};
 use self::domain::auth_rule::*;
 use self::domain::author_agreement::*;
@@ -17,60 +22,126 @@ use self::domain::nym::{
 use self::domain::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
+use self::domain::request::RequestType;
 use self::domain::request::{get_request_id, Request, TxnAuthrAgrmtAcceptanceData};
 use self::domain::response::{Message, Reply, ReplyType};
-use self::domain::txn::{GetTxnOperation, LedgerType};
+use self::domain::txn::GetTxnOperation;
 use self::domain::validator_info::GetValidatorInfoOperation;
-use crate::common::did::DidValue;
-use crate::common::error::prelude::*;
-use crate::pool::ProtocolVersion;
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
-use constants::{
+
+use self::constants::{
     txn_name_to_code, ENDORSER, GET_VALIDATOR_INFO, NETWORK_MONITOR, POOL_RESTART, ROLES,
     ROLE_REMOVE, STEWARD, TRUSTEE,
 };
 
-macro_rules! build_result {
-    ($proto_ver:expr, $opt_submitter_did:expr, $operation:expr) => {{
-        Request::build_request(
-            get_request_id(),
-            $operation,
-            $opt_submitter_did,
-            Some($proto_ver as usize),
+fn datetime_to_date_timestamp(time: u64) -> u64 {
+    const SEC_IN_DAY: u64 = 86400;
+    time / SEC_IN_DAY * SEC_IN_DAY
+}
+
+fn calculate_hash(text: &str, version: &str) -> LedgerResult<Vec<u8>> {
+    let content: String = version.to_string() + text;
+    Hash::hash(content.as_bytes())
+}
+
+fn compare_hash(text: &str, version: &str, hash: &str) -> LedgerResult<()> {
+    let calculated_hash = calculate_hash(text, version)?;
+
+    let passed_hash = Vec::from_hex(hash).map_err(|err| {
+        LedgerError::from_msg(
+            LedgerErrorKind::InvalidStructure,
+            format!("Cannot decode `hash`: {:?}", err),
         )
-        .map_err(|err| LedgerError::from_msg(LedgerErrorKind::InvalidState, err))
-    }};
+    })?;
+
+    if calculated_hash != passed_hash {
+        return Err(LedgerError::from_msg(LedgerErrorKind::InvalidStructure,
+                                       format!("Calculated hash of concatenation `version` and `text` doesn't equal to passed `hash` value. \n\
+                                       Calculated hash value: {:?}, \n Passed hash value: {:?}", calculated_hash, passed_hash)));
+    }
+    Ok(())
 }
 
-pub struct LedgerService {
-    protocol_version: ProtocolVersion,
+#[derive(Debug)]
+pub struct PreparedRequest {
+    pub txn_type: String,
+    pub req_id: String,
+    pub req_json: String,
+    pub sp_key: Option<Vec<u8>>,
+    pub sp_timestamps: (Option<u64>, Option<u64>),
 }
 
-impl LedgerService {
-    pub fn new() -> LedgerService {
-        LedgerService {
-            protocol_version: ProtocolVersion::default(),
+impl PreparedRequest {
+    fn new(
+        txn_type: String,
+        req_id: String,
+        req_json: String,
+        sp_key: Option<Vec<u8>>,
+        sp_timestamps: (Option<u64>, Option<u64>),
+    ) -> Self {
+        Self {
+            txn_type,
+            req_id,
+            req_json,
+            sp_key,
+            sp_timestamps,
         }
     }
+}
 
-    pub fn new_with_version(protocol_version: ProtocolVersion) -> LedgerService {
-        LedgerService { protocol_version }
+pub struct RequestBuilder {
+    pub protocol_version: ProtocolVersion,
+}
+
+impl Default for RequestBuilder {
+    fn default() -> Self {
+        Self::new(ProtocolVersion::default())
+    }
+}
+
+impl RequestBuilder {
+    pub fn new(protocol_version: ProtocolVersion) -> Self {
+        Self { protocol_version }
     }
 
-    #[logfn(Info)]
+    pub fn build<T: RequestType>(
+        &self,
+        operation: T,
+        identifier: Option<&DidValue>,
+    ) -> LedgerResult<PreparedRequest> {
+        let req_id = get_request_id();
+        let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
+        let txn_type = T::get_txn_type().to_string();
+        let sp_key = operation.get_sp_key(self.protocol_version)?;
+        let sp_timestamps = operation.get_sp_timestamps()?;
+        let body = Request::build_request(
+            req_id,
+            operation,
+            identifier,
+            Some(self.protocol_version.to_id()),
+        )
+        .map_err(|err| err_msg(LedgerErrorKind::InvalidStructure, err))?;
+        Ok(PreparedRequest::new(
+            txn_type,
+            req_id.to_string(),
+            body,
+            sp_key,
+            sp_timestamps,
+        ))
+    }
+
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
         dest: &DidValue,
-        verkey: Option<&str>,
-        alias: Option<&str>,
-        role: Option<&str>,
-    ) -> LedgerResult<String> {
+        verkey: Option<String>,
+        alias: Option<String>,
+        role: Option<String>,
+    ) -> LedgerResult<PreparedRequest> {
         let role = if let Some(r) = role {
             Some(if r == ROLE_REMOVE {
                 SJsonValue::Null
             } else {
-                json!(match r {
+                json!(match r.as_str() {
                     "STEWARD" => STEWARD,
                     "TRUSTEE" => TRUSTEE,
                     "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
@@ -86,35 +157,308 @@ impl LedgerService {
         } else {
             None
         };
-
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            NymOperation::new(
-                dest.to_short(),
-                verkey.map(String::from),
-                alias.map(String::from),
-                role
-            )
-        )
+        let operation = NymOperation::new(dest.to_short(), verkey, alias, role);
+        self.build(operation, Some(identifier))
     }
 
-    #[logfn(Info)]
     pub fn build_get_nym_request(
         &self,
         identifier: Option<&DidValue>,
         dest: &DidValue,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
+    ) -> LedgerResult<PreparedRequest> {
+        let dest = dest.to_short();
+        let operation = GetNymOperation::new(dest.clone());
+        self.build(operation, identifier)
+    }
+
+    pub fn build_get_ddo_request(
+        &self,
+        identifier: Option<&DidValue>,
+        dest: &DidValue,
+    ) -> LedgerResult<PreparedRequest> {
+        let operation = GetDdoOperation::new(dest.to_short());
+        self.build(operation, identifier)
+    }
+
+    pub fn build_attrib_request(
+        &self,
+        identifier: &DidValue,
+        dest: &DidValue,
+        hash: Option<String>,
+        raw: Option<&SJsonValue>,
+        enc: Option<String>,
+    ) -> LedgerResult<PreparedRequest> {
+        let operation =
+            AttribOperation::new(dest.to_short(), hash, raw.map(SJsonValue::to_string), enc);
+        self.build(operation, Some(identifier))
+    }
+
+    pub fn build_get_attrib_request(
+        &self,
+        identifier: Option<&DidValue>,
+        dest: &DidValue,
+        raw: Option<String>,
+        hash: Option<String>,
+        enc: Option<String>,
+    ) -> LedgerResult<PreparedRequest> {
+        let operation = GetAttribOperation::new(dest.to_short(), raw, hash, enc);
+        self.build(operation, identifier)
+    }
+
+    pub fn build_node_request(
+        &self,
+        identifier: &DidValue,
+        dest: &DidValue,
+        data: NodeOperationData,
+    ) -> LedgerResult<PreparedRequest> {
+        let operation = NodeOperation::new(dest.to_short(), data);
+        self.build(operation, Some(identifier))
+    }
+
+    pub fn build_get_validator_info_request(
+        &self,
+        identifier: &DidValue,
+    ) -> LedgerResult<PreparedRequest> {
+        self.build(GetValidatorInfoOperation::new(), Some(identifier))
+    }
+
+    pub fn build_get_txn_request(
+        &self,
+        ledger_type: i32,
+        seq_no: i32,
+        identifier: Option<&DidValue>,
+    ) -> LedgerResult<PreparedRequest> {
+        if seq_no <= 0 {
+            return Err(err_msg(
+                LedgerErrorKind::InvalidStructure,
+                "Transaction number must be > 0",
+            ));
+        }
+        self.build(GetTxnOperation::new(seq_no, ledger_type), identifier)
+    }
+
+    pub fn build_pool_config(
+        &self,
+        identifier: &DidValue,
+        writes: bool,
+        force: bool,
+    ) -> LedgerResult<PreparedRequest> {
+        self.build(PoolConfigOperation::new(writes, force), Some(identifier))
+    }
+
+    pub fn build_pool_restart(
+        &self,
+        identifier: &DidValue,
+        action: &str,
+        datetime: Option<&str>,
+    ) -> LedgerResult<PreparedRequest> {
+        self.build(
+            PoolRestartOperation::new(action, datetime.map(String::from)),
+            Some(identifier),
+        )
+    }
+
+    pub fn build_pool_upgrade(
+        &self,
+        identifier: &DidValue,
+        name: &str,
+        version: &str,
+        action: &str,
+        sha256: &str,
+        timeout: Option<u32>,
+        schedule: Option<Schedule>,
+        justification: Option<&str>,
+        reinstall: bool,
+        force: bool,
+        package: Option<&str>,
+    ) -> LedgerResult<PreparedRequest> {
+        let operation = PoolUpgradeOperation::new(
+            name,
+            version,
+            action,
+            sha256,
+            timeout,
+            schedule,
+            justification,
+            reinstall,
+            force,
+            package,
+        );
+        self.build(operation, Some(identifier))
+    }
+
+    pub fn build_auth_rule_request(
+        &self,
+        submitter_did: &DidValue,
+        txn_type: String,
+        action: String,
+        field: String,
+        old_value: Option<String>,
+        new_value: Option<String>,
+        constraint: Constraint,
+    ) -> LedgerResult<PreparedRequest> {
+        let txn_type = txn_name_to_code(&txn_type)
+            .ok_or_else(|| {
+                err_msg(
+                    LedgerErrorKind::InvalidStructure,
+                    format!("Unsupported `txn_type`: {}", txn_type),
+                )
+            })?
+            .to_string();
+
+        let action =
+            serde_json::from_str::<AuthAction>(&format!("\"{}\"", action)).map_err(|err| {
+                LedgerError::from_msg(
+                    LedgerErrorKind::InvalidStructure,
+                    format!("Cannot parse auth action: {}", err),
+                )
+            })?;
+
+        let operation =
+            AuthRuleOperation::new(txn_type, field, action, old_value, new_value, constraint);
+        self.build(operation, Some(submitter_did))
+    }
+
+    pub fn build_auth_rules_request(
+        &self,
+        submitter_did: &DidValue,
+        rules: AuthRules,
+    ) -> LedgerResult<PreparedRequest> {
+        self.build(AuthRulesOperation::new(rules), Some(submitter_did))
+    }
+
+    pub fn build_get_auth_rule_request(
+        &self,
+        submitter_did: Option<&DidValue>,
+        auth_type: Option<String>,
+        auth_action: Option<String>,
+        field: Option<String>,
+        old_value: Option<String>,
+        new_value: Option<String>,
+    ) -> LedgerResult<PreparedRequest> {
+        let operation = match (auth_type, auth_action, field) {
+            (None, None, None) => GetAuthRuleOperation::get_all(),
+            (Some(auth_type), Some(auth_action), Some(field)) => {
+                let type_ = txn_name_to_code(&auth_type).ok_or_else(|| {
+                    err_msg(
+                        LedgerErrorKind::InvalidStructure,
+                        format!("Unsupported `auth_type`: {}", auth_type),
+                    )
+                })?;
+
+                let action = serde_json::from_str::<AuthAction>(&format!("\"{}\"", auth_action))
+                    .map_err(|err| {
+                        LedgerError::from_msg(
+                            LedgerErrorKind::InvalidStructure,
+                            format!("Cannot parse auth action: {}", err),
+                        )
+                    })?;
+
+                GetAuthRuleOperation::get_one(
+                    type_.to_string(),
+                    field,
+                    action,
+                    old_value,
+                    new_value,
+                )
+            }
+            _ => {
+                return Err(err_msg(
+                    LedgerErrorKind::InvalidStructure,
+                    "Either none or all transaction related parameters must be specified.",
+                ))
+            }
+        };
+        self.build(operation, submitter_did)
+    }
+
+    pub fn build_txn_author_agreement_request(
+        &self,
+        identifier: &DidValue,
+        text: String,
+        version: String,
+    ) -> LedgerResult<PreparedRequest> {
+        self.build(
+            TxnAuthorAgreementOperation::new(text, version),
+            Some(identifier),
+        )
+    }
+
+    pub fn build_get_txn_author_agreement_request(
+        &self,
+        identifier: Option<&DidValue>,
+        data: Option<&GetTxnAuthorAgreementData>,
+    ) -> LedgerResult<PreparedRequest> {
+        self.build(GetTxnAuthorAgreementOperation::new(data), identifier)
+    }
+
+    pub fn build_acceptance_mechanisms_request(
+        &self,
+        identifier: &DidValue,
+        aml: AcceptanceMechanisms,
+        version: String,
+        aml_context: Option<String>,
+    ) -> LedgerResult<PreparedRequest> {
+        let operation = SetAcceptanceMechanismOperation::new(
+            aml,
+            version.to_string(),
+            aml_context.map(String::from),
+        );
+        self.build(operation, Some(identifier))
+    }
+
+    pub fn build_get_acceptance_mechanisms_request(
+        &self,
+        identifier: Option<&DidValue>,
+        timestamp: Option<u64>,
+        version: Option<String>,
+    ) -> LedgerResult<PreparedRequest> {
+        if timestamp.is_some() && version.is_some() {
+            return Err(err_msg(
+                LedgerErrorKind::InvalidStructure,
+                "timestamp and version cannot be specified together.",
+            ));
+        }
+        self.build(
+            GetAcceptanceMechanismOperation::new(timestamp, version.map(String::from)),
             identifier,
-            GetNymOperation::new(dest.to_short())
         )
     }
 
     #[logfn(Info)]
+    pub fn parse_response<T>(response: &str) -> LedgerResult<Reply<T>>
+    where
+        T: DeserializeOwned + ReplyType + ::std::fmt::Debug,
+    {
+        let message: SJsonValue = serde_json::from_str(&response).to_result(
+            LedgerErrorKind::InvalidTransaction,
+            "Response is invalid json",
+        )?;
+
+        if message["op"] == json!("REPLY") && message["result"]["type"] != json!(T::get_type()) {
+            return Err(err_msg(
+                LedgerErrorKind::InvalidTransaction,
+                "Invalid response type",
+            ));
+        }
+
+        let message: Message<T> = serde_json::from_value(message).to_result(
+            LedgerErrorKind::ItemNotFound,
+            "Structure doesn't correspond to type. Most probably not found",
+        )?; // FIXME: Review how we handle not found
+
+        match message {
+            Message::Reject(response) | Message::ReqNACK(response) => Err(err_msg(
+                LedgerErrorKind::InvalidTransaction,
+                format!("Transaction has been failed: {:?}", response.reason),
+            )),
+            Message::Reply(reply) => Ok(reply),
+        }
+    }
+
+    #[logfn(Info)]
     pub fn parse_get_nym_response(&self, get_nym_response: &str) -> LedgerResult<String> {
-        let reply: Reply<GetNymReplyResult> = LedgerService::parse_response(get_nym_response)?;
+        let reply: Reply<GetNymReplyResult> = Self::parse_response(get_nym_response)?;
 
         let nym_data = match reply.result() {
             GetNymReplyResult::GetNymReplyResultV0(res) => {
@@ -157,363 +501,6 @@ impl LedgerService {
     }
 
     #[logfn(Info)]
-    pub fn build_get_ddo_request(
-        &self,
-        identifier: Option<&DidValue>,
-        dest: &DidValue,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            identifier,
-            GetDdoOperation::new(dest.to_short())
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_attrib_request(
-        &self,
-        identifier: &DidValue,
-        dest: &DidValue,
-        hash: Option<&str>,
-        raw: Option<&SJsonValue>,
-        enc: Option<&str>,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            AttribOperation::new(
-                dest.to_short(),
-                hash.map(String::from),
-                raw.map(SJsonValue::to_string),
-                enc.map(String::from)
-            )
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_get_attrib_request(
-        &self,
-        identifier: Option<&DidValue>,
-        dest: &DidValue,
-        raw: Option<&str>,
-        hash: Option<&str>,
-        enc: Option<&str>,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            identifier,
-            GetAttribOperation::new(dest.to_short(), raw, hash, enc)
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_node_request(
-        &self,
-        identifier: &DidValue,
-        dest: &DidValue,
-        data: NodeOperationData,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            NodeOperation::new(dest.to_short(), data)
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_get_validator_info_request(&self, identifier: &DidValue) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            GetValidatorInfoOperation::new()
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_get_txn_request(
-        &self,
-        identifier: Option<&DidValue>,
-        ledger_type: Option<&str>,
-        seq_no: i32,
-    ) -> LedgerResult<String> {
-        let ledger_id = match ledger_type {
-            Some(type_) => serde_json::from_str::<LedgerType>(&format!(r#""{}""#, type_))
-                .map(|type_| type_.to_id())
-                .or_else(|_| type_.parse::<i32>())
-                .to_result(
-                    LedgerErrorKind::InvalidStructure,
-                    format!("Invalid Ledger type: {}", type_),
-                )?,
-            None => LedgerType::DOMAIN.to_id(),
-        };
-
-        build_result!(
-            self.protocol_version,
-            identifier,
-            GetTxnOperation::new(seq_no, ledger_id)
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_pool_config(
-        &self,
-        identifier: &DidValue,
-        writes: bool,
-        force: bool,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            PoolConfigOperation::new(writes, force)
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_pool_restart(
-        &self,
-        identifier: &DidValue,
-        action: &str,
-        datetime: Option<&str>,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            PoolRestartOperation::new(action, datetime.map(String::from))
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_pool_upgrade(
-        &self,
-        identifier: &DidValue,
-        name: &str,
-        version: &str,
-        action: &str,
-        sha256: &str,
-        timeout: Option<u32>,
-        schedule: Option<Schedule>,
-        justification: Option<&str>,
-        reinstall: bool,
-        force: bool,
-        package: Option<&str>,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            PoolUpgradeOperation::new(
-                name,
-                version,
-                action,
-                sha256,
-                timeout,
-                schedule,
-                justification,
-                reinstall,
-                force,
-                package
-            )
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_auth_rule_request(
-        &self,
-        submitter_did: &DidValue,
-        txn_type: &str,
-        action: &str,
-        field: &str,
-        old_value: Option<&str>,
-        new_value: Option<&str>,
-        constraint: Constraint,
-    ) -> LedgerResult<String> {
-        let txn_type = txn_name_to_code(&txn_type).ok_or_else(|| {
-            err_msg(
-                LedgerErrorKind::InvalidStructure,
-                format!("Unsupported `txn_type`: {}", txn_type),
-            )
-        })?;
-
-        let action =
-            serde_json::from_str::<AuthAction>(&format!("\"{}\"", action)).map_err(|err| {
-                LedgerError::from_msg(
-                    LedgerErrorKind::InvalidStructure,
-                    format!("Cannot parse auth action: {}", err),
-                )
-            })?;
-
-        build_result!(
-            self.protocol_version,
-            Some(submitter_did),
-            AuthRuleOperation::new(
-                txn_type.to_string(),
-                field.to_string(),
-                action,
-                old_value.map(String::from),
-                new_value.map(String::from),
-                constraint
-            )
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_auth_rules_request(
-        &self,
-        submitter_did: &DidValue,
-        rules: AuthRules,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(submitter_did),
-            AuthRulesOperation::new(rules)
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_get_auth_rule_request(
-        &self,
-        submitter_did: Option<&DidValue>,
-        auth_type: Option<&str>,
-        auth_action: Option<&str>,
-        field: Option<&str>,
-        old_value: Option<&str>,
-        new_value: Option<&str>,
-    ) -> LedgerResult<String> {
-        let operation = match (auth_type, auth_action, field) {
-            (None, None, None) => GetAuthRuleOperation::get_all(),
-            (Some(auth_type), Some(auth_action), Some(field)) => {
-                let type_ = txn_name_to_code(&auth_type).ok_or_else(|| {
-                    err_msg(
-                        LedgerErrorKind::InvalidStructure,
-                        format!("Unsupported `auth_type`: {}", auth_type),
-                    )
-                })?;
-
-                let action = serde_json::from_str::<AuthAction>(&format!("\"{}\"", auth_action))
-                    .map_err(|err| {
-                        LedgerError::from_msg(
-                            LedgerErrorKind::InvalidStructure,
-                            format!("Cannot parse auth action: {}", err),
-                        )
-                    })?;
-
-                GetAuthRuleOperation::get_one(
-                    type_.to_string(),
-                    field.to_string(),
-                    action,
-                    old_value.map(String::from),
-                    new_value.map(String::from),
-                )
-            }
-            _ => {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidStructure,
-                    "Either none or all transaction related parameters must be specified.",
-                ))
-            }
-        };
-
-        build_result!(self.protocol_version, submitter_did, operation)
-    }
-
-    #[logfn(Info)]
-    pub fn build_txn_author_agreement_request(
-        &self,
-        identifier: &DidValue,
-        text: &str,
-        version: &str,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            TxnAuthorAgreementOperation::new(text.to_string(), version.to_string())
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_get_txn_author_agreement_request(
-        &self,
-        identifier: Option<&DidValue>,
-        data: Option<&GetTxnAuthorAgreementData>,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            identifier,
-            GetTxnAuthorAgreementOperation::new(data)
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_acceptance_mechanisms_request(
-        &self,
-        identifier: &DidValue,
-        aml: AcceptanceMechanisms,
-        version: &str,
-        aml_context: Option<&str>,
-    ) -> LedgerResult<String> {
-        build_result!(
-            self.protocol_version,
-            Some(identifier),
-            SetAcceptanceMechanismOperation::new(
-                aml,
-                version.to_string(),
-                aml_context.map(String::from)
-            )
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn build_get_acceptance_mechanisms_request(
-        &self,
-        identifier: Option<&DidValue>,
-        timestamp: Option<u64>,
-        version: Option<&str>,
-    ) -> LedgerResult<String> {
-        if timestamp.is_some() && version.is_some() {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                "timestamp and version cannot be specified together.",
-            ));
-        }
-
-        build_result!(
-            self.protocol_version,
-            identifier,
-            GetAcceptanceMechanismOperation::new(timestamp, version.map(String::from))
-        )
-    }
-
-    #[logfn(Info)]
-    pub fn parse_response<T>(response: &str) -> LedgerResult<Reply<T>>
-    where
-        T: DeserializeOwned + ReplyType + ::std::fmt::Debug,
-    {
-        let message: SJsonValue = serde_json::from_str(&response).to_result(
-            LedgerErrorKind::InvalidTransaction,
-            "Response is invalid json",
-        )?;
-
-        if message["op"] == json!("REPLY") && message["result"]["type"] != json!(T::get_type()) {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidTransaction,
-                "Invalid response type",
-            ));
-        }
-
-        let message: Message<T> = serde_json::from_value(message).to_result(
-            LedgerErrorKind::ItemNotFound,
-            "Structure doesn't correspond to type. Most probably not found",
-        )?; // FIXME: Review how we handle not found
-
-        match message {
-            Message::Reject(response) | Message::ReqNACK(response) => Err(err_msg(
-                LedgerErrorKind::InvalidTransaction,
-                format!("Transaction has been failed: {:?}", response.reason),
-            )),
-            Message::Reply(reply) => Ok(reply),
-        }
-    }
-
-    #[logfn(Info)]
     pub fn validate_action(&self, request: &str) -> LedgerResult<()> {
         let request: Request<SJsonValue> = serde_json::from_str(request).map_err(|err| {
             LedgerError::from_msg(
@@ -552,11 +539,9 @@ impl LedgerService {
             (Some(_), None, _) | (None, Some(_), _) => {
                 return Err(err_msg(LedgerErrorKind::InvalidStructure, "Invalid combination of params: `text` and `version` should be passed or skipped together."));
             }
-            (Some(text_), Some(version_), None) => {
-                hex::encode(self._calculate_hash(text_, version_)?)
-            }
+            (Some(text_), Some(version_), None) => hex::encode(calculate_hash(text_, version_)?),
             (Some(text_), Some(version_), Some(hash_)) => {
-                self._compare_hash(text_, version_, hash_)?;
+                compare_hash(text_, version_, hash_)?;
                 hash_.to_string()
             }
         };
@@ -564,38 +549,10 @@ impl LedgerService {
         let acceptance_data = TxnAuthrAgrmtAcceptanceData {
             mechanism: mechanism.to_string(),
             taa_digest,
-            time: LedgerService::datetime_to_date_timestamp(time),
+            time: datetime_to_date_timestamp(time),
         };
 
         Ok(acceptance_data)
-    }
-
-    fn datetime_to_date_timestamp(time: u64) -> u64 {
-        const SEC_IN_DAY: u64 = 86400;
-        time / SEC_IN_DAY * SEC_IN_DAY
-    }
-
-    fn _calculate_hash(&self, text: &str, version: &str) -> LedgerResult<Vec<u8>> {
-        let content: String = version.to_string() + text;
-        Hash::hash(content.as_bytes())
-    }
-
-    fn _compare_hash(&self, text: &str, version: &str, hash: &str) -> LedgerResult<()> {
-        let calculated_hash = self._calculate_hash(text, version)?;
-
-        let passed_hash = Vec::from_hex(hash).map_err(|err| {
-            LedgerError::from_msg(
-                LedgerErrorKind::InvalidStructure,
-                format!("Cannot decode `hash`: {:?}", err),
-            )
-        })?;
-
-        if calculated_hash != passed_hash {
-            return Err(LedgerError::from_msg(LedgerErrorKind::InvalidStructure,
-                                           format!("Calculated hash of concatenation `version` and `text` doesn't equal to passed `hash` value. \n\
-                                           Calculated hash value: {:?}, \n Passed hash value: {:?}", calculated_hash, passed_hash)));
-        }
-        Ok(())
     }
 
     pub fn parse_get_auth_rule_response(&self, response: &str) -> LedgerResult<Vec<AuthRule>> {

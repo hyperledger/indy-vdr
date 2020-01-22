@@ -2,6 +2,7 @@ use crate::utils::validation::Validatable;
 
 use super::constants::NODE;
 use super::did::ShortDidValue;
+use super::request::RequestType;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NodeOperation {
@@ -14,10 +15,16 @@ pub struct NodeOperation {
 impl NodeOperation {
     pub fn new(dest: ShortDidValue, data: NodeOperationData) -> NodeOperation {
         NodeOperation {
-            _type: NODE.to_string(),
+            _type: Self::get_txn_type().to_string(),
             dest,
             data,
         }
+    }
+}
+
+impl RequestType for NodeOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        NODE
     }
 }
 

@@ -1,5 +1,6 @@
 use super::constants::GET_DDO;
 use super::did::ShortDidValue;
+use super::request::RequestType;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetDdoOperation {
@@ -11,8 +12,14 @@ pub struct GetDdoOperation {
 impl GetDdoOperation {
     pub fn new(dest: ShortDidValue) -> GetDdoOperation {
         GetDdoOperation {
-            _type: GET_DDO.to_string(),
+            _type: Self::get_txn_type().to_string(),
             dest,
         }
+    }
+}
+
+impl RequestType for GetDdoOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_DDO
     }
 }

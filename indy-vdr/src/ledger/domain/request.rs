@@ -5,6 +5,8 @@ use serde_json;
 use time;
 
 use super::did::{DidValue, ShortDidValue};
+use super::ProtocolVersion;
+use crate::common::error::LedgerResult;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -71,5 +73,25 @@ impl<T: serde::Serialize> Request<T> {
             protocol_version,
         ))
         .map_err(|err| format!("Cannot serialize Request: {:?}", err))
+    }
+}
+
+pub trait RequestType: serde::Serialize {
+    fn get_txn_type<'a>() -> &'a str;
+
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+        Ok(None)
+    }
+
+    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+        Ok((None, None))
+    }
+}
+
+pub fn get_sp_key_marker(code: u8, protocol_version: ProtocolVersion) -> char {
+    if protocol_version == ProtocolVersion::Node1_3 {
+        code as char
+    } else {
+        (code + 48) as char // digit as ascii
     }
 }

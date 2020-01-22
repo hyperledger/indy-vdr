@@ -1,6 +1,11 @@
+use crate::common::error::LedgerResult;
+use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+
 use super::constants::{GET_NYM, NYM};
 use super::did::ShortDidValue;
+use super::request::RequestType;
 use super::response::{GetReplyResultV0, GetReplyResultV1, ReplyType};
+use super::ProtocolVersion;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {
@@ -23,12 +28,18 @@ impl NymOperation {
         role: Option<::serde_json::Value>,
     ) -> NymOperation {
         NymOperation {
-            _type: NYM.to_string(),
+            _type: Self::get_txn_type().to_string(),
             dest,
             verkey,
             alias,
             role,
         }
+    }
+}
+
+impl RequestType for NymOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        NYM
     }
 }
 
@@ -42,9 +53,20 @@ pub struct GetNymOperation {
 impl GetNymOperation {
     pub fn new(dest: ShortDidValue) -> GetNymOperation {
         GetNymOperation {
-            _type: GET_NYM.to_string(),
+            _type: Self::get_txn_type().to_string(),
             dest,
         }
+    }
+}
+
+impl RequestType for GetNymOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_NYM
+    }
+
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+        let hash = Hash::hash(self.dest.as_bytes())?;
+        Ok(Some(hash))
     }
 }
 

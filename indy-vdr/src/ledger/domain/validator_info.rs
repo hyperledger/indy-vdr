@@ -1,4 +1,5 @@
 use super::constants::GET_VALIDATOR_INFO;
+use super::request::RequestType;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetValidatorInfoOperation {
@@ -9,8 +10,13 @@ pub struct GetValidatorInfoOperation {
 impl GetValidatorInfoOperation {
     pub fn new() -> GetValidatorInfoOperation {
         GetValidatorInfoOperation {
-            _type: GET_VALIDATOR_INFO.to_string(),
+            _type: Self::get_txn_type().to_string(),
         }
     }
 }
 
+impl RequestType for GetValidatorInfoOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        GET_VALIDATOR_INFO
+    }
+}
