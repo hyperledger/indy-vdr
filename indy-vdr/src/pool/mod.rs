@@ -15,12 +15,14 @@ pub use self::types::{NodeKeys, ProtocolVersion};
 pub use crate::config::PoolConfig;
 
 use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use futures::channel::mpsc::unbounded;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
+use serde_json;
 
 use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
@@ -151,12 +153,19 @@ pub async fn perform_get_validator_info<T: Pool>(
     perform_ledger_request(pool, prepared, Some(RequestTarget::Full(None, None))).await
 }
 
-pub fn format_full_reply(replies: NodeReplies<String>) -> String {
-    let rows = replies
-        .iter()
-        .map(|(node_alias, reply)| format!("{} {}", node_alias, reply.to_string()))
-        .collect::<Vec<String>>();
-    rows.join("\n\n")
+pub fn format_full_reply(replies: NodeReplies<String>) -> LedgerResult<String> {
+    serde_json::to_string(&serde_json::Map::from_iter(replies.iter().map(
+        |(node_alias, reply)| {
+            (
+                node_alias.clone(),
+                serde_json::Value::from(reply.to_string()),
+            )
+        },
+    )))
+    .to_result(
+        LedgerErrorKind::InvalidStructure,
+        format!("Error serializing response"),
+    )
 }
 
 pub async fn perform_ledger_request<T: Pool>(
@@ -170,7 +179,7 @@ pub async fn perform_ledger_request<T: Pool>(
     match target {
         Some(RequestTarget::Full(node_aliases, timeout)) => {
             let (result, timing) = handle_full_request(request, node_aliases, timeout).await?;
-            Ok((result.map(format_full_reply), timing))
+            Ok((result.map_result(format_full_reply)?, timing))
         }
         _ => {
             if prepared.sp_key.is_some() {

@@ -83,13 +83,13 @@ pub enum RequestResult<T> {
 }
 
 impl<T> RequestResult<T> {
-    pub fn map<F, R>(self, f: F) -> RequestResult<R>
+    pub fn map_result<F, R>(self, f: F) -> LedgerResult<RequestResult<R>>
     where
-        F: FnOnce(T) -> R,
+        F: FnOnce(T) -> LedgerResult<R>,
     {
         match self {
-            Self::Reply(reply) => RequestResult::Reply(f(reply)),
-            Self::Failed(err) => RequestResult::Failed(err),
+            Self::Reply(reply) => Ok(RequestResult::Reply(f(reply)?)),
+            Self::Failed(err) => Ok(RequestResult::Failed(err)),
         }
     }
 }
