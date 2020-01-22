@@ -1,6 +1,6 @@
 use crate::common::error::prelude::*;
 
-use crate::sha2::{Digest, Sha256};
+pub use crate::sha2::{Digest, Sha256};
 
 pub type DefaultHash = Sha256;
 pub const HASHBYTES: usize = 32;
@@ -9,8 +9,13 @@ pub const EMPTY_HASH_BYTES: [u8; HASHBYTES] = [
     100, 155, 147, 76, 164, 149, 153, 27, 120, 82, 184, 85,
 ];
 
+pub fn digest<H: Digest + Default>(input: &[u8]) -> Vec<u8> {
+    let mut ctx = H::default();
+    ctx.input(input);
+    ctx.result().to_vec()
+}
+
 pub trait TreeHash {
-    fn hash(input: &[u8]) -> LedgerResult<Vec<u8>>;
     fn hash_leaf<T>(leaf: &T) -> LedgerResult<Vec<u8>>
     where
         T: Hashable;
@@ -20,12 +25,6 @@ pub trait TreeHash {
 }
 
 impl<H: Digest> TreeHash for H {
-    fn hash(input: &[u8]) -> LedgerResult<Vec<u8>> {
-        let mut ctx = Self::new();
-        ctx.input(input);
-        Ok(ctx.result().to_vec())
-    }
-
     fn hash_leaf<T>(leaf: &T) -> LedgerResult<Vec<u8>>
     where
         T: Hashable,

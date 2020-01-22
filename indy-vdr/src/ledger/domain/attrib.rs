@@ -4,7 +4,7 @@ use super::request::{get_sp_key_marker, RequestType};
 use super::response::GetReplyResultV1;
 use super::ProtocolVersion;
 use crate::common::error::LedgerResult;
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use crate::utils::hash::{digest, Sha256};
 
 use named_type::NamedType;
 
@@ -87,7 +87,7 @@ impl RequestType for GetAttribOperation {
             .or(self.hash.as_ref())
         {
             let marker = get_sp_key_marker(1, protocol_version);
-            let hash = Hash::hash(attr_name.as_bytes())?;
+            let hash = digest::<Sha256>(attr_name.as_bytes());
             return Ok(Some(
                 format!("{}:{}:{}", self.dest.to_string(), marker, hex::encode(hash))
                     .as_bytes()

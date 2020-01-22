@@ -743,7 +743,7 @@ fn _get_nodes_and_remotes(
                 "Invalid field dest in genesis transaction",
             )?;
 
-            let node_verkey = crypto::import_verkey(node_verkey)
+            let node_verkey = crypto::import_verkey(&node_verkey)
                 .and_then(|vk| crypto::vk_to_curve25519(vk))
                 .to_result(
                     LedgerErrorKind::InvalidStructure,

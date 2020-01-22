@@ -12,8 +12,8 @@ use log::trace;
 use indy_vdr::config::{LedgerResult, PoolFactory};
 use indy_vdr::ledger::domain::txn::LedgerType;
 use indy_vdr::pool::{
-  perform_get_txn, perform_get_txn_full, perform_ledger_request, perform_refresh, Pool,
-  RequestResult, TimingResult,
+  perform_get_txn, perform_get_txn_full, perform_get_validator_info, perform_ledger_request,
+  perform_refresh, Pool, RequestResult, TimingResult,
 };
 
 fn main() {
@@ -66,6 +66,11 @@ async fn get_genesis<T: Pool>(pool: &T) -> LedgerResult<String> {
   Ok(txns.join("\n"))
 }
 
+async fn test_get_validator_info<T: Pool>(pool: &T) -> LedgerResult<String> {
+  let result = perform_get_validator_info(pool).await?;
+  format_result(format_request_result(result))
+}
+
 async fn get_taa<T: Pool>(pool: &T) -> LedgerResult<String> {
   let request = pool
     .get_request_builder()
@@ -90,6 +95,10 @@ async fn handle_request<T: Pool>(
   match (req.method(), req.uri().path()) {
     (&Method::GET, "/") => {
       let msg = test_get_txn_single(seq_no, &pool).await.unwrap();
+      Ok::<_, Error>(Response::new(Body::from(msg)))
+    }
+    (&Method::GET, "/status") => {
+      let msg = test_get_validator_info(&pool).await.unwrap();
       Ok::<_, Error>(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/full") => {

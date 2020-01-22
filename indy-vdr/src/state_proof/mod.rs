@@ -17,7 +17,7 @@ use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 use crate::common::error::prelude::*;
 use crate::pool::{NodeKeys, ProtocolVersion};
 use crate::utils::base58::{FromBase58, ToBase58};
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use crate::utils::hash::{digest, Sha256, TreeHash};
 
 use self::constants::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
 use self::log_derive::logfn;
@@ -335,7 +335,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 );
 
                 let marker = if is_node_1_3 { '\x01' } else { '1' };
-                let hash = Hash::hash(attr_name.as_bytes()).ok()?;
+                let hash = digest::<Sha256>(attr_name.as_bytes());
                 format!(":{}:{}", marker, hex::encode(hash))
             } else {
                 trace!("parse_key_from_request_for_builtin_sp: <<< GET_ATTR No key suffix");
@@ -503,7 +503,7 @@ pub fn parse_key_from_request_for_builtin_sp(
     let key_prefix = match type_ {
         constants::GET_NYM => {
             if let Some(dest) = dest {
-                Hash::hash(dest.as_bytes()).ok()?
+                digest::<Sha256>(dest.as_bytes())
             } else {
                 debug!("parse_key_from_request_for_builtin_sp: <<< No dest");
                 return None;
@@ -866,7 +866,7 @@ fn _verify_merkle_tree(
 
     let value = unwrap_or_return!(serde_json::from_str::<serde_json::Value>(&value), false);
     let value = unwrap_or_return!(rmp_serde::to_vec(&value), false);
-    let mut hash = match Hash::hash_leaf(&value) {
+    let mut hash = match Sha256::hash_leaf(&value) {
         Ok(hash) => hash,
         Err(err) => {
             error!("Error while hashing: {:?}", err);
@@ -879,9 +879,9 @@ fn _verify_merkle_tree(
     for (next_hash, turn_right) in hashes_with_turns {
         let _next_hash = unwrap_or_return!(next_hash.from_base58(), false);
         let turned_hash = if turn_right {
-            Hash::hash_nodes(&hash, &_next_hash)
+            Sha256::hash_nodes(&hash, &_next_hash)
         } else {
-            Hash::hash_nodes(&_next_hash, &hash)
+            Sha256::hash_nodes(&_next_hash, &hash)
         };
         hash = match turned_hash {
             Ok(hash) => hash,
@@ -1126,8 +1126,7 @@ fn _parse_reply_for_proof_value(
                 value["verkey"] = parsed_data["verkey"].clone();
             }
             constants::GET_ATTR => {
-                value["val"] =
-                    SJsonValue::String(hex::encode(Hash::hash(data.as_bytes()).unwrap()));
+                value["val"] = SJsonValue::String(hex::encode(digest::<Sha256>(data.as_bytes())));
             }
             constants::GET_CRED_DEF
             | constants::GET_REVOC_REG_DEF
@@ -1194,7 +1193,7 @@ fn _parse_reply_for_proof_value(
 
 fn _calculate_taa_digest(text: &str, version: &str) -> LedgerResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    Hash::hash(content.as_bytes())
+    Ok(digest::<Sha256>(content.as_bytes()))
 }
 
 fn _is_full_taa_state_value_expected(expected_state_key: &[u8]) -> bool {

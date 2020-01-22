@@ -1,5 +1,5 @@
 use crate::common::error::LedgerResult;
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use crate::utils::hash::{digest, Sha256};
 
 use super::constants::{GET_NYM, NYM};
 use super::did::ShortDidValue;
@@ -65,7 +65,7 @@ impl RequestType for GetNymOperation {
     }
 
     fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
-        let hash = Hash::hash(self.dest.as_bytes())?;
+        let hash = digest::<Sha256>(self.dest.as_bytes());
         Ok(Some(hash))
     }
 }

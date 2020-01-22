@@ -7,6 +7,7 @@ pub mod base58;
 pub mod crypto;
 pub mod environment;
 pub mod hash;
+pub mod signature;
 pub mod validation;
 
 #[macro_use]

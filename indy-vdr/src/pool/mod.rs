@@ -22,6 +22,7 @@ use futures::channel::mpsc::unbounded;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
 
+use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
 use crate::ledger::{PreparedRequest, RequestBuilder};
 use crate::state_proof::constants::REQUEST_FOR_FULL;
@@ -119,7 +120,7 @@ pub async fn perform_get_txn<T: Pool>(
     ledger_type: i32,
     seq_no: i32,
 ) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
-    let builder = RequestBuilder::new(pool.get_config().protocol_version);
+    let builder = pool.get_request_builder();
     let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
     // let msg_json = serde_json::from_str(&message).unwrap();
     // let sp_key = parse_key_from_request_for_builtin_sp(&msg_json, pool.config().protocol_version);
@@ -133,9 +134,21 @@ pub async fn perform_get_txn_full<T: Pool>(
     seq_no: i32,
     timeout: Option<i64>,
 ) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
-    let builder = RequestBuilder::new(pool.get_config().protocol_version);
+    let builder = pool.get_request_builder();
     let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
     perform_ledger_request(pool, prepared, Some(RequestTarget::Full(None, timeout))).await
+}
+
+// FIXME testing only
+pub async fn perform_get_validator_info<T: Pool>(
+    pool: &T,
+) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
+    let builder = pool.get_request_builder();
+    let did = DidValue::new("V4SGRU86Z58d6TV7PBUe6f", None);
+    let mut prepared = builder.build_get_validator_info_request(&did)?;
+    prepared.sign(b"000000000000000000000000Trustee1")?;
+    trace!("{}", prepared.req_json);
+    perform_ledger_request(pool, prepared, Some(RequestTarget::Full(None, None))).await
 }
 
 pub fn format_full_reply(replies: NodeReplies<String>) -> String {

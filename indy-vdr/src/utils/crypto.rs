@@ -1,5 +1,5 @@
 use curve25519_dalek::edwards::CompressedEdwardsY;
-pub use ed25519_dalek::{Keypair, PublicKey, SecretKey};
+pub use ed25519_dalek::{ExpandedSecretKey, Keypair, PublicKey, SecretKey};
 use rand::rngs::OsRng;
 
 use crate::common::error::prelude::*;
@@ -16,8 +16,18 @@ pub fn gen_keypair() -> LedgerResult<Keypair> {
     Ok(Keypair::generate(&mut csprng))
 }
 
-pub fn import_verkey(vk: Vec<u8>) -> LedgerResult<PublicKey> {
+pub fn import_verkey(vk: &[u8]) -> LedgerResult<PublicKey> {
     PublicKey::from_bytes(&vk).to_result(LedgerErrorKind::InvalidStructure, "Error decoding verkey")
+}
+
+pub fn import_keypair(secret: &[u8]) -> LedgerResult<Keypair> {
+    let sk = SecretKey::from_bytes(&secret)
+        .to_result(LedgerErrorKind::InvalidStructure, "Error decoding key")?;
+    let pk: PublicKey = (&sk).into();
+    Ok(Keypair {
+        secret: sk,
+        public: pk,
+    })
 }
 
 pub fn vk_to_curve25519(vk: PublicKey) -> LedgerResult<Vec<u8>> {
@@ -41,4 +51,9 @@ pub fn sk_to_curve25519(sk: SecretKey) -> LedgerResult<Vec<u8>> {
         ))
     );
     Ok(edw.to_montgomery().to_bytes().to_vec())
+}
+
+pub fn sign_message(keypair: Keypair, message: &[u8]) -> Vec<u8> {
+    let signature = keypair.sign(message);
+    signature.to_bytes().to_vec()
 }

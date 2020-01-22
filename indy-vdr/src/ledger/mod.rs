@@ -9,7 +9,10 @@ use serde_json::{self, Value as SJsonValue};
 use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
 use crate::pool::ProtocolVersion;
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use crate::utils::base58::ToBase58;
+use crate::utils::crypto::{import_keypair, sign_message};
+use crate::utils::hash::{digest, Sha256};
+use crate::utils::signature::serialize_signature;
 
 use self::domain::attrib::{AttribOperation, GetAttribOperation};
 use self::domain::auth_rule::*;
@@ -40,7 +43,7 @@ fn datetime_to_date_timestamp(time: u64) -> u64 {
 
 fn calculate_hash(text: &str, version: &str) -> LedgerResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    Hash::hash(content.as_bytes())
+    Ok(digest::<Sha256>(content.as_bytes()))
 }
 
 fn compare_hash(text: &str, version: &str, hash: &str) -> LedgerResult<()> {
@@ -71,7 +74,7 @@ pub struct PreparedRequest {
 }
 
 impl PreparedRequest {
-    fn new(
+    pub fn new(
         txn_type: String,
         req_id: String,
         req_json: SJsonValue,
@@ -85,6 +88,18 @@ impl PreparedRequest {
             sp_key,
             sp_timestamps,
         }
+    }
+
+    pub fn get_signature_input(&self) -> LedgerResult<String> {
+        serialize_signature(&self.req_json)
+    }
+
+    pub fn sign(&mut self, secret: &[u8]) -> LedgerResult<()> {
+        let keypair = import_keypair(&secret)?;
+        let input = self.get_signature_input()?;
+        let sig = sign_message(keypair, input.as_bytes());
+        self.req_json["signature"] = SJsonValue::String(sig.to_base58());
+        Ok(())
     }
 }
 
