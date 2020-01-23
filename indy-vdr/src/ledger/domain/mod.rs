@@ -6,7 +6,6 @@ pub mod node;
 pub mod nym;
 pub mod pool;
 pub mod request;
-pub mod response;
 pub mod txn;
 pub mod validator_info;
 

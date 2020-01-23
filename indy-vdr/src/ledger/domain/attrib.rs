@@ -1,12 +1,9 @@
 use super::constants::{ATTRIB, GET_ATTR};
 use super::did::ShortDidValue;
 use super::request::{get_sp_key_marker, RequestType};
-use super::response::GetReplyResultV1;
 use super::ProtocolVersion;
 use crate::common::error::LedgerResult;
 use crate::utils::hash::{digest, Sha256};
-
-use named_type::NamedType;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct AttribOperation {
@@ -95,46 +92,5 @@ impl RequestType for GetAttribOperation {
             ));
         }
         Ok(None)
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum GetAttrReplyResult {
-    GetAttrReplyResultV0(GetAttResultV0),
-    GetAttrReplyResultV1(GetReplyResultV1<GetAttResultDataV1>),
-}
-
-#[derive(Deserialize, Eq, PartialEq, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct GetAttResultV0 {
-    pub identifier: ShortDidValue,
-    pub data: String,
-    pub dest: ShortDidValue,
-    pub raw: String,
-}
-
-#[derive(Deserialize, Eq, PartialEq, Debug)]
-pub struct GetAttResultDataV1 {
-    pub ver: String,
-    pub id: String,
-    pub did: ShortDidValue,
-    pub raw: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct AttribData {
-    pub endpoint: Endpoint,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, NamedType)]
-pub struct Endpoint {
-    pub ha: String, // indy-node and indy-plenum restrict this to ip-address:port
-    pub verkey: Option<String>,
-}
-
-impl Endpoint {
-    pub fn new(ha: String, verkey: Option<String>) -> Endpoint {
-        Endpoint { ha, verkey }
     }
 }

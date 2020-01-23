@@ -2,8 +2,6 @@ pub mod constants;
 pub mod domain;
 
 use hex::FromHex;
-use log_derive::logfn;
-use serde::de::DeserializeOwned;
 use serde_json::{self, Value as SJsonValue};
 
 use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
@@ -23,21 +21,17 @@ use self::domain::auth_rule::*;
 use self::domain::author_agreement::*;
 use self::domain::ddo::GetDdoOperation;
 use self::domain::node::{NodeOperation, NodeOperationData};
-use self::domain::nym::{
-    GetNymOperation, GetNymReplyResult, GetNymResultDataV0, NymData, NymOperation,
-};
+use self::domain::nym::{GetNymOperation, NymOperation};
 use self::domain::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
 use self::domain::request::RequestType;
 use self::domain::request::{get_request_id, Request, TxnAuthrAgrmtAcceptanceData};
-use self::domain::response::{Message, Reply, ReplyType};
 use self::domain::txn::GetTxnOperation;
 use self::domain::validator_info::GetValidatorInfoOperation;
 
 use self::constants::{
-    txn_name_to_code, ENDORSER, GET_VALIDATOR_INFO, NETWORK_MONITOR, POOL_RESTART, ROLES,
-    ROLE_REMOVE, STEWARD, TRUSTEE,
+    txn_name_to_code, ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE,
 };
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
@@ -443,104 +437,6 @@ impl RequestBuilder {
         )
     }
 
-    #[logfn(Info)]
-    pub fn parse_response<T>(response: &str) -> LedgerResult<Reply<T>>
-    where
-        T: DeserializeOwned + ReplyType + ::std::fmt::Debug,
-    {
-        let message: SJsonValue = serde_json::from_str(&response).to_result(
-            LedgerErrorKind::InvalidTransaction,
-            "Response is invalid json",
-        )?;
-
-        if message["op"] == json!("REPLY") && message["result"]["type"] != json!(T::get_type()) {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidTransaction,
-                "Invalid response type",
-            ));
-        }
-
-        let message: Message<T> = serde_json::from_value(message).to_result(
-            LedgerErrorKind::ItemNotFound,
-            "Structure doesn't correspond to type. Most probably not found",
-        )?; // FIXME: Review how we handle not found
-
-        match message {
-            Message::Reject(response) | Message::ReqNACK(response) => Err(err_msg(
-                LedgerErrorKind::InvalidTransaction,
-                format!("Transaction has been failed: {:?}", response.reason),
-            )),
-            Message::Reply(reply) => Ok(reply),
-        }
-    }
-
-    #[logfn(Info)]
-    pub fn parse_get_nym_response(&self, get_nym_response: &str) -> LedgerResult<String> {
-        let reply: Reply<GetNymReplyResult> = Self::parse_response(get_nym_response)?;
-
-        let nym_data = match reply.result() {
-            GetNymReplyResult::GetNymReplyResultV0(res) => {
-                let data: GetNymResultDataV0 = res
-                    .data
-                    .ok_or(LedgerError::from_msg(
-                        LedgerErrorKind::ItemNotFound,
-                        format!("Nym not found"),
-                    ))
-                    .and_then(|data| {
-                        serde_json::from_str(&data).map_err(|err| {
-                            LedgerError::from_msg(
-                                LedgerErrorKind::InvalidState,
-                                format!("Cannot parse GET_NYM response: {}", err),
-                            )
-                        })
-                    })?;
-
-                NymData {
-                    did: data.dest,
-                    verkey: data.verkey,
-                    role: data.role,
-                }
-            }
-            GetNymReplyResult::GetNymReplyResultV1(res) => NymData {
-                did: res.txn.data.did,
-                verkey: res.txn.data.verkey,
-                role: res.txn.data.role,
-            },
-        };
-
-        let res = serde_json::to_string(&nym_data).map_err(|err| {
-            LedgerError::from_msg(
-                LedgerErrorKind::InvalidState,
-                format!("Cannot serialize NYM data: {}", err),
-            )
-        })?;
-
-        Ok(res)
-    }
-
-    #[logfn(Info)]
-    pub fn validate_action(&self, request: &str) -> LedgerResult<()> {
-        let request: Request<SJsonValue> = serde_json::from_str(request).map_err(|err| {
-            LedgerError::from_msg(
-                LedgerErrorKind::InvalidStructure,
-                format!("Request is invalid json: {:?}", err),
-            )
-        })?;
-
-        match request.operation["type"].as_str() {
-            Some(POOL_RESTART) | Some(GET_VALIDATOR_INFO) => Ok(()),
-            Some(_) => Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                "Request does not match any type of Actions: POOL_RESTART, GET_VALIDATOR_INFO",
-            )),
-            None => Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                "No valid type field in request",
-            )),
-        }
-    }
-
-    #[logfn(Info)]
     pub fn prepare_acceptance_data(
         &self,
         text: Option<&str>,
@@ -571,24 +467,6 @@ impl RequestBuilder {
         };
 
         Ok(acceptance_data)
-    }
-
-    pub fn parse_get_auth_rule_response(&self, response: &str) -> LedgerResult<Vec<AuthRule>> {
-        trace!("parse_get_auth_rule_response >>> response: {:?}", response);
-
-        let response: Reply<GetAuthRuleResult> =
-            serde_json::from_str(&response).map_err(|err| {
-                LedgerError::from_msg(
-                    LedgerErrorKind::InvalidTransaction,
-                    format!("Cannot parse GetAuthRule response: {:?}", err),
-                )
-            })?;
-
-        let res = response.result().data;
-
-        trace!("parse_get_auth_rule_response <<< {:?}", res);
-
-        Ok(res)
     }
 
     pub fn parse_inbound_request(
