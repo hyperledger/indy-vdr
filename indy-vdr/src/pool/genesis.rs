@@ -94,15 +94,9 @@ pub fn build_node_state_from_tree(
     let mut gen_tnxs: TransactionMap = HashMap::new();
 
     for gen_txn in merkle_tree {
-        let mut node_txn = _decode_transaction(gen_txn, protocol_version)?;
-        if gen_tnxs.contains_key(&node_txn.txn.data.dest) {
-            gen_tnxs
-                .get_mut(&node_txn.txn.data.dest)
-                .unwrap()
-                .update(&mut node_txn)?;
-        } else {
-            gen_tnxs.insert(node_txn.txn.data.dest.clone(), node_txn);
-        }
+        let node_txn = _decode_transaction(gen_txn, protocol_version)?;
+        let dest = node_txn.txn.data.dest.clone();
+        gen_tnxs.insert(dest, node_txn);
     }
     Ok(gen_tnxs)
 }
@@ -115,15 +109,9 @@ pub fn build_node_state_from_json(
 
     for gen_txn in json_tnxs {
         let pack_txn = _parse_txn_from_json(&gen_txn)?;
-        let mut node_txn = _decode_transaction(&pack_txn, protocol_version)?;
-        if gen_tnxs.contains_key(&node_txn.txn.data.dest) {
-            gen_tnxs
-                .get_mut(&node_txn.txn.data.dest)
-                .unwrap()
-                .update(&mut node_txn)?;
-        } else {
-            gen_tnxs.insert(node_txn.txn.data.dest.clone(), node_txn);
-        }
+        let node_txn = _decode_transaction(&pack_txn, protocol_version)?;
+        let dest = node_txn.txn.data.dest.clone();
+        gen_tnxs.insert(dest, node_txn);
     }
     Ok(gen_tnxs)
 }

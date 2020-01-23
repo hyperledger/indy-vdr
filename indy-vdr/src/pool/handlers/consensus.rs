@@ -1,7 +1,7 @@
 use futures::stream::StreamExt;
 
 use crate::common::error::prelude::*;
-use crate::state_proof::get_msg_result_without_state_proof;
+use crate::state_proof::result_without_state_proof;
 
 use super::types::Message;
 use super::{
@@ -24,11 +24,10 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
         match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
                 match parsed {
-                    Message::Reply(_) => {
+                    Message::Reply(reply) => {
                         trace!("reply on consensus request");
-                        if let Ok((_result, result_without_proof)) =
-                            get_msg_result_without_state_proof(&raw_msg)
-                        {
+                        if let Some(result) = reply.result() {
+                            let result_without_proof = result_without_state_proof(result);
                             replies.add_reply(node_alias.clone(), true);
                             let hashable = HashableValue {
                                 inner: result_without_proof,

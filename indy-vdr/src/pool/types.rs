@@ -2,11 +2,10 @@ use std::cmp::Eq;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use serde_json;
+use serde_json::{self, Value as SJsonValue};
 use ursa::bls::VerKey as BlsVerKey;
 
 use crate::common::error::prelude::*;
-use crate::common::verkey::VerKey;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -241,53 +240,6 @@ impl From<NodeTransactionV0> for NodeTransactionV1 {
     }
 }
 
-impl NodeTransactionV1 {
-    pub fn update(&mut self, other: &mut NodeTransactionV1) -> LedgerResult<()> {
-        assert_eq!(self.txn.data.dest, other.txn.data.dest);
-        assert_eq!(self.txn.data.data.alias, other.txn.data.data.alias);
-
-        if let Some(ref mut client_ip) = other.txn.data.data.client_ip {
-            self.txn.data.data.client_ip = Some(client_ip.to_owned());
-        }
-
-        if let Some(ref mut client_port) = other.txn.data.data.client_port {
-            self.txn.data.data.client_port = Some(client_port.to_owned());
-        }
-
-        if let Some(ref mut node_ip) = other.txn.data.data.node_ip {
-            self.txn.data.data.node_ip = Some(node_ip.to_owned());
-        }
-
-        if let Some(ref mut node_port) = other.txn.data.data.node_port {
-            self.txn.data.data.node_port = Some(node_port.to_owned());
-        }
-
-        if let Some(ref mut blskey) = other.txn.data.data.blskey {
-            self.txn.data.data.blskey = Some(blskey.to_owned());
-        }
-
-        if let Some(ref mut blskey_pop) = other.txn.data.data.blskey_pop {
-            self.txn.data.data.blskey_pop = Some(blskey_pop.to_owned());
-        }
-
-        if let Some(ref mut services) = other.txn.data.data.services {
-            self.txn.data.data.services = Some(services.to_owned());
-        }
-
-        if other.txn.data.verkey.is_some() {
-            let verkey = VerKey::from_str_qualified(
-                other.txn.data.verkey.as_ref().unwrap().as_str(),
-                Some(self.txn.data.dest.as_str()),
-                None,
-                None,
-            )?;
-            self.txn.data.verkey = Some(verkey.long_form());
-        }
-
-        Ok(())
-    }
-}
-
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LedgerStatus {
@@ -378,39 +330,23 @@ impl CatchupRep {
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum Reply {
-    ReplyV0(ReplyV0),
-    ReplyV1(ReplyV1),
+#[serde(transparent)]
+pub struct Reply {
+    pub value: SJsonValue,
 }
 
 impl Reply {
-    pub fn req_id(&self) -> u64 {
-        match *self {
-            Reply::ReplyV0(ref reply) => reply.result.req_id,
-            Reply::ReplyV1(ref reply) => reply.result.txn.metadata.req_id,
-        }
+    pub fn req_id(&self) -> Option<u64> {
+        self.value["result"]
+            .get("reqId")
+            .or(self.value["result"]["txn"]["metadata"].get("reqId"))
+            .and_then(SJsonValue::as_u64)
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ReplyV0 {
-    pub result: ResponseMetadata,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ReplyV1 {
-    pub result: ReplyResultV1,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ReplyResultV1 {
-    pub txn: ReplyTxnV1,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ReplyTxnV1 {
-    pub metadata: ResponseMetadata,
+    pub fn result(&self) -> Option<&SJsonValue> {
+        self.value
+            .get("result") // V0
+            .or(self.value["data"]["result"][0].get("result")) // V1
+    }
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
@@ -511,7 +447,7 @@ impl Message {
 
     pub fn request_id(&self) -> Option<String> {
         match self {
-            Message::Reply(ref rep) => Some(rep.req_id().to_string()),
+            Message::Reply(ref rep) => rep.req_id().map(|req_id| req_id.to_string()),
             Message::ReqACK(ref rep) | Message::ReqNACK(ref rep) | Message::Reject(ref rep) => {
                 Some(rep.req_id().to_string())
             }

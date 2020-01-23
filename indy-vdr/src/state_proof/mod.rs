@@ -150,26 +150,18 @@ fn extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
     }
 }
 
-pub fn get_msg_result_without_state_proof(msg: &str) -> LedgerResult<(SJsonValue, SJsonValue)> {
-    let msg = serde_json::from_str::<SJsonValue>(msg).to_result(
-        LedgerErrorKind::InvalidStructure,
-        "Response is malformed json",
-    )?;
-
-    let msg_result = msg["result"].clone();
-
-    let mut msg_result_without_proof: SJsonValue = msg_result.clone();
-    msg_result_without_proof
+pub fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
+    let mut result_without_proof = result.clone();
+    result_without_proof
         .as_object_mut()
         .map(|obj| obj.remove("state_proof"));
 
-    if msg_result_without_proof["data"].is_object() {
-        msg_result_without_proof["data"]
+    if result_without_proof["data"].is_object() {
+        result_without_proof["data"]
             .as_object_mut()
             .map(|obj| obj.remove("stateProofFrom"));
     }
-
-    Ok((msg_result, msg_result_without_proof))
+    result_without_proof
 }
 
 pub fn parse_generic_reply_for_proof_checking(
@@ -189,7 +181,7 @@ pub fn parse_generic_reply_for_proof_checking(
         if let Some(sp_key) = sp_key {
             _parse_reply_for_builtin_sp(json_msg, type_, sp_key)
         } else {
-            warn!("parse_generic_reply_for_proof_checking: can't get key in sp for built-in type");
+            debug!("parse_generic_reply_for_proof_checking: no sp_key for built-in type");
             None
         }
     }
@@ -247,7 +239,7 @@ pub fn verify_parsed_sp(
                 .as_str()
                 .ne(&Some(&parsed_sp.root_hash))
         {
-            error!("Given signature is not for current root hash, aborting");
+            debug!("Given signature is not for current root hash, aborting");
             return false;
         }
 
@@ -256,7 +248,7 @@ pub fn verify_parsed_sp(
         let (signature, participants, value) =
             unwrap_opt_or_return!(data_to_check_proof_signature, false);
         if !_verify_proof_signature(signature, participants.as_slice(), &value, nodes, f, gen)
-            .map_err(|err| warn!("{:?}", err))
+            .map_err(|err| debug!("{:?}", err))
             .unwrap_or(false)
         {
             return false;
@@ -304,7 +296,7 @@ pub fn verify_parsed_sp(
             },
             //TODO IS-713 support KeyValuesInSP::SubTrie
             kvs => {
-                warn!(
+                debug!(
                     "Unsupported parsed state proof format for key-values {:?} ",
                     kvs
                 );
@@ -425,7 +417,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                     new_value.unwrap_or("")
                 )
             } else {
-                trace!("parse_key_from_request_for_builtin_sp: <<< GET_AUTH_RULE No key suffix");
+                debug!("parse_key_from_request_for_builtin_sp: <<< GET_AUTH_RULE No key suffix");
                 return None;
             }
         }
@@ -439,7 +431,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 let marker = if is_node_1_3 { '\x05' } else { '5' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
-                trace!(
+                debug!(
                     "parse_key_from_request_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix"
                 );
                 return None;
@@ -456,7 +448,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 let marker = if is_node_1_3 { '\x06' } else { '6' };
                 format!("{}:{}", marker, revoc_reg_def_id)
             } else {
-                trace!(
+                debug!(
                     "parse_key_from_request_for_builtin_sp: <<< GET_REVOC_REG_DELTA No key suffix"
                 );
                 return None;
@@ -472,7 +464,7 @@ pub fn parse_key_from_request_for_builtin_sp(
                 (None, Some(digest), None) => format!("2:d:{}", digest),
                 (Some(version), None, None) => format!("2:v:{}", version),
                 _ => {
-                    error!("parse_key_from_request_for_builtin_sp: <<< GET_TXN_AUTHR_AGRMT Unexpected combination of request parameters, skip StateProof logic");
+                    debug!("parse_key_from_request_for_builtin_sp: <<< GET_TXN_AUTHR_AGRMT Unexpected combination of request parameters, skip StateProof logic");
                     return None;
                 }
             }
@@ -488,7 +480,7 @@ pub fn parse_key_from_request_for_builtin_sp(
             if let Some(seq_no) = json_msg["data"].as_u64() {
                 format!("{}", seq_no)
             } else {
-                error!("parse_key_from_request_for_builtin_sp: <<< GET_TXN has no seq_no, skip AuditProof logic");
+                debug!("parse_key_from_request_for_builtin_sp: <<< GET_TXN has no seq_no, skip AuditProof logic");
                 return None;
             }
         }
@@ -850,14 +842,14 @@ fn _verify_merkle_tree(
     let nodes = match std::str::from_utf8(proof_nodes) {
         Ok(res) => res,
         Err(err) => {
-            error!("Wrong state during mapping bytes to string: {:?}", err);
+            debug!("Wrong state during mapping bytes to string: {:?}", err);
             return false;
         }
     };
     let hashes: Vec<String> = match serde_json::from_str(nodes) {
         Ok(vec) => vec,
         Err(err) => {
-            error!("Errors during deserialization: {:?}", err);
+            debug!("Errors during deserialization: {:?}", err);
             return false;
         }
     };
@@ -870,7 +862,7 @@ fn _verify_merkle_tree(
     let seq_no = match key.parse::<u64>() {
         Ok(num) => num,
         Err(err) => {
-            error!("Error while parsing seq_no: {:?}", err);
+            debug!("Error while parsing seq_no: {:?}", err);
             return false;
         }
     };
@@ -879,7 +871,7 @@ fn _verify_merkle_tree(
     trace!("_verify_merkle_tree >> turns: {:?}", turns);
 
     if hashes.len() != turns.len() {
-        error!("Different count of hashes and turns, unable to verify");
+        debug!("Different count of hashes and turns, unable to verify");
         return false;
     }
 
@@ -897,7 +889,7 @@ fn _verify_merkle_tree(
     let mut hash = match Sha256::hash_leaf(&value) {
         Ok(hash) => hash,
         Err(err) => {
-            error!("Error while hashing: {:?}", err);
+            debug!("Error while hashing: {:?}", err);
             return false;
         }
     };
@@ -914,7 +906,7 @@ fn _verify_merkle_tree(
         hash = match turned_hash {
             Ok(hash) => hash,
             Err(err) => {
-                error!("Error while hashing: {:?}", err);
+                debug!("Error while hashing: {:?}", err);
                 return false;
             }
         }
@@ -990,7 +982,7 @@ fn _verify_proof_range(
         let vals = if let Ok(vals) = res {
             vals
         } else {
-            error!("Some errors happened while collecting values from state proof");
+            debug!("Some errors happened while collecting values from state proof");
             return false;
         };
         // Preparation of data for verification
@@ -1002,7 +994,7 @@ fn _verify_proof_range(
                 no.ok().map(|a| (a, (key, Some(value))))
             }).collect();
         if !vals_for_sort_check.iter().all(|a| a.is_some()) {
-            error!("Some values in state proof are not correlating with state proof rule, aborting.");
+            debug!("Some values in state proof are not correlating with state proof rule, aborting.");
             return false;
         }
         let mut vals_for_sort: Vec<(u64, (String, Option<String>))> = vals_for_sort_check.into_iter().flat_map(|a| a).collect();
@@ -1024,7 +1016,7 @@ fn _verify_proof_range(
             match vals_with_from.binary_search_by_key(&next_seqno, |&(a, _)| a) {
                 Ok(idx) => &vals_with_from[..idx],
                 Err(_) => {
-                    error!("Next seqno is incorrect");
+                    debug!("Next seqno is incorrect");
                     return false;
                 }
             }
@@ -1044,13 +1036,6 @@ fn _verify_proof_signature(
     f: usize,
     gen: &Generator,
 ) -> LedgerResult<bool> {
-    trace!(
-        "verify_proof_signature: >>> signature: {:?}, participants: {:?}, pool_state_root: {:?}",
-        signature,
-        participants,
-        value
-    );
-
     let mut ver_keys: Vec<&VerKey> = Vec::with_capacity(nodes.len());
 
     for (name, verkey) in nodes {
@@ -1087,8 +1072,6 @@ fn _verify_proof_signature(
     } else {
         return Ok(false);
     };
-
-    debug!("verify_proof_signature: signature: {:?}", signature);
 
     let res = Bls::verify_multi_sig(&signature, value, ver_keys.as_slice(), gen).unwrap_or(false);
 

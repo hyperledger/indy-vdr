@@ -8,8 +8,7 @@ use ursa::bls::Generator;
 
 use crate::common::error::prelude::*;
 use crate::config::constants::DEFAULT_GENERATOR;
-use crate::ledger::domain::response::Message as LedgerMessage;
-use crate::state_proof::{check_state_proof, get_msg_result_without_state_proof};
+use crate::state_proof::{check_state_proof, result_without_state_proof};
 use crate::utils::base58::FromBase58;
 
 use super::types::Message;
@@ -31,22 +30,26 @@ pub async fn handle_single_request<Request: PoolRequest>(
     let mut replies = ReplyState::new();
     let mut state = ConsensusState::new();
     let generator: Generator =
-        Generator::from_bytes(&DEFAULT_GENERATOR.from_base58().unwrap()).unwrap();
+        Generator::from_bytes(&DEFAULT_GENERATOR.from_base58()?).map_err(|err| {
+            err_msg(
+                LedgerErrorKind::InvalidState,
+                format!("Error loading generator: {}", err.to_string()),
+            )
+        })?;
 
     request.send_to_any(config.request_read_nodes, config.ack_timeout)?;
     loop {
         let resend = match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => match parsed {
-                Message::Reply(_) => {
+                Message::Reply(reply) => {
                     trace!("reply on single request");
-                    if let Ok((result, result_without_proof)) =
-                        get_msg_result_without_state_proof(&raw_msg)
-                    {
+                    if let Some(result) = reply.result() {
+                        let result_without_proof = result_without_state_proof(result);
                         replies.add_reply(node_alias.clone(), true);
                         let hashable = HashableValue {
                             inner: result_without_proof,
                         };
-                        let last_write_time = get_last_signed_time(&raw_msg).unwrap_or(0);
+                        let last_write_time = get_last_signed_time(result).unwrap_or(0);
                         trace!("last write {}", last_write_time);
                         let (cnt, soonest) = {
                             let set = state.insert(
@@ -87,6 +90,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
                         request.clean_timeout(node_alias)?;
                         true
                     } else {
+                        debug!("Error parsing result of reply from {}", node_alias);
                         replies.add_failed(node_alias.clone(), raw_msg);
                         request.clean_timeout(node_alias)?;
                         true
@@ -102,6 +106,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
                     true
                 }
                 _ => {
+                    debug!("Unexpected response from {} {:?}", node_alias, raw_msg);
                     replies.add_failed(node_alias.clone(), raw_msg);
                     request.clean_timeout(node_alias)?;
                     true
@@ -154,47 +159,32 @@ impl Hash for NodeResponse {
     }
 }
 
-pub fn get_last_signed_time(raw_msg: &str) -> Option<u64> {
-    let c = parse_response_metadata(raw_msg);
+pub fn get_last_signed_time(reply_result: &SJsonValue) -> Option<u64> {
+    let c = parse_reply_metadata(reply_result);
     c.ok().and_then(|resp| resp.last_txn_time)
 }
 
-pub fn parse_response_metadata(raw_msg: &str) -> LedgerResult<ResponseMetadata> {
-    trace!("parse_response_metadata << raw_msg: {:?}", raw_msg);
+pub fn parse_reply_metadata(reply_result: &SJsonValue) -> LedgerResult<ResponseMetadata> {
+    let response_metadata = match reply_result["ver"].as_str() {
+        None => parse_transaction_metadata_v0(reply_result),
+        Some("1") => parse_transaction_metadata_v1(reply_result),
+        ver => {
+            return Err(err_msg(
+                LedgerErrorKind::InvalidTransaction,
+                format!("Unsupported transaction response version: {:?}", ver),
+            ))
+        }
+    };
 
-    let message: LedgerMessage<SJsonValue> = serde_json::from_str(raw_msg).to_result(
-        LedgerErrorKind::InvalidTransaction,
-        "Cannot deserialize transaction response",
-    )?;
-    if let LedgerMessage::Reply(response_object) = message {
-        let response_result = response_object.result();
+    trace!(
+        "parse_response_metadata >> response_metadata: {:?}",
+        response_metadata
+    );
 
-        let response_metadata = match response_result["ver"].as_str() {
-            None => parse_transaction_metadata_v0(&response_result),
-            Some("1") => parse_transaction_metadata_v1(&response_result),
-            ver => {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidTransaction,
-                    format!("Unsupported transaction response version: {:?}", ver),
-                ))
-            }
-        };
-
-        trace!(
-            "parse_response_metadata >> response_metadata: {:?}",
-            response_metadata
-        );
-
-        Ok(response_metadata)
-    } else {
-        Err(err_msg(
-            LedgerErrorKind::InvalidTransaction,
-            "Error parsing transaction response",
-        ))
-    }
+    Ok(response_metadata)
 }
 
-fn parse_transaction_metadata_v0(message: &serde_json::Value) -> ResponseMetadata {
+fn parse_transaction_metadata_v0(message: &SJsonValue) -> ResponseMetadata {
     ResponseMetadata {
         seq_no: message["seqNo"].as_u64(),
         txn_time: message["txnTime"].as_u64(),
@@ -203,7 +193,7 @@ fn parse_transaction_metadata_v0(message: &serde_json::Value) -> ResponseMetadat
     }
 }
 
-fn parse_transaction_metadata_v1(message: &serde_json::Value) -> ResponseMetadata {
+fn parse_transaction_metadata_v1(message: &SJsonValue) -> ResponseMetadata {
     ResponseMetadata {
         seq_no: message["txnMetadata"]["seqNo"].as_u64(),
         txn_time: message["txnMetadata"]["txnTime"].as_u64(),
