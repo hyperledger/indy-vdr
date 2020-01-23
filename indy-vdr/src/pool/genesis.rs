@@ -70,16 +70,16 @@ fn _decode_transaction(
     }
 }
 
-pub fn dump_transactions(
-    txns: &Vec<Vec<u8>>,
-    protocol_version: ProtocolVersion,
-) -> LedgerResult<Vec<String>> {
+pub fn dump_transactions(txns: &Vec<Vec<u8>>) -> LedgerResult<Vec<String>> {
     let mut ret = vec![];
     for gen_txn in txns {
-        let node_txn = _decode_transaction(gen_txn, protocol_version)?;
+        let node_txn: SJsonValue = rmp_serde::decode::from_slice(gen_txn.as_slice()).to_result(
+            LedgerErrorKind::InvalidState,
+            "Genesis transaction cannot be decoded",
+        )?;
         let txn = serde_json::to_string(&node_txn).to_result(
             LedgerErrorKind::InvalidStructure,
-            "Genesis txn is mailformed json",
+            "Genesis txn is malformed JSON",
         )?;
         ret.push(txn);
     }

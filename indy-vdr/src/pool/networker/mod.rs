@@ -1,6 +1,7 @@
 use futures::channel::mpsc::UnboundedSender;
 
 use crate::common::error::prelude::*;
+pub use crate::config::PoolConfig;
 
 use super::genesis;
 use super::requests::{RequestExtEvent, RequestHandle};
@@ -45,6 +46,49 @@ impl<T: AsRef<dyn Networker>> Networker for T {
     }
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
         self.as_ref().send(event)
+    }
+}
+
+pub trait NetworkerFactory {
+    type Output: Networker;
+    fn create(config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self::Output>;
+}
+
+pub trait DeriveNetworker: Networker {
+    fn derive(
+        &self,
+        config: PoolConfig,
+        transactions: Vec<String>,
+    ) -> LedgerResult<Box<dyn DeriveNetworker>>;
+}
+
+impl<T> DeriveNetworker for T
+where
+    T: Networker + NetworkerFactory<Output = T> + 'static,
+{
+    fn derive(
+        &self,
+        config: PoolConfig,
+        transactions: Vec<String>,
+    ) -> LedgerResult<Box<dyn DeriveNetworker>> {
+        Ok(Box::new(Self::create(config, transactions)?))
+    }
+}
+
+pub trait RefNetworker: AsRef<dyn DeriveNetworker> + Clone {
+    fn new(instance: Box<dyn DeriveNetworker>) -> Self;
+    fn derived(&self, config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self>;
+}
+
+impl<R> RefNetworker for R
+where
+    R: AsRef<dyn DeriveNetworker> + From<Box<dyn DeriveNetworker>> + Clone,
+{
+    fn new(instance: Box<dyn DeriveNetworker>) -> R {
+        R::from(instance)
+    }
+    fn derived(&self, config: PoolConfig, transactions: Vec<String>) -> LedgerResult<R> {
+        Ok(R::from(self.as_ref().derive(config, transactions)?))
     }
 }
 

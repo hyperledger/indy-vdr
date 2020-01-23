@@ -19,7 +19,7 @@ use crate::utils::crypto;
 
 use super::genesis::build_node_state_from_json;
 use super::types::{Message, NodeKeys};
-use super::{Networker, NetworkerEvent, RequestExtEvent, RequestHandle};
+use super::{Networker, NetworkerEvent, NetworkerFactory, RequestExtEvent, RequestHandle};
 
 new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 
@@ -32,8 +32,9 @@ pub struct ZMQNetworker {
     worker: Option<thread::JoinHandle<()>>,
 }
 
-impl ZMQNetworker {
-    pub fn create(config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self> {
+impl NetworkerFactory for ZMQNetworker {
+    type Output = Self;
+    fn create(config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self> {
         let (node_keys, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
         let socket_handle = *ZMQSocketHandle::next();
         let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));

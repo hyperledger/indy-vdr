@@ -9,7 +9,9 @@ mod requests;
 mod types;
 
 pub use self::handlers::{CatchupTarget, NodeReplies, RequestResult};
-pub use self::networker::{Networker, ZMQNetworker};
+pub use self::networker::{
+    DeriveNetworker, Networker, NetworkerFactory, RefNetworker, ZMQNetworker,
+};
 pub use self::requests::{RequestTarget, TimingResult};
 pub use self::types::{NodeKeys, ProtocolVersion};
 pub use crate::config::PoolConfig;
@@ -95,18 +97,33 @@ pub async fn perform_refresh<T: Pool>(
 
 pub async fn perform_catchup<T: Pool>(
     pool: &T,
-    txns: &Vec<String>,
-    mt_root: Vec<u8>,
-    mt_size: usize,
+    from_txns: &Vec<String>,
+    target_root: Vec<u8>,
+    target_size: usize,
 ) -> LedgerResult<Vec<String>> {
     let (catchup_result, timing) =
-        perform_pool_catchup_request(pool, txns, mt_root, mt_size).await?;
+        perform_pool_catchup_request(pool, from_txns, target_root.clone(), target_size).await?;
     match catchup_result {
         RequestResult::Reply(txns) => {
             info!("Catchup completed {:?}", timing);
-            let txns = dump_transactions(&txns, pool.get_config().protocol_version)?;
+            let txns = dump_transactions(&txns)?;
+            let mut all_txns = from_txns.clone();
             for txn in txns.iter() {
                 trace!("New transaction: {}", txn);
+                all_txns.push(txn.clone());
+            }
+            let merkle = build_tree(&all_txns)?;
+            let root_hash = merkle.root_hash().to_base58();
+            let target_hash = target_root.to_base58();
+            if root_hash != target_hash {
+                error!(
+                    "Merkle tree root mismatch, target {}, found {}",
+                    root_hash, target_hash
+                );
+                return Err(err_msg(
+                    LedgerErrorKind::InvalidState,
+                    "Merkle tree root mismatch",
+                ));
             }
             Ok(txns)
         }
@@ -234,18 +251,18 @@ pub trait Pool {
 }
 
 #[derive(Clone)]
-pub struct AbstractPool<T: Networker + Clone> {
+pub struct DynPool<T: RefNetworker> {
     config: PoolConfig,
     networker: T,
     node_weights: Option<HashMap<String, f32>>,
     transactions: Vec<String>,
 }
 
-pub type LocalPool = AbstractPool<Rc<dyn Networker>>;
+pub type LocalPool = DynPool<Rc<dyn DeriveNetworker>>;
 
-pub type SharedPool = AbstractPool<Arc<dyn Networker>>;
+pub type SharedPool = DynPool<Arc<dyn DeriveNetworker>>;
 
-impl<T: Networker + Clone> AbstractPool<T> {
+impl<T: RefNetworker> DynPool<T> {
     pub fn new(
         config: PoolConfig,
         transactions: Vec<String>,
@@ -259,9 +276,33 @@ impl<T: Networker + Clone> AbstractPool<T> {
             transactions,
         }
     }
+
+    pub fn auto<F>(
+        config: PoolConfig,
+        transactions: Vec<String>,
+        node_weights: Option<HashMap<String, f32>>,
+    ) -> LedgerResult<Self>
+    where
+        F: NetworkerFactory,
+        F::Output: DeriveNetworker + 'static,
+    {
+        let networker = T::new(Box::new(F::create(config, transactions.clone())?));
+        Ok(Self::new(config, transactions, networker, node_weights))
+    }
+
+    pub async fn refresh(&mut self) -> LedgerResult<()> {
+        if let Some(mut txns) = perform_refresh(self, &self.transactions).await? {
+            trace!("{} new transaction(s)", txns.len());
+            self.transactions.append(&mut txns);
+            self.networker = self
+                .networker
+                .derived(self.config, self.transactions.clone())?;
+        }
+        Ok(())
+    }
 }
 
-impl<T: Networker + Clone> Pool for AbstractPool<T> {
+impl<T: RefNetworker> Pool for DynPool<T> {
     type Request = PoolRequestImpl<T>;
 
     fn create_request<'a>(
@@ -274,9 +315,11 @@ impl<T: Networker + Clone> Pool for AbstractPool<T> {
         lazy(move |_| {
             let (tx, rx) = unbounded();
             let handle = RequestHandle::next();
-            let node_keys = instance.node_keys();
+            let node_keys = instance.as_ref().node_keys();
             let node_order = choose_nodes(&node_keys, weights);
-            instance.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
+            instance
+                .as_ref()
+                .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
             Ok(PoolRequestImpl::new(
                 handle,
                 rx,

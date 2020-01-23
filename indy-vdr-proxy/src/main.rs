@@ -12,8 +12,8 @@ use log::trace;
 use indy_vdr::config::{LedgerResult, PoolFactory};
 use indy_vdr::ledger::domain::txn::LedgerType;
 use indy_vdr::pool::{
-  perform_get_txn, perform_get_txn_full, perform_get_validator_info, perform_ledger_request,
-  perform_refresh, Pool, RequestResult, TimingResult,
+  perform_get_txn, perform_get_txn_full, perform_get_validator_info, perform_ledger_request, Pool,
+  RequestResult, TimingResult,
 };
 
 fn main() {
@@ -133,9 +133,9 @@ async fn handle_request<T: Pool>(
 async fn run() -> LedgerResult<()> {
   let addr = ([127, 0, 0, 1], 3000).into();
 
-  let factory = PoolFactory::from_genesis_file("genesis.txn")?;
-  let pool = factory.create_local()?;
-  perform_refresh(&pool, &factory.get_transactions()).await?;
+  let factory = PoolFactory::from_genesis_file("mainnet2.txn")?;
+  let mut pool = factory.create_local()?;
+  pool.refresh().await?;
   let count = Rc::new(Cell::new(1i32));
 
   let make_service = make_service_fn(move |_| {
