@@ -29,7 +29,6 @@ use serde_json;
 use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
 use crate::ledger::{PreparedRequest, RequestBuilder};
-use crate::state_proof::constants::REQUEST_FOR_FULL;
 use crate::utils::base58::ToBase58;
 
 use genesis::{build_tree, dump_transactions};
@@ -141,8 +140,6 @@ pub async fn perform_get_txn<T: Pool>(
 ) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
     let builder = pool.get_request_builder();
     let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
-    // let msg_json = serde_json::from_str(&message).unwrap();
-    // let sp_key = parse_key_from_request_for_builtin_sp(&msg_json, pool.config().protocol_version);
     perform_ledger_request(pool, prepared, None).await
 }
 
@@ -243,11 +240,10 @@ pub trait Pool {
         req_id: String,
         req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>>;
-    fn get_transactions(&self) -> Vec<String>;
-
     fn get_request_builder(&self) -> RequestBuilder {
         RequestBuilder::new(self.get_config().protocol_version)
     }
+    fn get_transactions(&self) -> Vec<String>;
 }
 
 #[derive(Clone)]

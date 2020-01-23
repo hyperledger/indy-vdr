@@ -1,7 +1,5 @@
 use std::convert::{TryFrom, TryInto};
 
-use serde_json;
-
 use crate::common::error::prelude::*;
 
 use super::constants::GET_TXN;
@@ -51,9 +49,9 @@ pub enum LedgerType {
 impl LedgerType {
     pub fn to_id(&self) -> i32 {
         match *self {
-            LedgerType::POOL => LedgerType::POOL as i32,
-            LedgerType::DOMAIN => LedgerType::DOMAIN as i32,
-            LedgerType::CONFIG => LedgerType::CONFIG as i32,
+            Self::POOL => Self::POOL as i32,
+            Self::DOMAIN => Self::DOMAIN as i32,
+            Self::CONFIG => Self::CONFIG as i32,
         }
     }
 
@@ -62,10 +60,11 @@ impl LedgerType {
     }
 
     pub fn from_str(value: &str) -> LedgerResult<Self> {
-        serde_json::from_str::<Self>(&format!(r#""{}""#, value)).to_result(
+        let value = value.parse::<i32>().to_result(
             LedgerErrorKind::InvalidStructure,
-            format!("Invalid Ledger type: {}", value),
-        )
+            format!("Invalid ledger type: {}", value),
+        )?;
+        Self::from_id(value)
     }
 }
 
@@ -79,7 +78,7 @@ impl TryFrom<i32> for LedgerType {
             x if x == LedgerType::CONFIG as i32 => Ok(LedgerType::CONFIG),
             _ => Err(err_msg(
                 LedgerErrorKind::InvalidStructure,
-                format!("Invalid Ledger type: {}", value),
+                format!("Unknown ledger type: {}", value),
             )),
         }
     }

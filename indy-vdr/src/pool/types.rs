@@ -1,5 +1,6 @@
 use std::cmp::Eq;
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 
 use serde_json;
 use ursa::bls::VerKey as BlsVerKey;
@@ -22,8 +23,35 @@ impl ProtocolVersion {
         }
     }
 
+    pub fn from_id(value: u64) -> LedgerResult<Self> {
+        value.try_into()
+    }
+
+    pub fn from_str(value: &str) -> LedgerResult<Self> {
+        let value = value.parse::<u64>().to_result(
+            LedgerErrorKind::InvalidStructure,
+            format!("Invalid protocol version: {}", value),
+        )?;
+        Self::from_id(value)
+    }
+
     pub fn to_id(&self) -> usize {
         *self as usize
+    }
+}
+
+impl TryFrom<u64> for ProtocolVersion {
+    type Error = LedgerError;
+
+    fn try_from(value: u64) -> LedgerResult<Self> {
+        match value {
+            x if x == Self::Node1_3 as u64 => Ok(Self::Node1_3),
+            x if x == Self::Node1_4 as u64 => Ok(Self::Node1_4),
+            _ => Err(err_msg(
+                LedgerErrorKind::InvalidStructure,
+                format!("Unknown protocol version: {}", value),
+            )),
+        }
     }
 }
 
@@ -41,7 +69,7 @@ impl Default for ProtocolVersion {
 
 impl std::fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.display_version())
+        f.write_str(self.display_version().as_str())
     }
 }
 

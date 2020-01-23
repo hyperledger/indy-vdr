@@ -8,7 +8,11 @@ use serde_json::{self, Value as SJsonValue};
 
 use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
-use crate::pool::ProtocolVersion;
+use crate::pool::{ProtocolVersion, RequestTarget};
+use crate::state_proof::{
+    constants::REQUEST_FOR_FULL, parse_key_from_request_for_builtin_sp,
+    parse_timestamp_from_req_for_builtin_sp,
+};
 use crate::utils::base58::ToBase58;
 use crate::utils::crypto::{import_keypair, sign_message};
 use crate::utils::hash::{digest, Sha256};
@@ -585,6 +589,60 @@ impl RequestBuilder {
         trace!("parse_get_auth_rule_response <<< {:?}", res);
 
         Ok(res)
+    }
+
+    pub fn parse_inbound_request(
+        &self,
+        message: &[u8],
+    ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
+        let message = std::str::from_utf8(message)
+            .to_result(LedgerErrorKind::InvalidStructure, "Invalid UTF-8")?;
+        self.parse_inbound_request_str(message)
+    }
+
+    pub fn parse_inbound_request_str(
+        &self,
+        message: &str,
+    ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
+        let req_json: SJsonValue = serde_json::from_str(message)
+            .to_result(LedgerErrorKind::InvalidStructure, "Invalid request JSON")?;
+        error!("Message: {}", req_json);
+
+        let protocol_version =
+            ProtocolVersion::from_id(req_json["protocolVersion"].as_u64().ok_or_else(|| {
+                err_msg(
+                    LedgerErrorKind::InvalidStructure,
+                    "No protocol version request",
+                )
+            })?)?;
+
+        let req_id = req_json["reqId"]
+            .as_u64()
+            .ok_or_else(|| err_msg(LedgerErrorKind::InvalidStructure, "No reqId in request"))?
+            .to_string();
+
+        let txn_type = req_json["operation"]["type"]
+            .as_str()
+            .ok_or_else(|| {
+                err_msg(
+                    LedgerErrorKind::InvalidStructure,
+                    "No operation type in request",
+                )
+            })?
+            .to_string();
+
+        let target = if REQUEST_FOR_FULL.contains(&txn_type.as_str()) {
+            Some(RequestTarget::Full(None, None))
+        } else {
+            None
+        };
+
+        let sp_key = parse_key_from_request_for_builtin_sp(&req_json, protocol_version);
+        let sp_timestamps = parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str());
+        Ok((
+            PreparedRequest::new(txn_type, req_id, req_json, sp_key, sp_timestamps),
+            target,
+        ))
     }
 }
 

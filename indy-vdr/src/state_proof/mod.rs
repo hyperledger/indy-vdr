@@ -19,8 +19,10 @@ use crate::pool::{NodeKeys, ProtocolVersion};
 use crate::utils::base58::{FromBase58, ToBase58};
 use crate::utils::hash::{digest, Sha256, TreeHash};
 
-use self::constants::{REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS};
-use self::log_derive::logfn;
+use self::constants::{
+    REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS,
+    REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST,
+};
 use self::node::{Node, TrieDB};
 use self::types::*;
 
@@ -314,7 +316,6 @@ pub fn verify_parsed_sp(
     true
 }
 
-#[logfn(Trace)]
 pub fn parse_key_from_request_for_builtin_sp(
     json_msg: &SJsonValue,
     protocol_version: ProtocolVersion,
@@ -538,6 +539,30 @@ pub fn parse_key_from_request_for_builtin_sp(
     key.extend_from_slice(key_suffix.as_bytes());
 
     Some(key)
+}
+
+pub fn parse_timestamp_from_req_for_builtin_sp(
+    req: &SJsonValue,
+    op: &str,
+) -> (Option<u64>, Option<u64>) {
+    if !REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST.contains(&op) {
+        return (None, None);
+    }
+
+    if op == constants::GET_TXN {
+        return (None, Some(0));
+    }
+
+    match op {
+        constants::GET_REVOC_REG
+        | constants::GET_TXN_AUTHR_AGRMT
+        | constants::GET_TXN_AUTHR_AGRMT_AML => (None, req["operation"]["timestamp"].as_u64()),
+        constants::GET_REVOC_REG_DELTA => (
+            req["operation"]["from"].as_u64(),
+            req["operation"]["to"].as_u64(),
+        ),
+        _ => (None, None),
+    }
 }
 
 fn _parse_reply_for_builtin_sp(

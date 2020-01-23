@@ -87,6 +87,13 @@ async fn get_aml<T: Pool>(pool: &T) -> LedgerResult<String> {
   format_result(format_request_result(result))
 }
 
+async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> LedgerResult<(String, String)> {
+  let (request, target) = pool.get_request_builder().parse_inbound_request(&message)?;
+  let result = perform_ledger_request(pool, request, target).await?;
+  let (response, timing) = format_request_result(result)?;
+  Ok((response, format!("{:?}", timing)))
+}
+
 async fn handle_request<T: Pool>(
   req: Request<Body>,
   seq_no: i32,
@@ -95,45 +102,72 @@ async fn handle_request<T: Pool>(
   match (req.method(), req.uri().path()) {
     (&Method::GET, "/") => {
       let msg = test_get_txn_single(seq_no, &pool).await.unwrap();
-      Ok::<_, Error>(Response::new(Body::from(msg)))
+      Ok(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/status") => {
       let msg = test_get_validator_info(&pool).await.unwrap();
-      Ok::<_, Error>(Response::new(Body::from(msg)))
+      Ok(Response::new(Body::from(msg)))
+    }
+    (&Method::GET, "/submit") => Ok(
+      Response::builder()
+        .status(StatusCode::METHOD_NOT_ALLOWED)
+        .body(Body::default())
+        .unwrap(),
+    ),
+    (&Method::POST, "/submit") => {
+      let body_bytes = hyper::body::to_bytes(req.into_body()).await?;
+      let body = body_bytes.iter().cloned().collect::<Vec<u8>>();
+      if !body.is_empty() {
+        let (result, timing) = submit_request(&pool, body).await.unwrap();
+        let mut response = Response::new(Body::from(result));
+        response
+          .headers_mut()
+          .append("X-Timing", timing.parse().unwrap());
+        Ok(response)
+      } else {
+        Ok(
+          Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::default())
+            .unwrap(),
+        )
+      }
     }
     (&Method::GET, "/full") => {
       let msg = test_get_txn_full(seq_no, &pool).await.unwrap();
-      Ok::<_, Error>(Response::new(Body::from(msg)))
+      Ok(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/genesis") => {
       let msg = get_genesis(&pool).await.unwrap();
-      Ok::<_, Error>(Response::new(Body::from(msg)))
+      Ok(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/taa") => {
       let msg = get_taa(&pool).await.unwrap();
-      Ok::<_, Error>(Response::new(Body::from(msg)))
+      Ok(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/aml") => {
       let msg = get_aml(&pool).await.unwrap();
-      Ok::<_, Error>(Response::new(Body::from(msg)))
+      Ok(Response::new(Body::from(msg)))
     }
-    (&Method::GET, _) => {
-      let mut not_found = Response::default();
-      *not_found.status_mut() = StatusCode::NOT_FOUND;
-      Ok(not_found)
-    }
-    _ => {
-      let mut not_supported = Response::default();
-      *not_supported.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
-      Ok(not_supported)
-    }
+    (&Method::GET, _) => Ok(
+      Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .body(Body::default())
+        .unwrap(),
+    ),
+    _ => Ok(
+      Response::builder()
+        .status(StatusCode::METHOD_NOT_ALLOWED)
+        .body(Body::default())
+        .unwrap(),
+    ),
   }
 }
 
 async fn run() -> LedgerResult<()> {
   let addr = ([127, 0, 0, 1], 3000).into();
 
-  let factory = PoolFactory::from_genesis_file("mainnet2.txn")?;
+  let factory = PoolFactory::from_genesis_file("genesis.txn")?;
   let mut pool = factory.create_local()?;
   pool.refresh().await?;
   let count = Rc::new(Cell::new(1i32));
