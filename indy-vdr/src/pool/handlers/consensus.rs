@@ -67,10 +67,18 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
             }
         };
         if consensus.max_len() + total_nodes_count - replies.len() <= f {
-            return Ok((
-                RequestResult::Failed(LedgerErrorKind::NoConsensus.into()),
-                request.get_timing(),
-            ));
+            let err = {
+                let counts = replies.counts();
+                if counts.replies > 0 {
+                    LedgerErrorKind::NoConsensus.into()
+                } else if counts.failed > 0 {
+                    let failed = replies.sample_failed().unwrap();
+                    (LedgerErrorKind::BadRequest, failed).into()
+                } else {
+                    LedgerErrorKind::PoolTimeout.into()
+                }
+            };
+            return Ok((RequestResult::Failed(err), request.get_timing()));
         }
     }
 }

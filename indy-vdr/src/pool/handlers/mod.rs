@@ -46,6 +46,13 @@ pub struct ReplyState<T> {
     pub inner: HashMap<String, SingleReply<T>>,
 }
 
+#[derive(Default)]
+pub struct ReplyCounts {
+    pub replies: usize,
+    pub failed: usize,
+    pub timeout: usize,
+}
+
 impl<T> ReplyState<T> {
     pub fn new() -> Self {
         Self {
@@ -73,6 +80,28 @@ impl<T> ReplyState<T> {
 
     pub fn len(&self) -> usize {
         self.inner.len()
+    }
+
+    pub fn counts(&self) -> ReplyCounts {
+        let mut counts = ReplyCounts::default();
+        self.inner.values().for_each(|r| {
+            match r {
+                SingleReply::Reply(_) => counts.replies += 1,
+                SingleReply::Failed(_) => counts.failed += 1,
+                SingleReply::Timeout() => counts.timeout += 1,
+            };
+        });
+        counts
+    }
+
+    pub fn sample_failed(&self) -> Option<String> {
+        self.inner.values().find_map(|r| {
+            if let SingleReply::Failed(msg) = r {
+                Some(msg.clone())
+            } else {
+                None
+            }
+        })
     }
 }
 

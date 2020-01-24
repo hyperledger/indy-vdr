@@ -127,10 +127,18 @@ pub async fn handle_single_request<Request: PoolRequest>(
             }
         };
         if replies.len() >= total_nodes_count {
-            return Ok((
-                RequestResult::Failed(LedgerErrorKind::NoConsensus.into()),
-                request.get_timing(),
-            ));
+            let err = {
+                let counts = replies.counts();
+                if counts.replies > 0 {
+                    LedgerErrorKind::NoConsensus.into()
+                } else if counts.failed > 0 {
+                    let failed = replies.sample_failed().unwrap();
+                    (LedgerErrorKind::BadRequest, failed).into()
+                } else {
+                    LedgerErrorKind::PoolTimeout.into()
+                }
+            };
+            return Ok((RequestResult::Failed(err), request.get_timing()));
         }
         if resend {
             request.send_to_any(2, config.ack_timeout)?;
