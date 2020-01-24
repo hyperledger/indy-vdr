@@ -2,21 +2,30 @@ extern crate env_logger;
 extern crate indy_vdr;
 extern crate log;
 
-use std::cell::Cell;
-use std::rc::Rc;
+mod app;
+
+use std::fs;
+use std::net::IpAddr;
+use std::process::exit;
 
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
+use hyper_unix_connector::UnixConnector;
 use log::trace;
 
 use indy_vdr::config::{LedgerResult, PoolFactory};
 use indy_vdr::ledger::domain::txn::LedgerType;
 use indy_vdr::pool::{
-  perform_get_txn, perform_get_txn_full, perform_get_validator_info, perform_ledger_request, Pool,
+  perform_get_txn, perform_get_validator_info, perform_ledger_request, LocalPool, Pool,
   RequestResult, TimingResult,
 };
 
 fn main() {
+  let config = app::load_config().unwrap_or_else(|err| {
+    eprintln!("{}", err);
+    exit(1);
+  });
+
   env_logger::init();
 
   let mut rt = tokio::runtime::Builder::new()
@@ -26,7 +35,10 @@ fn main() {
     .expect("build runtime");
 
   let local = tokio::task::LocalSet::new();
-  local.block_on(&mut rt, run()).unwrap();
+  if let Err(err) = local.block_on(&mut rt, run(config)) {
+    eprintln!("{}", err);
+    exit(1);
+  }
 }
 
 fn format_request_result<T: std::fmt::Display>(
@@ -53,11 +65,6 @@ fn format_result<T: std::fmt::Debug>(result: LedgerResult<(String, T)>) -> Ledge
 
 async fn test_get_txn_single<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
   let result = perform_get_txn(pool, LedgerType::DOMAIN as i32, seq_no).await?;
-  format_result(format_request_result(result))
-}
-
-async fn test_get_txn_full<T: Pool>(seq_no: i32, pool: &T) -> LedgerResult<String> {
-  let result = perform_get_txn_full(pool, LedgerType::DOMAIN as i32, seq_no, None).await?;
   format_result(format_request_result(result))
 }
 
@@ -96,12 +103,11 @@ async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> LedgerResult<(St
 
 async fn handle_request<T: Pool>(
   req: Request<Body>,
-  seq_no: i32,
   pool: T,
 ) -> Result<Response<Body>, hyper::Error> {
   match (req.method(), req.uri().path()) {
     (&Method::GET, "/") => {
-      let msg = test_get_txn_single(seq_no, &pool).await.unwrap();
+      let msg = test_get_txn_single(1i32, &pool).await.unwrap();
       Ok(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/status") => {
@@ -122,7 +128,7 @@ async fn handle_request<T: Pool>(
         let mut response = Response::new(Body::from(result));
         response
           .headers_mut()
-          .append("X-Timing", timing.parse().unwrap());
+          .append("X-Requests", timing.parse().unwrap());
         Ok(response)
       } else {
         Ok(
@@ -132,10 +138,6 @@ async fn handle_request<T: Pool>(
             .unwrap(),
         )
       }
-    }
-    (&Method::GET, "/full") => {
-      let msg = test_get_txn_full(seq_no, &pool).await.unwrap();
-      Ok(Response::new(Body::from(msg)))
     }
     (&Method::GET, "/genesis") => {
       let msg = get_genesis(&pool).await.unwrap();
@@ -164,35 +166,57 @@ async fn handle_request<T: Pool>(
   }
 }
 
-async fn run() -> LedgerResult<()> {
-  let addr = ([127, 0, 0, 1], 3000).into();
+async fn init_pool(genesis: String) -> LedgerResult<LocalPool> {
+  let factory = PoolFactory::from_genesis_file(genesis.as_str())?;
+  let pool = factory.create_local()?;
+  Ok(pool)
+}
 
-  let factory = PoolFactory::from_genesis_file("genesis.txn")?;
-  let mut pool = factory.create_local()?;
-  pool.refresh().await?;
-  let count = Rc::new(Cell::new(1i32));
+async fn run(config: app::Config) -> Result<(), String> {
+  // FIXME track status of pool and return server-not-ready when it hasn't initialized
+  let pool = init_pool(config.genesis)
+    .await
+    .map_err(|err| format!("Error initializing pool: {}", err))?;
 
-  let make_service = make_service_fn(move |_| {
-    let pool = pool.clone();
-    let count = count.clone();
-    async move {
-      Ok::<_, Error>(service_fn(move |req| {
-        let seq_no = count.get();
-        count.set(seq_no + 1);
-        handle_request(req, seq_no, pool.to_owned())
-      }))
-    }
-  });
+  // tokio::task::spawn_local(pool.refresh());
 
-  let server = Server::bind(&addr).executor(LocalExec).serve(make_service);
-
-  println!("Listening on http://{}", addr);
-
-  if let Err(e) = server.await {
-    eprintln!("server error: {}", e);
-  }
-
-  Ok(())
+  let result = if let Some(socket) = config.socket {
+    fs::remove_file(&socket)
+      .map_err(|err| format!("Error removing socket: {}", err.to_string()))?;
+    let uc: UnixConnector = tokio::net::UnixListener::bind(&socket)
+      .map_err(|err| format!("Error binding UNIX socket: {}", err.to_string()))?
+      .into();
+    let svc = make_service_fn(move |_| {
+      let pool = pool.clone();
+      async move {
+        let pool = pool.clone();
+        Ok::<_, Error>(service_fn(move |req| handle_request(req, pool.to_owned())))
+      }
+    });
+    let server = Server::builder(uc).executor(LocalExec).serve(svc);
+    println!("Listening on {} ...", socket);
+    server.await
+  } else {
+    let ip = config
+      .host
+      .unwrap()
+      .parse::<IpAddr>()
+      .map_err(|_| "Error parsing host IP")?;
+    let addr = (ip, config.port.unwrap()).into();
+    let builder = Server::try_bind(&addr)
+      .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
+    let svc = make_service_fn(move |_| {
+      let pool = pool.clone();
+      async move {
+        let pool = pool.clone();
+        Ok::<_, Error>(service_fn(move |req| handle_request(req, pool.to_owned())))
+      }
+    });
+    let server = builder.executor(LocalExec).serve(svc);
+    println!("Listening on http://{} ...", addr);
+    server.await
+  };
+  result.map_err(|err| format!("Server terminated: {}", err))
 }
 
 #[derive(Clone, Copy, Debug)]
