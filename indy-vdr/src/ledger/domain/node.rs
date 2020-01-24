@@ -1,3 +1,4 @@
+use crate::common::error::prelude::*;
 use crate::utils::validation::Validatable;
 
 use super::constants::NODE;
@@ -54,7 +55,7 @@ pub struct NodeOperationData {
 }
 
 impl Validatable for NodeOperationData {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> LedgerResult<()> {
         if self.node_ip.is_none()
             && self.node_port.is_none()
             && self.client_ip.is_none()
@@ -63,7 +64,7 @@ impl Validatable for NodeOperationData {
             && self.blskey.is_none()
             && self.blskey_pop.is_none()
         {
-            return Err(String::from("Invalid data json: all fields missed at once"));
+            return Err(input_err("Invalid data json: all fields missed at once"));
         }
 
         if (self.node_ip.is_some()
@@ -75,7 +76,7 @@ impl Validatable for NodeOperationData {
                 || self.client_ip.is_none()
                 || self.client_port.is_none())
         {
-            return Err(String::from("Invalid data json: Fields node_ip, node_port, client_ip, client_port must be specified together"));
+            return Err(input_err("Invalid data json: Fields node_ip, node_port, client_ip, client_port must be specified together"));
         }
 
         Ok(())

@@ -53,10 +53,7 @@ impl VerKey {
         if key.starts_with('~') {
             let dest = unwrap_opt_or_return!(
                 dest,
-                Err(err_msg(
-                    LedgerErrorKind::InvalidStructure,
-                    "Destination required for short verkey"
-                ))
+                Err(input_err("Destination required for short verkey"))
             );
             let mut result = dest.from_base58()?;
             let mut end = key[1..].from_base58()?;
@@ -77,10 +74,7 @@ impl VerKey {
     pub fn key_bytes(&self) -> LedgerResult<Vec<u8>> {
         match self.enc.as_str() {
             VERKEY_ENC_BASE58 => self.key.from_base58(),
-            _ => Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                "Unsupported verkey format",
-            )),
+            _ => Err(input_err("Unsupported verkey format")),
         }
     }
 }

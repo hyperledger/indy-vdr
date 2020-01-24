@@ -26,43 +26,36 @@ fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
         return Ok(vec![]);
     }
 
-    let txn: SJsonValue = serde_json::from_str(txn).to_result(
-        LedgerErrorKind::InvalidStructure,
-        "Genesis txn is mailformed json",
-    )?;
+    let txn: SJsonValue =
+        serde_json::from_str(txn).with_input_err("Genesis txn is mailformed json")?;
 
-    rmp_serde::encode::to_vec_named(&txn).to_result(
-        LedgerErrorKind::InvalidState,
-        "Can't encode genesis txn as message pack",
-    )
+    rmp_serde::encode::to_vec_named(&txn).with_input_err("Can't encode genesis txn as message pack")
 }
 
 fn _decode_transaction(
     gen_txn: &Vec<u8>,
     protocol_version: ProtocolVersion,
 ) -> LedgerResult<NodeTransactionV1> {
-    let gen_txn: NodeTransaction = rmp_serde::decode::from_slice(gen_txn.as_slice()).to_result(
-        LedgerErrorKind::InvalidState,
-        "Genesis transaction cannot be decoded",
-    )?;
+    let gen_txn: NodeTransaction = rmp_serde::decode::from_slice(gen_txn.as_slice())
+        .with_input_err("Genesis transaction cannot be decoded")?;
 
     match gen_txn {
         NodeTransaction::NodeTransactionV0(txn) => {
             if protocol_version != 1 {
-                Err(err_msg(LedgerErrorKind::PoolIncompatibleProtocolVersion,
-                            format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                                    Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
-                                    protocol_version, NodeTransactionV0::VERSION)))
+                Err(input_err(
+                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                            Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
+                            protocol_version, NodeTransactionV0::VERSION)))
             } else {
                 Ok(NodeTransactionV1::from(txn))
             }
         }
         NodeTransaction::NodeTransactionV1(txn) => {
             if protocol_version != 2 {
-                Err(err_msg(LedgerErrorKind::PoolIncompatibleProtocolVersion,
-                                format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                                            Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
-                                        protocol_version, NodeTransactionV1::VERSION)))
+                Err(input_err(
+                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                                Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
+                            protocol_version, NodeTransactionV1::VERSION)))
             } else {
                 Ok(txn)
             }
@@ -73,14 +66,10 @@ fn _decode_transaction(
 pub fn dump_transactions(txns: &Vec<Vec<u8>>) -> LedgerResult<Vec<String>> {
     let mut ret = vec![];
     for gen_txn in txns {
-        let node_txn: SJsonValue = rmp_serde::decode::from_slice(gen_txn.as_slice()).to_result(
-            LedgerErrorKind::InvalidState,
-            "Genesis transaction cannot be decoded",
-        )?;
-        let txn = serde_json::to_string(&node_txn).to_result(
-            LedgerErrorKind::InvalidStructure,
-            "Genesis txn is malformed JSON",
-        )?;
+        let node_txn: SJsonValue = rmp_serde::decode::from_slice(gen_txn.as_slice())
+            .with_input_err("Genesis transaction cannot be decoded")?;
+        let txn =
+            serde_json::to_string(&node_txn).with_input_err("Genesis txn is malformed JSON")?;
         ret.push(txn);
     }
     Ok(ret)

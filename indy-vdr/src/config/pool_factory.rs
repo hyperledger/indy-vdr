@@ -23,10 +23,7 @@ impl PoolFactory {
         let txns = _transactions_from_genesis(genesis_path)?;
         trace!("loaded transactions");
         if txns.len() == 0 {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                "Empty genesis transaction file",
-            ));
+            return Err((LedgerErrorKind::Config, "Empty genesis transaction file").into());
         }
         Ok(PoolFactory {
             config: PoolConfig::default(),
@@ -58,24 +55,20 @@ impl PoolFactory {
 fn _transactions_from_genesis(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
     let mut result = vec![];
 
-    let f = fs::File::open(file_name)
-        .to_result(LedgerErrorKind::IOError, "Can't open genesis txn file")?;
+    let f = fs::File::open(file_name).with_input_err("Can't open genesis txn file")?;
 
     let reader = io::BufReader::new(&f);
 
     for line in reader.lines() {
-        let line: String =
-            line.to_result(LedgerErrorKind::IOError, "Can't read from genesis txn file")?;
+        let line: String = line.with_input_err("Can't read from genesis txn file")?;
 
         if line.trim().is_empty() {
             continue;
         };
 
         // just validating, result is discarded
-        let _: HashMap<String, serde_json::Value> = serde_json::from_str(&line).to_result(
-            LedgerErrorKind::InvalidStructure,
-            "Genesis txn is malformed json",
-        )?;
+        let _: HashMap<String, serde_json::Value> =
+            serde_json::from_str(&line).with_input_err("Genesis txn is malformed json")?;
 
         result.push(line);
     }

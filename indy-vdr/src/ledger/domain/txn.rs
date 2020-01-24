@@ -60,10 +60,9 @@ impl LedgerType {
     }
 
     pub fn from_str(value: &str) -> LedgerResult<Self> {
-        let value = value.parse::<i32>().to_result(
-            LedgerErrorKind::InvalidStructure,
-            format!("Invalid ledger type: {}", value),
-        )?;
+        let value = value
+            .parse::<i32>()
+            .map_err(|_| input_err(format!("Invalid ledger type: {}", value)))?;
         Self::from_id(value)
     }
 }
@@ -76,10 +75,7 @@ impl TryFrom<i32> for LedgerType {
             x if x == LedgerType::POOL as i32 => Ok(LedgerType::POOL),
             x if x == LedgerType::DOMAIN as i32 => Ok(LedgerType::DOMAIN),
             x if x == LedgerType::CONFIG as i32 => Ok(LedgerType::CONFIG),
-            _ => Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                format!("Unknown ledger type: {}", value),
-            )),
+            _ => Err(input_err(format!("Unknown ledger type: {}", value))),
         }
     }
 }

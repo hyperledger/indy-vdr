@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::common::error::LedgerResult;
+use crate::common::error::prelude::*;
 use crate::utils::validation::Validatable;
 
 use super::constants::{
@@ -41,7 +41,7 @@ pub struct GetTxnAuthorAgreementData {
 }
 
 impl Validatable for GetTxnAuthorAgreementData {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> LedgerResult<()> {
         match (
             self.digest.as_ref(),
             self.version.as_ref(),
@@ -51,10 +51,10 @@ impl Validatable for GetTxnAuthorAgreementData {
             (None, Some(_), None) => Ok(()),
             (None, None, Some(_)) => Ok(()),
             (None, None, None) => Ok(()),
-            (digest, version, timestamp) => Err(format!(
+            (digest, version, timestamp) => Err(input_err(format!(
                 "Only one of field can be specified: digest: {:?}, version: {:?}, timestamp: {:?}",
                 digest, version, timestamp
-            )),
+            ))),
         }
     }
 }
@@ -117,9 +117,9 @@ impl AcceptanceMechanisms {
 }
 
 impl Validatable for AcceptanceMechanisms {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> LedgerResult<()> {
         if self.0.is_empty() {
-            return Err(String::from(
+            return Err(input_err(
                 "Empty list of Acceptance Mechanisms has been passed",
             ));
         }

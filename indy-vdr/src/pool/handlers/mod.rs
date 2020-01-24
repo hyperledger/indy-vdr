@@ -163,18 +163,14 @@ fn check_cons_proofs(
         let cons_proof: &String = cons_proof;
 
         bytes_proofs.push(
-            cons_proof.from_base58().to_result(
-                LedgerErrorKind::InvalidStructure,
-                "Can't decode node consistency proof",
-            )?, // FIXME: review kind
+            cons_proof
+                .from_base58()
+                .with_input_err("Can't decode node consistency proof")?,
         );
     }
 
     if !mt.consistency_proof(target_mt_root, target_mt_size, &bytes_proofs)? {
-        return Err(err_msg(
-            LedgerErrorKind::InvalidState,
-            "Consistency proof verification failed",
-        )); // FIXME: review kind
+        return Err(input_err("Consistency proof verification failed"));
     }
 
     Ok(())
@@ -200,10 +196,7 @@ pub fn build_pool_catchup_request(
     target_mt_size: usize,
 ) -> LedgerResult<Message> {
     if merkle.count() >= target_mt_size {
-        return Err(err_msg(
-            LedgerErrorKind::InvalidState,
-            "No transactions to catch up",
-        ));
+        return Err(input_err("No transactions to catch up"));
     }
     let seq_no_start = merkle.count() + 1;
     let seq_no_end = target_mt_size;

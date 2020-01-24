@@ -59,7 +59,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::InvalidState,
+                        LedgerErrorKind::Network,
                         "Request ended prematurely",
                     )),
                     request.get_timing(),
@@ -68,7 +68,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
         };
         if consensus.max_len() + total_nodes_count - replies.len() <= f {
             return Ok((
-                RequestResult::Failed(err_msg(LedgerErrorKind::NoConsensus, "No consensus")),
+                RequestResult::Failed(LedgerErrorKind::NoConsensus.into()),
                 request.get_timing(),
             ));
         }

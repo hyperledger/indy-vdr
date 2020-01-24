@@ -1,7 +1,7 @@
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
 
-extern crate failure;
-extern crate failure_derive;
+// extern crate failure;
+// extern crate failure_derive;
 
 #[macro_use]
 extern crate lazy_static;

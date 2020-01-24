@@ -47,17 +47,12 @@ fn calculate_hash(text: &str, version: &str) -> LedgerResult<Vec<u8>> {
 fn compare_hash(text: &str, version: &str, hash: &str) -> LedgerResult<()> {
     let calculated_hash = calculate_hash(text, version)?;
 
-    let passed_hash = Vec::from_hex(hash).map_err(|err| {
-        LedgerError::from_msg(
-            LedgerErrorKind::InvalidStructure,
-            format!("Cannot decode `hash`: {:?}", err),
-        )
-    })?;
+    let passed_hash = Vec::from_hex(hash).with_input_err("Cannot decode hash")?;
 
     if calculated_hash != passed_hash {
-        return Err(LedgerError::from_msg(LedgerErrorKind::InvalidStructure,
-                                       format!("Calculated hash of concatenation `version` and `text` doesn't equal to passed `hash` value. \n\
-                                       Calculated hash value: {:?}, \n Passed hash value: {:?}", calculated_hash, passed_hash)));
+        return Err(input_err(
+            format!("Calculated hash of concatenation `version` and `text` doesn't equal to passed `hash` value. \n\
+            Calculated hash value: {:?}, \n Passed hash value: {:?}", calculated_hash, passed_hash)));
     }
     Ok(())
 }
@@ -159,11 +154,7 @@ impl RequestBuilder {
                     "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
                     "NETWORK_MONITOR" => NETWORK_MONITOR,
                     role if ROLES.contains(&role) => role,
-                    role =>
-                        return Err(err_msg(
-                            LedgerErrorKind::InvalidStructure,
-                            format!("Invalid role: {}", role)
-                        )),
+                    role => return Err(input_err(format!("Invalid role: {}", role))),
                 })
             })
         } else {
@@ -241,10 +232,7 @@ impl RequestBuilder {
         identifier: Option<&DidValue>,
     ) -> LedgerResult<PreparedRequest> {
         if seq_no <= 0 {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                "Transaction number must be > 0",
-            ));
+            return Err(input_err("Transaction number must be > 0"));
         }
         self.build(GetTxnOperation::new(seq_no, ledger_type), identifier)
     }
@@ -310,21 +298,11 @@ impl RequestBuilder {
         constraint: Constraint,
     ) -> LedgerResult<PreparedRequest> {
         let txn_type = txn_name_to_code(&txn_type)
-            .ok_or_else(|| {
-                err_msg(
-                    LedgerErrorKind::InvalidStructure,
-                    format!("Unsupported `txn_type`: {}", txn_type),
-                )
-            })?
+            .ok_or_else(|| input_err(format!("Unsupported `txn_type`: {}", txn_type)))?
             .to_string();
 
-        let action =
-            serde_json::from_str::<AuthAction>(&format!("\"{}\"", action)).map_err(|err| {
-                LedgerError::from_msg(
-                    LedgerErrorKind::InvalidStructure,
-                    format!("Cannot parse auth action: {}", err),
-                )
-            })?;
+        let action = serde_json::from_str::<AuthAction>(&format!("\"{}\"", action))
+            .map_err(|err| input_err(format!("Cannot parse auth action: {}", err)))?;
 
         let operation =
             AuthRuleOperation::new(txn_type, field, action, old_value, new_value, constraint);
@@ -351,20 +329,11 @@ impl RequestBuilder {
         let operation = match (auth_type, auth_action, field) {
             (None, None, None) => GetAuthRuleOperation::get_all(),
             (Some(auth_type), Some(auth_action), Some(field)) => {
-                let type_ = txn_name_to_code(&auth_type).ok_or_else(|| {
-                    err_msg(
-                        LedgerErrorKind::InvalidStructure,
-                        format!("Unsupported `auth_type`: {}", auth_type),
-                    )
-                })?;
+                let type_ = txn_name_to_code(&auth_type)
+                    .ok_or_else(|| input_err(format!("Unsupported `auth_type`: {}", auth_type)))?;
 
                 let action = serde_json::from_str::<AuthAction>(&format!("\"{}\"", auth_action))
-                    .map_err(|err| {
-                        LedgerError::from_msg(
-                            LedgerErrorKind::InvalidStructure,
-                            format!("Cannot parse auth action: {}", err),
-                        )
-                    })?;
+                    .map_err(|err| input_err(format!("Cannot parse auth action: {}", err)))?;
 
                 GetAuthRuleOperation::get_one(
                     type_.to_string(),
@@ -375,8 +344,7 @@ impl RequestBuilder {
                 )
             }
             _ => {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidStructure,
+                return Err(input_err(
                     "Either none or all transaction related parameters must be specified.",
                 ))
             }
@@ -426,8 +394,7 @@ impl RequestBuilder {
         version: Option<String>,
     ) -> LedgerResult<PreparedRequest> {
         if timestamp.is_some() && version.is_some() {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
+            return Err(input_err(
                 "timestamp and version cannot be specified together.",
             ));
         }
@@ -447,11 +414,11 @@ impl RequestBuilder {
     ) -> LedgerResult<TxnAuthrAgrmtAcceptanceData> {
         let taa_digest = match (text, version, hash) {
             (None, None, None) => {
-                return Err(err_msg(LedgerErrorKind::InvalidStructure, "Invalid combination of params: Either combination `text` + `version` or `taa_digest` must be passed."));
+                return Err(input_err("Invalid combination of params: Either combination `text` + `version` or `taa_digest` must be passed."));
             }
             (None, None, Some(hash_)) => hash_.to_string(),
             (Some(_), None, _) | (None, Some(_), _) => {
-                return Err(err_msg(LedgerErrorKind::InvalidStructure, "Invalid combination of params: `text` and `version` should be passed or skipped together."));
+                return Err(input_err("Invalid combination of params: `text` and `version` should be passed or skipped together."));
             }
             (Some(text_), Some(version_), None) => hex::encode(calculate_hash(text_, version_)?),
             (Some(text_), Some(version_), Some(hash_)) => {
@@ -473,8 +440,7 @@ impl RequestBuilder {
         &self,
         message: &[u8],
     ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
-        let message = std::str::from_utf8(message)
-            .to_result(LedgerErrorKind::InvalidStructure, "Invalid UTF-8")?;
+        let message = std::str::from_utf8(message).with_input_err("Invalid UTF-8")?;
         self.parse_inbound_request_str(message)
     }
 
@@ -482,31 +448,24 @@ impl RequestBuilder {
         &self,
         message: &str,
     ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
-        let req_json: SJsonValue = serde_json::from_str(message)
-            .to_result(LedgerErrorKind::InvalidStructure, "Invalid request JSON")?;
+        let req_json: SJsonValue =
+            serde_json::from_str(message).with_input_err("Invalid request JSON")?;
         error!("Message: {}", req_json);
 
-        let protocol_version =
-            ProtocolVersion::from_id(req_json["protocolVersion"].as_u64().ok_or_else(|| {
-                err_msg(
-                    LedgerErrorKind::InvalidStructure,
-                    "No protocol version request",
-                )
-            })?)?;
+        let protocol_version = ProtocolVersion::from_id(
+            req_json["protocolVersion"]
+                .as_u64()
+                .ok_or_else(|| input_err("No protocol version request"))?,
+        )?;
 
         let req_id = req_json["reqId"]
             .as_u64()
-            .ok_or_else(|| err_msg(LedgerErrorKind::InvalidStructure, "No reqId in request"))?
+            .ok_or_else(|| input_err("No reqId in request"))?
             .to_string();
 
         let txn_type = req_json["operation"]["type"]
             .as_str()
-            .ok_or_else(|| {
-                err_msg(
-                    LedgerErrorKind::InvalidStructure,
-                    "No operation type in request",
-                )
-            })?
+            .ok_or_else(|| input_err("No operation type in request"))?
             .to_string();
 
         let target = if REQUEST_FOR_FULL.contains(&txn_type.as_str()) {

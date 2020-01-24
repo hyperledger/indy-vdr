@@ -8,10 +8,9 @@ pub trait FromBase58 {
 
 impl FromBase58 for str {
     fn from_base58(&self) -> LedgerResult<Vec<u8>> {
-        bs58::decode(self).into_vec().to_result(
-            LedgerErrorKind::InvalidState,
-            "Error decoding base58 string",
-        )
+        bs58::decode(self)
+            .into_vec()
+            .with_input_err("Error decoding base58 string")
     }
 }
 

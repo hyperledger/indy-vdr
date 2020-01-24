@@ -162,10 +162,8 @@ impl Node {
     ) -> LedgerResult<Option<String>> {
         let value = self.get_value(db, path)?;
         if let Some(vec) = value {
-            let str = String::from_utf8(vec).to_result(
-                LedgerErrorKind::InvalidStructure,
-                "Patricia Merkle Trie contains malformed utf8 string",
-            )?;
+            let str = String::from_utf8(vec)
+                .with_input_err("Patricia Merkle Trie contains malformed utf8 string")?;
 
             trace!("Str value from Patricia Merkle Trie {}", str);
             Ok(Some(str))
@@ -237,8 +235,7 @@ impl Node {
                 if let Some(ref next) = db.get(hash) {
                     next._get_node(db, path, seen_path)
                 } else {
-                    Err(err_msg(
-                        LedgerErrorKind::InvalidStructure,
+                    Err(input_err(
                         "Incomplete key-value DB for Patricia Merkle Trie to get value by the key",
                     ))
                 }
@@ -247,7 +244,7 @@ impl Node {
                 let (is_leaf, pair_path) = Node::parse_path(pair.path.as_slice());
 
                 if !is_leaf {
-                    return Err(err_msg(LedgerErrorKind::InvalidState, "Incorrect Patricia Merkle Trie: node marked as leaf but path contains extension flag"));
+                    return Err(input_err("Incorrect Patricia Merkle Trie: node marked as leaf but path contains extension flag"));
                 }
 
                 trace!(
@@ -266,7 +263,7 @@ impl Node {
                 let (is_leaf, pair_path) = Node::parse_path(pair.path.as_slice());
 
                 if is_leaf {
-                    return Err(err_msg(LedgerErrorKind::InvalidState, "Incorrect Patricia Merkle Trie: node marked as extension but path contains leaf flag"));
+                    return Err(input_err("Incorrect Patricia Merkle Trie: node marked as extension but path contains leaf flag"));
                 }
 
                 trace!("current extension node path: {:?}", pair_path);
@@ -317,8 +314,7 @@ impl Node {
                         if vec.is_empty() {
                             res.push((
                                 prefix.clone(),
-                                String::from_utf8(val.clone()).to_result(
-                                    LedgerErrorKind::InvalidStructure,
+                                String::from_utf8(val.clone()).with_input_err(
                                     "Patricia Merkle Trie contains malformed utf8 string",
                                 )?,
                             ));
@@ -334,14 +330,14 @@ impl Node {
                     trace!("found value in db");
                     next._get_all_values(db, prefix)
                 } else {
-                    Err(err_msg(LedgerErrorKind::InvalidState, "Incorrect Patricia Merkle Trie: empty hash node when it should not be empty"))
+                    Err(input_err("Incorrect Patricia Merkle Trie: empty hash node when it should not be empty"))
                 }
             }
             Node::Leaf(ref pair) => {
                 let (is_leaf, pair_path) = Node::parse_path(pair.path.as_slice());
 
                 if !is_leaf {
-                    return Err(err_msg(LedgerErrorKind::InvalidState, "Incorrect Patricia Merkle Trie: node marked as leaf but path contains extension flag"));
+                    return Err(input_err("Incorrect Patricia Merkle Trie: node marked as leaf but path contains extension flag"));
                 }
 
                 trace!(
@@ -361,15 +357,13 @@ impl Node {
                     if vec.is_empty() {
                         return Ok(vec![(
                             full_path,
-                            String::from_utf8(val.clone()).to_result(
-                                LedgerErrorKind::InvalidStructure,
+                            String::from_utf8(val.clone()).with_input_err(
                                 "Patricia Merkle Trie contains malformed utf8 string",
                             )?,
                         )]);
                     }
                 }
-                Err(err_msg(
-                    LedgerErrorKind::InvalidStructure,
+                Err(input_err(
                     "Unexpected data format of value in Patricia Merkle Trie",
                 ))
             }
@@ -377,7 +371,7 @@ impl Node {
                 let (is_leaf, pair_path) = Node::parse_path(pair.path.as_slice());
 
                 if is_leaf {
-                    return Err(err_msg(LedgerErrorKind::InvalidState, "Incorrect Patricia Merkle Trie: node marked as extension but path contains leaf flag"));
+                    return Err(input_err("Incorrect Patricia Merkle Trie: node marked as extension but path contains leaf flag"));
                 }
 
                 let mut full_path = prefix.clone();
@@ -411,8 +405,7 @@ impl Node {
                     }
                 }
 
-                Err(err_msg(
-                    LedgerErrorKind::InvalidStructure,
+                Err(input_err(
                     "Unexpected data format of value in Patricia Merkle Trie",
                 ))
             }
@@ -432,7 +425,7 @@ impl Node {
                 let (is_leaf, _) = Node::parse_path(pair.path.as_slice());
 
                 if !is_leaf {
-                    return Err(err_msg(LedgerErrorKind::InvalidState, "Incorrect Patricia Merkle Trie: node marked as leaf but path contains extension flag"));
+                    return Err(input_err("Incorrect Patricia Merkle Trie: node marked as leaf but path contains extension flag"));
                 }
 
                 Ok(Some(&pair.value))
@@ -461,10 +454,7 @@ impl Node {
             let h: u8 = (nibbles[x] << 4) + nibbles[x + 1];
             res.push(h)
         }
-        String::from_utf8(res).to_result(
-            LedgerErrorKind::InvalidStructure,
-            "Patricia Merkle Trie contains malformed utf8 string",
-        )
+        String::from_utf8(res).with_input_err("Patricia Merkle Trie contains malformed utf8 string")
     }
 
     fn parse_path(path: &[u8]) -> (bool, Vec<u8>) {

@@ -1,5 +1,3 @@
-use failure::Context;
-
 use futures::stream::StreamExt;
 
 use crate::common::error::prelude::*;
@@ -57,7 +55,7 @@ pub async fn handle_status_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::InvalidState,
+                        LedgerErrorKind::Network,
                         "Request ended prematurely",
                     )),
                     request.get_timing(),
@@ -135,19 +133,14 @@ fn try_to_catch_up(
         if cur_mt_hash.eq(target_mt_root) {
             Ok(CatchupProgress::NotNeeded)
         } else {
-            Err(err_msg(
-                LedgerErrorKind::InvalidState,
+            Err(input_err(
                 "Ledger merkle tree is not acceptable for current tree.",
             ))
         }
     } else if target_mt_size > cur_mt_size {
         let target_mt_root = target_mt_root
             .from_base58()
-            .map_err(Context::new)
-            .to_result(
-                LedgerErrorKind::InvalidStructure,
-                "Can't parse target MerkleTree hash from nodes responses",
-            )?; // FIXME: review kind
+            .with_input_err("Can't parse target MerkleTree hash from nodes responses")?;
 
         match *hashes {
             None => (),
@@ -161,9 +154,6 @@ fn try_to_catch_up(
             target_mt_size,
         ))
     } else {
-        Err(err_msg(
-            LedgerErrorKind::InvalidState,
-            "Local merkle tree greater than mt from ledger",
-        ))
+        Err(input_err("Local merkle tree greater than mt from ledger"))
     }
 }

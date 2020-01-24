@@ -32,7 +32,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58()?).map_err(|err| {
             err_msg(
-                LedgerErrorKind::InvalidState,
+                LedgerErrorKind::Resource,
                 format!("Error loading generator: {}", err.to_string()),
             )
         })?;
@@ -119,7 +119,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::InvalidState,
+                        LedgerErrorKind::Network,
                         "Request ended prematurely",
                     )),
                     request.get_timing(),
@@ -128,7 +128,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
         };
         if replies.len() >= total_nodes_count {
             return Ok((
-                RequestResult::Failed(err_msg(LedgerErrorKind::NoConsensus, "No consensus")),
+                RequestResult::Failed(LedgerErrorKind::NoConsensus.into()),
                 request.get_timing(),
             ));
         }
@@ -169,10 +169,10 @@ pub fn parse_reply_metadata(reply_result: &SJsonValue) -> LedgerResult<ResponseM
         None => parse_transaction_metadata_v0(reply_result),
         Some("1") => parse_transaction_metadata_v1(reply_result),
         ver => {
-            return Err(err_msg(
-                LedgerErrorKind::InvalidTransaction,
-                format!("Unsupported transaction response version: {:?}", ver),
-            ))
+            return Err(input_err(format!(
+                "Unsupported transaction response version: {:?}",
+                ver
+            )))
         }
     };
 

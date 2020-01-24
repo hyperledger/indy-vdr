@@ -9,20 +9,20 @@ pub const DEFAULT_CRYPTO_TYPE: &str = CRYPTO_TYPE_ED25519;
 
 #[allow(dead_code)]
 pub fn gen_keypair() -> LedgerResult<Keypair> {
-    let mut csprng = OsRng::new().to_result(
-        LedgerErrorKind::InvalidState,
+    let mut csprng = OsRng::new().with_err_msg(
+        LedgerErrorKind::Resource,
         "Error creating random number generator",
     )?;
     Ok(Keypair::generate(&mut csprng))
 }
 
 pub fn import_verkey(vk: &[u8]) -> LedgerResult<PublicKey> {
-    PublicKey::from_bytes(&vk).to_result(LedgerErrorKind::InvalidStructure, "Error decoding verkey")
+    PublicKey::from_bytes(&vk).map_err(|err| input_err(format!("Error decoding verkey: {}", err)))
 }
 
 pub fn import_keypair(secret: &[u8]) -> LedgerResult<Keypair> {
     let sk = SecretKey::from_bytes(&secret)
-        .to_result(LedgerErrorKind::InvalidStructure, "Error decoding key")?;
+        .map_err(|err| input_err(format!("Error decoding verkey: {}", err)))?;
     let pk: PublicKey = (&sk).into();
     Ok(Keypair {
         secret: sk,
@@ -31,25 +31,17 @@ pub fn import_keypair(secret: &[u8]) -> LedgerResult<Keypair> {
 }
 
 pub fn vk_to_curve25519(vk: PublicKey) -> LedgerResult<Vec<u8>> {
-    let edw = unwrap_opt_or_return!(
-        CompressedEdwardsY::from_slice(&vk.to_bytes()).decompress(),
-        Err(err_msg(
-            LedgerErrorKind::InvalidState,
-            "Error loading public key"
-        ))
-    );
+    let edw = CompressedEdwardsY::from_slice(&vk.to_bytes())
+        .decompress()
+        .ok_or(input_err("Error loading public key"))?;
     Ok(edw.to_montgomery().to_bytes().to_vec())
 }
 
 #[allow(dead_code)]
 pub fn sk_to_curve25519(sk: SecretKey) -> LedgerResult<Vec<u8>> {
-    let edw = unwrap_opt_or_return!(
-        CompressedEdwardsY::from_slice(&sk.to_bytes()).decompress(),
-        Err(err_msg(
-            LedgerErrorKind::InvalidState,
-            "Error loading secret key"
-        ))
-    );
+    let edw = CompressedEdwardsY::from_slice(&sk.to_bytes())
+        .decompress()
+        .ok_or(input_err("Error loading secret key"))?;
     Ok(edw.to_montgomery().to_bytes().to_vec())
 }
 

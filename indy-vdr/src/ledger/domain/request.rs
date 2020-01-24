@@ -72,12 +72,7 @@ impl<T: serde::Serialize> Request<T> {
             identifier.map(DidValue::to_short),
             protocol_version,
         ))
-        .map_err(|err| {
-            err_msg(
-                LedgerErrorKind::InvalidStructure,
-                format!("Cannot serialize Request: {:?}", err),
-            )
-        })
+        .with_input_err("Cannot serialize request")
     }
 }
 

@@ -65,12 +65,11 @@ impl Networker for ZMQNetworker {
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
         self.evt_send
             .send(event)
-            .to_result(LedgerErrorKind::InvalidState, "Error sending request")?;
+            .with_err_msg(LedgerErrorKind::Resource, "Error sending networker event")?;
         // stop waiting on current sockets
-        self.cmd_send.send("", 0).to_result(
-            LedgerErrorKind::InvalidState,
-            "Error sending networker command",
-        )
+        self.cmd_send
+            .send("", 0)
+            .with_err_msg(LedgerErrorKind::Resource, "Error sending networker command")
     }
 }
 
@@ -294,10 +293,9 @@ impl ZMQThread {
             body,
         };
         self.requests.insert(handle, pending);
-        self.requests.get_mut(&handle).ok_or(err_msg(
-            LedgerErrorKind::InvalidState,
-            "Error adding request",
-        ))
+        self.requests
+            .get_mut(&handle)
+            .ok_or(input_err("Error adding request"))
     }
 
     fn remove_request(&mut self, handle: RequestHandle) {
@@ -695,10 +693,7 @@ impl RemoteNode {
         s.set_curve_publickey(&key_pair.public_key)?;
         s.set_curve_serverkey(
             zmq::z85_encode(self.public_key.as_slice())
-                .to_result(
-                    LedgerErrorKind::InvalidStructure,
-                    "Can't encode server key as z85",
-                )? // FIXME: review kind
+                .with_input_err("Can't encode server key as z85")? // FIXME: review kind
                 .as_bytes(),
         )?;
         s.set_linger(0)?; //TODO set correct timeout
@@ -739,17 +734,14 @@ fn _get_nodes_and_remotes(
         .map(|(dest, txn)| {
             let node_alias = txn.txn.data.data.alias.clone();
 
-            let node_verkey = dest.as_str().from_base58().to_result(
-                LedgerErrorKind::InvalidStructure,
-                "Invalid field dest in genesis transaction",
-            )?;
+            let node_verkey = dest
+                .as_str()
+                .from_base58()
+                .with_input_err("Invalid field dest in genesis transaction")?;
 
             let node_verkey = crypto::import_verkey(&node_verkey)
                 .and_then(|vk| crypto::vk_to_curve25519(vk))
-                .to_result(
-                    LedgerErrorKind::InvalidStructure,
-                    "Invalid field dest in genesis transaction",
-                )?;
+                .with_input_err("Invalid field dest in genesis transaction")?;
 
             if txn.txn.data.data.services.is_none()
                 || !txn
@@ -761,22 +753,14 @@ fn _get_nodes_and_remotes(
                     .unwrap()
                     .contains(&"VALIDATOR".to_string())
             {
-                return Err(err_msg(
-                    LedgerErrorKind::InvalidState,
-                    "Node is not a validator",
-                )); // FIXME: review error kind
+                return Err(input_err("Node is not a validator")); // FIXME: review error kind
             }
 
             let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
                 (&Some(ref client_ip), &Some(ref client_port)) => {
                     format!("tcp://{}:{}", client_ip, client_port)
                 }
-                _ => {
-                    return Err(err_msg(
-                        LedgerErrorKind::InvalidState,
-                        "Client address not found",
-                    ))
-                }
+                _ => return Err(input_err("Client address not found")),
             };
 
             let remote = RemoteNode {
@@ -787,20 +771,20 @@ fn _get_nodes_and_remotes(
                 is_blacklisted: false,
             };
 
-            let verkey: Option<BlsVerKey> = match txn.txn.data.data.blskey {
-                Some(ref blskey) => {
-                    let key = blskey.as_str().from_base58().to_result(
-                        LedgerErrorKind::InvalidStructure,
-                        "Invalid field blskey in genesis transaction",
-                    )?;
+            let verkey: Option<BlsVerKey> =
+                match txn.txn.data.data.blskey {
+                    Some(ref blskey) => {
+                        let key = blskey
+                            .as_str()
+                            .from_base58()
+                            .with_input_err("Invalid field blskey in genesis transaction")?;
 
-                    Some(BlsVerKey::from_bytes(&key).to_result(
-                        LedgerErrorKind::InvalidStructure,
-                        "Invalid field blskey in genesis transaction",
-                    )?)
-                }
-                None => None,
-            };
+                        Some(BlsVerKey::from_bytes(&key).map_err(|_| {
+                            input_err("Invalid field blskey in genesis transaction")
+                        })?)
+                    }
+                    None => None,
+                };
             Ok(((node_alias, verkey), remote))
         })
         .fold((HashMap::new(), vec![]), |(mut map, mut vec), res| {

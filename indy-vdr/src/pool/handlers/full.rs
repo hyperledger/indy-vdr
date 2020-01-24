@@ -43,7 +43,7 @@ pub async fn handle_full_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::InvalidState,
+                        LedgerErrorKind::Network,
                         "Request ended prematurely",
                     )),
                     request.get_timing(),

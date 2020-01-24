@@ -27,10 +27,9 @@ impl ProtocolVersion {
     }
 
     pub fn from_str(value: &str) -> LedgerResult<Self> {
-        let value = value.parse::<u64>().to_result(
-            LedgerErrorKind::InvalidStructure,
-            format!("Invalid protocol version: {}", value),
-        )?;
+        let value = value
+            .parse::<u64>()
+            .map_input_err(|| format!("Invalid protocol version: {}", value))?;
         Self::from_id(value)
     }
 
@@ -46,10 +45,7 @@ impl TryFrom<u64> for ProtocolVersion {
         match value {
             x if x == Self::Node1_3 as u64 => Ok(Self::Node1_3),
             x if x == Self::Node1_4 as u64 => Ok(Self::Node1_4),
-            _ => Err(err_msg(
-                LedgerErrorKind::InvalidStructure,
-                format!("Unknown protocol version: {}", value),
-            )),
+            _ => Err(input_err(format!("Unknown protocol version: {}", value))),
         }
     }
 }
@@ -287,10 +283,8 @@ impl CatchupRep {
             .txns
             .keys()
             .map(|k| {
-                k.parse::<usize>().to_result(
-                    LedgerErrorKind::InvalidStructure,
-                    "Invalid key in catchup reply",
-                )
+                k.parse::<usize>()
+                    .with_input_err("Invalid key in catchup reply")
             })
             .collect::<LedgerResult<Vec<usize>>>()?;
         keys.sort();
@@ -298,10 +292,8 @@ impl CatchupRep {
             .iter()
             .flat_map(|k| {
                 let txn = self.txns.get(&k.to_string()).unwrap();
-                rmp_serde::to_vec_named(txn).to_result(
-                    LedgerErrorKind::InvalidStructure,
-                    "Invalid transaction -- can not transform to bytes",
-                )
+                rmp_serde::to_vec_named(txn)
+                    .with_input_err("Invalid transaction -- can not transform to bytes")
             })
             .collect())
     }
@@ -310,10 +302,9 @@ impl CatchupRep {
         let mut min = None;
 
         for (k, _) in self.txns.iter() {
-            let val = k.parse::<usize>().to_result(
-                LedgerErrorKind::InvalidStructure,
-                "Invalid key in catchup reply",
-            )?;
+            let val = k
+                .parse::<usize>()
+                .with_input_err("Invalid key in catchup reply")?;
 
             match min {
                 None => min = Some(val),
@@ -325,7 +316,7 @@ impl CatchupRep {
             }
         }
 
-        min.ok_or_else(|| err_msg(LedgerErrorKind::InvalidStructure, "Empty map"))
+        min.ok_or_else(|| input_err("Empty map"))
     }
 }
 
@@ -440,8 +431,7 @@ impl Message {
         match str {
             "po" => Ok(Message::Pong),
             "pi" => Ok(Message::Ping),
-            _ => serde_json::from_str::<Message>(str)
-                .to_result(LedgerErrorKind::InvalidStructure, "Malformed message json"),
+            _ => serde_json::from_str::<Message>(str).with_input_err("Malformed message json"),
         }
     }
 
@@ -456,11 +446,6 @@ impl Message {
     }
 
     pub fn serialize(&self) -> LedgerResult<serde_json::Value> {
-        serde_json::to_value(&self).map_err(|err| {
-            err_msg(
-                LedgerErrorKind::InvalidStructure,
-                format!("Cannot serialize Request: {:?}", err),
-            )
-        })
+        serde_json::to_value(&self).with_input_err("Cannot serialize message")
     }
 }

@@ -120,7 +120,7 @@ pub async fn perform_catchup<T: Pool>(
                     root_hash, target_hash
                 );
                 return Err(err_msg(
-                    LedgerErrorKind::InvalidState,
+                    LedgerErrorKind::Unexpected,
                     "Merkle tree root mismatch",
                 ));
             }
@@ -144,18 +144,6 @@ pub async fn perform_get_txn<T: Pool>(
 }
 
 // FIXME testing only
-pub async fn perform_get_txn_full<T: Pool>(
-    pool: &T,
-    ledger_type: i32,
-    seq_no: i32,
-    timeout: Option<i64>,
-) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
-    let builder = pool.get_request_builder();
-    let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
-    perform_ledger_request(pool, prepared, Some(RequestTarget::Full(None, timeout))).await
-}
-
-// FIXME testing only
 pub async fn perform_get_validator_info<T: Pool>(
     pool: &T,
 ) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
@@ -176,10 +164,7 @@ pub fn format_full_reply(replies: NodeReplies<String>) -> LedgerResult<String> {
             )
         },
     )))
-    .to_result(
-        LedgerErrorKind::InvalidStructure,
-        format!("Error serializing response"),
-    )
+    .with_input_err("Error serializing response")
 }
 
 pub async fn perform_ledger_request<T: Pool>(

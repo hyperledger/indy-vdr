@@ -47,9 +47,7 @@ fn _serialize_signature(
                     let hash = digest::<Sha256>(
                         &value
                             .as_str()
-                            .ok_or_else(|| {
-                                err_msg(LedgerErrorKind::InvalidState, "Cannot update hash context")
-                            })?
+                            .ok_or_else(|| input_err("Cannot update hash context"))?
                             .as_bytes(),
                     );
                     value = SJsonValue::String(hex::encode(hash));

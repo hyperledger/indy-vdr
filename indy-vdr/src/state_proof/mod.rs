@@ -651,20 +651,20 @@ fn _parse_reply_for_sp(
     parsed_data: &SJsonValue,
     xtype: &str,
     sp_key: &[u8],
-) -> Result<ParsedSP, String> {
+) -> LedgerResult<ParsedSP> {
     let (proof, root_hash, ver_type, multi_sig) = if xtype != constants::GET_TXN {
         let proof = if let Some(proof) = json_msg["state_proof"]["proof_nodes"].as_str() {
             trace!("_parse_reply_for_sp: proof: {:?}", proof);
             proof.to_string()
         } else {
-            return Err("No proof".to_string());
+            return Err(input_err("No proof"));
         };
 
         let root_hash = if let Some(root_hash) = json_msg["state_proof"]["root_hash"].as_str() {
             trace!("_parse_reply_for_sp: root_hash: {:?}", root_hash);
             root_hash
         } else {
-            return Err("No root hash".to_string());
+            return Err(input_err("No root hash"));
         };
 
         (
@@ -679,21 +679,21 @@ fn _parse_reply_for_sp(
             trace!("parse_reply_for_builtin_sp: proof: {:?}", path);
             base64::encode(&path_str)
         } else {
-            return Err("No proof".to_string());
+            return Err(input_err("No proof"));
         };
 
         let root_hash = if let Some(root_hash) = parsed_data["rootHash"].as_str() {
             trace!("_parse_reply_for_sp: root_hash: {:?}", root_hash);
             root_hash
         } else {
-            return Err("No root hash".to_string());
+            return Err(input_err("No root hash"));
         };
 
         let len = if let Some(len) = parsed_data["ledgerSize"].as_u64() {
             trace!("Ledger length: {}", len);
             len
         } else {
-            return Err("No ledger length for this proof".to_string());
+            return Err(input_err("No ledger length for this proof"));
         };
 
         (
@@ -708,13 +708,7 @@ fn _parse_reply_for_sp(
     };
 
     let value: Option<String> =
-        match _parse_reply_for_proof_value(json_msg, data, parsed_data, xtype, sp_key) {
-            Ok(value) => value,
-            Err(err_str) => {
-                return Err(err_str);
-            }
-        };
-
+        _parse_reply_for_proof_value(json_msg, data, parsed_data, xtype, sp_key)?;
     trace!(
         "_parse_reply_for_sp: <<< proof {:?}, root_hash: {:?}, dest: {:?}, value: {:?}",
         proof,
@@ -1042,12 +1036,7 @@ fn _verify_proof_signature(
         if participants.contains(&name.as_str()) {
             match *verkey {
                 Some(ref blskey) => ver_keys.push(blskey),
-                _ => {
-                    return Err(err_msg(
-                        LedgerErrorKind::InvalidState,
-                        format!("Blskey not found for node: {:?}", name),
-                    ))
-                }
+                _ => return Err(input_err(format!("Blskey not found for node: {:?}", name))),
             };
         }
     }
@@ -1085,7 +1074,7 @@ fn _parse_reply_for_proof_value(
     parsed_data: &SJsonValue,
     xtype: &str,
     sp_key: &[u8],
-) -> Result<Option<String>, String> {
+) -> LedgerResult<Option<String>> {
     if let Some(data) = data {
         let mut value = json!({});
 
@@ -1166,7 +1155,7 @@ fn _parse_reply_for_proof_value(
                         value["val"] = SJsonValue::from(map)
                     }
                 } else {
-                    return Err("Invalid data for GET_SCHEMA".to_string());
+                    return Err(input_err("Invalid data for GET_SCHEMA"));
                 };
             }
             constants::GET_REVOC_REG_DELTA => {
@@ -1182,11 +1171,11 @@ fn _parse_reply_for_proof_value(
                 } else {
                     value = SJsonValue::String(hex::encode(_calculate_taa_digest(parsed_data["text"].as_str().unwrap_or(""),
                                                                                  parsed_data["version"].as_str().unwrap_or(""))
-                        .map_err(|err| format!("Can't calculate expected TAA digest to verify StateProof on the request ({})", err))?));
+                        .with_input_err("Can't calculate expected TAA digest to verify StateProof on the request")?));
                 }
             }
             _ => {
-                return Err("Unknown transaction".to_string());
+                return Err(input_err("Unknown transaction"));
             }
         }
 

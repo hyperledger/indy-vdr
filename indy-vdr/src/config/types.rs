@@ -1,8 +1,9 @@
 pub use crate::pool::ProtocolVersion;
 
-use super::constants;
-
+use crate::common::error::prelude::*;
 use crate::utils::validation::Validatable;
+
+use super::constants;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PoolConfig {
@@ -16,24 +17,24 @@ pub struct PoolConfig {
 }
 
 impl Validatable for PoolConfig {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> LedgerResult<()> {
         if self.freshness_threshold == 0 {
-            return Err(String::from("`freshness_threshold` must be greater than 0"));
+            return Err(input_err("`freshness_threshold` must be greater than 0"));
         }
         if self.ack_timeout <= 0 {
-            return Err(String::from("`ack_timeout` must be greater than 0"));
+            return Err(input_err("`ack_timeout` must be greater than 0"));
         }
         if self.reply_timeout <= 0 {
-            return Err(String::from("`reply_timeout` must be greater than 0"));
+            return Err(input_err("`reply_timeout` must be greater than 0"));
         }
         if self.conn_request_limit == 0 {
-            return Err(String::from("`conn_request_limit` must be greater than 0"));
+            return Err(input_err("`conn_request_limit` must be greater than 0"));
         }
         if self.conn_active_timeout <= 0 {
-            return Err(String::from("`conn_active_timeout` must be greater than 0"));
+            return Err(input_err("`conn_active_timeout` must be greater than 0"));
         }
         if self.request_read_nodes == 0 {
-            return Err(String::from("`request_read_nodes` must be greater than 0"));
+            return Err(input_err("`request_read_nodes` must be greater than 0"));
         }
         Ok(())
     }
