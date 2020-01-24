@@ -16,6 +16,7 @@ pub fn load_config() -> Result<Config, String> {
         .arg(
             Arg::with_name("genesis")
                 .short("g")
+                .long("genesis")
                 .value_name("GENESIS")
                 .help("Path to the ledger genesis transactions")
                 .takes_value(true),
@@ -23,6 +24,7 @@ pub fn load_config() -> Result<Config, String> {
         .arg(
             Arg::with_name("host")
                 .short("h")
+                .long("host")
                 .value_name("HOST")
                 .default_value("0.0.0.0")
                 .help("Set the local address to listen on")
@@ -31,6 +33,7 @@ pub fn load_config() -> Result<Config, String> {
         .arg(
             Arg::with_name("port")
                 .short("p")
+                .long("port")
                 .value_name("PORT")
                 .help("Sets the local port to listen on")
                 .takes_value(true),
@@ -38,6 +41,7 @@ pub fn load_config() -> Result<Config, String> {
         .arg(
             Arg::with_name("socket")
                 .short("s")
+                .long("socket")
                 .value_name("SOCKET")
                 .help("Sets the UNIX socket path listen on")
                 .takes_value(true),

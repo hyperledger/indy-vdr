@@ -75,7 +75,7 @@ pub async fn handle_status_request<Request: PoolRequest>(
             Ok(CatchupProgress::InProgress) => {}
             Ok(CatchupProgress::NoConsensus) => {
                 return Ok((
-                    RequestResult::Failed(err_msg(LedgerErrorKind::NoConsensus, "No consensus")),
+                    RequestResult::Failed(LedgerErrorKind::PoolNoConsensus.into()),
                     request.get_timing(),
                 ));
             }

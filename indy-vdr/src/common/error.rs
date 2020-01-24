@@ -36,15 +36,13 @@ pub enum LedgerErrorKind {
     Resource,
     // Transaction errors
     #[error("No consensus from verifiers")]
-    NoConsensus,
+    PoolNoConsensus,
     #[error("Pool timeout")]
     PoolTimeout,
-    #[error("Bad request")]
-    BadRequest,
+    #[error("Request failed")]
+    PoolRequestFailed(String),
     #[error("Unavailable")]
     Unavailable,
-    #[error("Not found")]
-    NotFound,
 }
 
 impl LedgerError {
@@ -54,6 +52,10 @@ impl LedgerError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     ) -> Self {
         Self { kind, msg, source }
+    }
+
+    pub fn kind(self) -> LedgerErrorKind {
+        self.kind
     }
 }
 

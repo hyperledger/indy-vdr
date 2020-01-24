@@ -130,10 +130,10 @@ pub async fn handle_single_request<Request: PoolRequest>(
             let err = {
                 let counts = replies.counts();
                 if counts.replies > 0 {
-                    LedgerErrorKind::NoConsensus.into()
+                    LedgerErrorKind::PoolNoConsensus.into()
                 } else if counts.failed > 0 {
                     let failed = replies.sample_failed().unwrap();
-                    (LedgerErrorKind::BadRequest, failed).into()
+                    LedgerErrorKind::PoolRequestFailed(failed).into()
                 } else {
                     LedgerErrorKind::PoolTimeout.into()
                 }
