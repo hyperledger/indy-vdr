@@ -172,6 +172,12 @@ async fn init_pool(genesis: String) -> LedgerResult<LocalPool> {
   Ok(pool)
 }
 
+async fn shutdown_signal() {
+  tokio::signal::ctrl_c()
+    .await
+    .expect("failed to install CTRL+C signal handler");
+}
+
 async fn run(config: app::Config) -> Result<(), String> {
   // FIXME track status of pool and return server-not-ready when it hasn't initialized
   let pool = init_pool(config.genesis)
@@ -195,7 +201,7 @@ async fn run(config: app::Config) -> Result<(), String> {
     });
     let server = Server::builder(uc).executor(LocalExec).serve(svc);
     println!("Listening on {} ...", socket);
-    server.await
+    server.with_graceful_shutdown(shutdown_signal()).await
   } else {
     let ip = config
       .host
@@ -214,7 +220,7 @@ async fn run(config: app::Config) -> Result<(), String> {
     });
     let server = builder.executor(LocalExec).serve(svc);
     println!("Listening on http://{} ...", addr);
-    server.await
+    server.with_graceful_shutdown(shutdown_signal()).await
   };
   result.map_err(|err| format!("Server terminated: {}", err))
 }
