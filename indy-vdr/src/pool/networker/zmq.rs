@@ -43,7 +43,7 @@ impl NetworkerFactory for ZMQNetworker {
         let worker = thread::spawn(move || {
             let mut zmq_thread = ZMQThread::new(config, cmd_recv, evt_recv, worker_keys, remotes);
             if let Err(err) = zmq_thread.work() {
-                error!("ZMQ worker exited with error: {}", err.to_string())
+                warn!("ZMQ worker exited with error: {}", err.to_string())
             } else {
                 trace!("ZMQ worker exited");
             }
@@ -509,7 +509,7 @@ impl ZMQConnection {
                                 SystemTime::now(),
                             ))
                         }
-                        Err(err) => error!("Error parsing received message: {:?}", err),
+                        Err(err) => debug!("Error parsing received message: {:?}", err),
                     }
                 }
             }
@@ -790,7 +790,7 @@ fn _get_nodes_and_remotes(
         .fold((HashMap::new(), vec![]), |(mut map, mut vec), res| {
             match res {
                 Err(e) => {
-                    error!("Error during retrieving nodes: {:?}", e);
+                    info!("Error when retrieving nodes: {:?}", e);
                 }
                 Ok(((alias, verkey), remote)) => {
                     map.insert(alias.clone(), verkey);

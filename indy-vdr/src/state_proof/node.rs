@@ -95,7 +95,7 @@ impl rlp::Decodable for Node {
                         next: Box::new(rlp.at(1)?.as_val()?),
                     }))
                 } else {
-                    error!(
+                    debug!(
                         "RLP for path in Patricia Merkle Trie contains incorrect flags byte {}",
                         path[0]
                     );
@@ -128,7 +128,7 @@ impl rlp::Decodable for Node {
             RlpPrototype::Data(Node::HASH_SIZE) => Ok(Node::Hash(rlp.as_val()?)),
             RlpPrototype::Data(Node::EMPTY_SIZE) => Ok(Node::Blank),
             _ => {
-                error!(
+                debug!(
                     "Unexpected data while parsing Patricia Merkle Trie: {:?}: {:?}",
                     rlp.prototype(),
                     rlp

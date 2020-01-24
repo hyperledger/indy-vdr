@@ -115,7 +115,7 @@ pub async fn perform_catchup<T: Pool>(
             let root_hash = merkle.root_hash().to_base58();
             let target_hash = target_root.to_base58();
             if root_hash != target_hash {
-                error!(
+                warn!(
                     "Merkle tree root mismatch, target {}, found {}",
                     root_hash, target_hash
                 );

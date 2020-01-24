@@ -450,7 +450,6 @@ impl RequestBuilder {
     ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
         let req_json: SJsonValue =
             serde_json::from_str(message).with_input_err("Invalid request JSON")?;
-        error!("Message: {}", req_json);
 
         let protocol_version = ProtocolVersion::from_id(
             req_json["protocolVersion"]
