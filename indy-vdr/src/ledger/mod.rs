@@ -19,14 +19,20 @@ use crate::utils::signature::serialize_signature;
 use self::domain::attrib::{AttribOperation, GetAttribOperation};
 use self::domain::auth_rule::*;
 use self::domain::author_agreement::*;
+use self::domain::cred_def::{
+    CredDefOperation, CredentialDefinitionId, CredentialDefinitionV1, GetCredDefOperation,
+};
 use self::domain::ddo::GetDdoOperation;
 use self::domain::node::{NodeOperation, NodeOperationData};
 use self::domain::nym::{GetNymOperation, NymOperation};
 use self::domain::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
-use self::domain::request::RequestType;
-use self::domain::request::{get_request_id, Request, TxnAuthrAgrmtAcceptanceData};
+use self::domain::request::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
+use self::domain::schema::{
+    GetSchemaOperation, GetSchemaOperationData, SchemaId, SchemaOperation, SchemaOperationData,
+    SchemaV1,
+};
 use self::domain::txn::GetTxnOperation;
 use self::domain::validator_info::GetValidatorInfoOperation;
 
@@ -402,6 +408,63 @@ impl RequestBuilder {
             GetAcceptanceMechanismOperation::new(timestamp, version.map(String::from)),
             identifier,
         )
+    }
+
+    pub fn build_schema_request(
+        &self,
+        identifier: &DidValue,
+        schema: SchemaV1,
+    ) -> LedgerResult<PreparedRequest> {
+        let schema_data =
+            SchemaOperationData::new(schema.name, schema.version, schema.attr_names.into());
+        self.build(SchemaOperation::new(schema_data), Some(identifier))
+    }
+
+    pub fn build_get_schema_request(
+        &self,
+        identifier: Option<&DidValue>,
+        id: &SchemaId,
+    ) -> LedgerResult<PreparedRequest> {
+        let id = id.to_unqualified();
+        let (dest, name, version) = id.parts().ok_or(input_err(format!(
+            "Schema ID `{}` cannot be used to build request: invalid number of parts",
+            id.0
+        )))?;
+        let data = GetSchemaOperationData::new(name, version);
+        self.build(GetSchemaOperation::new(dest.to_short(), data), identifier)
+    }
+
+    pub fn build_cred_def_request(
+        &self,
+        identifier: &DidValue,
+        cred_def: CredentialDefinitionV1,
+    ) -> LedgerResult<PreparedRequest> {
+        let cred_def: CredentialDefinitionV1 = CredentialDefinitionV1 {
+            id: cred_def.id.to_unqualified(),
+            schema_id: cred_def.schema_id.to_unqualified(),
+            signature_type: cred_def.signature_type,
+            tag: cred_def.tag,
+            value: cred_def.value,
+        };
+        self.build(CredDefOperation::new(cred_def), Some(identifier))
+    }
+
+    pub fn build_get_cred_def_request(
+        &self,
+        identifier: Option<&DidValue>,
+        id: &CredentialDefinitionId,
+    ) -> LedgerResult<PreparedRequest> {
+        let id = id.to_unqualified();
+        let (origin, signature_type, schema_id, tag) = id.parts()
+            .ok_or_else(|| input_err(format!("Credential Definition ID `{}` cannot be used to build request: invalid number of parts", id.0)))?;
+
+        let ref_ = schema_id
+            .0
+            .parse::<i32>()
+            .map_input_err(|| format!("Schema ID is invalid number in: {:?}", id))?;
+        let operation =
+            GetCredDefOperation::new(ref_, signature_type, origin.to_short(), Some(tag));
+        self.build(operation, identifier)
     }
 
     pub fn prepare_acceptance_data(
