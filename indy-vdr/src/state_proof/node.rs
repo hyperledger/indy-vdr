@@ -394,7 +394,6 @@ impl Node {
         let nibble_path = Node::path_to_nibbles(path);
         match self._get_value(db, nibble_path.as_slice())? {
             Some(v) => {
-                trace!("Raw value from Patricia Merkle Trie {:?}", v);
                 let mut vec: Vec<Vec<u8>> = UntrustedRlp::new(v.as_slice())
                     .as_list()
                     .unwrap_or_default(); //default will cause error below

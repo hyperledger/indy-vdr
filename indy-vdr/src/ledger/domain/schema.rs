@@ -78,6 +78,12 @@ impl SchemaId {
             None => self.clone(),
         }
     }
+
+    pub fn from_str(schema_id: &str) -> LedgerResult<Self> {
+        let schema_id = Self(schema_id.to_owned());
+        schema_id.validate()?;
+        Ok(schema_id)
+    }
 }
 
 impl Validatable for SchemaId {

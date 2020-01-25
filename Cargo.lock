@@ -750,6 +750,7 @@ dependencies = [
  "hyper-unix-connector 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "indy-vdr 0.1.0",
  "log 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

@@ -175,6 +175,12 @@ impl CredentialDefinitionId {
             None => self.clone(),
         }
     }
+
+    pub fn from_str(cred_def_id: &str) -> LedgerResult<Self> {
+        let cred_def_id = Self(cred_def_id.to_owned());
+        cred_def_id.validate()?;
+        Ok(cred_def_id)
+    }
 }
 
 impl Validatable for CredentialDefinitionId {

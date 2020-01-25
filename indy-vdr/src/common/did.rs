@@ -58,6 +58,12 @@ impl DidValue {
             None => true,
         }
     }
+
+    pub fn from_str(did: &str) -> LedgerResult<Self> {
+        let did = Self(did.to_owned());
+        did.validate()?;
+        Ok(did)
+    }
 }
 
 impl Validatable for DidValue {
