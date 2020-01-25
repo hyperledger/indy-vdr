@@ -1,5 +1,5 @@
-pub use std::sync::atomic::{AtomicUsize, Ordering};
-
+#[macro_use]
+mod macros;
 #[macro_use]
 pub mod qualifier;
 

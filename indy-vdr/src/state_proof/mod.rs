@@ -808,7 +808,7 @@ fn _parse_reply_for_proof_signature_checking(
     match (
         json_msg["signature"].as_str(),
         json_msg["participants"].as_array(),
-        rmp_serde::to_vec_named(&json_msg["value"]).map_err(map_err_trace!()),
+        rmp_serde::to_vec_named(&json_msg["value"]),
     ) {
         (Some(signature), Some(participants), Ok(value)) => {
             let participants_unwrap: Vec<&str> =
@@ -819,6 +819,10 @@ fn _parse_reply_for_proof_signature_checking(
             } else {
                 None
             }
+        }
+        (_, _, Err(err)) => {
+            debug!("Error deserializing transaction: {}", err);
+            None
         }
         _ => None,
     }
@@ -931,9 +935,10 @@ fn _verify_proof(
     key: &[u8],
     expected_value: Option<&str>,
 ) -> bool {
-    debug!(
+    trace!(
         "verify_proof >> key {:?}, expected_value {:?}",
-        key, expected_value
+        key,
+        expected_value
     );
     let nodes: Vec<Node> = UntrustedRlp::new(proofs_rlp).as_list().unwrap_or_default(); //default will cause error below
     let mut map: TrieDB = HashMap::with_capacity(nodes.len());
@@ -943,7 +948,7 @@ fn _verify_proof(
     map.get(root_hash)
         .map(|root| {
             root.get_str_value(&map, key)
-                .map_err(map_err_trace!())
+                .map_err(map_err_debug!())
                 .map(|value| value.as_ref().map(String::as_str).eq(&expected_value))
                 .unwrap_or(false)
         })
@@ -968,7 +973,7 @@ fn _verify_proof_range(
         map.insert(node.get_hash(), node);
     }
     map.get(root_hash).map(|root| {
-        let res = root.get_all_values(&map, Some(prefix.as_bytes())).map_err(map_err_err!());
+        let res = root.get_all_values(&map, Some(prefix.as_bytes()));
         trace!("All values from trie: {:?}", res);
         let vals = if let Ok(vals) = res {
             vals

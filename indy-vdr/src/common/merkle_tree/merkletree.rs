@@ -1,5 +1,3 @@
-use crate::hex;
-
 use crate::common::error::LedgerResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash, EMPTY_HASH_BYTES};
 
