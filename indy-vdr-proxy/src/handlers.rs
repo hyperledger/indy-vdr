@@ -1,10 +1,12 @@
 extern crate env_logger;
 extern crate indy_vdr;
 extern crate log;
+extern crate percent_encoding;
 extern crate serde_json;
 
 use hyper::{Body, Method, Request, Response, StatusCode};
 use log::trace;
+use percent_encoding::percent_decode_str;
 
 use indy_vdr::common::did::DidValue;
 use indy_vdr::config::{LedgerError, LedgerErrorKind, LedgerResult};
@@ -46,6 +48,49 @@ fn format_result<T: std::fmt::Debug>(result: LedgerResult<(String, T)>) -> Ledge
         Ok((msg, timing)) => format!("{}\n\n{:?}", msg, timing),
         Err(err) => err.to_string(),
     })
+}
+
+fn format_ledger_error(err: LedgerError) -> Result<Response<Body>, hyper::Error> {
+    let msg = err.to_string();
+    let (errcode, msg) = match err.kind() {
+        LedgerErrorKind::PoolRequestFailed(failed) => (StatusCode::BAD_REQUEST, failed),
+        LedgerErrorKind::Input => (StatusCode::BAD_REQUEST, msg),
+        LedgerErrorKind::PoolTimeout => (StatusCode::GATEWAY_TIMEOUT, msg),
+        LedgerErrorKind::PoolNoConsensus => (StatusCode::CONFLICT, msg),
+        // FIXME - UNAUTHORIZED error when BadRequest msg points to a missing signature
+        _ => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+    };
+    http_status_msg(errcode, msg)
+}
+
+trait HandleLedgerError {
+    fn make_response(self) -> Result<Response<Body>, hyper::Error>;
+}
+
+impl<T> HandleLedgerError for LedgerResult<T>
+where
+    Body: From<T>,
+{
+    fn make_response(self) -> Result<Response<Body>, hyper::Error> {
+        match self {
+            Err(err) => format_ledger_error(err),
+            Ok(msg) => Ok(Response::builder().body(Body::from(msg)).unwrap()),
+        }
+    }
+}
+
+fn http_status(code: StatusCode) -> Result<Response<Body>, hyper::Error> {
+    http_status_msg(code, "")
+}
+
+fn http_status_msg<M>(code: StatusCode, msg: M) -> Result<Response<Body>, hyper::Error>
+where
+    Body: From<M>,
+{
+    Ok(Response::builder()
+        .status(code)
+        .body(Body::from(msg))
+        .unwrap())
 }
 
 async fn get_genesis<T: Pool>(pool: &T) -> LedgerResult<String> {
@@ -140,67 +185,28 @@ async fn submit_request<T: Pool>(
     Ok((response, format!("{:?}", timing)))
 }
 
-fn format_ledger_error(err: LedgerError) -> Result<Response<Body>, hyper::Error> {
-    let msg = err.to_string();
-    let (errcode, msg) = match err.kind() {
-        LedgerErrorKind::PoolRequestFailed(failed) => (StatusCode::BAD_REQUEST, failed),
-        LedgerErrorKind::Input => (StatusCode::BAD_REQUEST, msg),
-        LedgerErrorKind::PoolTimeout => (StatusCode::GATEWAY_TIMEOUT, msg),
-        LedgerErrorKind::PoolNoConsensus => (StatusCode::CONFLICT, msg),
-        // FIXME - UNAUTHORIZED error when BadRequest msg points to a missing signature
-        _ => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-    };
-    http_status_msg(errcode, msg)
-}
-
-trait HandleLedgerError {
-    fn make_response(self) -> Result<Response<Body>, hyper::Error>;
-}
-
-impl<T> HandleLedgerError for LedgerResult<T>
-where
-    Body: From<T>,
-{
-    fn make_response(self) -> Result<Response<Body>, hyper::Error> {
-        match self {
-            Err(err) => format_ledger_error(err),
-            Ok(msg) => Ok(Response::builder().body(Body::from(msg)).unwrap()),
-        }
-    }
-}
-
-fn http_status(code: StatusCode) -> Result<Response<Body>, hyper::Error> {
-    http_status_msg(code, "")
-}
-
-fn http_status_msg<M>(code: StatusCode, msg: M) -> Result<Response<Body>, hyper::Error>
-where
-    Body: From<M>,
-{
-    Ok(Response::builder()
-        .status(code)
-        .body(Body::from(msg))
-        .unwrap())
-}
-
 pub async fn handle_request<T: Pool>(
     req: Request<Body>,
     pool: T,
 ) -> Result<Response<Body>, hyper::Error> {
-    let mut parts = req.uri().path().split('/');
+    let mut parts = req
+        .uri()
+        .path()
+        .split('/')
+        .map(percent_decode_str)
+        .flat_map(|part| part.decode_utf8().map(|p| p.into_owned()).ok());
     let fst = parts.next();
-    // path must start with '/'
     if fst.is_none() || !fst.unwrap().is_empty() {
+        // path must start with '/'
         return http_status(StatusCode::NOT_FOUND);
     }
     let pretty = req.uri().query() == Some("fmt");
-    match (req.method(), parts.next()) {
-        (&Method::GET, Some("")) => http_status(StatusCode::OK),
-        (&Method::GET, Some("status")) => {
-            test_get_validator_info(&pool, pretty).await.make_response()
-        }
-        (&Method::GET, Some("submit")) => http_status(StatusCode::METHOD_NOT_ALLOWED),
-        (&Method::POST, Some("submit")) => {
+    let fst = parts.next().unwrap_or_else(|| "".to_owned());
+    match (req.method(), fst.as_str()) {
+        (&Method::GET, "") => http_status(StatusCode::OK),
+        (&Method::GET, "status") => test_get_validator_info(&pool, pretty).await.make_response(),
+        (&Method::GET, "submit") => http_status(StatusCode::METHOD_NOT_ALLOWED),
+        (&Method::POST, "submit") => {
             let body_bytes = hyper::body::to_bytes(req.into_body()).await?;
             let body = body_bytes.iter().cloned().collect::<Vec<u8>>();
             if !body.is_empty() {
@@ -218,43 +224,43 @@ pub async fn handle_request<T: Pool>(
                 http_status(StatusCode::BAD_REQUEST)
             }
         }
-        (&Method::GET, Some("genesis")) => get_genesis(&pool).await.make_response(),
-        (&Method::GET, Some("taa")) => get_taa(&pool, pretty).await.make_response(),
-        (&Method::GET, Some("aml")) => get_aml(&pool, pretty).await.make_response(),
-        (&Method::GET, Some("attrib")) => {
+        (&Method::GET, "genesis") => get_genesis(&pool).await.make_response(),
+        (&Method::GET, "taa") => get_taa(&pool, pretty).await.make_response(),
+        (&Method::GET, "aml") => get_aml(&pool, pretty).await.make_response(),
+        (&Method::GET, "attrib") => {
             if let (Some(dest), Some(attrib)) = (parts.next(), parts.next()) {
                 // NOTE: 'endpoint' is currently the only supported attribute
-                get_attrib(&pool, dest, attrib, pretty)
+                get_attrib(&pool, &*dest, &*attrib, pretty)
                     .await
                     .make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }
         }
-        (&Method::GET, Some("cred_def")) => {
+        (&Method::GET, "cred_def") => {
             if let Some(cred_def_id) = parts.next() {
-                get_cred_def(&pool, cred_def_id, pretty)
+                get_cred_def(&pool, &*cred_def_id, pretty)
                     .await
                     .make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }
         }
-        (&Method::GET, Some("nym")) => {
+        (&Method::GET, "nym") => {
             if let Some(nym) = parts.next() {
-                get_nym(&pool, nym, pretty).await.make_response()
+                get_nym(&pool, &*nym, pretty).await.make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }
         }
-        (&Method::GET, Some("schema")) => {
+        (&Method::GET, "schema") => {
             if let Some(schema_id) = parts.next() {
-                get_schema(&pool, schema_id, pretty).await.make_response()
+                get_schema(&pool, &*schema_id, pretty).await.make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }
         }
-        (&Method::GET, Some("txn")) => {
+        (&Method::GET, "txn") => {
             if let (Some(ledger), Some(txn)) = (parts.next(), parts.next()) {
                 if let (Ok(ledger), Ok(txn)) = (ledger.parse::<i32>(), txn.parse::<i32>()) {
                     return get_txn(&pool, ledger, txn, pretty).await.make_response();
@@ -262,10 +268,7 @@ pub async fn handle_request<T: Pool>(
             }
             http_status(StatusCode::NOT_FOUND)
         }
-        (&Method::GET, _) => {
-            //if path.starts_with
-            http_status(StatusCode::NOT_FOUND)
-        }
+        (&Method::GET, _) => http_status(StatusCode::NOT_FOUND),
         _ => http_status(StatusCode::METHOD_NOT_ALLOWED),
     }
 }
