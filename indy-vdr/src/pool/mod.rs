@@ -298,6 +298,7 @@ impl<T: RefNetworker> Pool for DynPool<T> {
             let handle = RequestHandle::next();
             let node_keys = instance.as_ref().node_keys();
             let node_order = choose_nodes(&node_keys, weights);
+            debug!("New {}: {}", handle, &req_json);
             instance
                 .as_ref()
                 .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;

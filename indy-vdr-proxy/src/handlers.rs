@@ -62,6 +62,24 @@ async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, pretty: bool) -> Led
     format_result(format_request_result(result, pretty))
 }
 
+async fn get_attrib<T: Pool>(
+    pool: &T,
+    dest: &str,
+    raw: &str,
+    pretty: bool,
+) -> LedgerResult<String> {
+    let dest = DidValue::from_str(dest)?;
+    let request = pool.get_request_builder().build_get_attrib_request(
+        None,
+        &dest,
+        Some(raw.to_string()),
+        None,
+        None,
+    )?;
+    let result = perform_ledger_request(pool, request, None).await?;
+    format_result(format_request_result(result, pretty))
+}
+
 async fn get_nym<T: Pool>(pool: &T, nym: &str, pretty: bool) -> LedgerResult<String> {
     let nym = DidValue::from_str(nym)?;
     let request = pool
@@ -203,6 +221,16 @@ pub async fn handle_request<T: Pool>(
         (&Method::GET, Some("genesis")) => get_genesis(&pool).await.make_response(),
         (&Method::GET, Some("taa")) => get_taa(&pool, pretty).await.make_response(),
         (&Method::GET, Some("aml")) => get_aml(&pool, pretty).await.make_response(),
+        (&Method::GET, Some("attrib")) => {
+            if let (Some(dest), Some(attrib)) = (parts.next(), parts.next()) {
+                // NOTE: 'endpoint' is currently the only supported attribute
+                get_attrib(&pool, dest, attrib, pretty)
+                    .await
+                    .make_response()
+            } else {
+                http_status(StatusCode::NOT_FOUND)
+            }
+        }
         (&Method::GET, Some("cred_def")) => {
             if let Some(cred_def_id) = parts.next() {
                 get_cred_def(&pool, cred_def_id, pretty)
