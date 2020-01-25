@@ -1,6 +1,8 @@
+extern crate sha2;
+
 use crate::common::error::prelude::*;
 
-pub use crate::sha2::{Digest, Sha256};
+pub use sha2::{Digest, Sha256};
 
 pub type DefaultHash = Sha256;
 pub const HASHBYTES: usize = 32;

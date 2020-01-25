@@ -1,32 +1,18 @@
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
 
-// extern crate failure;
-// extern crate failure_derive;
+extern crate hex;
 
 #[macro_use]
 extern crate lazy_static;
 
-extern crate named_type;
-
 #[macro_use]
 extern crate log;
-extern crate log_derive;
 
-extern crate rmp_serde;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-
-extern crate base64;
-extern crate hex;
-extern crate rand;
-extern crate rlp;
-extern crate sha2;
-extern crate sha3;
-extern crate time;
-extern crate ursa;
 
 macro_rules! _map_err {
     ($lvl:expr, $expr:expr) => {

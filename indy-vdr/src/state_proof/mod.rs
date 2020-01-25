@@ -1,7 +1,5 @@
 extern crate base64;
-extern crate log_derive;
-extern crate rmp_serde;
-extern crate serde_json;
+extern crate rlp;
 
 pub mod constants;
 mod node;
@@ -140,7 +138,6 @@ pub fn get_cur_time() -> u64 {
     res
 }
 
-// #[logfn(Trace)]
 fn extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
     match msg_result["type"].as_str() {
         Some(constants::GET_REVOC_REG_DELTA) => {

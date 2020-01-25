@@ -1,6 +1,3 @@
-extern crate env_logger;
-extern crate indy_vdr;
-extern crate log;
 extern crate percent_encoding;
 extern crate serde_json;
 
