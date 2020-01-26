@@ -1,6 +1,6 @@
 use super::constants::GET_DDO;
 use super::did::ShortDidValue;
-use super::request::RequestType;
+use super::RequestType;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetDdoOperation {

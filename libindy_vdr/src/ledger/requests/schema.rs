@@ -1,9 +1,7 @@
 use super::constants::{GET_SCHEMA, SCHEMA};
-use super::request::{get_sp_key_marker, RequestType};
-// use super::response::{GetReplyResultV1, ReplyType};
+use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::did::{DidValue, ShortDidValue};
 use crate::common::error::prelude::*;
-use crate::pool::ProtocolVersion;
 use crate::utils::qualifier;
 use crate::utils::validation::Validatable;
 

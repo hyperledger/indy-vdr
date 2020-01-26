@@ -1,5 +1,5 @@
 use super::constants::{POOL_CONFIG, POOL_RESTART, POOL_UPGRADE};
-use super::request::RequestType;
+use super::RequestType;
 
 use std::collections::HashMap;
 

@@ -1,10 +1,8 @@
 use super::constants::{CRED_DEF, GET_CRED_DEF};
-// use super::response::{GetReplyResultV1, ReplyType};
-use super::request::{get_sp_key_marker, RequestType};
+use super::did::{DidValue, ShortDidValue};
 use super::schema::SchemaId;
-use crate::common::did::{DidValue, ShortDidValue};
+use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
-use crate::pool::ProtocolVersion;
 use crate::utils::qualifier;
 use crate::utils::validation::Validatable;
 

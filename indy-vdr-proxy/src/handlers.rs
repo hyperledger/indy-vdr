@@ -7,8 +7,8 @@ use percent_encoding::percent_decode_str;
 
 use indy_vdr::common::did::DidValue;
 use indy_vdr::config::{LedgerError, LedgerErrorKind, LedgerResult};
-use indy_vdr::ledger::domain::cred_def::CredentialDefinitionId;
-use indy_vdr::ledger::domain::schema::SchemaId;
+use indy_vdr::ledger::requests::cred_def::CredentialDefinitionId;
+use indy_vdr::ledger::requests::schema::SchemaId;
 use indy_vdr::pool::{
     perform_get_txn, perform_get_validator_info, perform_ledger_request, Pool, RequestResult,
     TimingResult,

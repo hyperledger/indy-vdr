@@ -6,8 +6,7 @@ use crate::utils::validation::Validatable;
 use super::constants::{
     GET_TXN_AUTHR_AGRMT, GET_TXN_AUTHR_AGRMT_AML, TXN_AUTHR_AGRMT, TXN_AUTHR_AGRMT_AML,
 };
-use super::request::RequestType;
-use super::ProtocolVersion;
+use super::{ProtocolVersion, RequestType};
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct TxnAuthorAgreementOperation {

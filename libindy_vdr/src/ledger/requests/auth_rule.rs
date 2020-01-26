@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::ops::Not;
 
 use super::constants::{AUTH_RULE, AUTH_RULES, GET_AUTH_RULE};
-use super::request::RequestType;
+use super::RequestType;
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug, Serialize, PartialEq)]

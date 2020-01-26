@@ -3,8 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use crate::common::error::prelude::*;
 
 use super::constants::GET_TXN;
-use super::request::RequestType;
-use super::ProtocolVersion;
+use super::{ProtocolVersion, RequestType};
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetTxnOperation {

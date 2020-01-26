@@ -1,5 +1,5 @@
 use super::constants::GET_VALIDATOR_INFO;
-use super::request::RequestType;
+use super::RequestType;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetValidatorInfoOperation {

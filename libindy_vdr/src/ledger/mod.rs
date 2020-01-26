@@ -1,5 +1,5 @@
 pub mod constants;
-pub mod domain;
+pub mod requests;
 
 use hex::FromHex;
 use serde_json::{self, Value as SJsonValue};
@@ -16,25 +16,25 @@ use crate::utils::crypto::{import_keypair, sign_message};
 use crate::utils::hash::{digest, Sha256};
 use crate::utils::signature::serialize_signature;
 
-use self::domain::attrib::{AttribOperation, GetAttribOperation};
-use self::domain::auth_rule::*;
-use self::domain::author_agreement::*;
-use self::domain::cred_def::{
+use self::requests::attrib::{AttribOperation, GetAttribOperation};
+use self::requests::auth_rule::*;
+use self::requests::author_agreement::*;
+use self::requests::cred_def::{
     CredDefOperation, CredentialDefinitionId, CredentialDefinitionV1, GetCredDefOperation,
 };
-use self::domain::ddo::GetDdoOperation;
-use self::domain::node::{NodeOperation, NodeOperationData};
-use self::domain::nym::{GetNymOperation, NymOperation};
-use self::domain::pool::{
+use self::requests::ddo::GetDdoOperation;
+use self::requests::node::{NodeOperation, NodeOperationData};
+use self::requests::nym::{GetNymOperation, NymOperation};
+use self::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
-use self::domain::request::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
-use self::domain::schema::{
+use self::requests::schema::{
     GetSchemaOperation, GetSchemaOperationData, SchemaId, SchemaOperation, SchemaOperationData,
     SchemaV1,
 };
-use self::domain::txn::GetTxnOperation;
-use self::domain::validator_info::GetValidatorInfoOperation;
+use self::requests::txn::GetTxnOperation;
+use self::requests::validator_info::GetValidatorInfoOperation;
+use self::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
 use self::constants::{
     txn_name_to_code, ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE,

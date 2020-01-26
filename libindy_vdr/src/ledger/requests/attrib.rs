@@ -1,7 +1,6 @@
 use super::constants::{ATTRIB, GET_ATTR};
 use super::did::ShortDidValue;
-use super::request::{get_sp_key_marker, RequestType};
-use super::ProtocolVersion;
+use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::LedgerResult;
 use crate::utils::hash::{digest, Sha256};
 

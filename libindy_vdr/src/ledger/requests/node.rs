@@ -3,7 +3,7 @@ use crate::utils::validation::Validatable;
 
 use super::constants::NODE;
 use super::did::ShortDidValue;
-use super::request::RequestType;
+use super::RequestType;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NodeOperation {

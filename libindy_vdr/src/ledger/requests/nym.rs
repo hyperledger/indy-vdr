@@ -3,8 +3,7 @@ use crate::utils::hash::{digest, Sha256};
 
 use super::constants::{GET_NYM, NYM};
 use super::did::ShortDidValue;
-use super::request::RequestType;
-use super::ProtocolVersion;
+use super::{ProtocolVersion, RequestType};
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {

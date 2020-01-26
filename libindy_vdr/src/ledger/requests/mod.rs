@@ -1,12 +1,29 @@
+pub mod attrib;
+pub mod auth_rule;
+pub mod author_agreement;
+pub mod cred_def;
+pub mod ddo;
+pub mod node;
+pub mod nym;
+pub mod pool;
+// pub mod request;
+pub mod schema;
+pub mod txn;
+pub mod validator_info;
+
+pub use super::constants;
+pub use crate::common::did;
+pub use crate::common::verkey;
+pub use crate::pool::ProtocolVersion;
+
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde;
 use serde_json;
 
-use super::did::{DidValue, ShortDidValue};
-use super::ProtocolVersion;
 use crate::common::error::prelude::*;
+use did::{DidValue, ShortDidValue};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -14,13 +31,6 @@ pub struct TxnAuthrAgrmtAcceptanceData {
     pub mechanism: String,
     pub taa_digest: String,
     pub time: u64,
-}
-
-pub fn get_request_id() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time has gone backwards")
-        .as_nanos() as u64
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -97,4 +107,11 @@ pub fn get_sp_key_marker(code: u8, protocol_version: ProtocolVersion) -> char {
     } else {
         (code + 48) as char // digit as ascii
     }
+}
+
+pub fn get_request_id() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time has gone backwards")
+        .as_nanos() as u64
 }
