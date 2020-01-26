@@ -1,8 +1,7 @@
-extern crate sha3;
-
 use std::collections::HashMap;
 
 use rlp::{DecoderError as RlpDecoderError, Prototype as RlpPrototype, RlpStream, UntrustedRlp};
+use ursa::hash::sha3;
 
 use crate::common::error::prelude::*;
 
