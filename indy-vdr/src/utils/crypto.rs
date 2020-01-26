@@ -9,10 +9,7 @@ pub const DEFAULT_CRYPTO_TYPE: &str = CRYPTO_TYPE_ED25519;
 
 #[allow(dead_code)]
 pub fn gen_keypair() -> LedgerResult<Keypair> {
-    let mut csprng = OsRng::new().with_err_msg(
-        LedgerErrorKind::Resource,
-        "Error creating random number generator",
-    )?;
+    let mut csprng = OsRng {};
     Ok(Keypair::generate(&mut csprng))
 }
 
