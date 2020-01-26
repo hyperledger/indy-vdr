@@ -1,6 +1,5 @@
 extern crate rand;
 extern crate rmp_serde;
-extern crate time;
 
 mod genesis;
 mod handlers;

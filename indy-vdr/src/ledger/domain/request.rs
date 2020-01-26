@@ -1,8 +1,8 @@
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde;
 use serde_json;
-use time;
 
 use super::did::{DidValue, ShortDidValue};
 use super::ProtocolVersion;
@@ -17,7 +17,10 @@ pub struct TxnAuthrAgrmtAcceptanceData {
 }
 
 pub fn get_request_id() -> u64 {
-    time::get_time().sec as u64 * (1e9 as u64) + time::get_time().nsec as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time has gone backwards")
+        .as_nanos() as u64
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
