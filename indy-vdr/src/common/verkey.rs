@@ -40,7 +40,7 @@ impl VerKey {
         enc: Option<&str>,
     ) -> LedgerResult<VerKey> {
         let (key, alg) = if key.contains(':') {
-            let splits: Vec<&str> = key.split(':').collect();
+            let splits: Vec<&str> = key.splitn(2, ':').collect();
             let alg = match splits[1] {
                 "" => alg,
                 _ => Some(splits[1]),
@@ -129,7 +129,7 @@ mod tests {
     fn from_key_works() {
         assert_eq!(
             VerKey::from_str("foo:bar:baz").unwrap(),
-            VerKey::new("foo", Some("bar:bar"), Some(DEFAULT_VERKEY_ENC))
+            VerKey::new("foo", Some("bar:baz"), Some(DEFAULT_VERKEY_ENC))
         )
     }
 
