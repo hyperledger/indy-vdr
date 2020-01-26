@@ -12,13 +12,13 @@ clap = "2.33.0"
 env_logger = { version ="0.7.1", default-features = false, features = ["atty", "humantime", "termcolor"] }
 hyper = "0.13.0"
 hyper-unix-connector = "0.1.4"
-log = "0.4.10"
+log = "0.4.8"
 percent-encoding = "2.1.0"
 serde_json = "1.0.40"
 tokio = { version = "0.2.9", features = ["rt-util", "signal"] }
-indy-vdr = { path = "../indy-vdr" }
+indy-vdr = { path = "../libindy_vdr" }
 
 [[bin]]
 name = "indy-vdr-proxy"
 path = "src/main.rs"
-# FIXME set max log level on log crate in release mode
+# NOTE suggest building release with feature "log/max_level_debug"

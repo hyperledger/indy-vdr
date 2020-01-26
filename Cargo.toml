@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "indy-vdr",
+    "libindy_vdr",
     "indy-vdr-proxy"
 ]
