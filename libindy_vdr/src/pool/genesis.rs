@@ -3,10 +3,14 @@ use std::collections::HashMap;
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use super::types::{NodeTransaction, NodeTransactionV0, NodeTransactionV1};
+use super::types::{
+    BlsVerKey, NodeTransaction, NodeTransactionV0, NodeTransactionV1, ProtocolVersion,
+    VerifierInfo, Verifiers,
+};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::pool::ProtocolVersion;
+use crate::utils::base58::FromBase58;
+use crate::utils::crypto;
 
 pub type TransactionMap = HashMap<String, NodeTransactionV1>;
 
@@ -91,7 +95,7 @@ pub fn build_node_state_from_tree(
 }
 
 pub fn build_node_state_from_json(
-    json_tnxs: Vec<String>,
+    json_tnxs: &Vec<String>,
     protocol_version: ProtocolVersion,
 ) -> LedgerResult<TransactionMap> {
     let mut gen_tnxs: TransactionMap = HashMap::new();
@@ -103,6 +107,82 @@ pub fn build_node_state_from_json(
         gen_tnxs.insert(dest, node_txn);
     }
     Ok(gen_tnxs)
+}
+
+pub fn build_verifiers(
+    transactions: &Vec<String>,
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<Verifiers> {
+    let txn_map = build_node_state_from_json(&transactions, protocol_version)?;
+    Ok(txn_map
+        .into_iter()
+        .map(|(public_key, txn)| {
+            if txn.txn.data.data.services.is_none()
+                || !txn
+                    .txn
+                    .data
+                    .data
+                    .services
+                    .as_ref()
+                    .unwrap()
+                    .contains(&"VALIDATOR".to_string())
+            {
+                return Err(input_err("Node is not a validator"));
+            }
+
+            let node_alias = txn.txn.data.data.alias.clone();
+
+            let verkey_bin = public_key
+                .from_base58()
+                .with_input_err("Invalid field dest in genesis transaction")?;
+
+            let enc_key = crypto::import_verkey(&verkey_bin)
+                .and_then(|vk| crypto::vk_to_curve25519(vk))
+                .with_input_err("Invalid field dest in genesis transaction")?;
+
+            let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
+                (&Some(ref client_ip), &Some(ref client_port)) => {
+                    format!("tcp://{}:{}", client_ip, client_port)
+                }
+                _ => return Err(input_err("Client address not found")),
+            };
+
+            let bls_key: Option<BlsVerKey> =
+                match txn.txn.data.data.blskey {
+                    Some(ref blskey) => {
+                        let key = blskey
+                            .as_str()
+                            .from_base58()
+                            .with_input_err("Invalid field blskey in genesis transaction")?;
+
+                        Some(BlsVerKey::from_bytes(&key).map_err(|_| {
+                            input_err("Invalid field blskey in genesis transaction")
+                        })?)
+                    }
+                    None => None,
+                };
+
+            let info = VerifierInfo {
+                address,
+                bls_key,
+                public_key,
+                enc_key,
+            };
+
+            Ok((node_alias, info))
+        })
+        .fold(HashMap::new(), |mut map, res| {
+            match res {
+                Err(e) => {
+                    info!("Error when retrieving nodes: {:?}", e);
+                }
+                Ok((alias, info)) => {
+                    map.insert(alias, info);
+                }
+            }
+            map
+        })
+        .into())
 }
 
 /*

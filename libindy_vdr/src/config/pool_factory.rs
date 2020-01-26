@@ -44,11 +44,11 @@ impl PoolFactory {
     }
 
     pub fn create_local(&self) -> LedgerResult<LocalPool> {
-        LocalPool::auto::<ZMQNetworker>(self.config, self.transactions.clone(), None)
+        LocalPool::build::<ZMQNetworker>(self.config, self.transactions.clone(), None)
     }
 
     pub fn create_shared(&self) -> LedgerResult<SharedPool> {
-        SharedPool::auto::<ZMQNetworker>(self.config, self.transactions.clone(), None)
+        SharedPool::build::<ZMQNetworker>(self.config, self.transactions.clone(), None)
     }
 }
 

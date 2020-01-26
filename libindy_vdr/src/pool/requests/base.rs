@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::pin::Pin;
 
 use futures::channel::mpsc::UnboundedReceiver;
@@ -9,8 +11,9 @@ use pin_utils::unsafe_pinned;
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
 
-use super::networker::{NetworkerEvent, RefNetworker};
+use super::networker::NetworkerEvent;
 use super::types::NodeKeys;
+use super::PoolSetup;
 use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming, TimingResult};
 
 new_handle_type!(RequestHandle, RQ_COUNTER);
@@ -30,35 +33,32 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> LedgerResult<Vec<String>>;
 }
 
-pub struct PoolRequestImpl<T: RefNetworker> {
+pub struct PoolRequestImpl<S: AsRef<PoolSetup>> {
     handle: RequestHandle,
     events: Option<UnboundedReceiver<RequestExtEvent>>,
-    pool_config: PoolConfig,
-    networker: T,
-    node_keys: NodeKeys,
     node_order: Vec<String>,
+    pool_setup: S,
     send_count: usize,
     state: RequestState,
     timing: RequestTiming,
 }
 
-impl<T: RefNetworker> PoolRequestImpl<T> {
+impl<S> PoolRequestImpl<S>
+where
+    S: AsRef<PoolSetup>,
+{
     unsafe_pinned!(events: Option<UnboundedReceiver<RequestExtEvent>>);
 
     pub fn new(
         handle: RequestHandle,
         events: UnboundedReceiver<RequestExtEvent>,
-        pool_config: PoolConfig,
-        networker: T,
-        node_keys: NodeKeys,
+        pool_setup: S,
         node_order: Vec<String>,
     ) -> Self {
         Self {
             handle,
             events: Some(events),
-            pool_config,
-            networker,
-            node_keys,
+            pool_setup,
             node_order,
             send_count: 0,
             state: RequestState::NotStarted,
@@ -67,13 +67,16 @@ impl<T: RefNetworker> PoolRequestImpl<T> {
     }
 
     fn trigger(&self, event: NetworkerEvent) -> LedgerResult<()> {
-        self.networker.as_ref().send(event)
+        self.pool_setup.as_ref().networker.send(event)
     }
 }
 
-impl<T: RefNetworker> Unpin for PoolRequestImpl<T> {}
+impl<S> Unpin for PoolRequestImpl<S> where S: AsRef<PoolSetup> {}
 
-impl<T: RefNetworker> PoolRequest for PoolRequestImpl<T> {
+impl<S> PoolRequest for PoolRequestImpl<S>
+where
+    S: AsRef<PoolSetup>,
+{
     fn clean_timeout(&self, node_alias: String) -> LedgerResult<()> {
         self.trigger(NetworkerEvent::CleanTimeout(self.handle, node_alias))
     }
@@ -104,11 +107,17 @@ impl<T: RefNetworker> PoolRequest for PoolRequestImpl<T> {
 
     fn node_keys(&self) -> NodeKeys {
         // FIXME - remove nodes that aren't present in node_aliases?
-        self.node_keys.clone()
+        HashMap::from_iter(
+            self.pool_setup
+                .as_ref()
+                .verifiers
+                .iter()
+                .map(|(alias, info)| (alias.to_owned(), info.bls_key.clone())),
+        )
     }
 
     fn pool_config(&self) -> PoolConfig {
-        self.pool_config
+        self.pool_setup.as_ref().config
     }
 
     fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()> {
@@ -157,13 +166,19 @@ impl<T: RefNetworker> PoolRequest for PoolRequestImpl<T> {
     }
 }
 
-impl<T: RefNetworker> std::fmt::Debug for PoolRequestImpl<T> {
+impl<S> std::fmt::Debug for PoolRequestImpl<S>
+where
+    S: AsRef<PoolSetup>,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "PoolRequest({}, state={})", *self.handle, self.state)
     }
 }
 
-impl<T: RefNetworker> Drop for PoolRequestImpl<T> {
+impl<S> Drop for PoolRequestImpl<S>
+where
+    S: AsRef<PoolSetup>,
+{
     fn drop(&mut self) {
         trace!("Finish dropped request: {}", self.handle);
         self.trigger(NetworkerEvent::FinishRequest(self.handle))
@@ -171,7 +186,10 @@ impl<T: RefNetworker> Drop for PoolRequestImpl<T> {
     }
 }
 
-impl<T: RefNetworker> Stream for PoolRequestImpl<T> {
+impl<S> Stream for PoolRequestImpl<S>
+where
+    S: AsRef<PoolSetup>,
+{
     type Item = RequestEvent;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -236,7 +254,10 @@ impl<T: RefNetworker> Stream for PoolRequestImpl<T> {
     }
 }
 
-impl<T: RefNetworker> FusedStream for PoolRequestImpl<T> {
+impl<S> FusedStream for PoolRequestImpl<S>
+where
+    S: AsRef<PoolSetup>,
+{
     fn is_terminated(&self) -> bool {
         self.state == RequestState::Terminated
     }

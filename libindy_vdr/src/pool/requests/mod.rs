@@ -3,7 +3,7 @@ use std::iter::FromIterator;
 use std::time::{Duration, SystemTime};
 
 use super::networker;
-use super::types::{self, Message};
+use super::types::{self, Message, PoolSetup};
 
 mod base;
 pub use base::{PoolRequest, PoolRequestImpl, RequestHandle};

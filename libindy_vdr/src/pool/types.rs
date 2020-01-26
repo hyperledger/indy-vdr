@@ -3,10 +3,12 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 use serde_json::{self, Value as SJsonValue};
-use ursa::bls::VerKey as BlsVerKey;
+pub use ursa::bls::VerKey as BlsVerKey;
 
+use super::networker::Networker;
 use crate::common::error::prelude::*;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
+use crate::config::PoolConfig;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ProtocolVersion {
@@ -447,5 +449,55 @@ impl Message {
 
     pub fn serialize(&self) -> LedgerResult<serde_json::Value> {
         serde_json::to_value(&self).with_input_err("Cannot serialize message")
+    }
+}
+
+pub struct VerifierInfo {
+    pub address: String,
+    pub public_key: String,
+    pub enc_key: Vec<u8>,
+    pub bls_key: Option<BlsVerKey>,
+}
+
+pub struct Verifiers {
+    inner: HashMap<String, VerifierInfo>,
+}
+
+impl From<HashMap<String, VerifierInfo>> for Verifiers {
+    fn from(inner: HashMap<String, VerifierInfo>) -> Self {
+        Self { inner }
+    }
+}
+
+impl std::ops::Deref for Verifiers {
+    type Target = HashMap<String, VerifierInfo>;
+    fn deref(&self) -> &HashMap<String, VerifierInfo> {
+        &self.inner
+    }
+}
+
+pub struct PoolSetup {
+    pub config: PoolConfig,
+    pub networker: Box<dyn Networker>,
+    pub node_weights: Option<HashMap<String, f32>>,
+    pub transactions: Vec<String>,
+    pub verifiers: Verifiers,
+}
+
+impl PoolSetup {
+    pub fn new(
+        config: PoolConfig,
+        networker: Box<dyn Networker>,
+        node_weights: Option<HashMap<String, f32>>,
+        transactions: Vec<String>,
+        verifiers: Verifiers,
+    ) -> Self {
+        Self {
+            config,
+            networker,
+            node_weights,
+            transactions,
+            verifiers,
+        }
     }
 }

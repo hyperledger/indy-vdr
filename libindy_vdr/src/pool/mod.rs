@@ -8,11 +8,9 @@ mod requests;
 mod types;
 
 pub use self::handlers::{CatchupTarget, NodeReplies, RequestResult};
-pub use self::networker::{
-    DeriveNetworker, Networker, NetworkerFactory, RefNetworker, ZMQNetworker,
-};
+pub use self::networker::{Networker, NetworkerFactory, ZMQNetworker};
 pub use self::requests::{RequestTarget, TimingResult};
-pub use self::types::{NodeKeys, ProtocolVersion};
+pub use self::types::{NodeKeys, ProtocolVersion, Verifiers};
 pub use crate::config::PoolConfig;
 
 use std::collections::HashMap;
@@ -30,14 +28,14 @@ use crate::common::error::prelude::*;
 use crate::ledger::{PreparedRequest, RequestBuilder};
 use crate::utils::base58::ToBase58;
 
-use genesis::{build_tree, dump_transactions};
-use handlers::{
+use self::genesis::{build_tree, build_verifiers, dump_transactions};
+use self::handlers::{
     build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
     handle_consensus_request, handle_full_request, handle_single_request, handle_status_request,
 };
-use networker::NetworkerEvent;
-use requests::{PoolRequest, PoolRequestImpl, RequestHandle};
-// use state_proof::parse_key_from_request_for_builtin_sp;
+use self::networker::NetworkerEvent;
+use self::requests::{PoolRequest, PoolRequestImpl, RequestHandle};
+use self::types::PoolSetup;
 
 pub async fn perform_pool_status_request<T: Pool>(
     pool: &T,
@@ -63,11 +61,9 @@ pub async fn perform_pool_catchup_request<T: Pool>(
     handle_catchup_request(request, merkle_tree, mt_root, mt_size).await
 }
 
-pub async fn perform_refresh<T: Pool>(
-    pool: &T,
-    txns: &Vec<String>,
-) -> LedgerResult<Option<Vec<String>>> {
-    let (result, timing) = perform_pool_status_request(pool, txns).await?;
+pub async fn perform_refresh<T: Pool>(pool: &T) -> LedgerResult<Option<Vec<String>>> {
+    let init_txns = pool.get_transactions();
+    let (result, timing) = perform_pool_status_request(pool, &init_txns).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {
@@ -78,7 +74,7 @@ pub async fn perform_refresh<T: Pool>(
                     mt_size,
                     timing
                 );
-                let txns = perform_catchup(pool, txns, mt_root, mt_size).await?;
+                let txns = perform_catchup(pool, &init_txns, mt_root, mt_size).await?;
                 Ok(Some(txns))
             }
             _ => {
@@ -189,8 +185,8 @@ pub async fn perform_ledger_request<T: Pool>(
     }
 }
 
-pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>) -> Vec<String> {
-    let mut weighted = node_keys
+pub fn choose_nodes(verifiers: &Verifiers, weights: Option<HashMap<String, f32>>) -> Vec<String> {
+    let mut weighted = verifiers
         .keys()
         .map(|name| {
             (
@@ -215,7 +211,7 @@ pub fn choose_nodes(node_keys: &NodeKeys, weights: Option<HashMap<String, f32>>)
     result
 }
 
-pub trait Pool {
+pub trait Pool: Clone {
     type Request: PoolRequest;
 
     fn get_config(&self) -> PoolConfig;
@@ -231,94 +227,82 @@ pub trait Pool {
 }
 
 #[derive(Clone)]
-pub struct DynPool<T: RefNetworker> {
-    config: PoolConfig,
-    networker: T,
-    node_weights: Option<HashMap<String, f32>>,
-    transactions: Vec<String>,
+pub struct PoolImpl<S: AsRef<PoolSetup> + Clone> {
+    inner: S,
 }
 
-pub type LocalPool = DynPool<Rc<dyn DeriveNetworker>>;
+pub type LocalPool = PoolImpl<Rc<PoolSetup>>;
 
-pub type SharedPool = DynPool<Arc<dyn DeriveNetworker>>;
+pub type SharedPool = PoolImpl<Arc<PoolSetup>>;
 
-impl<T: RefNetworker> DynPool<T> {
-    pub fn new(
-        config: PoolConfig,
-        transactions: Vec<String>,
-        networker: T,
-        node_weights: Option<HashMap<String, f32>>,
-    ) -> Self {
-        Self {
-            config,
-            networker,
-            node_weights,
-            transactions,
-        }
+impl<S> PoolImpl<S>
+where
+    S: AsRef<PoolSetup> + Clone + From<Box<PoolSetup>>,
+{
+    pub fn new(inner: S) -> Self {
+        Self { inner }
     }
 
-    pub fn auto<F>(
+    pub fn build<F>(
         config: PoolConfig,
         transactions: Vec<String>,
         node_weights: Option<HashMap<String, f32>>,
     ) -> LedgerResult<Self>
     where
         F: NetworkerFactory,
-        F::Output: DeriveNetworker + 'static,
+        F::Output: Networker + 'static,
     {
-        let networker = T::new(Box::new(F::create(config, transactions.clone())?));
-        Ok(Self::new(config, transactions, networker, node_weights))
+        let verifiers = build_verifiers(&transactions, config.protocol_version)?;
+        let networker = Box::new(F::create(config, &verifiers)?);
+        let inner = PoolSetup::new(config, networker, node_weights, transactions, verifiers);
+        Ok(Self::new(S::from(Box::new(inner))))
     }
-
-    pub async fn refresh(&mut self) -> LedgerResult<()> {
-        if let Some(mut txns) = perform_refresh(self, &self.transactions).await? {
-            trace!("{} new transaction(s)", txns.len());
-            self.transactions.append(&mut txns);
-            self.networker = self
-                .networker
-                .derived(self.config, self.transactions.clone())?;
+    /*
+        pub async fn refresh(&mut self) -> LedgerResult<()> {
+            if let Some(mut txns) = perform_refresh(self, &self.transactions).await? {
+                trace!("{} new transaction(s)", txns.len());
+                self.transactions.append(&mut txns);
+                self.networker = self
+                    .networker
+                    .derived(self.config, self.transactions.clone())?;
+            }
+            Ok(())
         }
-        Ok(())
-    }
+    */
 }
 
-impl<T: RefNetworker> Pool for DynPool<T> {
-    type Request = PoolRequestImpl<T>;
+impl<S> Pool for PoolImpl<S>
+where
+    S: AsRef<PoolSetup> + Clone,
+{
+    type Request = PoolRequestImpl<S>;
 
     fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>> {
-        let instance = self.networker.clone();
-        let weights = self.node_weights.clone();
+        let setup = self.inner.clone();
         lazy(move |_| {
             let (tx, rx) = unbounded();
             let handle = RequestHandle::next();
-            let node_keys = instance.as_ref().node_keys();
-            let node_order = choose_nodes(&node_keys, weights);
+            let setup_ref = setup.as_ref();
+            let node_order = choose_nodes(&setup_ref.verifiers, setup_ref.node_weights.clone());
             debug!("New {}: {}", handle, &req_json);
-            instance
-                .as_ref()
+            setup_ref
+                .networker
                 .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
-            Ok(PoolRequestImpl::new(
-                handle,
-                rx,
-                self.config,
-                instance.to_owned(),
-                node_keys,
-                node_order,
-            ))
+            Ok(PoolRequestImpl::new(handle, rx, setup, node_order))
         })
         .boxed_local()
     }
 
     fn get_config(&self) -> PoolConfig {
-        self.config
+        self.inner.as_ref().config
     }
 
     fn get_transactions(&self) -> Vec<String> {
-        self.transactions.clone()
+        self.inner.as_ref().transactions.clone()
     }
 }
 

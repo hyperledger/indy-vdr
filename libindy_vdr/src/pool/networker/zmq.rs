@@ -1,24 +1,22 @@
 extern crate zmq;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::iter::FromIterator;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use base64;
 use futures::channel::mpsc::UnboundedSender;
-use ursa::bls::VerKey as BlsVerKey;
 
 use zmq::PollItem;
 use zmq::Socket as ZSocket;
 
 use crate::common::error::prelude::*;
-use crate::config::{PoolConfig, ProtocolVersion};
-use crate::utils::base58::{FromBase58, ToBase58};
-use crate::utils::crypto;
+use crate::config::PoolConfig;
+use crate::utils::base58::ToBase58;
 
-use super::genesis::build_node_state_from_json;
-use super::types::{Message, NodeKeys};
+use super::types::{Message, Verifiers};
 use super::{Networker, NetworkerEvent, NetworkerFactory, RequestExtEvent, RequestHandle};
 
 new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
@@ -28,20 +26,18 @@ new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 pub struct ZMQNetworker {
     cmd_send: zmq::Socket,
     evt_send: mpsc::Sender<NetworkerEvent>,
-    node_keys: NodeKeys,
     worker: Option<thread::JoinHandle<()>>,
 }
 
 impl NetworkerFactory for ZMQNetworker {
     type Output = Self;
-    fn create(config: PoolConfig, transactions: Vec<String>) -> LedgerResult<Self> {
-        let (node_keys, remotes) = _get_nodes_and_remotes(transactions, config.protocol_version)?;
+    fn create(config: PoolConfig, verifiers: &Verifiers) -> LedgerResult<Self> {
+        let remotes = _get_remotes(verifiers);
         let socket_handle = *ZMQSocketHandle::next();
         let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
         let (evt_send, evt_recv) = mpsc::channel::<NetworkerEvent>();
-        let worker_keys = node_keys.clone();
         let worker = thread::spawn(move || {
-            let mut zmq_thread = ZMQThread::new(config, cmd_recv, evt_recv, worker_keys, remotes);
+            let mut zmq_thread = ZMQThread::new(config, cmd_recv, evt_recv, remotes);
             if let Err(err) = zmq_thread.work() {
                 warn!("ZMQ worker exited with error: {}", err.to_string())
             } else {
@@ -51,17 +47,12 @@ impl NetworkerFactory for ZMQNetworker {
         Ok(Self {
             cmd_send,
             evt_send,
-            node_keys,
             worker: Some(worker),
         })
     }
 }
 
 impl Networker for ZMQNetworker {
-    fn node_keys(&self) -> NodeKeys {
-        self.node_keys.clone()
-    }
-
     fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
         self.evt_send
             .send(event)
@@ -91,7 +82,7 @@ struct ZMQThread {
     config: PoolConfig,
     cmd_recv: zmq::Socket,
     evt_recv: mpsc::Receiver<NetworkerEvent>,
-    node_keys: NodeKeys,
+    node_aliases: HashSet<String>,
     remotes: Vec<RemoteNode>,
     requests: BTreeMap<RequestHandle, PendingRequest>,
     last_connection: Option<ZMQConnectionHandle>,
@@ -103,14 +94,14 @@ impl ZMQThread {
         config: PoolConfig,
         cmd_recv: zmq::Socket,
         evt_recv: mpsc::Receiver<NetworkerEvent>,
-        node_keys: NodeKeys,
         remotes: Vec<RemoteNode>,
     ) -> Self {
+        let node_aliases = HashSet::from_iter(remotes.iter().map(|r| r.name.clone()));
         ZMQThread {
             config,
             cmd_recv,
             evt_recv,
-            node_keys,
+            node_aliases,
             remotes,
             requests: BTreeMap::new(),
             last_connection: None,
@@ -334,7 +325,7 @@ impl ZMQThread {
         if let Some(request) = self.requests.get_mut(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 for node_alias in node_aliases {
-                    if !self.node_keys.contains_key(&node_alias) {
+                    if !self.node_aliases.contains(&node_alias) {
                         warn!("Cannot send to unknown node alias: {}", node_alias);
                         continue;
                     }
@@ -680,7 +671,7 @@ impl ZMQConnection {
 #[derive(Clone, Eq, PartialEq, Hash)]
 struct RemoteNode {
     pub name: String,
-    pub public_key: Vec<u8>,
+    pub enc_key: Vec<u8>,
     pub zaddr: String,
     pub is_blacklisted: bool,
 }
@@ -692,7 +683,7 @@ impl RemoteNode {
         s.set_curve_secretkey(&key_pair.secret_key)?;
         s.set_curve_publickey(&key_pair.public_key)?;
         s.set_curve_serverkey(
-            zmq::z85_encode(self.public_key.as_slice())
+            zmq::z85_encode(self.enc_key.as_slice())
                 .with_input_err("Can't encode server key as z85")? // FIXME: review kind
                 .as_bytes(),
         )?;
@@ -704,7 +695,7 @@ impl RemoteNode {
 
 impl std::fmt::Debug for RemoteNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let pubkey = self.public_key.to_base58();
+        let pubkey = self.enc_key.to_base58();
         write!(
             f,
             "RemoteNode {{ name: {}, public_key: {}, zaddr: {}, is_blacklisted: {:?} }}",
@@ -724,81 +715,16 @@ fn _create_pair_of_sockets(addr: &str) -> (zmq::Socket, zmq::Socket) {
     (send_cmd_sock, recv_cmd_sock)
 }
 
-fn _get_nodes_and_remotes(
-    transactions: Vec<String>,
-    protocol_version: ProtocolVersion,
-) -> LedgerResult<(NodeKeys, Vec<RemoteNode>)> {
-    let txn_map = build_node_state_from_json(transactions, protocol_version)?;
-    Ok(txn_map
+fn _get_remotes(verifiers: &Verifiers) -> Vec<RemoteNode> {
+    verifiers
         .iter()
-        .map(|(dest, txn)| {
-            let node_alias = txn.txn.data.data.alias.clone();
-
-            let node_verkey = dest
-                .as_str()
-                .from_base58()
-                .with_input_err("Invalid field dest in genesis transaction")?;
-
-            let node_verkey = crypto::import_verkey(&node_verkey)
-                .and_then(|vk| crypto::vk_to_curve25519(vk))
-                .with_input_err("Invalid field dest in genesis transaction")?;
-
-            if txn.txn.data.data.services.is_none()
-                || !txn
-                    .txn
-                    .data
-                    .data
-                    .services
-                    .as_ref()
-                    .unwrap()
-                    .contains(&"VALIDATOR".to_string())
-            {
-                return Err(input_err("Node is not a validator")); // FIXME: review error kind
-            }
-
-            let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
-                (&Some(ref client_ip), &Some(ref client_port)) => {
-                    format!("tcp://{}:{}", client_ip, client_port)
-                }
-                _ => return Err(input_err("Client address not found")),
-            };
-
-            let remote = RemoteNode {
-                name: node_alias.clone(),
-                public_key: node_verkey[..].to_vec(),
-                // TODO:FIXME
-                zaddr: address,
-                is_blacklisted: false,
-            };
-
-            let verkey: Option<BlsVerKey> =
-                match txn.txn.data.data.blskey {
-                    Some(ref blskey) => {
-                        let key = blskey
-                            .as_str()
-                            .from_base58()
-                            .with_input_err("Invalid field blskey in genesis transaction")?;
-
-                        Some(BlsVerKey::from_bytes(&key).map_err(|_| {
-                            input_err("Invalid field blskey in genesis transaction")
-                        })?)
-                    }
-                    None => None,
-                };
-            Ok(((node_alias, verkey), remote))
+        .map(|(alias, info)| RemoteNode {
+            name: alias.clone(),
+            enc_key: info.enc_key.clone(),
+            zaddr: info.address.clone(),
+            is_blacklisted: false,
         })
-        .fold((HashMap::new(), vec![]), |(mut map, mut vec), res| {
-            match res {
-                Err(e) => {
-                    info!("Error when retrieving nodes: {:?}", e);
-                }
-                Ok(((alias, verkey), remote)) => {
-                    map.insert(alias.clone(), verkey);
-                    vec.push(remote);
-                }
-            }
-            (map, vec)
-        }))
+        .collect()
 }
 
 #[derive(Debug)]
