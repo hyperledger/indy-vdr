@@ -1,22 +1,65 @@
-macro_rules! _map_err {
-    ($lvl:expr, $expr:expr) => {
-        |err| {
-            log!($lvl, "{} - {}", $expr, err);
-            err
-        }
-    };
-    ($lvl:expr) => {
-        |err| {
-            log!($lvl, "{}", err);
-            err
+#![allow(unused_macros)]
+
+macro_rules! format_noop {
+    ($($arg:tt)+) => {
+        {
+            // avoid unused variable warnings
+            let _ = format_args!($($arg)+);
         }
     };
 }
 
+#[cfg(not(feature = "log"))]
+macro_rules! log {
+    ($($arg:tt)+) => {
+        format_noop!($($arg)+)
+    };
+}
+#[cfg(not(feature = "log"))]
+macro_rules! error {
+    ($($arg:tt)+) => {
+        format_noop!($($arg)+)
+    };
+}
+#[cfg(not(feature = "log"))]
+macro_rules! warn {
+    ($($arg:tt)+) => {
+        format_noop!($($arg)+)
+    };
+}
+#[cfg(not(feature = "log"))]
+macro_rules! debug {
+    ($($arg:tt)+) => {
+        format_noop!($($arg)+)
+    };
+}
+#[cfg(not(feature = "log"))]
+macro_rules! info {
+    ($($arg:tt)+) => {
+        format_noop!($($arg)+)
+    };
+}
+#[cfg(not(feature = "log"))]
+macro_rules! trace {
+    ($($arg:tt)+) => {
+        format_noop!($($arg)+)
+    };
+}
+
 #[macro_export]
-macro_rules! map_err_debug {
-    () => ( _map_err!(::log::Level::Debug) );
-    ($($arg:tt)*) => ( _map_err!(::log::Level::Debug, $($arg)*) )
+macro_rules! map_err_log {
+    (level: $lvl:tt, $($arg:tt)+) => {
+        |err| {
+            $lvl!($($arg)+, err);
+            err
+        }
+    };
+    ($($arg:tt)+) => {
+        |err| {
+            log!($($arg)+, err);
+            err
+        }
+    };
 }
 
 macro_rules! unwrap_opt_or_return {

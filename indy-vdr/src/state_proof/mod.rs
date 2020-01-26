@@ -948,7 +948,7 @@ fn _verify_proof(
     map.get(root_hash)
         .map(|root| {
             root.get_str_value(&map, key)
-                .map_err(map_err_debug!())
+                .map_err(map_err_log!(level: debug, "{}"))
                 .map(|value| value.as_ref().map(String::as_str).eq(&expected_value))
                 .unwrap_or(false)
         })
