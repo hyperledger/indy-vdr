@@ -36,7 +36,7 @@ fn main() {
     .expect("build runtime");
 
   let local = tokio::task::LocalSet::new();
-  if let Err(err) = local.block_on(&mut rt, run(config)) {
+  if let Err(err) = local.block_on(&mut rt, init_server(config)) {
     eprintln!("{}", err);
     exit(1);
   }
@@ -102,33 +102,22 @@ async fn shutdown_signal() {
     .expect("failed to install CTRL+C signal handler");
 }
 
-async fn run(config: app::Config) -> Result<(), String> {
+async fn init_server(config: app::Config) -> Result<(), String> {
   let state = Rc::new(RefCell::new(
     init_app_state(config.genesis)
       .await
       .map_err(|err| format!("Error loading config: {}", err))?,
   ));
 
-  tokio::task::spawn_local(init_pool(state.clone(), true));
+  tokio::task::spawn_local(init_pool(state.clone(), config.init_refresh));
 
-  let result = if let Some(socket) = config.socket {
+  if let Some(socket) = config.socket {
     fs::remove_file(&socket)
       .map_err(|err| format!("Error removing socket: {}", err.to_string()))?;
     let uc: UnixConnector = tokio::net::UnixListener::bind(&socket)
       .map_err(|err| format!("Error binding UNIX socket: {}", err.to_string()))?
       .into();
-    let svc = make_service_fn(move |_| {
-      let state = state.clone();
-      async move {
-        let state = state.clone();
-        Ok::<_, hyper::Error>(service_fn(move |req| {
-          handlers::handle_request::<LocalPool>(req, state.to_owned())
-        }))
-      }
-    });
-    let server = Server::builder(uc).executor(LocalExec).serve(svc);
-    println!("Listening on socket {} ...", socket);
-    server.with_graceful_shutdown(shutdown_signal()).await
+    run_server(Server::builder(uc), state, format!("socket {}", socket)).await
   } else {
     let ip = config
       .host
@@ -138,20 +127,35 @@ async fn run(config: app::Config) -> Result<(), String> {
     let addr = (ip, config.port.unwrap()).into();
     let builder = Server::try_bind(&addr)
       .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
-    let svc = make_service_fn(move |_| {
+    run_server(builder, state, format!("http://{}", addr)).await
+  }
+}
+
+async fn run_server<I>(
+  builder: hyper::server::Builder<I>,
+  state: Rc<RefCell<AppState>>,
+  address: String,
+) -> Result<(), String>
+where
+  I: hyper::server::accept::Accept + 'static,
+  I::Conn: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
+  I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+  let svc = make_service_fn(move |_| {
+    let state = state.clone();
+    async move {
       let state = state.clone();
-      async move {
-        let state = state.clone();
-        Ok::<_, hyper::Error>(service_fn(move |req| {
-          handlers::handle_request::<LocalPool>(req, state.to_owned())
-        }))
-      }
-    });
-    let server = builder.executor(LocalExec).serve(svc);
-    println!("Listening on http://{} ...", addr);
-    server.with_graceful_shutdown(shutdown_signal()).await
-  };
-  result.map_err(|err| format!("Server terminated: {}", err))
+      Ok::<_, hyper::Error>(service_fn(move |req| {
+        handlers::handle_request::<LocalPool>(req, state.to_owned())
+      }))
+    }
+  });
+  let server = builder.executor(LocalExec).serve(svc);
+  println!("Listening on {} ...", address);
+  server
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .map_err(|err| format!("Server terminated: {}", err))
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -159,7 +163,7 @@ struct LocalExec;
 
 impl<F> hyper::rt::Executor<F> for LocalExec
 where
-  F: std::future::Future + 'static, // not requiring `Send`
+  F: std::future::Future + 'static,
 {
   fn execute(&self, fut: F) {
     tokio::task::spawn_local(fut);

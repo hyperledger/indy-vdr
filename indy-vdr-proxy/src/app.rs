@@ -6,6 +6,7 @@ pub struct Config {
     pub socket: Option<String>,
     pub host: Option<String>,
     pub port: Option<u16>,
+    pub init_refresh: bool,
 }
 
 pub fn load_config() -> Result<Config, String> {
@@ -46,6 +47,11 @@ pub fn load_config() -> Result<Config, String> {
                 .help("Sets the UNIX socket path listen on")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("no-refresh")
+                .long("no-refresh")
+                .help("Disable initial validator node refresh"),
+        )
         .get_matches();
 
     let genesis = matches
@@ -70,11 +76,13 @@ pub fn load_config() -> Result<Config, String> {
     } else {
         None
     };
+    let init_refresh = !matches.is_present("no-refresh");
 
     Ok(Config {
         genesis,
         socket,
         host,
         port,
+        init_refresh,
     })
 }

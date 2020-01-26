@@ -107,7 +107,9 @@ fn format_pool_status(state: Rc<RefCell<AppState>>) -> LedgerResult<String> {
     } else {
         ("init", None, None)
     };
-    let result = json!({"status": status, "pool_mt_root": mt_root, "pool_mt_size": mt_size});
+    let last_refresh = &state.borrow().last_refresh;
+    let last_refresh = last_refresh.map(|tm| tm.elapsed().map(|d| d.as_secs()).ok());
+    let result = json!({"status": status, "pool_mt_root": mt_root, "pool_mt_size": mt_size, "last_refresh": last_refresh});
     Ok(serde_json::to_string(&result)
         .with_err_msg(LedgerErrorKind::Unexpected, "Error serializing JSON")?)
 }
