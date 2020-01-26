@@ -106,14 +106,12 @@ where
     }
 
     fn node_keys(&self) -> NodeKeys {
-        // FIXME - remove nodes that aren't present in node_aliases?
-        HashMap::from_iter(
-            self.pool_setup
-                .as_ref()
-                .verifiers
-                .iter()
-                .map(|(alias, info)| (alias.to_owned(), info.bls_key.clone())),
-        )
+        let verifiers = &self.pool_setup.as_ref().verifiers;
+        HashMap::from_iter(self.node_order.iter().flat_map(|alias| {
+            verifiers
+                .get(alias)
+                .map(|entry| (alias.clone(), entry.bls_key.clone()))
+        }))
     }
 
     fn pool_config(&self) -> PoolConfig {

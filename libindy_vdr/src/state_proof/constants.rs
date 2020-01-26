@@ -14,10 +14,8 @@ pub const REQUESTS_FOR_STATE_PROOFS: [&str; 11] = [
     GET_TXN,
 ];
 
-#[allow(dead_code)] // FIXME to be used in request recognition
 pub const REQUEST_FOR_FULL: [&str; 2] = [POOL_RESTART, GET_VALIDATOR_INFO];
 
-#[allow(dead_code)] // FIXME to be used in request recognition
 pub const REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST: [&str; 5] = [
     GET_REVOC_REG,
     GET_REVOC_REG_DELTA,

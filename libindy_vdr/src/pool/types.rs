@@ -7,10 +7,11 @@ pub use ursa::bls::VerKey as BlsVerKey;
 
 use super::networker::Networker;
 use crate::common::error::prelude::*;
+use crate::common::merkle_tree::MerkleTree;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Deserialize, Debug, PartialEq)]
 pub enum ProtocolVersion {
     Node1_3 = 1,
     Node1_4 = 2,
@@ -67,6 +68,44 @@ impl Default for ProtocolVersion {
 impl std::fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str(self.display_version().as_str())
+    }
+}
+
+#[derive(Clone, Copy, Deserialize, Debug, PartialEq)]
+pub enum LedgerType {
+    POOL = 0,
+    DOMAIN = 1,
+    CONFIG = 2,
+}
+
+#[allow(dead_code)]
+impl LedgerType {
+    pub fn to_id(&self) -> i32 {
+        *self as i32
+    }
+
+    pub fn from_id(value: i32) -> LedgerResult<Self> {
+        value.try_into()
+    }
+
+    pub fn from_str(value: &str) -> LedgerResult<Self> {
+        let value = value
+            .parse::<i32>()
+            .map_err(|_| input_err(format!("Invalid ledger type: {}", value)))?;
+        Self::from_id(value)
+    }
+}
+
+impl TryFrom<i32> for LedgerType {
+    type Error = LedgerError;
+
+    fn try_from(value: i32) -> LedgerResult<Self> {
+        match value {
+            x if x == LedgerType::POOL as i32 => Ok(LedgerType::POOL),
+            x if x == LedgerType::DOMAIN as i32 => Ok(LedgerType::DOMAIN),
+            x if x == LedgerType::CONFIG as i32 => Ok(LedgerType::CONFIG),
+            _ => Err(input_err(format!("Unknown ledger type: {}", value))),
+        }
     }
 }
 
@@ -478,25 +517,25 @@ impl std::ops::Deref for Verifiers {
 
 pub struct PoolSetup {
     pub config: PoolConfig,
+    pub merkle_tree: MerkleTree,
     pub networker: Box<dyn Networker>,
     pub node_weights: Option<HashMap<String, f32>>,
-    pub transactions: Vec<String>,
     pub verifiers: Verifiers,
 }
 
 impl PoolSetup {
     pub fn new(
         config: PoolConfig,
+        merkle_tree: MerkleTree,
         networker: Box<dyn Networker>,
         node_weights: Option<HashMap<String, f32>>,
-        transactions: Vec<String>,
         verifiers: Verifiers,
     ) -> Self {
         Self {
             config,
+            merkle_tree,
             networker,
             node_weights,
-            transactions,
             verifiers,
         }
     }

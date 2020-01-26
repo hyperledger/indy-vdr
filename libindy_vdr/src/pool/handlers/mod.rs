@@ -8,7 +8,7 @@ use crate::common::merkle_tree::MerkleTree;
 use crate::utils::base58::{FromBase58, ToBase58};
 
 use super::requests::{PoolRequest, RequestEvent, TimingResult};
-use super::types::{self, CatchupReq, LedgerStatus, Message, ProtocolVersion};
+use super::types::{self, CatchupReq, LedgerStatus, LedgerType, Message, ProtocolVersion};
 
 mod catchup;
 mod consensus;
@@ -206,13 +206,14 @@ fn check_cons_proofs(
 }
 
 pub fn build_pool_status_request(
-    merkle: &MerkleTree,
+    merkle_root: &[u8],
+    merkle_tree_size: usize,
     protocol_version: ProtocolVersion,
 ) -> LedgerResult<Message> {
     let lr = LedgerStatus {
-        txnSeqNo: merkle.count(),
-        merkleRoot: merkle.root_hash().as_slice().to_base58(),
-        ledgerId: 0,
+        txnSeqNo: merkle_tree_size,
+        merkleRoot: merkle_root.to_base58(),
+        ledgerId: LedgerType::POOL as u8,
         ppSeqNo: None,
         viewNo: None,
         protocolVersion: Some(protocol_version as usize),
@@ -221,17 +222,17 @@ pub fn build_pool_status_request(
 }
 
 pub fn build_pool_catchup_request(
-    merkle: &MerkleTree,
+    from_mt_size: usize,
     target_mt_size: usize,
 ) -> LedgerResult<Message> {
-    if merkle.count() >= target_mt_size {
+    if from_mt_size >= target_mt_size {
         return Err(input_err("No transactions to catch up"));
     }
-    let seq_no_start = merkle.count() + 1;
+    let seq_no_start = from_mt_size + 1;
     let seq_no_end = target_mt_size;
 
     let cr = CatchupReq {
-        ledgerId: 0,
+        ledgerId: LedgerType::POOL as usize,
         seqNoStart: seq_no_start,
         seqNoEnd: seq_no_end,
         catchupTill: target_mt_size,

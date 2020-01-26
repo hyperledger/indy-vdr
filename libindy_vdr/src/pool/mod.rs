@@ -11,7 +11,7 @@ pub use self::handlers::{CatchupTarget, NodeReplies, RequestResult};
 pub use self::networker::{Networker, NetworkerFactory, ZMQNetworker};
 pub use self::requests::{RequestTarget, TimingResult};
 pub use self::types::{NodeKeys, ProtocolVersion, Verifiers};
-pub use crate::config::PoolConfig;
+pub use genesis::{build_merkle_tree, read_transactions};
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -25,10 +25,15 @@ use serde_json;
 
 use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
+use crate::common::merkle_tree::MerkleTree;
+use crate::config::PoolConfig;
+
 use crate::ledger::{PreparedRequest, RequestBuilder};
 use crate::utils::base58::ToBase58;
 
-use self::genesis::{build_tree, build_verifiers, dump_transactions};
+use self::genesis::{
+    build_node_transaction_map, build_verifiers, parse_transaction_from_json, transactions_to_json,
+};
 use self::handlers::{
     build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
     handle_consensus_request, handle_full_request, handle_single_request, handle_status_request,
@@ -39,10 +44,10 @@ use self::types::PoolSetup;
 
 pub async fn perform_pool_status_request<T: Pool>(
     pool: &T,
-    txns: &Vec<String>,
+    merkle_tree: MerkleTree,
 ) -> LedgerResult<(RequestResult<Option<CatchupTarget>>, Option<TimingResult>)> {
-    let merkle_tree = build_tree(txns)?;
-    let message = build_pool_status_request(&merkle_tree, pool.get_config().protocol_version)?;
+    let (mt_root, mt_size) = (merkle_tree.root_hash(), merkle_tree.count());
+    let message = build_pool_status_request(mt_root, mt_size, pool.get_config().protocol_version)?;
     let req_json = message.serialize()?.to_string();
     let request = pool.create_request("".to_string(), req_json).await?;
     handle_status_request(request, merkle_tree).await
@@ -50,36 +55,38 @@ pub async fn perform_pool_status_request<T: Pool>(
 
 pub async fn perform_pool_catchup_request<T: Pool>(
     pool: &T,
-    txns: &Vec<String>,
-    mt_root: Vec<u8>,
-    mt_size: usize,
+    merkle_tree: MerkleTree,
+    target_mt_root: Vec<u8>,
+    target_mt_size: usize,
 ) -> LedgerResult<(RequestResult<Vec<Vec<u8>>>, Option<TimingResult>)> {
-    let merkle_tree = build_tree(txns)?;
-    let message = build_pool_catchup_request(&merkle_tree, mt_size)?;
+    let message = build_pool_catchup_request(merkle_tree.count(), target_mt_size)?;
     let req_json = message.serialize()?.to_string();
     let request = pool.create_request("".to_string(), req_json).await?;
-    handle_catchup_request(request, merkle_tree, mt_root, mt_size).await
+    handle_catchup_request(request, merkle_tree, target_mt_root, target_mt_size).await
 }
 
-pub async fn perform_refresh<T: Pool>(pool: &T) -> LedgerResult<Option<Vec<String>>> {
-    let init_txns = pool.get_transactions();
-    let (result, timing) = perform_pool_status_request(pool, &init_txns).await?;
+pub async fn perform_refresh<T: Pool>(
+    pool: &T,
+) -> LedgerResult<(Option<Vec<String>>, Option<TimingResult>)> {
+    let merkle_tree = pool.get_merkle_tree();
+    let (result, timing) = perform_pool_status_request(pool, merkle_tree.clone()).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {
-            Some((mt_root, mt_size)) => {
+            Some((target_mt_root, target_mt_size)) => {
                 info!(
                     "Catchup target found {} {} {:?}",
-                    mt_root.to_base58(),
-                    mt_size,
+                    target_mt_root.to_base58(),
+                    target_mt_size,
                     timing
                 );
-                let txns = perform_catchup(pool, &init_txns, mt_root, mt_size).await?;
-                Ok(Some(txns))
+                let (txns, timing) =
+                    perform_catchup(pool, merkle_tree, target_mt_root, target_mt_size).await?;
+                Ok((Some(txns), timing))
             }
             _ => {
                 info!("No catchup required {:?}", timing);
-                Ok(None)
+                Ok((None, timing))
             }
         },
         RequestResult::Failed(err) => {
@@ -91,35 +98,26 @@ pub async fn perform_refresh<T: Pool>(pool: &T) -> LedgerResult<Option<Vec<Strin
 
 pub async fn perform_catchup<T: Pool>(
     pool: &T,
-    from_txns: &Vec<String>,
-    target_root: Vec<u8>,
-    target_size: usize,
-) -> LedgerResult<Vec<String>> {
+    merkle_tree: MerkleTree,
+    target_mt_root: Vec<u8>,
+    target_mt_size: usize,
+) -> LedgerResult<(Vec<String>, Option<TimingResult>)> {
     let (catchup_result, timing) =
-        perform_pool_catchup_request(pool, from_txns, target_root.clone(), target_size).await?;
+        perform_pool_catchup_request(pool, merkle_tree, target_mt_root.clone(), target_mt_size)
+            .await?;
     match catchup_result {
-        RequestResult::Reply(txns) => {
+        RequestResult::Reply(ref txns) => {
             info!("Catchup completed {:?}", timing);
-            let txns = dump_transactions(&txns)?;
-            let mut all_txns = from_txns.clone();
-            for txn in txns.iter() {
-                trace!("New transaction: {}", txn);
-                all_txns.push(txn.clone());
+            let json_txns = transactions_to_json(txns)?;
+            for (idx, txn) in json_txns.iter().enumerate() {
+                if parse_transaction_from_json(txn)? != txns[idx] {
+                    return Err(err_msg(
+                        LedgerErrorKind::Unexpected,
+                        format!("Error validating rount-trip for pool transaction: {}", txn),
+                    ));
+                }
             }
-            let merkle = build_tree(&all_txns)?;
-            let root_hash = merkle.root_hash().to_base58();
-            let target_hash = target_root.to_base58();
-            if root_hash != target_hash {
-                warn!(
-                    "Merkle tree root mismatch, target {}, found {}",
-                    root_hash, target_hash
-                );
-                return Err(err_msg(
-                    LedgerErrorKind::Unexpected,
-                    "Merkle tree root mismatch",
-                ));
-            }
-            Ok(txns)
+            Ok((json_txns, timing))
         }
         RequestResult::Failed(err) => {
             trace!("Catchup failed {:?}", timing);
@@ -150,18 +148,6 @@ pub async fn perform_get_validator_info<T: Pool>(
     perform_ledger_request(pool, prepared, Some(RequestTarget::Full(None, None))).await
 }
 
-pub fn format_full_reply(replies: NodeReplies<String>) -> LedgerResult<String> {
-    serde_json::to_string(&serde_json::Map::from_iter(replies.iter().map(
-        |(node_alias, reply)| {
-            (
-                node_alias.clone(),
-                serde_json::Value::from(reply.to_string()),
-            )
-        },
-    )))
-    .with_input_err("Error serializing response")
-}
-
 pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
     prepared: PreparedRequest,
@@ -183,6 +169,18 @@ pub async fn perform_ledger_request<T: Pool>(
             }
         }
     }
+}
+
+pub fn format_full_reply(replies: NodeReplies<String>) -> LedgerResult<String> {
+    serde_json::to_string(&serde_json::Map::from_iter(replies.iter().map(
+        |(node_alias, reply)| {
+            (
+                node_alias.clone(),
+                serde_json::Value::from(reply.to_string()),
+            )
+        },
+    )))
+    .with_input_err("Error serializing response")
 }
 
 pub fn choose_nodes(verifiers: &Verifiers, weights: Option<HashMap<String, f32>>) -> Vec<String> {
@@ -223,7 +221,11 @@ pub trait Pool: Clone {
     fn get_request_builder(&self) -> RequestBuilder {
         RequestBuilder::new(self.get_config().protocol_version)
     }
-    fn get_transactions(&self) -> Vec<String>;
+    fn get_merkle_tree(&self) -> MerkleTree;
+    fn get_merkle_tree_root(&self) -> (String, usize);
+    fn get_transactions(&self) -> LedgerResult<Vec<String>> {
+        transactions_to_json(&self.get_merkle_tree())
+    }
 }
 
 #[derive(Clone)]
@@ -245,16 +247,17 @@ where
 
     pub fn build<F>(
         config: PoolConfig,
-        transactions: Vec<String>,
+        merkle_tree: MerkleTree,
         node_weights: Option<HashMap<String, f32>>,
     ) -> LedgerResult<Self>
     where
         F: NetworkerFactory,
         F::Output: Networker + 'static,
     {
-        let verifiers = build_verifiers(&transactions, config.protocol_version)?;
+        let txn_map = build_node_transaction_map(&merkle_tree, config.protocol_version)?;
+        let verifiers = build_verifiers(txn_map)?;
         let networker = Box::new(F::create(config, &verifiers)?);
-        let inner = PoolSetup::new(config, networker, node_weights, transactions, verifiers);
+        let inner = PoolSetup::new(config, merkle_tree, networker, node_weights, verifiers);
         Ok(Self::new(S::from(Box::new(inner))))
     }
     /*
@@ -301,8 +304,13 @@ where
         self.inner.as_ref().config
     }
 
-    fn get_transactions(&self) -> Vec<String> {
-        self.inner.as_ref().transactions.clone()
+    fn get_merkle_tree(&self) -> MerkleTree {
+        self.inner.as_ref().merkle_tree.clone()
+    }
+
+    fn get_merkle_tree_root(&self) -> (String, usize) {
+        let tree = &self.inner.as_ref().merkle_tree;
+        (tree.root_hash().to_base58(), tree.count())
     }
 }
 

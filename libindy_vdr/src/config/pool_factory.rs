@@ -1,34 +1,53 @@
-use std::collections::HashMap;
-use std::io::BufRead;
 use std::path::PathBuf;
-use std::{fs, io};
 
-use serde_json;
-
+use super::PoolConfig;
 use crate::common::error::prelude::*;
-use crate::pool::{LocalPool, PoolConfig, ProtocolVersion, SharedPool, ZMQNetworker};
+use crate::common::merkle_tree::MerkleTree;
+use crate::pool::{
+    build_merkle_tree, read_transactions, LocalPool, ProtocolVersion, SharedPool, ZMQNetworker,
+};
+use crate::utils::validation::Validatable;
 
 #[derive(Debug)]
 pub struct PoolFactory {
     pub config: PoolConfig,
+    pub merkle_tree: MerkleTree,
     pub transactions: Vec<String>,
 }
 
 impl PoolFactory {
+    pub fn from_transactions(transactions: &[String]) -> LedgerResult<PoolFactory> {
+        let (merkle_tree, transactions) = _load_transactions(transactions)?;
+        Ok(PoolFactory {
+            config: PoolConfig::default(),
+            merkle_tree,
+            transactions,
+        })
+    }
+
     pub fn from_genesis_file(genesis_file: &str) -> LedgerResult<PoolFactory> {
         Self::from_genesis_path(&PathBuf::from(genesis_file))
     }
 
     pub fn from_genesis_path(genesis_path: &PathBuf) -> LedgerResult<PoolFactory> {
-        let txns = _transactions_from_genesis(genesis_path)?;
-        trace!("loaded transactions");
+        // FIXME convert into config error
+        let txns = read_transactions(genesis_path)?;
+        trace!("Loaded transactions from {:?}", genesis_path);
         if txns.len() == 0 {
             return Err((LedgerErrorKind::Config, "Empty genesis transaction file").into());
         }
-        Ok(PoolFactory {
-            config: PoolConfig::default(),
-            transactions: txns,
-        })
+        Self::from_transactions(&txns)
+    }
+
+    pub fn get_config(&self) -> PoolConfig {
+        return self.config;
+    }
+
+    pub fn set_config(&mut self, config: PoolConfig) -> LedgerResult<()> {
+        // FIXME convert into config error
+        config.validate()?;
+        self.config = config;
+        Ok(())
     }
 
     pub fn get_protocol_version(&self) -> ProtocolVersion {
@@ -39,39 +58,37 @@ impl PoolFactory {
         self.config.protocol_version = version
     }
 
-    pub fn get_transactions(&self) -> Vec<String> {
-        self.transactions.clone()
+    pub fn get_transactions(self) -> Vec<String> {
+        self.transactions
+    }
+
+    pub fn add_transactions(&mut self, new_txns: &[String]) -> LedgerResult<()> {
+        let mut txns = self.transactions.clone();
+        txns.extend_from_slice(new_txns);
+        self.set_transactions(&txns)
+    }
+
+    pub fn set_transactions(&mut self, transactions: &[String]) -> LedgerResult<()> {
+        let (merkle_tree, transactions) = _load_transactions(transactions)?;
+        self.merkle_tree = merkle_tree;
+        self.transactions = transactions;
+        Ok(())
     }
 
     pub fn create_local(&self) -> LedgerResult<LocalPool> {
-        LocalPool::build::<ZMQNetworker>(self.config, self.transactions.clone(), None)
+        LocalPool::build::<ZMQNetworker>(self.config, self.merkle_tree.clone(), None)
     }
 
     pub fn create_shared(&self) -> LedgerResult<SharedPool> {
-        SharedPool::build::<ZMQNetworker>(self.config, self.transactions.clone(), None)
+        SharedPool::build::<ZMQNetworker>(self.config, self.merkle_tree.clone(), None)
     }
 }
 
-fn _transactions_from_genesis(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
-    let mut result = vec![];
-
-    let f = fs::File::open(file_name).with_input_err("Can't open genesis txn file")?;
-
-    let reader = io::BufReader::new(&f);
-
-    for line in reader.lines() {
-        let line: String = line.with_input_err("Can't read from genesis txn file")?;
-
-        if line.trim().is_empty() {
-            continue;
-        };
-
-        // just validating, result is discarded
-        let _: HashMap<String, serde_json::Value> =
-            serde_json::from_str(&line).with_input_err("Genesis txn is malformed json")?;
-
-        result.push(line);
+fn _load_transactions(transactions: &[String]) -> LedgerResult<(MerkleTree, Vec<String>)> {
+    if transactions.len() == 0 {
+        return Err((LedgerErrorKind::Config, "No genesis transactions").into());
     }
-
-    Ok(result)
+    // FIXME convert into config error
+    let merkle_tree = build_merkle_tree(transactions)?;
+    Ok((merkle_tree, transactions.to_vec()))
 }

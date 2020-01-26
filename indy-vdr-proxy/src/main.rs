@@ -1,20 +1,25 @@
 extern crate env_logger;
 extern crate indy_vdr;
 extern crate log;
+#[macro_use]
+extern crate serde_json;
 
 mod app;
 mod handlers;
 
+use std::cell::RefCell;
 use std::fs;
 use std::net::IpAddr;
 use std::process::exit;
+use std::rc::Rc;
+use std::time::SystemTime;
 
 use hyper::service::{make_service_fn, service_fn};
 use hyper::Server;
 use hyper_unix_connector::UnixConnector;
 
 use indy_vdr::config::{LedgerResult, PoolFactory};
-use indy_vdr::pool::LocalPool;
+use indy_vdr::pool::{perform_refresh, LocalPool};
 
 fn main() {
   let config = app::load_config().unwrap_or_else(|err| {
@@ -37,10 +42,58 @@ fn main() {
   }
 }
 
-async fn init_pool(genesis: String) -> LedgerResult<LocalPool> {
-  let factory = PoolFactory::from_genesis_file(genesis.as_str())?;
-  let pool = factory.create_local()?;
-  Ok(pool)
+pub struct AppState {
+  pool_factory: PoolFactory,
+  pool: Option<LocalPool>,
+  last_refresh: Option<SystemTime>,
+}
+
+async fn init_app_state(genesis: String) -> LedgerResult<AppState> {
+  let pool_factory = PoolFactory::from_genesis_file(genesis.as_str())?;
+  let state = AppState {
+    pool_factory,
+    pool: None,
+    last_refresh: None,
+  };
+  Ok(state)
+}
+
+async fn init_pool(state: Rc<RefCell<AppState>>, refresh: bool) {
+  match create_pool(state.clone(), refresh).await {
+    Ok(pool) => {
+      state.borrow_mut().pool.replace(pool);
+    }
+    Err(err) => {
+      eprintln!("Error initializing pool: {}", err);
+      // FIXME send shutdown signal
+    }
+  }
+  // FIXME wait for refresh timeout, then perform refresh
+  // use return from this async fn to signal shutdown
+}
+
+async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> LedgerResult<LocalPool> {
+  let pool = state.borrow().pool_factory.create_local()?;
+  let refresh_pool = if refresh {
+    refresh_pool(state, &pool).await?
+  } else {
+    None
+  };
+  Ok(refresh_pool.unwrap_or(pool))
+}
+
+async fn refresh_pool(
+  state: Rc<RefCell<AppState>>,
+  pool: &LocalPool,
+) -> LedgerResult<Option<LocalPool>> {
+  let (txns, _timing) = perform_refresh(pool).await?;
+  state.borrow_mut().last_refresh.replace(SystemTime::now());
+  if let Some(txns) = txns {
+    state.borrow_mut().pool_factory.add_transactions(&txns)?;
+    Ok(Some(state.borrow().pool_factory.create_local()?))
+  } else {
+    Ok(None)
+  }
 }
 
 async fn shutdown_signal() {
@@ -50,12 +103,13 @@ async fn shutdown_signal() {
 }
 
 async fn run(config: app::Config) -> Result<(), String> {
-  // FIXME track status of pool and return server-not-ready when it hasn't initialized
-  let pool = init_pool(config.genesis)
-    .await
-    .map_err(|err| format!("Error initializing pool: {}", err))?;
+  let state = Rc::new(RefCell::new(
+    init_app_state(config.genesis)
+      .await
+      .map_err(|err| format!("Error loading config: {}", err))?,
+  ));
 
-  // tokio::task::spawn_local(pool.refresh());
+  tokio::task::spawn_local(init_pool(state.clone(), true));
 
   let result = if let Some(socket) = config.socket {
     fs::remove_file(&socket)
@@ -64,16 +118,16 @@ async fn run(config: app::Config) -> Result<(), String> {
       .map_err(|err| format!("Error binding UNIX socket: {}", err.to_string()))?
       .into();
     let svc = make_service_fn(move |_| {
-      let pool = pool.clone();
+      let state = state.clone();
       async move {
-        let pool = pool.clone();
+        let state = state.clone();
         Ok::<_, hyper::Error>(service_fn(move |req| {
-          handlers::handle_request(req, pool.to_owned())
+          handlers::handle_request::<LocalPool>(req, state.to_owned())
         }))
       }
     });
     let server = Server::builder(uc).executor(LocalExec).serve(svc);
-    println!("Listening on {} ...", socket);
+    println!("Listening on socket {} ...", socket);
     server.with_graceful_shutdown(shutdown_signal()).await
   } else {
     let ip = config
@@ -85,11 +139,11 @@ async fn run(config: app::Config) -> Result<(), String> {
     let builder = Server::try_bind(&addr)
       .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
     let svc = make_service_fn(move |_| {
-      let pool = pool.clone();
+      let state = state.clone();
       async move {
-        let pool = pool.clone();
+        let state = state.clone();
         Ok::<_, hyper::Error>(service_fn(move |req| {
-          handlers::handle_request(req, pool.to_owned())
+          handlers::handle_request::<LocalPool>(req, state.to_owned())
         }))
       }
     });

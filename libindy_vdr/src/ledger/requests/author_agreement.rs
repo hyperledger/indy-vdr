@@ -109,7 +109,6 @@ impl RequestType for GetTxnAuthorAgreementOperation {
 pub struct AcceptanceMechanisms(pub HashMap<String, ::serde_json::Value>);
 
 impl AcceptanceMechanisms {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         AcceptanceMechanisms(HashMap::new())
     }

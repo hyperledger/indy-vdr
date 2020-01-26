@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::iter::IntoIterator;
+use std::path::PathBuf;
 
 use serde_json;
 use serde_json::Value as SJsonValue;
@@ -12,18 +16,31 @@ use crate::common::merkle_tree::MerkleTree;
 use crate::utils::base58::FromBase58;
 use crate::utils::crypto;
 
-pub type TransactionMap = HashMap<String, NodeTransactionV1>;
+pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
 
-pub fn build_tree(json_tnxs: &Vec<String>) -> LedgerResult<MerkleTree> {
+pub fn read_transactions(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
+    let f = File::open(file_name).with_input_err("Can't open genesis transactions file")?;
+    let reader = BufReader::new(&f);
+    reader.lines().try_fold(vec![], |mut vec, line| {
+        let line = line.with_input_err("Can't read from genesis transactions file")?;
+        let line = line.trim();
+        if !line.is_empty() {
+            vec.push(line.to_owned());
+        }
+        Ok(vec)
+    })
+}
+
+pub fn build_merkle_tree(json_tnxs: &[String]) -> LedgerResult<MerkleTree> {
     let mut bin_txns: Vec<Vec<u8>> = vec![];
     for json_txn in json_tnxs {
-        let bin_txn = _parse_txn_from_json(json_txn)?;
+        let bin_txn = parse_transaction_from_json(json_txn)?;
         bin_txns.push(bin_txn)
     }
     MerkleTree::from_vec(bin_txns)
 }
 
-fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
+pub fn parse_transaction_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
     let txn = txn.trim();
 
     if txn.is_empty() {
@@ -32,88 +49,44 @@ fn _parse_txn_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
 
     let txn: SJsonValue =
         serde_json::from_str(txn).with_input_err("Genesis txn is mailformed json")?;
-
     rmp_serde::encode::to_vec_named(&txn).with_input_err("Can't encode genesis txn as message pack")
 }
 
-fn _decode_transaction(
-    gen_txn: &Vec<u8>,
-    protocol_version: ProtocolVersion,
-) -> LedgerResult<NodeTransactionV1> {
-    let gen_txn: NodeTransaction = rmp_serde::decode::from_slice(gen_txn.as_slice())
+pub fn transaction_to_json(txn: &[u8]) -> LedgerResult<String> {
+    let node_txn: SJsonValue = rmp_serde::decode::from_slice(txn)
         .with_input_err("Genesis transaction cannot be decoded")?;
-
-    match gen_txn {
-        NodeTransaction::NodeTransactionV0(txn) => {
-            if protocol_version != 1 {
-                Err(input_err(
-                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                            Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
-                            protocol_version, NodeTransactionV0::VERSION)))
-            } else {
-                Ok(NodeTransactionV1::from(txn))
-            }
-        }
-        NodeTransaction::NodeTransactionV1(txn) => {
-            if protocol_version != 2 {
-                Err(input_err(
-                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                                Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
-                            protocol_version, NodeTransactionV1::VERSION)))
-            } else {
-                Ok(txn)
-            }
-        }
-    }
+    serde_json::to_string(&node_txn).with_input_err("Genesis txn is malformed JSON")
 }
 
-pub fn dump_transactions(txns: &Vec<Vec<u8>>) -> LedgerResult<Vec<String>> {
-    let mut ret = vec![];
-    for gen_txn in txns {
-        let node_txn: SJsonValue = rmp_serde::decode::from_slice(gen_txn.as_slice())
-            .with_input_err("Genesis transaction cannot be decoded")?;
-        let txn =
-            serde_json::to_string(&node_txn).with_input_err("Genesis txn is malformed JSON")?;
-        ret.push(txn);
-    }
-    Ok(ret)
+pub fn transactions_to_json<T>(txns: T) -> LedgerResult<Vec<String>>
+where
+    T: IntoIterator,
+    T::Item: AsRef<[u8]>,
+{
+    txns.into_iter().try_fold(vec![], |mut vec, txn| {
+        let txn = transaction_to_json(txn.as_ref())?;
+        vec.push(txn);
+        Ok(vec)
+    })
 }
 
-#[allow(dead_code)] // FIXME to be used in exporting transactions
-pub fn build_node_state_from_tree(
-    merkle_tree: &MerkleTree,
+pub fn build_node_transaction_map<T>(
+    txns: T,
     protocol_version: ProtocolVersion,
-) -> LedgerResult<TransactionMap> {
-    let mut gen_tnxs: TransactionMap = HashMap::new();
-
-    for gen_txn in merkle_tree {
-        let node_txn = _decode_transaction(gen_txn, protocol_version)?;
+) -> LedgerResult<NodeTransactionMap>
+where
+    T: IntoIterator,
+    T::Item: AsRef<[u8]>,
+{
+    txns.into_iter().try_fold(HashMap::new(), |mut map, txn| {
+        let node_txn = _decode_transaction(txn.as_ref(), protocol_version)?;
         let dest = node_txn.txn.data.dest.clone();
-        gen_tnxs.insert(dest, node_txn);
-    }
-    Ok(gen_tnxs)
+        map.insert(dest, node_txn);
+        Ok(map)
+    })
 }
 
-pub fn build_node_state_from_json(
-    json_tnxs: &Vec<String>,
-    protocol_version: ProtocolVersion,
-) -> LedgerResult<TransactionMap> {
-    let mut gen_tnxs: TransactionMap = HashMap::new();
-
-    for gen_txn in json_tnxs {
-        let pack_txn = _parse_txn_from_json(&gen_txn)?;
-        let node_txn = _decode_transaction(&pack_txn, protocol_version)?;
-        let dest = node_txn.txn.data.dest.clone();
-        gen_tnxs.insert(dest, node_txn);
-    }
-    Ok(gen_tnxs)
-}
-
-pub fn build_verifiers(
-    transactions: &Vec<String>,
-    protocol_version: ProtocolVersion,
-) -> LedgerResult<Verifiers> {
-    let txn_map = build_node_state_from_json(&transactions, protocol_version)?;
+pub fn build_verifiers(txn_map: NodeTransactionMap) -> LedgerResult<Verifiers> {
     Ok(txn_map
         .into_iter()
         .map(|(public_key, txn)| {
@@ -183,6 +156,37 @@ pub fn build_verifiers(
             map
         })
         .into())
+}
+
+fn _decode_transaction(
+    gen_txn: &[u8],
+    protocol_version: ProtocolVersion,
+) -> LedgerResult<NodeTransactionV1> {
+    let gen_txn: NodeTransaction = rmp_serde::decode::from_slice(gen_txn)
+        .with_input_err("Genesis transaction cannot be decoded")?;
+
+    match gen_txn {
+        NodeTransaction::NodeTransactionV0(txn) => {
+            if protocol_version != 1 {
+                Err(input_err(
+                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                            Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
+                            protocol_version, NodeTransactionV0::VERSION)))
+            } else {
+                Ok(NodeTransactionV1::from(txn))
+            }
+        }
+        NodeTransaction::NodeTransactionV1(txn) => {
+            if protocol_version != 2 {
+                Err(input_err(
+                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                                Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
+                            protocol_version, NodeTransactionV1::VERSION)))
+            } else {
+                Ok(txn)
+            }
+        }
+    }
 }
 
 /*

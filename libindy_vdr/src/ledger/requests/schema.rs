@@ -115,7 +115,6 @@ pub struct SchemaV1 {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AttributeNames(pub HashSet<String>);
 
-#[allow(dead_code)]
 impl AttributeNames {
     pub fn new() -> Self {
         AttributeNames(HashSet::new())

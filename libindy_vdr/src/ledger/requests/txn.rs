@@ -1,5 +1,3 @@
-use std::convert::{TryFrom, TryInto};
-
 use crate::common::error::prelude::*;
 
 use super::constants::GET_TXN;
@@ -35,46 +33,5 @@ impl RequestType for GetTxnOperation {
 
     fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
         Ok((None, Some(0)))
-    }
-}
-
-#[derive(Deserialize, Debug)]
-pub enum LedgerType {
-    POOL = 0,
-    DOMAIN = 1,
-    CONFIG = 2,
-}
-
-impl LedgerType {
-    pub fn to_id(&self) -> i32 {
-        match *self {
-            Self::POOL => Self::POOL as i32,
-            Self::DOMAIN => Self::DOMAIN as i32,
-            Self::CONFIG => Self::CONFIG as i32,
-        }
-    }
-
-    pub fn from_id(value: i32) -> LedgerResult<Self> {
-        value.try_into()
-    }
-
-    pub fn from_str(value: &str) -> LedgerResult<Self> {
-        let value = value
-            .parse::<i32>()
-            .map_err(|_| input_err(format!("Invalid ledger type: {}", value)))?;
-        Self::from_id(value)
-    }
-}
-
-impl TryFrom<i32> for LedgerType {
-    type Error = LedgerError;
-
-    fn try_from(value: i32) -> LedgerResult<Self> {
-        match value {
-            x if x == LedgerType::POOL as i32 => Ok(LedgerType::POOL),
-            x if x == LedgerType::DOMAIN as i32 => Ok(LedgerType::DOMAIN),
-            x if x == LedgerType::CONFIG as i32 => Ok(LedgerType::CONFIG),
-            _ => Err(input_err(format!("Unknown ledger type: {}", value))),
-        }
     }
 }

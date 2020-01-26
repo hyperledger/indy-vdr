@@ -1,11 +1,15 @@
 extern crate percent_encoding;
-extern crate serde_json;
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use hyper::{Body, Method, Request, Response, StatusCode};
 use log::trace;
 use percent_encoding::percent_decode_str;
 
+use super::AppState;
 use indy_vdr::common::did::DidValue;
+use indy_vdr::common::error::prelude::*;
 use indy_vdr::config::{LedgerError, LedgerErrorKind, LedgerResult};
 use indy_vdr::ledger::requests::cred_def::CredentialDefinitionId;
 use indy_vdr::ledger::requests::schema::SchemaId;
@@ -90,9 +94,22 @@ where
         .unwrap())
 }
 
-async fn get_genesis<T: Pool>(pool: &T) -> LedgerResult<String> {
-    let txns = pool.get_transactions();
+async fn get_pool_genesis<T: Pool>(pool: &T) -> LedgerResult<String> {
+    let txns = pool.get_transactions()?;
     Ok(txns.join("\n"))
+}
+
+fn format_pool_status(state: Rc<RefCell<AppState>>) -> LedgerResult<String> {
+    let opt_pool = &state.borrow().pool;
+    let (status, mt_root, mt_size) = if let Some(pool) = opt_pool {
+        let (mt_root, mt_size) = pool.get_merkle_tree_root();
+        ("active", Some(mt_root), Some(mt_size))
+    } else {
+        ("init", None, None)
+    };
+    let result = json!({"status": status, "pool_mt_root": mt_root, "pool_mt_size": mt_size});
+    Ok(serde_json::to_string(&result)
+        .with_err_msg(LedgerErrorKind::Unexpected, "Error serializing JSON")?)
 }
 
 async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, pretty: bool) -> LedgerResult<String> {
@@ -184,7 +201,7 @@ async fn submit_request<T: Pool>(
 
 pub async fn handle_request<T: Pool>(
     req: Request<Body>,
-    pool: T,
+    state: Rc<RefCell<AppState>>,
 ) -> Result<Response<Body>, hyper::Error> {
     let mut parts = req
         .uri()
@@ -199,15 +216,25 @@ pub async fn handle_request<T: Pool>(
     }
     let pretty = req.uri().query() == Some("fmt");
     let fst = parts.next().unwrap_or_else(|| "".to_owned());
-    match (req.method(), fst.as_str()) {
-        (&Method::GET, "") => http_status(StatusCode::OK),
-        (&Method::GET, "status") => test_get_validator_info(&pool, pretty).await.make_response(),
+    let req_method = req.method();
+    if (req_method, fst.is_empty()) == (&Method::GET, true) {
+        return format_pool_status(state.clone()).make_response();
+    }
+    let opt_pool = &state.borrow().pool;
+    let pool = match opt_pool {
+        None => {
+            return http_status(StatusCode::SERVICE_UNAVAILABLE);
+        }
+        Some(pool) => pool,
+    };
+    match (req_method, fst.as_str()) {
+        (&Method::GET, "status") => test_get_validator_info(pool, pretty).await.make_response(),
         (&Method::GET, "submit") => http_status(StatusCode::METHOD_NOT_ALLOWED),
         (&Method::POST, "submit") => {
             let body_bytes = hyper::body::to_bytes(req.into_body()).await?;
             let body = body_bytes.iter().cloned().collect::<Vec<u8>>();
             if !body.is_empty() {
-                match submit_request(&pool, body, pretty).await {
+                match submit_request(pool, body, pretty).await {
                     Ok((result, timing)) => {
                         let mut response = Response::new(Body::from(result));
                         response
@@ -221,13 +248,13 @@ pub async fn handle_request<T: Pool>(
                 http_status(StatusCode::BAD_REQUEST)
             }
         }
-        (&Method::GET, "genesis") => get_genesis(&pool).await.make_response(),
-        (&Method::GET, "taa") => get_taa(&pool, pretty).await.make_response(),
-        (&Method::GET, "aml") => get_aml(&pool, pretty).await.make_response(),
+        (&Method::GET, "genesis") => get_pool_genesis(pool).await.make_response(),
+        (&Method::GET, "taa") => get_taa(pool, pretty).await.make_response(),
+        (&Method::GET, "aml") => get_aml(pool, pretty).await.make_response(),
         (&Method::GET, "attrib") => {
             if let (Some(dest), Some(attrib)) = (parts.next(), parts.next()) {
                 // NOTE: 'endpoint' is currently the only supported attribute
-                get_attrib(&pool, &*dest, &*attrib, pretty)
+                get_attrib(pool, &*dest, &*attrib, pretty)
                     .await
                     .make_response()
             } else {
@@ -236,7 +263,7 @@ pub async fn handle_request<T: Pool>(
         }
         (&Method::GET, "cred_def") => {
             if let Some(cred_def_id) = parts.next() {
-                get_cred_def(&pool, &*cred_def_id, pretty)
+                get_cred_def(pool, &*cred_def_id, pretty)
                     .await
                     .make_response()
             } else {
@@ -245,14 +272,14 @@ pub async fn handle_request<T: Pool>(
         }
         (&Method::GET, "nym") => {
             if let Some(nym) = parts.next() {
-                get_nym(&pool, &*nym, pretty).await.make_response()
+                get_nym(pool, &*nym, pretty).await.make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }
         }
         (&Method::GET, "schema") => {
             if let Some(schema_id) = parts.next() {
-                get_schema(&pool, &*schema_id, pretty).await.make_response()
+                get_schema(pool, &*schema_id, pretty).await.make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }
@@ -260,7 +287,7 @@ pub async fn handle_request<T: Pool>(
         (&Method::GET, "txn") => {
             if let (Some(ledger), Some(txn)) = (parts.next(), parts.next()) {
                 if let (Ok(ledger), Ok(txn)) = (ledger.parse::<i32>(), txn.parse::<i32>()) {
-                    return get_txn(&pool, ledger, txn, pretty).await.make_response();
+                    return get_txn(pool, ledger, txn, pretty).await.make_response();
                 }
             }
             http_status(StatusCode::NOT_FOUND)
