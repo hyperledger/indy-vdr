@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
-use super::PoolConfig;
+use super::networker::ZMQNetworker;
+use super::{build_merkle_tree, read_transactions, LocalPool, ProtocolVersion, SharedPool};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::pool::{
-    build_merkle_tree, read_transactions, LocalPool, ProtocolVersion, SharedPool, ZMQNetworker,
-};
+use crate::config::PoolConfig;
 use crate::utils::validation::Validatable;
 
 #[derive(Debug)]

@@ -16,12 +16,12 @@ extern crate serde_json;
 #[macro_use]
 mod utils;
 
-pub mod api;
+mod api;
 pub mod common;
 pub mod config;
 pub mod ledger;
 pub mod pool;
-pub mod state_proof;
+mod state_proof;
 
 #[cfg(test)]
 mod tests {

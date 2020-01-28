@@ -10,13 +10,10 @@ use percent_encoding::percent_decode_str;
 use super::AppState;
 use indy_vdr::common::did::DidValue;
 use indy_vdr::common::error::prelude::*;
-use indy_vdr::config::{LedgerError, LedgerErrorKind, LedgerResult};
 use indy_vdr::ledger::requests::cred_def::CredentialDefinitionId;
 use indy_vdr::ledger::requests::schema::SchemaId;
-use indy_vdr::pool::{
-    perform_get_txn, perform_get_validator_info, perform_ledger_request, Pool, RequestResult,
-    TimingResult,
-};
+use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
+use indy_vdr::pool::{Pool, RequestResult, TimingResult};
 
 fn format_request_result<T: std::fmt::Display>(
     (result, timing): (RequestResult<T>, Option<TimingResult>),
@@ -159,10 +156,12 @@ async fn get_schema<T: Pool>(pool: &T, schema_id: &str, pretty: bool) -> LedgerR
     format_result(format_request_result(result, pretty))
 }
 
+/*
 async fn test_get_validator_info<T: Pool>(pool: &T, pretty: bool) -> LedgerResult<String> {
     let result = perform_get_validator_info(pool).await?;
     format_result(format_request_result(result, pretty))
 }
+*/
 
 async fn get_taa<T: Pool>(pool: &T, pretty: bool) -> LedgerResult<String> {
     let request = pool
@@ -230,7 +229,7 @@ pub async fn handle_request<T: Pool>(
         Some(pool) => pool,
     };
     match (req_method, fst.as_str()) {
-        (&Method::GET, "status") => test_get_validator_info(pool, pretty).await.make_response(),
+        // (&Method::GET, "status") => test_get_validator_info(pool, pretty).await.make_response(),
         (&Method::GET, "submit") => http_status(StatusCode::METHOD_NOT_ALLOWED),
         (&Method::POST, "submit") => {
             let body_bytes = hyper::body::to_bytes(req.into_body()).await?;

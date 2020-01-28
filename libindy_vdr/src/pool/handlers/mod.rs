@@ -7,7 +7,7 @@ use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::utils::base58::{FromBase58, ToBase58};
 
-use super::requests::{PoolRequest, RequestEvent, TimingResult};
+use super::requests::{PoolRequest, RequestEvent, RequestResult, TimingResult};
 use super::types::{self, CatchupReq, LedgerStatus, LedgerType, Message, ProtocolVersion};
 
 mod catchup;
@@ -102,24 +102,6 @@ impl<T> ReplyState<T> {
                 None
             }
         })
-    }
-}
-
-#[derive(Debug)]
-pub enum RequestResult<T> {
-    Reply(T),
-    Failed(LedgerError),
-}
-
-impl<T> RequestResult<T> {
-    pub fn map_result<F, R>(self, f: F) -> LedgerResult<RequestResult<R>>
-    where
-        F: FnOnce(T) -> LedgerResult<R>,
-    {
-        match self {
-            Self::Reply(reply) => Ok(RequestResult::Reply(f(reply)?)),
-            Self::Failed(err) => Ok(RequestResult::Failed(err)),
-        }
     }
 }
 

@@ -4,8 +4,7 @@ use std::io::{BufRead, BufReader};
 use std::iter::IntoIterator;
 use std::path::PathBuf;
 
-use serde_json;
-use serde_json::Value as SJsonValue;
+use serde_json::{self, Value as SJsonValue};
 
 use super::types::{
     BlsVerKey, NodeTransaction, NodeTransactionV0, NodeTransactionV1, ProtocolVersion,

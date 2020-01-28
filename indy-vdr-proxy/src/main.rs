@@ -18,8 +18,8 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::Server;
 use hyper_unix_connector::UnixConnector;
 
-use indy_vdr::config::{LedgerResult, PoolFactory};
-use indy_vdr::pool::{perform_refresh, LocalPool};
+use indy_vdr::common::error::LedgerResult;
+use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolFactory};
 
 fn main() {
   let config = app::load_config().unwrap_or_else(|err| {

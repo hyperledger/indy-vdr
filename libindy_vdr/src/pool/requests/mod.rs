@@ -8,6 +8,8 @@ use super::types::{self, Message, PoolSetup};
 mod base;
 pub use base::{PoolRequest, PoolRequestImpl, RequestHandle};
 
+use crate::common::error::prelude::*;
+
 #[derive(Debug)]
 pub enum RequestEvent {
     Received(
@@ -36,6 +38,24 @@ pub enum RequestExtEvent {
     Timeout(
         String, // node_alias
     ),
+}
+
+#[derive(Debug)]
+pub enum RequestResult<T> {
+    Reply(T),
+    Failed(LedgerError),
+}
+
+impl<T> RequestResult<T> {
+    pub fn map_result<F, R>(self, f: F) -> LedgerResult<RequestResult<R>>
+    where
+        F: FnOnce(T) -> LedgerResult<R>,
+    {
+        match self {
+            Self::Reply(reply) => Ok(RequestResult::Reply(f(reply)?)),
+            Self::Failed(err) => Ok(RequestResult::Failed(err)),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
