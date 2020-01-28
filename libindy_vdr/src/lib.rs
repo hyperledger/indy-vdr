@@ -16,9 +16,9 @@ extern crate serde_json;
 #[macro_use]
 mod utils;
 
-mod api;
 pub mod common;
 pub mod config;
+mod ffi;
 pub mod ledger;
 pub mod pool;
 mod state_proof;
