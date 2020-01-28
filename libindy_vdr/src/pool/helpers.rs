@@ -42,7 +42,7 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
 ) -> LedgerResult<(Option<Vec<String>>, Option<TimingResult>)> {
-    let merkle_tree = pool.get_merkle_tree();
+    let merkle_tree = pool.get_merkle_tree().clone();
     let (result, timing) = perform_pool_status_request(pool, merkle_tree.clone()).await?;
     trace!("Got status result: {:?}", &result);
     match result {

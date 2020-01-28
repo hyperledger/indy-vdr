@@ -23,19 +23,23 @@ use crate::utils::base58::ToBase58;
 pub trait Pool: Clone {
     type Request: PoolRequest;
 
-    fn get_config(&self) -> PoolConfig;
+    fn get_config(&self) -> &PoolConfig;
     fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>>;
+    fn get_merkle_tree(&self) -> &MerkleTree;
+
+    fn get_merkle_tree_root(&self) -> (String, usize) {
+        let tree = self.get_merkle_tree();
+        (tree.root_hash().to_base58(), tree.count())
+    }
     fn get_request_builder(&self) -> RequestBuilder {
         RequestBuilder::new(self.get_config().protocol_version)
     }
-    fn get_merkle_tree(&self) -> MerkleTree;
-    fn get_merkle_tree_root(&self) -> (String, usize);
     fn get_transactions(&self) -> LedgerResult<Vec<String>> {
-        transactions_to_json(&self.get_merkle_tree())
+        transactions_to_json(self.get_merkle_tree())
     }
 }
 
@@ -99,17 +103,12 @@ where
         .boxed_local()
     }
 
-    fn get_config(&self) -> PoolConfig {
-        self.inner.as_ref().config
+    fn get_config(&self) -> &PoolConfig {
+        &self.inner.as_ref().config
     }
 
-    fn get_merkle_tree(&self) -> MerkleTree {
-        self.inner.as_ref().merkle_tree.clone()
-    }
-
-    fn get_merkle_tree_root(&self) -> (String, usize) {
-        let tree = &self.inner.as_ref().merkle_tree;
-        (tree.root_hash().to_base58(), tree.count())
+    fn get_merkle_tree(&self) -> &MerkleTree {
+        &self.inner.as_ref().merkle_tree
     }
 }
 
