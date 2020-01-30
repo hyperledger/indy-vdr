@@ -27,6 +27,18 @@ macro_rules! catch_err {
         }
     }
 }
+macro_rules! read_lock {
+    ($e:expr) => {
+        ($e).read()
+            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring read lock"))
+    };
+}
+macro_rules! write_lock {
+    ($e:expr) => {
+        ($e).write()
+            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring write lock"))
+    };
+}
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[repr(usize)]
@@ -61,8 +73,7 @@ lazy_static! {
 extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
     catch_err! {
         let version = ProtocolVersion::try_from(version as u64)?;
-        let mut gcfg = POOL_CONFIG.write()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring config lock"))?;
+        let mut gcfg = write_lock!(POOL_CONFIG)?;
         gcfg.protocol_version = version;
         Ok(ErrorCode::Success)
     }
@@ -74,8 +85,7 @@ extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
         let config: PoolConfig =
             serde_json::from_str(config.as_str()).with_input_err("Error deserializing config")?;
         config.validate()?;
-        let mut gcfg = POOL_CONFIG.write()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring config lock"))?;
+        let mut gcfg = write_lock!(POOL_CONFIG)?;
         *gcfg = config;
         Ok(ErrorCode::Success)
     }
@@ -90,14 +100,12 @@ extern "C" fn indy_vdr_pool_create_from_genesis_file(
         // check_useful_c_ptr!(handle_p)
         let mut factory = PoolFactory::from_genesis_file(path.as_str())?;
         {
-            let gcfg = POOL_CONFIG.read()
-                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring config lock"))?;
+            let gcfg = read_lock!(POOL_CONFIG)?;
             factory.set_config(*gcfg)?;
         }
         let pool = factory.create_shared()?;
         let handle = PoolHandle::next();
-        let mut pools = POOLS.write()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring pools lock"))?;
+        let mut pools = write_lock!(POOLS)?;
         pools.insert(handle, pool);
         unsafe {
             *handle_p = *handle;
@@ -115,18 +123,14 @@ extern "C" fn indy_vdr_pool_build_custom_request(
     catch_err! {
         // check_useful_c_ptr!(handle_p)
         let builder = {
-            let pools = POOLS.read()
-                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring pools lock"))?;
-            let opt_pool = pools.get(&PoolHandle(pool_handle));
-            if opt_pool.is_none() {
-                return Err(err_msg(LedgerErrorKind::Input, "Unknown pool handle"));
-            }
-            opt_pool.unwrap().get_request_builder()
+            let pools = read_lock!(POOLS)?;
+            let pool = pools.get(&PoolHandle(pool_handle))
+                .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
+            pool.get_request_builder()
         };
         let (req, _target) = builder.parse_inbound_request_str(request_json.as_str())?;
         let handle = RequestHandle::next();
-        let mut requests = REQUESTS.write()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring requests lock"))?;
+        let mut requests = write_lock!(REQUESTS)?;
         requests.insert(handle, req);
         unsafe {
             *handle_p = *handle;
@@ -143,9 +147,7 @@ extern "C" fn indy_vdr_request_get_body(
     catch_err! {
         // check_useful_c_ptr!(body_p)
         let body = {
-            let reqs = REQUESTS
-                .read()
-                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring requests lock"))?;
+            let reqs = read_lock!(REQUESTS)?;
             let req = reqs.get(&RequestHandle(request_handle))
                 .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
             serde_json::to_string(&req.req_json)
@@ -167,9 +169,7 @@ extern "C" fn indy_vdr_request_get_signature_input(
     catch_err! {
         // check_useful_c_ptr!(input_p)
         let sig_input = {
-            let reqs = REQUESTS
-                .read()
-                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring requests lock"))?;
+            let reqs = read_lock!(REQUESTS)?;
             let req = reqs.get(&RequestHandle(request_handle))
                 .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
             req.get_signature_input()?
