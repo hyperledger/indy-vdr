@@ -5,7 +5,7 @@ use crate::utils::validation::Validatable;
 
 use super::constants;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct PoolConfig {
     pub protocol_version: ProtocolVersion,
     pub freshness_threshold: u64,

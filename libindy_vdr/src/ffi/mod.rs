@@ -1,4 +1,186 @@
-// use crate::common::error::prelude::*;
+use crate::common::error::prelude::*;
+use crate::config::PoolConfig;
+use crate::ledger::PreparedRequest;
+use crate::pool::{Pool, PoolFactory, ProtocolVersion, SharedPool};
+use crate::utils::validation::Validatable;
+
+use std::collections::BTreeMap;
+use std::convert::TryFrom;
+use std::os::raw::c_char;
+use std::sync::RwLock;
+
+use serde_json;
+
+use ffi_support::{define_string_destructor, rust_string_to_c, FfiStr};
+
+define_string_destructor!(indy_vdr_string_free);
+
+new_handle_type!(PoolHandle, FFI_PH_COUNTER);
+new_handle_type!(RequestHandle, FFI_RH_COUNTER);
+
+macro_rules! catch_err {
+    ($($e:tt)*) => {
+        match (|| -> LedgerResult<_> {$($e)*})() {
+            Ok(a) => a,
+            // FIXME - save last error for retrieval
+            Err(ref err) => return ErrorCode::from(err),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+#[repr(usize)]
+pub enum ErrorCode {
+    Success = 0,
+    Failed = 1,
+}
+
+impl From<&LedgerError> for ErrorCode {
+    fn from(_err: &LedgerError) -> ErrorCode {
+        ErrorCode::Failed
+    }
+}
+
+impl<T> From<LedgerResult<T>> for ErrorCode {
+    fn from(result: LedgerResult<T>) -> ErrorCode {
+        match result {
+            Ok(_) => ErrorCode::Success,
+            Err(ref err) => ErrorCode::from(err),
+        }
+    }
+}
+
+lazy_static! {
+    pub static ref POOL_CONFIG: RwLock<PoolConfig> = RwLock::new(PoolConfig::default());
+    pub static ref POOLS: RwLock<BTreeMap<PoolHandle, SharedPool>> = RwLock::new(BTreeMap::new());
+    pub static ref REQUESTS: RwLock<BTreeMap<RequestHandle, PreparedRequest>> =
+        RwLock::new(BTreeMap::new());
+}
+
+#[no_mangle]
+extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
+    catch_err! {
+        let version = ProtocolVersion::try_from(version as u64)?;
+        let mut gcfg = POOL_CONFIG.write()
+            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring config lock"))?;
+        gcfg.protocol_version = version;
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
+    catch_err! {
+        let config: PoolConfig =
+            serde_json::from_str(config.as_str()).with_input_err("Error deserializing config")?;
+        config.validate()?;
+        let mut gcfg = POOL_CONFIG.write()
+            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring config lock"))?;
+        *gcfg = config;
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+extern "C" fn indy_vdr_pool_create_from_genesis_file(
+    path: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        // check_useful_c_ptr!(handle_p)
+        let mut factory = PoolFactory::from_genesis_file(path.as_str())?;
+        {
+            let gcfg = POOL_CONFIG.read()
+                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring config lock"))?;
+            factory.set_config(*gcfg)?;
+        }
+        let pool = factory.create_shared()?;
+        let handle = PoolHandle::next();
+        let mut pools = POOLS.write()
+            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring pools lock"))?;
+        pools.insert(handle, pool);
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+extern "C" fn indy_vdr_pool_build_custom_request(
+    pool_handle: usize,
+    request_json: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        // check_useful_c_ptr!(handle_p)
+        let builder = {
+            let pools = POOLS.read()
+                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring pools lock"))?;
+            let opt_pool = pools.get(&PoolHandle(pool_handle));
+            if opt_pool.is_none() {
+                return Err(err_msg(LedgerErrorKind::Input, "Unknown pool handle"));
+            }
+            opt_pool.unwrap().get_request_builder()
+        };
+        let (req, _target) = builder.parse_inbound_request_str(request_json.as_str())?;
+        let handle = RequestHandle::next();
+        let mut requests = REQUESTS.write()
+            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring requests lock"))?;
+        requests.insert(handle, req);
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+extern "C" fn indy_vdr_request_get_body(
+    request_handle: usize,
+    body_p: *mut *const c_char,
+) -> ErrorCode {
+    catch_err! {
+        // check_useful_c_ptr!(body_p)
+        let body = {
+            let reqs = REQUESTS
+                .read()
+                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring requests lock"))?;
+            let req = reqs.get(&RequestHandle(request_handle))
+                .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
+            serde_json::to_string(&req.req_json)
+                .with_err_msg(LedgerErrorKind::Unexpected, "Error serializing request body")?
+        };
+        let body = rust_string_to_c(body);
+        unsafe {
+            *body_p = body;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+extern "C" fn indy_vdr_request_get_signature_input(
+    request_handle: usize,
+    input_p: *mut *const c_char,
+) -> ErrorCode {
+    catch_err! {
+        // check_useful_c_ptr!(input_p)
+        let sig_input = {
+            let reqs = REQUESTS
+                .read()
+                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring requests lock"))?;
+            let req = reqs.get(&RequestHandle(request_handle))
+                .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
+            req.get_signature_input()?
+        };
+        let sig_input = rust_string_to_c(sig_input);
+        unsafe {
+            *input_p = sig_input;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
 
 /*
 - indy_vdr_get_last_error

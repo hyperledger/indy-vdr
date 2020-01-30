@@ -18,6 +18,7 @@ mod utils;
 
 pub mod common;
 pub mod config;
+#[cfg(feature = "ffi")]
 mod ffi;
 pub mod ledger;
 pub mod pool;
