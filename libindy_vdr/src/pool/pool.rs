@@ -10,7 +10,9 @@ use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
 
 use super::genesis::{build_node_transaction_map, build_verifiers, transactions_to_json};
-use super::networker::{Networker, NetworkerEvent, NetworkerFactory};
+use super::networker::{
+    LocalNetworker, Networker, NetworkerEvent, NetworkerFactory, SharedNetworker,
+};
 use super::requests::{PoolRequest, PoolRequestImpl, RequestHandle};
 use super::types::{PoolSetup, Verifiers};
 
@@ -44,71 +46,75 @@ pub trait Pool: Clone {
 }
 
 #[derive(Clone)]
-pub struct PoolImpl<S: AsRef<PoolSetup> + Clone> {
-    inner: S,
+pub struct PoolImpl<S: AsRef<PoolSetup> + Clone, T: Networker + Clone> {
+    setup: S,
+    networker: T,
 }
 
-pub type LocalPool = PoolImpl<Rc<PoolSetup>>;
+pub type LocalPool = PoolImpl<Rc<PoolSetup>, LocalNetworker>;
 
-pub type SharedPool = PoolImpl<Arc<PoolSetup>>;
+pub type SharedPool = PoolImpl<Arc<PoolSetup>, SharedNetworker>;
 
-impl<S> PoolImpl<S>
+impl<S, T> PoolImpl<S, T>
 where
     S: AsRef<PoolSetup> + Clone + From<Box<PoolSetup>>,
+    T: Networker + Clone,
 {
-    pub fn new(inner: S) -> Self {
-        Self { inner }
+    pub fn new(setup: S, networker: T) -> Self {
+        Self { setup, networker }
     }
 
     pub fn build<F>(
+        factory: F,
         config: PoolConfig,
         merkle_tree: MerkleTree,
         node_weights: Option<HashMap<String, f32>>,
     ) -> LedgerResult<Self>
     where
-        F: NetworkerFactory,
-        F::Output: Networker + 'static,
+        F: NetworkerFactory<Output = T>,
     {
         let txn_map = build_node_transaction_map(&merkle_tree, config.protocol_version)?;
         let verifiers = build_verifiers(txn_map)?;
-        let networker = Box::new(F::create(config, &verifiers)?);
-        let inner = PoolSetup::new(config, merkle_tree, networker, node_weights, verifiers);
-        Ok(Self::new(S::from(Box::new(inner))))
+        let networker = factory.make_networker(config, &verifiers)?;
+        let setup = PoolSetup::new(config, merkle_tree, node_weights, verifiers);
+        Ok(Self::new(S::from(Box::new(setup)), networker))
     }
 }
 
-impl<S> Pool for PoolImpl<S>
+impl<S, T> Pool for PoolImpl<S, T>
 where
     S: AsRef<PoolSetup> + Clone,
+    T: Networker + Clone,
 {
-    type Request = PoolRequestImpl<S>;
+    type Request = PoolRequestImpl<S, T>;
 
     fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
     ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>> {
-        let setup = self.inner.clone();
+        let setup = self.setup.clone();
+        let networker = self.networker.clone();
         lazy(move |_| {
             let (tx, rx) = unbounded();
             let handle = RequestHandle::next();
             let setup_ref = setup.as_ref();
             let node_order = choose_nodes(&setup_ref.verifiers, setup_ref.node_weights.clone());
             debug!("New {}: {}", handle, &req_json);
-            setup_ref
-                .networker
-                .send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
-            Ok(PoolRequestImpl::new(handle, rx, setup, node_order))
+            networker.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
+            Ok(PoolRequestImpl::new(
+                handle, rx, setup, networker, node_order,
+            ))
         })
         .boxed_local()
     }
 
     fn get_config(&self) -> &PoolConfig {
-        &self.inner.as_ref().config
+        &self.setup.as_ref().config
     }
 
     fn get_merkle_tree(&self) -> &MerkleTree {
-        &self.inner.as_ref().merkle_tree
+        &self.setup.as_ref().merkle_tree
     }
 }
 

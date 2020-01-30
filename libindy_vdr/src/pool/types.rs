@@ -5,13 +5,12 @@ use std::convert::{TryFrom, TryInto};
 use serde_json::{self, Value as SJsonValue};
 pub use ursa::bls::VerKey as BlsVerKey;
 
-use super::networker::Networker;
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
 
-#[derive(Clone, Copy, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
 pub enum ProtocolVersion {
     Node1_3 = 1,
     Node1_4 = 2,
@@ -518,7 +517,6 @@ impl std::ops::Deref for Verifiers {
 pub struct PoolSetup {
     pub config: PoolConfig,
     pub merkle_tree: MerkleTree,
-    pub networker: Box<dyn Networker>,
     pub node_weights: Option<HashMap<String, f32>>,
     pub verifiers: Verifiers,
 }
@@ -527,14 +525,12 @@ impl PoolSetup {
     pub fn new(
         config: PoolConfig,
         merkle_tree: MerkleTree,
-        networker: Box<dyn Networker>,
         node_weights: Option<HashMap<String, f32>>,
         verifiers: Verifiers,
     ) -> Self {
         Self {
             config,
             merkle_tree,
-            networker,
             node_weights,
             verifiers,
         }

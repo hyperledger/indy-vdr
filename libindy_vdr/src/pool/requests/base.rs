@@ -11,7 +11,7 @@ use pin_utils::unsafe_pinned;
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
 
-use super::networker::NetworkerEvent;
+use super::networker::{Networker, NetworkerEvent};
 use super::types::NodeKeys;
 use super::PoolSetup;
 use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming, TimingResult};
@@ -33,19 +33,21 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> LedgerResult<Vec<String>>;
 }
 
-pub struct PoolRequestImpl<S: AsRef<PoolSetup>> {
+pub struct PoolRequestImpl<S: AsRef<PoolSetup>, T: Networker> {
     handle: RequestHandle,
     events: Option<UnboundedReceiver<RequestExtEvent>>,
     node_order: Vec<String>,
     pool_setup: S,
+    networker: T,
     send_count: usize,
     state: RequestState,
     timing: RequestTiming,
 }
 
-impl<S> PoolRequestImpl<S>
+impl<S, T> PoolRequestImpl<S, T>
 where
     S: AsRef<PoolSetup>,
+    T: Networker,
 {
     unsafe_pinned!(events: Option<UnboundedReceiver<RequestExtEvent>>);
 
@@ -53,12 +55,14 @@ where
         handle: RequestHandle,
         events: UnboundedReceiver<RequestExtEvent>,
         pool_setup: S,
+        networker: T,
         node_order: Vec<String>,
     ) -> Self {
         Self {
             handle,
             events: Some(events),
             pool_setup,
+            networker,
             node_order,
             send_count: 0,
             state: RequestState::NotStarted,
@@ -67,15 +71,21 @@ where
     }
 
     fn trigger(&self, event: NetworkerEvent) -> LedgerResult<()> {
-        self.pool_setup.as_ref().networker.send(event)
+        self.networker.send(event)
     }
 }
 
-impl<S> Unpin for PoolRequestImpl<S> where S: AsRef<PoolSetup> {}
-
-impl<S> PoolRequest for PoolRequestImpl<S>
+impl<S, T> Unpin for PoolRequestImpl<S, T>
 where
     S: AsRef<PoolSetup>,
+    T: Networker,
+{
+}
+
+impl<S, T> PoolRequest for PoolRequestImpl<S, T>
+where
+    S: AsRef<PoolSetup>,
+    T: Networker,
 {
     fn clean_timeout(&self, node_alias: String) -> LedgerResult<()> {
         self.trigger(NetworkerEvent::CleanTimeout(self.handle, node_alias))
@@ -164,18 +174,20 @@ where
     }
 }
 
-impl<S> std::fmt::Debug for PoolRequestImpl<S>
+impl<S, T> std::fmt::Debug for PoolRequestImpl<S, T>
 where
     S: AsRef<PoolSetup>,
+    T: Networker,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "PoolRequest({}, state={})", *self.handle, self.state)
     }
 }
 
-impl<S> Drop for PoolRequestImpl<S>
+impl<S, T> Drop for PoolRequestImpl<S, T>
 where
     S: AsRef<PoolSetup>,
+    T: Networker,
 {
     fn drop(&mut self) {
         trace!("Finish dropped request: {}", self.handle);
@@ -184,9 +196,10 @@ where
     }
 }
 
-impl<S> Stream for PoolRequestImpl<S>
+impl<S, T> Stream for PoolRequestImpl<S, T>
 where
     S: AsRef<PoolSetup>,
+    T: Networker,
 {
     type Item = RequestEvent;
 
@@ -252,9 +265,10 @@ where
     }
 }
 
-impl<S> FusedStream for PoolRequestImpl<S>
+impl<S, T> FusedStream for PoolRequestImpl<S, T>
 where
     S: AsRef<PoolSetup>,
+    T: Networker,
 {
     fn is_terminated(&self) -> bool {
         self.state == RequestState::Terminated

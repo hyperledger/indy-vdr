@@ -23,15 +23,15 @@ new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 
 new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 
-pub struct ZMQNetworker {
-    cmd_send: zmq::Socket,
-    evt_send: mpsc::Sender<NetworkerEvent>,
-    worker: Option<thread::JoinHandle<()>>,
-}
+pub struct ZMQNetworkerFactory;
 
-impl NetworkerFactory for ZMQNetworker {
-    type Output = Self;
-    fn create(config: PoolConfig, verifiers: &Verifiers) -> LedgerResult<Self> {
+impl NetworkerFactory for ZMQNetworkerFactory {
+    type Output = ZMQNetworker;
+    fn make_networker(
+        &self,
+        config: PoolConfig,
+        verifiers: &Verifiers,
+    ) -> LedgerResult<ZMQNetworker> {
         let remotes = _get_remotes(verifiers);
         let socket_handle = *ZMQSocketHandle::next();
         let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
@@ -44,12 +44,18 @@ impl NetworkerFactory for ZMQNetworker {
                 trace!("ZMQ worker exited");
             }
         });
-        Ok(Self {
+        Ok(ZMQNetworker {
             cmd_send,
             evt_send,
             worker: Some(worker),
         })
     }
+}
+
+pub struct ZMQNetworker {
+    cmd_send: zmq::Socket,
+    evt_send: mpsc::Sender<NetworkerEvent>,
+    worker: Option<thread::JoinHandle<()>>,
 }
 
 impl Networker for ZMQNetworker {

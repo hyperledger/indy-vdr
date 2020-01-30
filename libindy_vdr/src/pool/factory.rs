@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use super::genesis::{build_merkle_tree, read_transactions};
-use super::networker::ZMQNetworker;
+use super::networker::{MakeLocal, MakeShared, ZMQNetworkerFactory};
 use super::pool::{LocalPool, SharedPool};
 use super::types::ProtocolVersion;
 
@@ -78,11 +78,21 @@ impl PoolFactory {
     }
 
     pub fn create_local(&self) -> LedgerResult<LocalPool> {
-        LocalPool::build::<ZMQNetworker>(self.config, self.merkle_tree.clone(), None)
+        LocalPool::build(
+            MakeLocal(ZMQNetworkerFactory {}),
+            self.config,
+            self.merkle_tree.clone(),
+            None,
+        )
     }
 
     pub fn create_shared(&self) -> LedgerResult<SharedPool> {
-        SharedPool::build::<ZMQNetworker>(self.config, self.merkle_tree.clone(), None)
+        SharedPool::build(
+            MakeShared(ZMQNetworkerFactory {}),
+            self.config,
+            self.merkle_tree.clone(),
+            None,
+        )
     }
 }
 

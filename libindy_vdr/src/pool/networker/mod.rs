@@ -1,3 +1,6 @@
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+
 use futures::channel::mpsc::UnboundedSender;
 
 use crate::common::error::prelude::*;
@@ -7,7 +10,7 @@ use super::requests::{RequestExtEvent, RequestHandle};
 use super::types::{self, Verifiers};
 
 mod zmq;
-pub use self::zmq::ZMQNetworker;
+pub use self::zmq::{ZMQNetworker, ZMQNetworkerFactory};
 
 #[derive(Debug)]
 pub enum NetworkerEvent {
@@ -40,7 +43,73 @@ pub trait Networker {
 
 pub trait NetworkerFactory {
     type Output: Networker;
-    fn create(config: PoolConfig, verifiers: &Verifiers) -> LedgerResult<Self::Output>;
+    fn make_networker(
+        &self,
+        config: PoolConfig,
+        verifiers: &Verifiers,
+    ) -> LedgerResult<Self::Output>;
+}
+
+pub type LocalNetworker = Rc<dyn Networker + 'static>;
+
+pub struct MakeLocal<T: NetworkerFactory>(pub T);
+
+impl<T> NetworkerFactory for MakeLocal<T>
+where
+    T: NetworkerFactory,
+    T::Output: Networker + 'static,
+{
+    type Output = LocalNetworker;
+    fn make_networker(
+        &self,
+        config: PoolConfig,
+        verifiers: &Verifiers,
+    ) -> LedgerResult<Self::Output> {
+        Ok(Rc::new(self.0.make_networker(config, verifiers)?))
+    }
+}
+
+impl<T> Networker for T
+where
+    T: AsRef<dyn Networker>,
+{
+    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+        self.as_ref().send(event)
+    }
+}
+
+pub type SharedNetworker = Arc<Mutex<dyn Networker + Send + 'static>>;
+
+pub struct MakeShared<T: NetworkerFactory>(pub T);
+
+impl<T> NetworkerFactory for MakeShared<T>
+where
+    T: NetworkerFactory,
+    T::Output: Networker + Send + 'static,
+{
+    type Output = SharedNetworker;
+    fn make_networker(
+        &self,
+        config: PoolConfig,
+        verifiers: &Verifiers,
+    ) -> LedgerResult<Self::Output> {
+        Ok(Arc::new(Mutex::new(
+            self.0.make_networker(config, verifiers)?,
+        )))
+    }
+}
+
+impl Networker for Arc<Mutex<dyn Networker + Send>> {
+    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+        self.lock()
+            .map_err(|_| {
+                err_msg(
+                    LedgerErrorKind::Unexpected,
+                    "Error acquiring networker, mutex poisoned",
+                )
+            })?
+            .send(event)
+    }
 }
 
 /*
