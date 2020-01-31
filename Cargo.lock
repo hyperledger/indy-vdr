@@ -533,6 +533,7 @@ dependencies = [
  "bs58 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "curve25519-dalek 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ed25519-dalek 1.0.0-pre.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "etcommon-rlp 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "ffi-support 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from ctypes import c_size_t
 from typing import Union
 
 from . import bindings
@@ -7,7 +6,7 @@ from . import bindings
 
 class BaseRequest(ABC):
     def __init__(self):
-        self.handle: c_size_t = None
+        self.handle: bindings.RequestHandle = None
 
     @abstractmethod
     def build(self):
@@ -24,6 +23,11 @@ class BaseRequest(ABC):
         if not self.handle:
             raise Exception("request not built")
         return bindings.request_get_signature_input(self.handle)
+
+    def set_signature(self, signature: bytes):
+        if not self.handle:
+            raise Exception("request not built")
+        return bindings.request_set_signature(self.handle, signature)
 
 
 class CustomRequest(BaseRequest):

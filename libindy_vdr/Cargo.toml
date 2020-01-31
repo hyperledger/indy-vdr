@@ -14,7 +14,8 @@ path = "src/lib.rs"
 crate-type = ["staticlib", "rlib", "cdylib"]
 
 [features]
-ffi = ["ffi-support", "log"]
+ffi = ["ffi-support", "logger"]
+logger = ["env_logger", "log"]
 zmq_vendored = ["zmq/vendored"]
 default = ["ffi", "log", "zmq_vendored"]
 
@@ -23,6 +24,7 @@ base64 = "0.10.1"
 bs58 = "0.3.0"
 curve25519-dalek = "2.0.0"
 ed25519-dalek = "1.0.0-pre.3"
+env_logger = { version = "0.7.1", default-features = false, features = ["atty", "humantime", "termcolor"], optional = true }
 etcommon-rlp = "0.2.4"
 ffi-support = { version = "0.4.0", optional = true }
 futures = "0.3.1"

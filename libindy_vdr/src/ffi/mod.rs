@@ -14,54 +14,15 @@ use serde_json;
 
 use ffi_support::{define_string_destructor, rust_string_to_c, FfiStr};
 
+#[macro_use]
+mod macros;
+mod error;
+use error::{set_last_error, ErrorCode};
+
 define_string_destructor!(indy_vdr_string_free);
 
 new_handle_type!(PoolHandle, FFI_PH_COUNTER);
 new_handle_type!(RequestHandle, FFI_RH_COUNTER);
-
-macro_rules! catch_err {
-    ($($e:tt)*) => {
-        match (|| -> LedgerResult<_> {$($e)*})() {
-            Ok(a) => a,
-            // FIXME - save last error for retrieval
-            Err(ref err) => return ErrorCode::from(err),
-        }
-    }
-}
-macro_rules! read_lock {
-    ($e:expr) => {
-        ($e).read()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring read lock"))
-    };
-}
-macro_rules! write_lock {
-    ($e:expr) => {
-        ($e).write()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring write lock"))
-    };
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-#[repr(usize)]
-pub enum ErrorCode {
-    Success = 0,
-    Failed = 1,
-}
-
-impl From<&LedgerError> for ErrorCode {
-    fn from(_err: &LedgerError) -> ErrorCode {
-        ErrorCode::Failed
-    }
-}
-
-impl<T> From<LedgerResult<T>> for ErrorCode {
-    fn from(result: LedgerResult<T>) -> ErrorCode {
-        match result {
-            Ok(_) => ErrorCode::Success,
-            Err(ref err) => ErrorCode::from(err),
-        }
-    }
-}
 
 lazy_static! {
     pub static ref POOL_CONFIG: RwLock<PoolConfig> = RwLock::new(PoolConfig::default());
@@ -71,7 +32,7 @@ lazy_static! {
 }
 
 #[no_mangle]
-extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
+pub extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
     catch_err! {
         debug!("Setting pool protocol version: {}", version);
         let version = ProtocolVersion::try_from(version as u64)?;
@@ -82,7 +43,7 @@ extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
 }
 
 #[no_mangle]
-extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
+pub extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
     catch_err! {
         trace!("Loading new pool config");
         let config: PoolConfig =
@@ -96,12 +57,13 @@ extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
 }
 
 #[no_mangle]
-extern "C" fn indy_vdr_pool_create_from_genesis_file(
+pub extern "C" fn indy_vdr_pool_create_from_genesis_file(
     path: FfiStr,
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        // check_useful_c_ptr!(handle_p)
+        trace!("Create pool from genesis file");
+        check_useful_c_ptr!(handle_p);
         let mut factory = PoolFactory::from_genesis_file(path.as_str())?;
         {
             let gcfg = read_lock!(POOL_CONFIG)?;
@@ -124,12 +86,13 @@ fn get_request_builder() -> LedgerResult<RequestBuilder> {
 }
 
 #[no_mangle]
-extern "C" fn indy_vdr_build_custom_request(
+pub extern "C" fn indy_vdr_build_custom_request(
     request_json: FfiStr,
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        // check_useful_c_ptr!(handle_p)
+        trace!("Build custom pool request");
+        check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let (req, _target) = builder.parse_inbound_request_str(request_json.as_str())?;
         let handle = RequestHandle::next();
@@ -143,16 +106,17 @@ extern "C" fn indy_vdr_build_custom_request(
 }
 
 #[no_mangle]
-extern "C" fn indy_vdr_request_get_body(
+pub extern "C" fn indy_vdr_request_get_body(
     request_handle: usize,
     body_p: *mut *const c_char,
 ) -> ErrorCode {
     catch_err! {
-        // check_useful_c_ptr!(body_p)
+        trace!("Get request body: {}", request_handle);
+        check_useful_c_ptr!(body_p);
         let body = {
             let reqs = read_lock!(REQUESTS)?;
             let req = reqs.get(&RequestHandle(request_handle))
-                .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
+                .ok_or_else(|| input_err("Unknown request handle"))?;
             serde_json::to_string(&req.req_json)
                 .with_err_msg(LedgerErrorKind::Unexpected, "Error serializing request body")?
         };
@@ -165,16 +129,17 @@ extern "C" fn indy_vdr_request_get_body(
 }
 
 #[no_mangle]
-extern "C" fn indy_vdr_request_get_signature_input(
+pub extern "C" fn indy_vdr_request_get_signature_input(
     request_handle: usize,
     input_p: *mut *const c_char,
 ) -> ErrorCode {
     catch_err! {
-        // check_useful_c_ptr!(input_p)
+        trace!("Get request signature input: {}", request_handle);
+        check_useful_c_ptr!(input_p);
         let sig_input = {
             let reqs = read_lock!(REQUESTS)?;
             let req = reqs.get(&RequestHandle(request_handle))
-                .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
+                .ok_or_else(|| input_err("Unknown request handle"))?;
             req.get_signature_input()?
         };
         let sig_input = rust_string_to_c(sig_input);
@@ -183,6 +148,30 @@ extern "C" fn indy_vdr_request_get_signature_input(
         }
         Ok(ErrorCode::Success)
     }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_request_set_signature(
+    request_handle: usize,
+    signature: *const u8,
+    signature_len: usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Set request signature: {}", request_handle);
+        let signature = slice_from_c_ptr!(signature, signature_len)?;
+        let mut reqs = write_lock!(REQUESTS)?;
+        let req = reqs.get_mut(&RequestHandle(request_handle))
+            .ok_or_else(|| input_err("Unknown request handle"))?;
+        req.set_signature(signature)?;
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_set_default_logger() -> ErrorCode {
+    env_logger::init();
+    debug!("Initialized default logger");
+    ErrorCode::Success
 }
 
 /*

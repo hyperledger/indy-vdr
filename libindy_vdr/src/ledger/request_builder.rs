@@ -62,6 +62,7 @@ fn compare_hash(text: &str, version: &str, hash: &str) -> LedgerResult<()> {
 
 #[derive(Debug)]
 pub struct PreparedRequest {
+    pub protocol_version: ProtocolVersion,
     pub txn_type: String,
     pub req_id: String,
     pub req_json: SJsonValue,
@@ -71,6 +72,7 @@ pub struct PreparedRequest {
 
 impl PreparedRequest {
     pub fn new(
+        protocol_version: ProtocolVersion,
         txn_type: String,
         req_id: String,
         req_json: SJsonValue,
@@ -78,6 +80,7 @@ impl PreparedRequest {
         sp_timestamps: (Option<u64>, Option<u64>),
     ) -> Self {
         Self {
+            protocol_version,
             txn_type,
             req_id,
             req_json,
@@ -94,7 +97,11 @@ impl PreparedRequest {
         let keypair = import_keypair(&secret)?;
         let input = self.get_signature_input()?;
         let sig = sign_message(keypair, input.as_bytes());
-        self.req_json["signature"] = SJsonValue::String(sig.to_base58());
+        self.set_signature(&sig)
+    }
+
+    pub fn set_signature(&mut self, signature: &[u8]) -> LedgerResult<()> {
+        self.req_json["signature"] = SJsonValue::String(signature.to_base58());
         Ok(())
     }
 }
@@ -131,6 +138,7 @@ impl RequestBuilder {
             Some(self.protocol_version as usize),
         )?;
         Ok(PreparedRequest::new(
+            self.protocol_version,
             txn_type,
             req_id.to_string(),
             body,
@@ -536,7 +544,14 @@ impl RequestBuilder {
         let sp_key = parse_key_from_request_for_builtin_sp(&req_json, protocol_version);
         let sp_timestamps = parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str());
         Ok((
-            PreparedRequest::new(txn_type, req_id, req_json, sp_key, sp_timestamps),
+            PreparedRequest::new(
+                protocol_version,
+                txn_type,
+                req_id,
+                req_json,
+                sp_key,
+                sp_timestamps,
+            ),
             target,
         ))
     }

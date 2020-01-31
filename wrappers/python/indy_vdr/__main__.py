@@ -10,4 +10,6 @@ test_req = {
 req = CustomRequest(test_req)
 
 print(req.body)
-print(req.signature_input)
+sig_in = req.signature_input
+req.set_signature(bytes(32))
+print(req.body)
