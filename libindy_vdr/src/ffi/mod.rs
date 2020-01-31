@@ -1,7 +1,8 @@
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
 use crate::ledger::PreparedRequest;
-use crate::pool::{Pool, PoolFactory, ProtocolVersion, SharedPool};
+use crate::ledger::RequestBuilder;
+use crate::pool::{PoolFactory, ProtocolVersion, SharedPool};
 use crate::utils::validation::Validatable;
 
 use std::collections::BTreeMap;
@@ -72,6 +73,7 @@ lazy_static! {
 #[no_mangle]
 extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
     catch_err! {
+        debug!("Setting pool protocol version: {}", version);
         let version = ProtocolVersion::try_from(version as u64)?;
         let mut gcfg = write_lock!(POOL_CONFIG)?;
         gcfg.protocol_version = version;
@@ -82,9 +84,11 @@ extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
 #[no_mangle]
 extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
     catch_err! {
+        trace!("Loading new pool config");
         let config: PoolConfig =
             serde_json::from_str(config.as_str()).with_input_err("Error deserializing config")?;
         config.validate()?;
+        debug!("Updating pool config: {:?}", config);
         let mut gcfg = write_lock!(POOL_CONFIG)?;
         *gcfg = config;
         Ok(ErrorCode::Success)
@@ -114,20 +118,19 @@ extern "C" fn indy_vdr_pool_create_from_genesis_file(
     }
 }
 
+fn get_request_builder() -> LedgerResult<RequestBuilder> {
+    let version = read_lock!(POOL_CONFIG)?.protocol_version;
+    Ok(RequestBuilder::new(version))
+}
+
 #[no_mangle]
-extern "C" fn indy_vdr_pool_build_custom_request(
-    pool_handle: usize,
+extern "C" fn indy_vdr_build_custom_request(
     request_json: FfiStr,
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
         // check_useful_c_ptr!(handle_p)
-        let builder = {
-            let pools = read_lock!(POOLS)?;
-            let pool = pools.get(&PoolHandle(pool_handle))
-                .ok_or_else(|| err_msg(LedgerErrorKind::Input, "Unknown pool handle"))?;
-            pool.get_request_builder()
-        };
+        let builder = get_request_builder()?;
         let (req, _target) = builder.parse_inbound_request_str(request_json.as_str())?;
         let handle = RequestHandle::next();
         let mut requests = write_lock!(REQUESTS)?;
@@ -193,10 +196,10 @@ extern "C" fn indy_vdr_request_get_signature_input(
 - indy_vdr_pool_refresh(pool_handle, callback(command_handle, err, new_txns)) -> error code
 - indy_vdr_pool_free(pool_handle) -> void
     (^ no more requests allowed on this pool, but existing ones may be completed)
-- indy_vdr_pool_build_{nym, schema, etc}_request(pool_handle, ..., *request_handle) -> error code
-- indy_vdr_pool_build_custom_request(pool_handle, char[] json, *request_handle) -> error code
-- indy_vdr_request_submit(request_handle, callback(command_handle, err, result_json)) -> error code
-- indy_vdr_request_submit_action(request_handle, nodes, timeout, callback(command_handle, err, result_json)) -> error code
+- indy_vdr_build_{nym, schema, etc}_request(..., *request_handle) -> error code
+- indy_vdr_build_custom_request(char[] json, *request_handle) -> error code
+- indy_vdr_pool_submit_request(pool_handle, request_handle, callback(command_handle, err, result_json)) -> error code
+- indy_vdr_pool_submit_action(pool_handle, request_handle, nodes, timeout, callback(command_handle, err, result_json)) -> error code
 - indy_vdr_request_free(request_handle) -> void
     (^ only needed for a request that isn't submitted)
 - indy_vdr_request_get_body(request_handle, *char[]) -> error code

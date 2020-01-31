@@ -7,12 +7,19 @@ use super::constants;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct PoolConfig {
+    #[serde(default = "PoolConfig::default_protocol_version")]
     pub protocol_version: ProtocolVersion,
+    #[serde(default = "PoolConfig::default_freshness_threshold")]
     pub freshness_threshold: u64,
+    #[serde(default = "PoolConfig::default_ack_timeout")]
     pub ack_timeout: i64,
+    #[serde(default = "PoolConfig::default_reply_timeout")]
     pub reply_timeout: i64,
+    #[serde(default = "PoolConfig::default_conn_request_limit")]
     pub conn_request_limit: usize,
+    #[serde(default = "PoolConfig::default_conn_active_timeout")]
     pub conn_active_timeout: i64,
+    #[serde(default = "PoolConfig::default_request_read_nodes")]
     pub request_read_nodes: usize,
 }
 
