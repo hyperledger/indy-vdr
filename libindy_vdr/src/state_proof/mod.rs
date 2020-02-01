@@ -35,21 +35,30 @@ pub fn check_state_proof(
     last_write_time: u64,
     threshold: u64,
 ) -> bool {
-    debug!("process_reply: Try to verify proof and signature >>");
+    trace!("process_reply: Try to verify proof and signature >>");
 
-    let proof_checking_res =
-        match parse_generic_reply_for_proof_checking(&msg_result, raw_msg, sp_key) {
-            Some(parsed_sps) => {
-                debug!("process_reply: Proof and signature are present");
-                verify_parsed_sp(parsed_sps, bls_keys, f, gen)
+    let res = match parse_generic_reply_for_proof_checking(&msg_result, raw_msg, sp_key) {
+        Some(parsed_sps) => {
+            trace!("process_reply: Proof and signature are present");
+            if verify_parsed_sp(parsed_sps, bls_keys, f, gen) {
+                if check_freshness(msg_result, requested_timestamps, last_write_time, threshold) {
+                    true
+                } else {
+                    debug!("Freshness check failed");
+                    false
+                }
+            } else {
+                debug!("Verification of parsed state proof failed");
+                false
             }
-            None => false,
-        };
+        }
+        None => {
+            debug!("No state proof found");
+            false
+        }
+    };
 
-    let res = proof_checking_res
-        && check_freshness(msg_result, requested_timestamps, last_write_time, threshold);
-
-    debug!(
+    trace!(
         "process_reply: Try to verify proof and signature << {}",
         res
     );
@@ -62,7 +71,7 @@ pub fn check_freshness(
     last_write_time: u64,
     threshold: u64,
 ) -> bool {
-    debug!(
+    trace!(
         "check_freshness: requested_timestamps: {:?} >>",
         requested_timestamps
     );
@@ -124,7 +133,7 @@ pub fn check_freshness(
         }
     };
 
-    debug!("check_freshness << {:?} ", res);
+    trace!("check_freshness << {:?} ", res);
 
     res
 }
@@ -240,30 +249,44 @@ pub fn verify_parsed_sp(
             return false;
         }
 
-        let data_to_check_proof_signature =
-            _parse_reply_for_proof_signature_checking(&parsed_sp.multi_signature);
-        let (signature, participants, value) =
-            unwrap_opt_or_return!(data_to_check_proof_signature, false);
+        let (signature, participants, value) = unwrap_opt_or_return!(
+            _parse_reply_for_proof_signature_checking(&parsed_sp.multi_signature),
+            {
+                debug!("Reply parsing failed");
+                false
+            }
+        );
         if !_verify_proof_signature(signature, participants.as_slice(), &value, nodes, f, gen)
             .map_err(|err| debug!("{:?}", err))
             .unwrap_or(false)
         {
+            debug!("Proof signature verification failed");
             return false;
         }
 
-        let proof_nodes = unwrap_or_return!(base64::decode(&parsed_sp.proof_nodes), false);
-        let root_hash = unwrap_or_return!(parsed_sp.root_hash.from_base58(), false);
+        let proof_nodes = unwrap_or_return!(base64::decode(&parsed_sp.proof_nodes), {
+            debug!("Error decoding proof nodes from state proof");
+            false
+        });
+        let root_hash = unwrap_or_return!(parsed_sp.root_hash.from_base58(), {
+            debug!("Error decoding root hash from state proof");
+            false
+        });
         match parsed_sp.kvs_to_verify {
             KeyValuesInSP::Simple(kvs) => match kvs.verification_type {
                 KeyValueSimpleDataVerificationType::Simple => {
                     for (k, v) in kvs.kvs {
-                        let key = unwrap_or_return!(base64::decode(&k), false);
+                        let key = unwrap_or_return!(base64::decode(&k), {
+                            debug!("Error decoding proof key");
+                            false
+                        });
                         if !_verify_proof(
                             proof_nodes.as_slice(),
                             root_hash.as_slice(),
                             &key,
                             v.as_ref().map(String::as_str),
                         ) {
+                            debug!("Simple verification failed");
                             return false;
                         }
                     }
@@ -277,6 +300,7 @@ pub fn verify_parsed_sp(
                         data.next,
                         &kvs.kvs,
                     ) {
+                        debug!("Range verification failed");
                         return false;
                     }
                 }
@@ -817,6 +841,7 @@ fn _parse_reply_for_proof_signature_checking(
             if participants.len() == participants_unwrap.len() {
                 Some((signature, participants_unwrap, value))
             } else {
+                debug!("Received non-string participant values");
                 None
             }
         }
@@ -824,7 +849,14 @@ fn _parse_reply_for_proof_signature_checking(
             debug!("Error deserializing transaction: {}", err);
             None
         }
-        _ => None,
+        (Some(_), None, _) => {
+            debug!("Missing participants list");
+            None
+        }
+        _ => {
+            debug!("Missing signature");
+            None
+        }
     }
 }
 
@@ -852,15 +884,19 @@ fn _verify_merkle_tree(
     trace!("_verify_merkle_tree >> hashes: {:?}", hashes);
 
     let (key, value) = &kvs[0];
-    let key = unwrap_or_return!(base64::decode(&key), false);
-    let key = unwrap_or_return!(std::str::from_utf8(&key), false);
-    let seq_no = match key.parse::<u64>() {
-        Ok(num) => num,
-        Err(err) => {
-            debug!("Error while parsing seq_no: {:?}", err);
-            return false;
-        }
+    if value.is_none() {
+        debug!("No value for merkle tree hash");
+        return false;
+    }
+    let seq_no = in_closure! {
+        let key = base64::decode(&key).map_err_string()?;
+        let key = std::str::from_utf8(&key).map_err_string()?;
+        key.parse::<u64>().map_err_string()
     };
+    let seq_no = unwrap_or_map_return!(seq_no, |err| {
+        debug!("Error while parsing merkle tree seq_no: {}", err);
+        false
+    });
 
     let turns = _calculate_turns(length, seq_no - 1);
     trace!("_verify_merkle_tree >> turns: {:?}", turns);
@@ -872,42 +908,43 @@ fn _verify_merkle_tree(
 
     let hashes_with_turns = hashes.iter().zip(turns).collect::<Vec<(&String, bool)>>();
 
-    let value = match value {
-        Some(val) => val,
-        None => {
-            return false;
-        }
+    let hash = in_closure! {
+        let val = value.as_ref().unwrap();
+        let val = serde_json::from_str::<serde_json::Value>(val).map_err_string()?;
+        let val = rmp_serde::to_vec(&val).map_err_string()?;
+        Sha256::hash_leaf(&val).map_err_string()
     };
-
-    let value = unwrap_or_return!(serde_json::from_str::<serde_json::Value>(&value), false);
-    let value = unwrap_or_return!(rmp_serde::to_vec(&value), false);
-    let mut hash = match Sha256::hash_leaf(&value) {
-        Ok(hash) => hash,
-        Err(err) => {
-            debug!("Error while hashing: {:?}", err);
-            return false;
-        }
-    };
+    let mut hash = unwrap_or_map_return!(hash, |err| {
+        debug!("Error while hashing merkle tree leaf: {:?}", err);
+        return false;
+    });
 
     trace!("Hashed leaf in b58: {}", hash.to_base58());
 
     for (next_hash, turn_right) in hashes_with_turns {
-        let _next_hash = unwrap_or_return!(next_hash.from_base58(), false);
+        let _next_hash = unwrap_or_return!(next_hash.from_base58(), {
+            debug!("Error decoding next hash as base58");
+            false
+        });
         let turned_hash = if turn_right {
             Sha256::hash_nodes(&hash, &_next_hash)
         } else {
             Sha256::hash_nodes(&_next_hash, &hash)
         };
-        hash = match turned_hash {
-            Ok(hash) => hash,
-            Err(err) => {
-                debug!("Error while hashing: {:?}", err);
-                return false;
-            }
-        }
+        hash = unwrap_or_map_return!(turned_hash, |err| {
+            debug!("Error while hashing: {:?}", err);
+            return false;
+        })
     }
 
     let result = hash.as_slice() == root_hash;
+    if !result {
+        debug!(
+            "Merkle tree hash mismatch: {} != {}",
+            hash.to_base58(),
+            root_hash.to_base58()
+        );
+    }
 
     result
 }
@@ -963,9 +1000,11 @@ fn _verify_proof_range(
     next: Option<u64>,
     kvs: &[(String, Option<String>)],
 ) -> bool {
-    debug!(
+    trace!(
         "verify_proof_range >> from {:?}, prefix {:?}, kvs {:?}",
-        from, prefix, kvs
+        from,
+        prefix,
+        kvs
     );
     let nodes: Vec<Node> = UntrustedRlp::new(proofs_rlp).as_list().unwrap_or_default(); //default will cause error below
     let mut map: TrieDB = HashMap::with_capacity(nodes.len());
@@ -1043,7 +1082,7 @@ fn _verify_proof_signature(
         }
     }
 
-    debug!(
+    trace!(
         "verify_proof_signature: ver_keys.len(): {:?}",
         ver_keys.len()
     );
@@ -1066,7 +1105,7 @@ fn _verify_proof_signature(
 
     let res = Bls::verify_multi_sig(&signature, value, ver_keys.as_slice(), gen).unwrap_or(false);
 
-    debug!("verify_proof_signature: <<< res: {:?}", res);
+    trace!("verify_proof_signature: <<< res: {:?}", res);
     Ok(res)
 }
 

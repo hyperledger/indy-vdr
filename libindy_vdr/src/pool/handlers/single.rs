@@ -86,6 +86,8 @@ pub async fn handle_single_request<Request: PoolRequest>(
                                 RequestResult::Reply(if cnt > f { soonest } else { raw_msg }),
                                 request.get_timing(),
                             ));
+                        } else if state_proof_key.is_some() {
+                            debug!("State proof verification failed for node: {}", node_alias);
                         }
                         request.clean_timeout(node_alias)?;
                         true

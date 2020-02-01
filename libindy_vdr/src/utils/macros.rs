@@ -46,7 +46,6 @@ macro_rules! trace {
     };
 }
 
-#[macro_export]
 macro_rules! map_err_log {
     (level: $lvl:tt, $($arg:tt)+) => {
         |err| {
@@ -78,4 +77,17 @@ macro_rules! unwrap_or_return {
             Err(_) => return $err,
         };
     };
+}
+
+macro_rules! unwrap_or_map_return {
+    ($result:expr, $on_err:expr) => {
+        match $result {
+            Ok(res) => res,
+            Err(err) => return ($on_err)(err),
+        };
+    };
+}
+
+macro_rules! in_closure {
+    ($($e:tt)*) => {(|| -> Result<_, _> {$($e)*})()}
 }

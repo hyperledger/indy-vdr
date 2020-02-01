@@ -112,6 +112,7 @@ where
 pub type LedgerResult<T> = Result<T, LedgerError>;
 
 pub trait LedgerResultExt<T, E> {
+    fn map_err_string(self) -> Result<T, String>;
     fn map_input_err<F, M>(self, mapfn: F) -> LedgerResult<T>
     where
         F: FnOnce() -> M,
@@ -128,6 +129,10 @@ impl<T, E> LedgerResultExt<T, E> for Result<T, E>
 where
     E: std::error::Error + Send + Sync + 'static,
 {
+    fn map_err_string(self) -> Result<T, String> {
+        self.map_err(|err| err.to_string())
+    }
+
     fn map_input_err<F, M>(self, mapfn: F) -> LedgerResult<T>
     where
         F: FnOnce() -> M,

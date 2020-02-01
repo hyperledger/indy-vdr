@@ -209,7 +209,7 @@ impl ZMQThread {
         if let Some(handle) = self.select_request(conn_id, &req_id) {
             self.process_reply(handle, fwd)
         } else {
-            debug!("Unknown request ID: {}", req_id)
+            trace!("Unknown request ID: {}", req_id)
         }
     }
 
@@ -362,10 +362,10 @@ impl ZMQThread {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 conn.clean_timeout(request.sub_id.as_str(), Some(node_alias))
             } else {
-                warn!("Pool connection expired for clean timeout: {}", handle)
+                debug!("Pool connection expired for clean timeout: {}", handle)
             }
         } else {
-            warn!("Unknown request ID for clean timeout: {}", handle)
+            debug!("Unknown request ID for clean timeout: {}", handle)
         }
         Ok(())
     }
@@ -380,10 +380,10 @@ impl ZMQThread {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 conn.extend_timeout(request.sub_id.as_str(), node_alias.as_str(), timeout)
             } else {
-                warn!("Pool connection expired for extend timeout: {}", handle)
+                debug!("Pool connection expired for extend timeout: {}", handle)
             }
         } else {
-            warn!("Unknown request ID for extend timeout: {}", handle)
+            debug!("Unknown request ID for extend timeout: {}", handle)
         }
         Ok(())
     }
@@ -407,6 +407,7 @@ impl ZMQThread {
             let pc_id = ZMQConnectionHandle::next();
             self.pool_connections.insert(pc_id, conn);
             self.last_connection.replace(pc_id);
+            debug!("New {}", pc_id);
             Ok(pc_id)
         } else {
             conn.unwrap().init_request(sub_id);
