@@ -86,6 +86,7 @@ pub extern "C" fn indy_vdr_pool_submit_request(
     cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
 ) -> ErrorCode {
     catch_err! {
+        trace!("Submit request: {} {}", pool_handle, request_handle);
         let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
         let pools = read_lock!(POOLS)?;
         let pool = pools.get(&PoolHandle(pool_handle))
@@ -150,7 +151,7 @@ pub extern "C" fn indy_vdr_build_custom_request(
         trace!("Build custom pool request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
-        let (req, _target) = builder.parse_inbound_request_str(request_json.as_str())?;
+        let (req, _target) = builder.parse_inbound_request_str(request_json.as_str(), true)?;
         let handle = RequestHandle::next();
         let mut requests = write_lock!(REQUESTS)?;
         requests.insert(handle, req);
@@ -224,6 +225,17 @@ pub extern "C" fn indy_vdr_request_set_signature(
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_request_free(request_handle: usize) -> ErrorCode {
+    catch_err! {
+        trace!("Free request: {}", request_handle);
+        let mut reqs = write_lock!(REQUESTS)?;
+        reqs.remove(&RequestHandle(request_handle))
+            .ok_or_else(|| input_err("Unknown request handle"))?;
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_set_default_logger() -> ErrorCode {
     env_logger::init();
     debug!("Initialized default logger");
@@ -239,13 +251,13 @@ pub extern "C" fn indy_vdr_set_default_logger() -> ErrorCode {
 - indy_vdr_pool_create_from_genesis_file(char[]) -> error code
 - indy_vdr_pool_get_transactions(pool_handle, char[]*) -> error code
 - indy_vdr_pool_refresh(pool_handle, callback(command_handle, err, new_txns)) -> error code
-- indy_vdr_pool_free(pool_handle) -> void
+- indy_vdr_pool_close(pool_handle) -> error code
     (^ no more requests allowed on this pool, but existing ones may be completed)
 - indy_vdr_build_{nym, schema, etc}_request(..., *request_handle) -> error code
 - indy_vdr_build_custom_request(char[] json, *request_handle) -> error code
 - indy_vdr_pool_submit_request(pool_handle, request_handle, callback(command_handle, err, result_json)) -> error code
 - indy_vdr_pool_submit_action(pool_handle, request_handle, nodes, timeout, callback(command_handle, err, result_json)) -> error code
-- indy_vdr_request_free(request_handle) -> void
+- indy_vdr_request_free(request_handle) -> error code
     (^ only needed for a request that isn't submitted)
 - indy_vdr_request_get_body(request_handle, *char[]) -> error code
 - indy_vdr_request_get_signature_input(request_handle, *char[]) -> error code
