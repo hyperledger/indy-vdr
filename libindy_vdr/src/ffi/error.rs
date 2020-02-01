@@ -32,19 +32,19 @@ impl<T> From<LedgerResult<T>> for ErrorCode {
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_get_last_error(error_json_p: *mut *const c_char) -> ErrorCode {
-    trace!("indy_vdr_get_last_error");
+pub extern "C" fn indy_vdr_get_current_error(error_json_p: *mut *const c_char) -> ErrorCode {
+    trace!("indy_vdr_get_current_error");
 
-    let error = rust_string_to_c(get_last_error_json());
+    let error = rust_string_to_c(get_current_error_json());
     unsafe { *error_json_p = error };
 
     ErrorCode::Success
 }
 
-pub fn get_last_error_json() -> String {
-    if let Some(err) = &*LAST_ERROR.read().unwrap() {
+pub fn get_current_error_json() -> String {
+    if let Some(err) = LAST_ERROR.write().unwrap().take() {
         let message = err.to_string();
-        let code = ErrorCode::from(err) as usize;
+        let code = ErrorCode::from(&err) as usize;
         json!({"code": code, "message": message}).to_string()
     } else {
         "{\"code\": 0, \"message\": \"\"}".to_owned()

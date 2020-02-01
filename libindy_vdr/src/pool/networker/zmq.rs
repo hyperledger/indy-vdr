@@ -78,7 +78,7 @@ impl Drop for ZMQNetworker {
             trace!("Networker thread told to exit")
         }
         if let Some(worker) = self.worker.take() {
-            info!("Drop networker thread");
+            debug!("Drop networker thread");
             worker.join().unwrap()
         }
     }

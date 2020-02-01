@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use super::genesis::{build_merkle_tree, read_transactions};
 use super::networker::{MakeLocal, MakeShared, ZMQNetworkerFactory};
 use super::pool::{LocalPool, SharedPool};
+use super::runner::PoolRunner;
 use super::types::ProtocolVersion;
 
 use crate::common::error::prelude::*;
@@ -79,20 +80,28 @@ impl PoolFactory {
 
     pub fn create_local(&self) -> LedgerResult<LocalPool> {
         LocalPool::build(
-            MakeLocal(ZMQNetworkerFactory {}),
             self.config,
             self.merkle_tree.clone(),
+            MakeLocal(ZMQNetworkerFactory {}),
             None,
         )
     }
 
     pub fn create_shared(&self) -> LedgerResult<SharedPool> {
         SharedPool::build(
-            MakeShared(ZMQNetworkerFactory {}),
             self.config,
             self.merkle_tree.clone(),
+            MakeShared(ZMQNetworkerFactory {}),
             None,
         )
+    }
+
+    pub fn create_runner(&self) -> LedgerResult<PoolRunner> {
+        Ok(PoolRunner::new(
+            self.config,
+            self.merkle_tree.clone(),
+            MakeLocal(ZMQNetworkerFactory {}),
+        ))
     }
 }
 

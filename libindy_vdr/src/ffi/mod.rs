@@ -1,8 +1,7 @@
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
-use crate::ledger::PreparedRequest;
-use crate::ledger::RequestBuilder;
-use crate::pool::{PoolFactory, ProtocolVersion, SharedPool};
+use crate::ledger::{PreparedRequest, RequestBuilder};
+use crate::pool::{PoolFactory, PoolRunner, ProtocolVersion, RequestResult};
 use crate::utils::validation::Validatable;
 
 use std::collections::BTreeMap;
@@ -26,7 +25,7 @@ new_handle_type!(RequestHandle, FFI_RH_COUNTER);
 
 lazy_static! {
     pub static ref POOL_CONFIG: RwLock<PoolConfig> = RwLock::new(PoolConfig::default());
-    pub static ref POOLS: RwLock<BTreeMap<PoolHandle, SharedPool>> = RwLock::new(BTreeMap::new());
+    pub static ref POOLS: RwLock<BTreeMap<PoolHandle, PoolRunner>> = RwLock::new(BTreeMap::new());
     pub static ref REQUESTS: RwLock<BTreeMap<RequestHandle, PreparedRequest>> =
         RwLock::new(BTreeMap::new());
 }
@@ -69,13 +68,70 @@ pub extern "C" fn indy_vdr_pool_create_from_genesis_file(
             let gcfg = read_lock!(POOL_CONFIG)?;
             factory.set_config(*gcfg)?;
         }
-        let pool = factory.create_shared()?;
+        let pool = factory.create_runner()?;
         let handle = PoolHandle::next();
         let mut pools = write_lock!(POOLS)?;
         pools.insert(handle, pool);
         unsafe {
             *handle_p = *handle;
         }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_pool_submit_request(
+    pool_handle: usize,
+    request_handle: usize,
+    cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
+) -> ErrorCode {
+    catch_err! {
+        let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
+        let pools = read_lock!(POOLS)?;
+        let pool = pools.get(&PoolHandle(pool_handle))
+            .ok_or_else(|| input_err("Unknown pool handle"))?;
+        let req = {
+            let mut reqs = write_lock!(REQUESTS)?;
+            reqs.remove(&RequestHandle(request_handle))
+                .ok_or_else(|| input_err("Unknown request handle"))?
+        };
+        pool.send_request(req, Box::new(
+            move |result| {
+                let (errcode, reply) = match result {
+                    Ok((reply, _timing)) => {
+                        match reply {
+                            RequestResult::Reply(body) => {
+                                (ErrorCode::Success, body)
+                            }
+                            RequestResult::Failed(err) => {
+                                let code = ErrorCode::from(&err);
+                                set_last_error(Some(err));
+                                (code, String::new())
+                            }
+                        }
+                    },
+                    Err(err) => {
+                        let code = ErrorCode::from(&err);
+                        set_last_error(Some(err));
+                        (code, String::new())
+                    }
+                };
+                cb(errcode, rust_string_to_c(reply))
+            }))?;
+        Ok(ErrorCode::Success)
+    }
+}
+
+// NOTE: at the moment, pending requests are allowed to complete
+// and request callbacks are still run, even if we no longer have a
+// reference to the pool here. Maybe an optional callback for when
+// the close has completed?
+#[no_mangle]
+pub extern "C" fn indy_vdr_pool_close(pool_handle: usize) -> ErrorCode {
+    catch_err! {
+        let mut pools = write_lock!(POOLS)?;
+        pools.remove(&PoolHandle(pool_handle))
+            .ok_or_else(|| input_err("Unknown pool handle"))?;
         Ok(ErrorCode::Success)
     }
 }
@@ -175,7 +231,7 @@ pub extern "C" fn indy_vdr_set_default_logger() -> ErrorCode {
 }
 
 /*
-- indy_vdr_get_last_error
+- indy_vdr_get_current_error
 - indy_vdr_set_protocol_version (for new pools) -> error code
 - indy_vdr_set_config (for new pools) -> error code
 - indy_vdr_set_logger(callback) -> error code

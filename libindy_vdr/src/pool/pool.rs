@@ -65,9 +65,9 @@ where
     }
 
     pub fn build<F>(
-        factory: F,
         config: PoolConfig,
         merkle_tree: MerkleTree,
+        networker_factory: F,
         node_weights: Option<HashMap<String, f32>>,
     ) -> LedgerResult<Self>
     where
@@ -75,7 +75,7 @@ where
     {
         let txn_map = build_node_transaction_map(&merkle_tree, config.protocol_version)?;
         let verifiers = build_verifiers(txn_map)?;
-        let networker = factory.make_networker(config, &verifiers)?;
+        let networker = networker_factory.make_networker(config, &verifiers)?;
         let setup = PoolSetup::new(config, merkle_tree, node_weights, verifiers);
         Ok(Self::new(S::from(Box::new(setup)), networker))
     }

@@ -131,6 +131,7 @@ where
     fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()> {
         let aliases = self.node_order();
         let count = aliases.len();
+        trace!("Send to all {} {:?}", self.handle, aliases);
         self.trigger(NetworkerEvent::Dispatch(self.handle, aliases, timeout))?;
         self.send_count += count;
         Ok(())
@@ -140,7 +141,13 @@ where
         let aliases = self.node_order();
         let max = std::cmp::min(self.send_count + count, aliases.len());
         let min = std::cmp::min(self.send_count, max);
-        trace!("send to any {} {} {:?}", min, max, aliases);
+        trace!(
+            "Send to any {} {}-{} of {:?}",
+            self.handle,
+            min,
+            max,
+            aliases
+        );
         let nodes = (min..max)
             .map(|idx| aliases[idx].clone())
             .collect::<Vec<String>>();
