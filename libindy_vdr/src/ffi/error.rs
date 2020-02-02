@@ -45,9 +45,10 @@ pub fn get_current_error_json() -> String {
     if let Some(err) = LAST_ERROR.write().unwrap().take() {
         let message = err.to_string();
         let code = ErrorCode::from(&err) as usize;
-        json!({"code": code, "message": message}).to_string()
+        let extra = err.extra();
+        json!({"code": code, "message": message, "extra": extra}).to_string()
     } else {
-        "{\"code\": 0, \"message\": \"\"}".to_owned()
+        r#"{"code":0,"message":null,"extra":null}"#.to_owned()
     }
 }
 
