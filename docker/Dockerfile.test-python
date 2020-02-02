@@ -1,0 +1,93 @@
+# syntax = docker/dockerfile:1.0-experimental
+
+FROM ubuntu:18.04 as builder
+
+ARG user=indy
+ENV HOME="/home/$user"
+WORKDIR $HOME
+RUN mkdir -p .local/bin .local/etc .local/lib
+
+# Install environment
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        cmake \
+        curl && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV LIBRARY_PATH="$HOME/.local/lib:$LIBRARY_PATH"
+
+RUN curl -o rustup https://sh.rustup.rs && \
+    chmod +x rustup && \
+    ./rustup --default-toolchain 1.39.0 -y
+
+ENV PATH="$PATH:$HOME/.cargo/bin"
+
+# set to --release for smaller, optimized library
+ARG cargo_build_flags=
+
+ADD libindy_vdr .
+RUN --mount=type=cache,target=target \
+    --mount=type=cache,target=.cargo/registry \
+    cargo build --lib $cargo_build_flags && \
+    cp target/*/libindy_vdr.so .local/lib
+
+
+## Start fresh (new image) ##
+FROM ubuntu:18.04
+
+
+ARG uid=1001
+ARG user=indy
+
+ENV HOME="/home/$user" \
+    APP_ROOT="$HOME" \
+    LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
+    PIP_NO_CACHE_DIR=off \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    SHELL=/bin/bash
+
+# Add indy user
+RUN useradd -U -ms /bin/bash -u $uid $user
+
+# Install environment
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        python3 && \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc/*
+
+WORKDIR $HOME
+
+# Copy build results
+COPY --from=builder --chown=indy:indy $HOME/.local .local
+
+# Make libraries resolvable by python
+ENV LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
+RUN echo "$HOME/.local/lib" > /etc/ld.so.conf.d/local.conf && ldconfig
+
+# - In order to drop the root user, we have to make some directories writable
+#   to the root group as OpenShift default security model is to run the container
+#   under random UID.
+RUN usermod -a -G 0 indy
+
+# Create standard directories to allow volume mounting and set permissions
+# Note: PIP_NO_CACHE_DIR environment variable should be cleared to allow caching
+RUN mkdir -p \
+        $HOME/.cache/pip/http \
+        $HOME/log
+RUN chmod -R ug+rw $HOME/.cache $HOME/log
+
+USER $user
+
+ADD wrappers/python/* .
+
+ENV RUST_LOG=${RUST_LOG:-debug}
+ENV RUST_BACKTRACE=full
+
+ARG GENESIS_PATH=genesis.txn
+ADD $GENESIS_PATH genesis.txn
+
+CMD python3 -m indy_vdr.test
