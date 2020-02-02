@@ -7,6 +7,7 @@ pub use ursa::bls::VerKey as BlsVerKey;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
+use crate::common::verkey::build_full_verkey;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
 
@@ -187,6 +188,48 @@ pub struct NodeTransactionV1 {
 
 impl NodeTransactionV1 {
     pub const VERSION: &'static str = "1.4";
+
+    pub fn update(&mut self, other: &mut NodeTransactionV1) -> LedgerResult<()> {
+        assert_eq!(self.txn.data.dest, other.txn.data.dest);
+        assert_eq!(self.txn.data.data.alias, other.txn.data.data.alias);
+
+        if let Some(ref mut client_ip) = other.txn.data.data.client_ip {
+            self.txn.data.data.client_ip = Some(client_ip.to_owned());
+        }
+
+        if let Some(ref mut client_port) = other.txn.data.data.client_port {
+            self.txn.data.data.client_port = Some(client_port.to_owned());
+        }
+
+        if let Some(ref mut node_ip) = other.txn.data.data.node_ip {
+            self.txn.data.data.node_ip = Some(node_ip.to_owned());
+        }
+
+        if let Some(ref mut node_port) = other.txn.data.data.node_port {
+            self.txn.data.data.node_port = Some(node_port.to_owned());
+        }
+
+        if let Some(ref mut blskey) = other.txn.data.data.blskey {
+            self.txn.data.data.blskey = Some(blskey.to_owned());
+        }
+
+        if let Some(ref mut blskey_pop) = other.txn.data.data.blskey_pop {
+            self.txn.data.data.blskey_pop = Some(blskey_pop.to_owned());
+        }
+
+        if let Some(ref mut services) = other.txn.data.data.services {
+            self.txn.data.data.services = Some(services.to_owned());
+        }
+
+        if other.txn.data.verkey.is_some() {
+            self.txn.data.verkey = Some(build_full_verkey(
+                &self.txn.data.dest,
+                other.txn.data.verkey.as_ref().unwrap(),
+            )?);
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]

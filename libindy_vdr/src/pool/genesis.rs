@@ -78,9 +78,14 @@ where
     T::Item: AsRef<[u8]>,
 {
     txns.into_iter().try_fold(HashMap::new(), |mut map, txn| {
-        let node_txn = _decode_transaction(txn.as_ref(), protocol_version)?;
+        let mut node_txn = _decode_transaction(txn.as_ref(), protocol_version)?;
         let dest = node_txn.txn.data.dest.clone();
-        map.insert(dest, node_txn);
+        let exist: Option<&mut NodeTransactionV1> = map.get_mut(&dest);
+        if exist.is_some() {
+            exist.unwrap().update(&mut node_txn)?;
+        } else {
+            map.insert(dest, node_txn);
+        }
         Ok(map)
     })
 }

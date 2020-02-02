@@ -5,6 +5,11 @@ use crate::utils::crypto::DEFAULT_CRYPTO_TYPE;
 pub const VERKEY_ENC_BASE58: &str = "base58";
 pub const DEFAULT_VERKEY_ENC: &str = VERKEY_ENC_BASE58;
 
+pub fn build_full_verkey(dest: &str, key: &str) -> LedgerResult<String> {
+    let key = VerKey::from_str_qualified(key, Some(dest), None, None)?;
+    Ok(key.into())
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct VerKey {
     pub key: String,
