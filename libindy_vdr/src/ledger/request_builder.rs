@@ -497,14 +497,18 @@ impl RequestBuilder {
     pub fn build_custom_request(
         &self,
         message: &[u8],
+        sp_key: Option<Vec<u8>>,
+        sp_timestamps: (Option<u64>, Option<u64>),
     ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
         let message = std::str::from_utf8(message).with_input_err("Invalid UTF-8")?;
-        self.build_custom_request_from_str(message)
+        self.build_custom_request_from_str(message, sp_key, sp_timestamps)
     }
 
     pub fn build_custom_request_from_str(
         &self,
         message: &str,
+        sp_key: Option<Vec<u8>>,
+        sp_timestamps: (Option<u64>, Option<u64>),
     ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
         let mut req_json: SJsonValue =
             serde_json::from_str(message).with_input_err("Invalid request JSON")?;
@@ -545,8 +549,14 @@ impl RequestBuilder {
             None
         };
 
-        let sp_key = parse_key_from_request_for_builtin_sp(&req_json, protocol_version);
-        let sp_timestamps = parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str());
+        let (sp_key, sp_timestamps) = if sp_key.is_some() {
+            (sp_key, sp_timestamps)
+        } else {
+            (
+                parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
+                parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
+            )
+        };
         Ok((
             PreparedRequest::new(
                 protocol_version,

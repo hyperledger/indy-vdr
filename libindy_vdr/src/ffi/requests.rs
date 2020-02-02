@@ -33,7 +33,7 @@ pub extern "C" fn indy_vdr_build_custom_request(
         trace!("Build custom pool request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
-        let (req, _target) = builder.build_custom_request_from_str(request_json.as_str())?;
+        let (req, _target) = builder.build_custom_request_from_str(request_json.as_str(), None, (None, None))?;
         let handle = RequestHandle::next();
         let mut requests = write_lock!(REQUESTS)?;
         requests.insert(handle, req);
