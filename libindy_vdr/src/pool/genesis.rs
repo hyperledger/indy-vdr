@@ -89,6 +89,8 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> LedgerResult<Verifiers> {
     Ok(txn_map
         .into_iter()
         .map(|(public_key, txn)| {
+            let node_alias = txn.txn.data.data.alias.clone();
+
             if txn.txn.data.data.services.is_none()
                 || !txn
                     .txn
@@ -99,40 +101,52 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> LedgerResult<Verifiers> {
                     .unwrap()
                     .contains(&"VALIDATOR".to_string())
             {
-                return Err(input_err("Node is not a validator"));
+                return Err(input_err(format!(
+                    "Node '{}' is not a validator",
+                    node_alias
+                )));
             }
 
-            let node_alias = txn.txn.data.data.alias.clone();
-
-            let verkey_bin = public_key
-                .from_base58()
-                .with_input_err("Invalid field dest in genesis transaction")?;
+            let verkey_bin = public_key.from_base58().map_input_err(|| {
+                format!(
+                    "Node '{}' has invalid field 'dest': failed parsing base58",
+                    node_alias
+                )
+            })?;
 
             let enc_key = crypto::import_verkey(&verkey_bin)
                 .and_then(|vk| crypto::vk_to_curve25519(vk))
-                .with_input_err("Invalid field dest in genesis transaction")?;
+                .map_input_err(|| {
+                    format!(
+                        "Node '{}' has invalid field 'dest': key not accepted",
+                        node_alias
+                    )
+                })?;
 
             let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
                 (&Some(ref client_ip), &Some(ref client_port)) => {
                     format!("tcp://{}:{}", client_ip, client_port)
                 }
-                _ => return Err(input_err("Client address not found")),
+                _ => {
+                    return Err(input_err(format!(
+                        "Node '{}' has no client address",
+                        node_alias
+                    )))
+                }
             };
 
-            let bls_key: Option<BlsVerKey> =
-                match txn.txn.data.data.blskey {
-                    Some(ref blskey) => {
-                        let key = blskey
-                            .as_str()
-                            .from_base58()
-                            .with_input_err("Invalid field blskey in genesis transaction")?;
+            let bls_key: Option<BlsVerKey> = match txn.txn.data.data.blskey {
+                Some(ref blskey) => {
+                    let key = blskey.as_str().from_base58().map_input_err(|| {
+                        format!("Node '{}': invalid base58 in field blskey", node_alias)
+                    })?;
 
-                        Some(BlsVerKey::from_bytes(&key).map_err(|_| {
-                            input_err("Invalid field blskey in genesis transaction")
-                        })?)
-                    }
-                    None => None,
-                };
+                    Some(BlsVerKey::from_bytes(&key).map_err(|_| {
+                        input_err(format!("Node '{}': invalid field blskey", node_alias))
+                    })?)
+                }
+                None => None,
+            };
 
             let info = VerifierInfo {
                 address,
@@ -145,8 +159,8 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> LedgerResult<Verifiers> {
         })
         .fold(HashMap::new(), |mut map, res| {
             match res {
-                Err(e) => {
-                    info!("Error when retrieving nodes: {:?}", e);
+                Err(err) => {
+                    info!("Skipped: {}", err);
                 }
                 Ok((alias, info)) => {
                     map.insert(alias, info);
