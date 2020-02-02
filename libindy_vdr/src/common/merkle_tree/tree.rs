@@ -1,7 +1,7 @@
 use std::cmp;
 
 pub use super::proof::{Lemma, Positioned, Proof};
-use crate::common::error::LedgerResult;
+use crate::common::error::VdrResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 pub type TreeLeafData = Vec<u8>;
@@ -42,7 +42,7 @@ impl Tree {
     }
 
     /// Create a new leaf
-    pub fn new_leaf(value: TreeLeafData) -> LedgerResult<Tree> {
+    pub fn new_leaf(value: TreeLeafData) -> VdrResult<Tree> {
         let hash = Hash::hash_leaf(&value)?;
         Ok(Tree::new(hash, value))
     }

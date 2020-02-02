@@ -1,7 +1,7 @@
 use super::constants::{ATTRIB, GET_ATTR};
 use super::did::ShortDidValue;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
-use crate::common::error::LedgerResult;
+use crate::common::error::VdrResult;
 use crate::utils::hash::{digest, Sha256};
 
 #[derive(Serialize, PartialEq, Debug)]
@@ -75,7 +75,7 @@ impl RequestType for GetAttribOperation {
         GET_ATTR
     }
 
-    fn get_sp_key(&self, protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         if let Some(attr_name) = self
             .raw
             .as_ref()

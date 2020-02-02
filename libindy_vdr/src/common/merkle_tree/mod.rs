@@ -4,7 +4,7 @@ pub mod tree;
 
 pub use self::merkletree::*;
 pub use self::tree::*;
-use crate::common::error::LedgerResult;
+use crate::common::error::VdrResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 
 impl MerkleTree {
@@ -61,7 +61,7 @@ impl MerkleTree {
         new_root_hash: &Vec<u8>,
         new_size: usize,
         proof: &Vec<Vec<u8>>,
-    ) -> LedgerResult<bool> {
+    ) -> VdrResult<bool> {
         if self.count == 0 {
             // empty old tree
             return Ok(true);
@@ -129,7 +129,7 @@ impl MerkleTree {
         Ok(true)
     }
 
-    pub fn append(&mut self, node: TreeLeafData) -> LedgerResult<()> {
+    pub fn append(&mut self, node: TreeLeafData) -> VdrResult<()> {
         if self.count == 0 {
             // empty tree
             self.root = Tree::new_leaf(node)?;

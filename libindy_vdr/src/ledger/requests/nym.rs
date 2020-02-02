@@ -1,4 +1,4 @@
-use crate::common::error::LedgerResult;
+use crate::common::error::VdrResult;
 use crate::utils::hash::{digest, Sha256};
 
 use super::constants::{GET_NYM, NYM};
@@ -62,7 +62,7 @@ impl RequestType for GetNymOperation {
         GET_NYM
     }
 
-    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let hash = digest::<Sha256>(self.dest.as_bytes());
         Ok(Some(hash))
     }

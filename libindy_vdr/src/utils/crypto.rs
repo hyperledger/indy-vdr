@@ -8,16 +8,16 @@ pub const CRYPTO_TYPE_ED25519: &str = "ed25519";
 pub const DEFAULT_CRYPTO_TYPE: &str = CRYPTO_TYPE_ED25519;
 
 #[allow(dead_code)]
-pub fn gen_keypair() -> LedgerResult<Keypair> {
+pub fn gen_keypair() -> VdrResult<Keypair> {
     let mut csprng = OsRng {};
     Ok(Keypair::generate(&mut csprng))
 }
 
-pub fn import_verkey(vk: &[u8]) -> LedgerResult<PublicKey> {
+pub fn import_verkey(vk: &[u8]) -> VdrResult<PublicKey> {
     PublicKey::from_bytes(&vk).map_err(|err| input_err(format!("Error decoding verkey: {}", err)))
 }
 
-pub fn import_keypair(secret: &[u8]) -> LedgerResult<Keypair> {
+pub fn import_keypair(secret: &[u8]) -> VdrResult<Keypair> {
     let sk = SecretKey::from_bytes(&secret)
         .map_err(|err| input_err(format!("Error decoding verkey: {}", err)))?;
     let pk: PublicKey = (&sk).into();
@@ -27,7 +27,7 @@ pub fn import_keypair(secret: &[u8]) -> LedgerResult<Keypair> {
     })
 }
 
-pub fn vk_to_curve25519(vk: PublicKey) -> LedgerResult<Vec<u8>> {
+pub fn vk_to_curve25519(vk: PublicKey) -> VdrResult<Vec<u8>> {
     let edw = CompressedEdwardsY::from_slice(&vk.to_bytes())
         .decompress()
         .ok_or(input_err("Error loading public key"))?;
@@ -35,7 +35,7 @@ pub fn vk_to_curve25519(vk: PublicKey) -> LedgerResult<Vec<u8>> {
 }
 
 #[allow(dead_code)]
-pub fn sk_to_curve25519(sk: SecretKey) -> LedgerResult<Vec<u8>> {
+pub fn sk_to_curve25519(sk: SecretKey) -> VdrResult<Vec<u8>> {
     let edw = CompressedEdwardsY::from_slice(&sk.to_bytes())
         .decompress()
         .ok_or(input_err("Error loading secret key"))?;

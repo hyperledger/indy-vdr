@@ -684,7 +684,7 @@ fn _parse_reply_for_sp(
     parsed_data: &SJsonValue,
     xtype: &str,
     sp_key: &[u8],
-) -> LedgerResult<ParsedSP> {
+) -> VdrResult<ParsedSP> {
     let (proof, root_hash, ver_type, multi_sig) = if xtype != constants::GET_TXN {
         let proof = if let Some(proof) = json_msg["state_proof"]["proof_nodes"].as_str() {
             trace!("_parse_reply_for_sp: proof: {:?}", proof);
@@ -1088,7 +1088,7 @@ fn _verify_proof_signature(
     nodes: &NodeKeys,
     f: usize,
     gen: &Generator,
-) -> LedgerResult<bool> {
+) -> VdrResult<bool> {
     let mut ver_keys: Vec<&VerKey> = Vec::with_capacity(nodes.len());
 
     for (name, verkey) in nodes {
@@ -1133,7 +1133,7 @@ fn _parse_reply_for_proof_value(
     parsed_data: &SJsonValue,
     xtype: &str,
     sp_key: &[u8],
-) -> LedgerResult<Option<String>> {
+) -> VdrResult<Option<String>> {
     if let Some(data) = data {
         let mut value = json!({});
 
@@ -1269,7 +1269,7 @@ fn _parse_reply_for_proof_value(
     }
 }
 
-fn _calculate_taa_digest(text: &str, version: &str) -> LedgerResult<Vec<u8>> {
+fn _calculate_taa_digest(text: &str, version: &str) -> VdrResult<Vec<u8>> {
     let content: String = version.to_string() + text;
     Ok(digest::<Sha256>(content.as_bytes()))
 }

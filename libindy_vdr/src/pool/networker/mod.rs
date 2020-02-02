@@ -38,16 +38,12 @@ pub enum NetworkerEvent {
 }
 
 pub trait Networker {
-    fn send(&self, event: NetworkerEvent) -> LedgerResult<()>;
+    fn send(&self, event: NetworkerEvent) -> VdrResult<()>;
 }
 
 pub trait NetworkerFactory {
     type Output: Networker;
-    fn make_networker(
-        &self,
-        config: PoolConfig,
-        verifiers: &Verifiers,
-    ) -> LedgerResult<Self::Output>;
+    fn make_networker(&self, config: PoolConfig, verifiers: &Verifiers) -> VdrResult<Self::Output>;
 }
 
 pub type LocalNetworker = Rc<dyn Networker + 'static>;
@@ -60,11 +56,7 @@ where
     T::Output: Networker + 'static,
 {
     type Output = LocalNetworker;
-    fn make_networker(
-        &self,
-        config: PoolConfig,
-        verifiers: &Verifiers,
-    ) -> LedgerResult<Self::Output> {
+    fn make_networker(&self, config: PoolConfig, verifiers: &Verifiers) -> VdrResult<Self::Output> {
         Ok(Rc::new(self.0.make_networker(config, verifiers)?))
     }
 }
@@ -73,7 +65,7 @@ impl<T> Networker for T
 where
     T: AsRef<dyn Networker>,
 {
-    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+    fn send(&self, event: NetworkerEvent) -> VdrResult<()> {
         self.as_ref().send(event)
     }
 }
@@ -88,11 +80,7 @@ where
     T::Output: Networker + Send + 'static,
 {
     type Output = SharedNetworker;
-    fn make_networker(
-        &self,
-        config: PoolConfig,
-        verifiers: &Verifiers,
-    ) -> LedgerResult<Self::Output> {
+    fn make_networker(&self, config: PoolConfig, verifiers: &Verifiers) -> VdrResult<Self::Output> {
         Ok(Arc::new(Mutex::new(
             self.0.make_networker(config, verifiers)?,
         )))
@@ -100,11 +88,11 @@ where
 }
 
 impl Networker for Arc<Mutex<dyn Networker + Send>> {
-    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+    fn send(&self, event: NetworkerEvent) -> VdrResult<()> {
         self.lock()
             .map_err(|_| {
                 err_msg(
-                    LedgerErrorKind::Unexpected,
+                    VdrErrorKind::Unexpected,
                     "Error acquiring networker, mutex poisoned",
                 )
             })?
@@ -125,7 +113,7 @@ impl Networker for MockNetworker {
         _config: PoolConfig,
         _transactions: Vec<String>,
         _preferred_nodes: Vec<String>,
-    ) -> LedgerResult<Self> {
+    ) -> VdrResult<Self> {
         Ok(Self {
             id: NetworkerHandle::next(),
             events: Vec::new(),
@@ -136,14 +124,14 @@ impl Networker for MockNetworker {
         self.id
     }
 
-    /*fn add_request(&mut self, _request: PoolRequest) -> LedgerResult<()> {
+    /*fn add_request(&mut self, _request: PoolRequest) -> VdrResult<()> {
         unimplemented!()
     }*/
 
     fn create_request<'a>(
         &'a mut self,
         _message: &Message,
-    ) -> LocalBoxFuture<'a, LedgerResult<RefCell<Box<dyn NetworkerRequest>>>> {
+    ) -> LocalBoxFuture<'a, VdrResult<RefCell<Box<dyn NetworkerRequest>>>> {
         unimplemented!()
     }
 }
@@ -592,7 +580,7 @@ pub mod networker_tests {
             rn.zaddr = "invalid_address".to_string();
 
             let res = rn.connect(&zmq::Context::new(), &zmq::CurveKeyPair::new().unwrap());
-            assert_kind!(LedgerErrorKind::IOError, res);
+            assert_kind!(VdrErrorKind::IOError, res);
         }
     }
 
@@ -790,7 +778,7 @@ pub mod networker_tests {
             let mut conn = PoolConnection::new(vec![rn], DEFAULT_CONN_ACTIVE_TIMEOUT, vec![]);
 
             let res = conn._get_socket(0);
-            assert_kind!(LedgerErrorKind::IOError, res);
+            assert_kind!(VdrErrorKind::IOError, res);
         }
 
         #[test]
@@ -949,7 +937,7 @@ pub mod networker_tests {
                 REQ_ID.to_string(),
                 DEFAULT_ACK_TIMEOUT,
             )));
-            assert_kind!(LedgerErrorKind::IOError, res);
+            assert_kind!(VdrErrorKind::IOError, res);
         }
     }
 }

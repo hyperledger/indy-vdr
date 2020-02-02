@@ -39,27 +39,23 @@ impl PoolRunner {
         }
     }
 
-    pub fn get_transactions(&self, callback: TxnCallback) -> LedgerResult<()> {
+    pub fn get_transactions(&self, callback: TxnCallback) -> VdrResult<()> {
         self.send_event(PoolEvent::GetTransactions(callback))
     }
 
-    pub fn send_request(
-        &self,
-        request: PreparedRequest,
-        callback: ReqCallback,
-    ) -> LedgerResult<()> {
+    pub fn send_request(&self, request: PreparedRequest, callback: ReqCallback) -> VdrResult<()> {
         self.send_event(PoolEvent::SendRequest(request, callback))
     }
 
-    fn send_event(&self, event: PoolEvent) -> LedgerResult<()> {
+    fn send_event(&self, event: PoolEvent) -> VdrResult<()> {
         // FIXME error should indicate that the thread exited, so indicate such in result
         if let Some(sender) = &self.sender {
             sender
                 .unbounded_send(event)
-                .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error sending to pool thread"))
+                .map_err(|_| err_msg(VdrErrorKind::Unexpected, "Error sending to pool thread"))
         } else {
             // FIXME error kind
-            Err(err_msg(LedgerErrorKind::Unexpected, "Pool is closed"))
+            Err(err_msg(VdrErrorKind::Unexpected, "Pool is closed"))
         }
     }
 
@@ -85,11 +81,11 @@ impl Drop for PoolRunner {
 
 type ReqCallback = Box<dyn (FnOnce(ReqResponse) -> ()) + Send>;
 
-type ReqResponse = LedgerResult<(RequestResult<String>, Option<TimingResult>)>;
+type ReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 type TxnCallback = Box<dyn (FnOnce(TxnResponse) -> ()) + Send>;
 
-type TxnResponse = LedgerResult<Vec<String>>;
+type TxnResponse = VdrResult<Vec<String>>;
 
 enum PoolEvent {
     GetTransactions(TxnCallback),

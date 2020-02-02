@@ -20,17 +20,17 @@ new_handle_type!(RequestHandle, RQ_COUNTER);
 
 #[must_use = "requests do nothing unless polled"]
 pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
-    fn clean_timeout(&self, node_alias: String) -> LedgerResult<()>;
-    fn extend_timeout(&self, node_alias: String, timeout: i64) -> LedgerResult<()>;
+    fn clean_timeout(&self, node_alias: String) -> VdrResult<()>;
+    fn extend_timeout(&self, node_alias: String, timeout: i64) -> VdrResult<()>;
     fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
     fn node_count(&self) -> usize;
     fn node_keys(&self) -> NodeKeys;
     fn node_order(&self) -> Vec<String>;
     fn pool_config(&self) -> PoolConfig;
-    fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()>;
-    fn send_to_any(&mut self, count: usize, timeout: i64) -> LedgerResult<Vec<String>>;
-    fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> LedgerResult<Vec<String>>;
+    fn send_to_all(&mut self, timeout: i64) -> VdrResult<()>;
+    fn send_to_any(&mut self, count: usize, timeout: i64) -> VdrResult<Vec<String>>;
+    fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> VdrResult<Vec<String>>;
 }
 
 pub struct PoolRequestImpl<S: AsRef<PoolSetup>, T: Networker> {
@@ -70,7 +70,7 @@ where
         }
     }
 
-    fn trigger(&self, event: NetworkerEvent) -> LedgerResult<()> {
+    fn trigger(&self, event: NetworkerEvent) -> VdrResult<()> {
         self.networker.send(event)
     }
 }
@@ -87,11 +87,11 @@ where
     S: AsRef<PoolSetup>,
     T: Networker,
 {
-    fn clean_timeout(&self, node_alias: String) -> LedgerResult<()> {
+    fn clean_timeout(&self, node_alias: String) -> VdrResult<()> {
         self.trigger(NetworkerEvent::CleanTimeout(self.handle, node_alias))
     }
 
-    fn extend_timeout(&self, node_alias: String, timeout: i64) -> LedgerResult<()> {
+    fn extend_timeout(&self, node_alias: String, timeout: i64) -> VdrResult<()> {
         self.trigger(NetworkerEvent::ExtendTimeout(
             self.handle,
             node_alias,
@@ -128,7 +128,7 @@ where
         self.pool_setup.as_ref().config
     }
 
-    fn send_to_all(&mut self, timeout: i64) -> LedgerResult<()> {
+    fn send_to_all(&mut self, timeout: i64) -> VdrResult<()> {
         let aliases = self.node_order();
         let count = aliases.len();
         trace!("Send to all {} {:?}", self.handle, aliases);
@@ -137,7 +137,7 @@ where
         Ok(())
     }
 
-    fn send_to_any(&mut self, count: usize, timeout: i64) -> LedgerResult<Vec<String>> {
+    fn send_to_any(&mut self, count: usize, timeout: i64) -> VdrResult<Vec<String>> {
         let aliases = self.node_order();
         let max = std::cmp::min(self.send_count + count, aliases.len());
         let min = std::cmp::min(self.send_count, max);
@@ -162,7 +162,7 @@ where
         Ok(nodes)
     }
 
-    fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> LedgerResult<Vec<String>> {
+    fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> VdrResult<Vec<String>> {
         let aliases = self
             .node_order
             .iter()

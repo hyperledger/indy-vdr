@@ -180,7 +180,7 @@ fn check_cons_proofs(
     cons_proofs: &Vec<String>,
     target_mt_root: &Vec<u8>,
     target_mt_size: usize,
-) -> LedgerResult<()> {
+) -> VdrResult<()> {
     let mut bytes_proofs: Vec<Vec<u8>> = Vec::new();
 
     for cons_proof in cons_proofs {
@@ -204,7 +204,7 @@ pub fn build_pool_status_request(
     merkle_root: &[u8],
     merkle_tree_size: usize,
     protocol_version: ProtocolVersion,
-) -> LedgerResult<Message> {
+) -> VdrResult<Message> {
     let lr = LedgerStatus {
         txnSeqNo: merkle_tree_size,
         merkleRoot: merkle_root.to_base58(),
@@ -219,7 +219,7 @@ pub fn build_pool_status_request(
 pub fn build_pool_catchup_request(
     from_mt_size: usize,
     target_mt_size: usize,
-) -> LedgerResult<Message> {
+) -> VdrResult<Message> {
     if from_mt_size >= target_mt_size {
         return Err(input_err("No transactions to catch up"));
     }

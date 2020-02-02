@@ -16,16 +16,16 @@ pub fn digest<H: Digest + Default>(input: &[u8]) -> Vec<u8> {
 }
 
 pub trait TreeHash {
-    fn hash_leaf<T>(leaf: &T) -> LedgerResult<Vec<u8>>
+    fn hash_leaf<T>(leaf: &T) -> VdrResult<Vec<u8>>
     where
         T: Hashable;
-    fn hash_nodes<T>(left: &T, right: &T) -> LedgerResult<Vec<u8>>
+    fn hash_nodes<T>(left: &T, right: &T) -> VdrResult<Vec<u8>>
     where
         T: Hashable;
 }
 
 impl<H: Digest> TreeHash for H {
-    fn hash_leaf<T>(leaf: &T) -> LedgerResult<Vec<u8>>
+    fn hash_leaf<T>(leaf: &T) -> VdrResult<Vec<u8>>
     where
         T: Hashable,
     {
@@ -35,7 +35,7 @@ impl<H: Digest> TreeHash for H {
         Ok(ctx.result().to_vec())
     }
 
-    fn hash_nodes<T>(left: &T, right: &T) -> LedgerResult<Vec<u8>>
+    fn hash_nodes<T>(left: &T, right: &T) -> VdrResult<Vec<u8>>
     where
         T: Hashable,
     {
@@ -71,11 +71,11 @@ pub trait Hashable {
     /// Update the given `context` with `self`.
     ///
     /// See `openssl::hash::Hasher::update` for more information.
-    fn update_context<D: Digest>(&self, context: &mut D) -> LedgerResult<()>;
+    fn update_context<D: Digest>(&self, context: &mut D) -> VdrResult<()>;
 }
 
 impl<T: AsRef<[u8]>> Hashable for T {
-    fn update_context<D: Digest>(&self, context: &mut D) -> LedgerResult<()> {
+    fn update_context<D: Digest>(&self, context: &mut D) -> VdrResult<()> {
         Ok(context.input(self.as_ref()))
     }
 }

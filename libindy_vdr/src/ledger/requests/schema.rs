@@ -77,7 +77,7 @@ impl SchemaId {
         }
     }
 
-    pub fn from_str(schema_id: &str) -> LedgerResult<Self> {
+    pub fn from_str(schema_id: &str) -> VdrResult<Self> {
         let schema_id = Self(schema_id.to_owned());
         schema_id.validate()?;
         Ok(schema_id)
@@ -85,7 +85,7 @@ impl SchemaId {
 }
 
 impl Validatable for SchemaId {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         if self.0.parse::<i32>().is_ok() {
             return Ok(());
         }
@@ -134,7 +134,7 @@ impl Into<HashSet<String>> for AttributeNames {
 }
 
 impl Validatable for SchemaV1 {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         self.attr_names.validate()?;
         self.id.validate()?;
         if let Some((_, name, version)) = self.id.parts() {
@@ -156,7 +156,7 @@ impl Validatable for SchemaV1 {
 }
 
 impl Validatable for AttributeNames {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         if self.0.is_empty() {
             return Err(input_err("Empty list of Schema attributes has been passed"));
         }
@@ -234,7 +234,7 @@ impl RequestType for GetSchemaOperation {
         GET_SCHEMA
     }
 
-    fn get_sp_key(&self, protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let marker = get_sp_key_marker(2, protocol_version);
         Ok(Some(
             format!(

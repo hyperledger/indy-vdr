@@ -19,7 +19,7 @@ pub struct PoolFactory {
 }
 
 impl PoolFactory {
-    pub fn from_transactions(transactions: &[String]) -> LedgerResult<PoolFactory> {
+    pub fn from_transactions(transactions: &[String]) -> VdrResult<PoolFactory> {
         let (merkle_tree, transactions) = _load_transactions(transactions)?;
         Ok(PoolFactory {
             config: PoolConfig::default(),
@@ -28,16 +28,16 @@ impl PoolFactory {
         })
     }
 
-    pub fn from_genesis_file(genesis_file: &str) -> LedgerResult<PoolFactory> {
+    pub fn from_genesis_file(genesis_file: &str) -> VdrResult<PoolFactory> {
         Self::from_genesis_path(&PathBuf::from(genesis_file))
     }
 
-    pub fn from_genesis_path(genesis_path: &PathBuf) -> LedgerResult<PoolFactory> {
+    pub fn from_genesis_path(genesis_path: &PathBuf) -> VdrResult<PoolFactory> {
         // FIXME convert into config error
         let txns = read_transactions(genesis_path)?;
         trace!("Loaded transactions from {:?}", genesis_path);
         if txns.len() == 0 {
-            return Err((LedgerErrorKind::Config, "Empty genesis transaction file").into());
+            return Err((VdrErrorKind::Config, "Empty genesis transaction file").into());
         }
         Self::from_transactions(&txns)
     }
@@ -46,7 +46,7 @@ impl PoolFactory {
         return self.config;
     }
 
-    pub fn set_config(&mut self, config: PoolConfig) -> LedgerResult<()> {
+    pub fn set_config(&mut self, config: PoolConfig) -> VdrResult<()> {
         // FIXME convert into config error
         config.validate()?;
         self.config = config;
@@ -65,20 +65,20 @@ impl PoolFactory {
         self.transactions
     }
 
-    pub fn add_transactions(&mut self, new_txns: &[String]) -> LedgerResult<()> {
+    pub fn add_transactions(&mut self, new_txns: &[String]) -> VdrResult<()> {
         let mut txns = self.transactions.clone();
         txns.extend_from_slice(new_txns);
         self.set_transactions(&txns)
     }
 
-    pub fn set_transactions(&mut self, transactions: &[String]) -> LedgerResult<()> {
+    pub fn set_transactions(&mut self, transactions: &[String]) -> VdrResult<()> {
         let (merkle_tree, transactions) = _load_transactions(transactions)?;
         self.merkle_tree = merkle_tree;
         self.transactions = transactions;
         Ok(())
     }
 
-    pub fn create_local(&self) -> LedgerResult<LocalPool> {
+    pub fn create_local(&self) -> VdrResult<LocalPool> {
         LocalPool::build(
             self.config,
             self.merkle_tree.clone(),
@@ -87,7 +87,7 @@ impl PoolFactory {
         )
     }
 
-    pub fn create_shared(&self) -> LedgerResult<SharedPool> {
+    pub fn create_shared(&self) -> VdrResult<SharedPool> {
         SharedPool::build(
             self.config,
             self.merkle_tree.clone(),
@@ -96,7 +96,7 @@ impl PoolFactory {
         )
     }
 
-    pub fn create_runner(&self) -> LedgerResult<PoolRunner> {
+    pub fn create_runner(&self) -> VdrResult<PoolRunner> {
         Ok(PoolRunner::new(
             self.config,
             self.merkle_tree.clone(),
@@ -105,9 +105,9 @@ impl PoolFactory {
     }
 }
 
-fn _load_transactions(transactions: &[String]) -> LedgerResult<(MerkleTree, Vec<String>)> {
+fn _load_transactions(transactions: &[String]) -> VdrResult<(MerkleTree, Vec<String>)> {
     if transactions.len() == 0 {
-        return Err((LedgerErrorKind::Config, "No genesis transactions").into());
+        return Err((VdrErrorKind::Config, "No genesis transactions").into());
     }
     // FIXME convert into config error
     let merkle_tree = build_merkle_tree(transactions)?;

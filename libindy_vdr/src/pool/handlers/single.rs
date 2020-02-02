@@ -21,7 +21,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
     mut request: Request,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
-) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("single request");
     let config = request.pool_config();
     let node_keys = request.node_keys();
@@ -34,7 +34,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58()?).map_err(|err| {
             err_msg(
-                LedgerErrorKind::Resource,
+                VdrErrorKind::Resource,
                 format!("Error loading generator: {}", err.to_string()),
             )
         })?;
@@ -116,7 +116,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
                         if set.len() > f_nack {
                             return Ok((
                                 RequestResult::Failed(
-                                    LedgerErrorKind::PoolRequestFailed(raw_msg).into(),
+                                    VdrErrorKind::PoolRequestFailed(raw_msg).into(),
                                 ),
                                 request.get_timing(),
                             ));
@@ -145,7 +145,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::PoolTimeout,
+                        VdrErrorKind::PoolTimeout,
                         "Request was interrupted",
                     )),
                     request.get_timing(),
@@ -160,12 +160,12 @@ pub async fn handle_single_request<Request: PoolRequest>(
             let err = {
                 let counts = replies.counts();
                 if counts.replies > 0 {
-                    LedgerErrorKind::PoolNoConsensus.into()
+                    VdrErrorKind::PoolNoConsensus.into()
                 } else if counts.failed > 0 {
                     let failed = replies.sample_failed().unwrap();
-                    LedgerErrorKind::PoolRequestFailed(failed).into()
+                    VdrErrorKind::PoolRequestFailed(failed).into()
                 } else {
-                    LedgerErrorKind::PoolTimeout.into()
+                    VdrErrorKind::PoolTimeout.into()
                 }
             };
             return Ok((RequestResult::Failed(err), request.get_timing()));
@@ -202,7 +202,7 @@ pub fn get_last_signed_time(reply_result: &SJsonValue) -> Option<u64> {
     c.ok().and_then(|resp| resp.last_txn_time)
 }
 
-pub fn parse_reply_metadata(reply_result: &SJsonValue) -> LedgerResult<ResponseMetadata> {
+pub fn parse_reply_metadata(reply_result: &SJsonValue) -> VdrResult<ResponseMetadata> {
     let response_metadata = match reply_result["ver"].as_str() {
         None => parse_transaction_metadata_v0(reply_result),
         Some("1") => parse_transaction_metadata_v1(reply_result),

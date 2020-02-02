@@ -75,7 +75,7 @@ impl<T: serde::Serialize> Request<T> {
         operation: T,
         identifier: Option<&DidValue>,
         protocol_version: Option<usize>,
-    ) -> LedgerResult<serde_json::Value> {
+    ) -> VdrResult<serde_json::Value> {
         // FIXME - verify that qualified DID is using a known DID method
 
         serde_json::to_value(&Request::new(
@@ -91,11 +91,11 @@ impl<T: serde::Serialize> Request<T> {
 pub trait RequestType: serde::Serialize {
     fn get_txn_type<'a>() -> &'a str;
 
-    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         Ok(None)
     }
 
-    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+    fn get_sp_timestamps(&self) -> VdrResult<(Option<u64>, Option<u64>)> {
         Ok((None, None))
     }
 }

@@ -42,7 +42,7 @@ pub struct CredentialDefinitionV1 {
 }
 
 impl Validatable for CredentialDefinitionV1 {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         self.id.validate()?;
         self.schema_id.validate()
     }
@@ -174,7 +174,7 @@ impl CredentialDefinitionId {
         }
     }
 
-    pub fn from_str(cred_def_id: &str) -> LedgerResult<Self> {
+    pub fn from_str(cred_def_id: &str) -> VdrResult<Self> {
         let cred_def_id = Self(cred_def_id.to_owned());
         cred_def_id.validate()?;
         Ok(cred_def_id)
@@ -182,7 +182,7 @@ impl CredentialDefinitionId {
 }
 
 impl Validatable for CredentialDefinitionId {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         self.parts().ok_or(input_err(format!(
             "Credential Definition Id validation failed: {:?}, doesn't match pattern",
             self.0
@@ -259,7 +259,7 @@ impl RequestType for GetCredDefOperation {
         GET_CRED_DEF
     }
 
-    fn get_sp_key(&self, protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let marker = get_sp_key_marker(3, protocol_version);
         let tag = if protocol_version == ProtocolVersion::Node1_3 {
             None

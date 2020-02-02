@@ -9,7 +9,7 @@ pub async fn handle_full_request<Request: PoolRequest>(
     mut request: Request,
     nodes_to_send: Option<Vec<String>>,
     local_timeout: Option<i64>,
-) -> LedgerResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
     trace!("full request");
     let timeout = local_timeout.unwrap_or(request.pool_config().reply_timeout);
     let req_reply_count = if let Some(nodes) = nodes_to_send {
@@ -43,7 +43,7 @@ pub async fn handle_full_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::PoolTimeout,
+                        VdrErrorKind::PoolTimeout,
                         "Request was interrupted",
                     )),
                     request.get_timing(),

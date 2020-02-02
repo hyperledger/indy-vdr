@@ -27,11 +27,11 @@ impl RequestType for GetTxnOperation {
         GET_TXN
     }
 
-    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         Ok(Some(self.data.to_string().into_bytes()))
     }
 
-    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+    fn get_sp_timestamps(&self) -> VdrResult<(Option<u64>, Option<u64>)> {
         Ok((None, Some(0)))
     }
 }

@@ -19,7 +19,7 @@ lazy_static! {
         RwLock::new(BTreeMap::new());
 }
 
-fn get_request_builder() -> LedgerResult<RequestBuilder> {
+fn get_request_builder() -> VdrResult<RequestBuilder> {
     let version = read_lock!(POOL_CONFIG)?.protocol_version;
     Ok(RequestBuilder::new(version))
 }
@@ -57,7 +57,7 @@ pub extern "C" fn indy_vdr_request_get_body(
             let req = reqs.get(&RequestHandle(request_handle))
                 .ok_or_else(|| input_err("Unknown request handle"))?;
             serde_json::to_string(&req.req_json)
-                .with_err_msg(LedgerErrorKind::Unexpected, "Error serializing request body")?
+                .with_err_msg(VdrErrorKind::Unexpected, "Error serializing request body")?
         };
         let body = rust_string_to_c(body);
         unsafe {

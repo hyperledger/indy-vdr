@@ -6,7 +6,7 @@ use std::sync::RwLock;
 use ffi_support::rust_string_to_c;
 
 lazy_static! {
-    pub static ref LAST_ERROR: RwLock<Option<LedgerError>> = RwLock::new(None);
+    pub static ref LAST_ERROR: RwLock<Option<VdrError>> = RwLock::new(None);
 }
 
 #[derive(Debug, PartialEq, Copy, Clone, Serialize)]
@@ -16,14 +16,14 @@ pub enum ErrorCode {
     Failed = 1,
 }
 
-impl From<&LedgerError> for ErrorCode {
-    fn from(_err: &LedgerError) -> ErrorCode {
+impl From<&VdrError> for ErrorCode {
+    fn from(_err: &VdrError) -> ErrorCode {
         ErrorCode::Failed
     }
 }
 
-impl<T> From<LedgerResult<T>> for ErrorCode {
-    fn from(result: LedgerResult<T>) -> ErrorCode {
+impl<T> From<VdrResult<T>> for ErrorCode {
+    fn from(result: VdrResult<T>) -> ErrorCode {
         match result {
             Ok(_) => ErrorCode::Success,
             Err(ref err) => ErrorCode::from(err),
@@ -52,7 +52,7 @@ pub fn get_current_error_json() -> String {
     }
 }
 
-pub fn set_last_error(error: Option<LedgerError>) {
+pub fn set_last_error(error: Option<VdrError>) {
     trace!("indy_vdr_set_last_error");
     *LAST_ERROR.write().unwrap() = error;
 }

@@ -1,6 +1,6 @@
 macro_rules! catch_err {
     ($($e:tt)*) => {
-        match (|| -> LedgerResult<_> {$($e)*})() {
+        match (|| -> VdrResult<_> {$($e)*})() {
             Ok(a) => a,
             Err(err) => {
                 let code = ErrorCode::from(&err);
@@ -34,13 +34,13 @@ macro_rules! slice_from_c_ptr {
 macro_rules! read_lock {
     ($e:expr) => {
         ($e).read()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring read lock"))
+            .map_err(|_| err_msg(VdrErrorKind::Unexpected, "Error acquiring read lock"))
     };
 }
 
 macro_rules! write_lock {
     ($e:expr) => {
         ($e).write()
-            .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error acquiring write lock"))
+            .map_err(|_| err_msg(VdrErrorKind::Unexpected, "Error acquiring write lock"))
     };
 }

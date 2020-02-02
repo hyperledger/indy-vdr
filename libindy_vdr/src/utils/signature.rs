@@ -3,7 +3,7 @@ use crate::common::error::prelude::*;
 use crate::ledger::constants::{ATTRIB, GET_ATTR};
 use serde_json::Value as SJsonValue;
 
-pub fn serialize_signature(v: &SJsonValue) -> LedgerResult<String> {
+pub fn serialize_signature(v: &SJsonValue) -> VdrResult<String> {
     let _type = v["operation"]["type"].clone();
     _serialize_signature(v, true, _type.as_str())
 }
@@ -12,7 +12,7 @@ fn _serialize_signature(
     v: &SJsonValue,
     is_top_level: bool,
     _type: Option<&str>,
-) -> LedgerResult<String> {
+) -> VdrResult<String> {
     match v {
         SJsonValue::Bool(value) => Ok(if *value {
             "True".to_string()
@@ -24,7 +24,7 @@ fn _serialize_signature(
         SJsonValue::Array(array) => array
             .into_iter()
             .map(|element| _serialize_signature(element, false, _type))
-            .collect::<LedgerResult<Vec<String>>>()
+            .collect::<VdrResult<Vec<String>>>()
             .map(|res| res.join(",")),
         SJsonValue::Object(map) => {
             let mut result = "".to_string();

@@ -30,7 +30,7 @@ pub trait Pool: Clone {
         &'a self,
         req_id: String,
         req_json: String,
-    ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>>;
+    ) -> LocalBoxFuture<'a, VdrResult<Self::Request>>;
     fn get_merkle_tree(&self) -> &MerkleTree;
 
     fn get_merkle_tree_root(&self) -> (String, usize) {
@@ -40,7 +40,7 @@ pub trait Pool: Clone {
     fn get_request_builder(&self) -> RequestBuilder {
         RequestBuilder::new(self.get_config().protocol_version)
     }
-    fn get_transactions(&self) -> LedgerResult<Vec<String>> {
+    fn get_transactions(&self) -> VdrResult<Vec<String>> {
         transactions_to_json(self.get_merkle_tree())
     }
 }
@@ -69,7 +69,7 @@ where
         merkle_tree: MerkleTree,
         networker_factory: F,
         node_weights: Option<HashMap<String, f32>>,
-    ) -> LedgerResult<Self>
+    ) -> VdrResult<Self>
     where
         F: NetworkerFactory<Output = T>,
     {
@@ -92,7 +92,7 @@ where
         &'a self,
         req_id: String,
         req_json: String,
-    ) -> LocalBoxFuture<'a, LedgerResult<Self::Request>> {
+    ) -> LocalBoxFuture<'a, VdrResult<Self::Request>> {
         let setup = self.setup.clone();
         let networker = self.networker.clone();
         lazy(move |_| {
@@ -325,7 +325,7 @@ mod tests {
             let cmd_id: CommandHandle = next_command_handle();
             let p = p.handle_event(PoolEvent::CheckCache(cmd_id));
             let p = p.handle_event(PoolEvent::CatchupTargetNotFound(err_msg(
-                LedgerErrorKind::PoolTimeout,
+                VdrErrorKind::PoolTimeout,
                 "Pool timeout",
             )));
             assert_match!(PoolState::Terminated(_), p.state);

@@ -7,14 +7,12 @@ use thiserror::Error;
 // use failure::{Backtrace, Context, Fail};
 
 pub mod prelude {
-    pub use super::{
-        err_msg, input_err, LedgerError, LedgerErrorKind, LedgerResult, LedgerResultExt,
-    };
+    pub use super::{err_msg, input_err, VdrError, VdrErrorKind, VdrResult, VdrResultExt};
 }
 
 #[derive(Debug, Error)]
-pub struct LedgerError {
-    kind: LedgerErrorKind,
+pub struct VdrError {
+    kind: VdrErrorKind,
     msg: Option<String>,
     #[source]
     source: Option<Box<dyn std::error::Error + Send + Sync>>,
@@ -22,7 +20,7 @@ pub struct LedgerError {
 }
 
 #[derive(Debug, Error)]
-pub enum LedgerErrorKind {
+pub enum VdrErrorKind {
     // General errors
     #[error("Configuration error")]
     Config,
@@ -47,32 +45,32 @@ pub enum LedgerErrorKind {
     Unavailable,
 }
 
-impl LedgerError {
+impl VdrError {
     pub fn new(
-        kind: LedgerErrorKind,
+        kind: VdrErrorKind,
         msg: Option<String>,
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     ) -> Self {
         Self { kind, msg, source }
     }
 
-    pub fn kind(self) -> LedgerErrorKind {
+    pub fn kind(self) -> VdrErrorKind {
         self.kind
     }
 
     pub fn extra(self) -> Option<String> {
         match self.kind {
-            LedgerErrorKind::PoolRequestFailed(ref response) => Some(response.clone()),
+            VdrErrorKind::PoolRequestFailed(ref response) => Some(response.clone()),
             _ => None,
         }
     }
 }
 
-impl fmt::Display for LedgerError {
+impl fmt::Display for VdrError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (&self.kind, &self.msg) {
-            (LedgerErrorKind::Input, None) => write!(f, "{}", self.kind),
-            (LedgerErrorKind::Input, Some(msg)) => f.write_str(msg),
+            (VdrErrorKind::Input, None) => write!(f, "{}", self.kind),
+            (VdrErrorKind::Input, Some(msg)) => f.write_str(msg),
             (kind, None) => write!(f, "{}", kind),
             (kind, Some(msg)) => write!(f, "{}: {}", kind, msg),
         }?;
@@ -83,58 +81,58 @@ impl fmt::Display for LedgerError {
     }
 }
 
-impl From<LedgerErrorKind> for LedgerError {
-    fn from(kind: LedgerErrorKind) -> LedgerError {
-        LedgerError::new(kind, None, None)
+impl From<VdrErrorKind> for VdrError {
+    fn from(kind: VdrErrorKind) -> VdrError {
+        VdrError::new(kind, None, None)
     }
 }
 
-impl From<zmq::Error> for LedgerError {
-    fn from(err: zmq::Error) -> LedgerError {
-        LedgerError::new(LedgerErrorKind::Connection, None, Some(Box::new(err)))
+impl From<zmq::Error> for VdrError {
+    fn from(err: zmq::Error) -> VdrError {
+        VdrError::new(VdrErrorKind::Connection, None, Some(Box::new(err)))
     }
 }
 
-impl<M> From<(LedgerErrorKind, M)> for LedgerError
+impl<M> From<(VdrErrorKind, M)> for VdrError
 where
     M: fmt::Display + Send + Sync + 'static,
 {
-    fn from((kind, msg): (LedgerErrorKind, M)) -> LedgerError {
-        LedgerError::new(kind, Some(msg.to_string()), None)
+    fn from((kind, msg): (VdrErrorKind, M)) -> VdrError {
+        VdrError::new(kind, Some(msg.to_string()), None)
     }
 }
 
-pub fn err_msg<M>(kind: LedgerErrorKind, msg: M) -> LedgerError
+pub fn err_msg<M>(kind: VdrErrorKind, msg: M) -> VdrError
 where
     M: fmt::Display + Send + Sync + 'static,
 {
     (kind, msg.to_string()).into()
 }
 
-pub fn input_err<M>(msg: M) -> LedgerError
+pub fn input_err<M>(msg: M) -> VdrError
 where
     M: fmt::Display + Send + Sync + 'static,
 {
-    (LedgerErrorKind::Input, msg.to_string()).into()
+    (VdrErrorKind::Input, msg.to_string()).into()
 }
 
-pub type LedgerResult<T> = Result<T, LedgerError>;
+pub type VdrResult<T> = Result<T, VdrError>;
 
-pub trait LedgerResultExt<T, E> {
+pub trait VdrResultExt<T, E> {
     fn map_err_string(self) -> Result<T, String>;
-    fn map_input_err<F, M>(self, mapfn: F) -> LedgerResult<T>
+    fn map_input_err<F, M>(self, mapfn: F) -> VdrResult<T>
     where
         F: FnOnce() -> M,
         M: fmt::Display + Send + Sync + 'static;
-    fn with_err_msg<M>(self, kind: LedgerErrorKind, msg: M) -> LedgerResult<T>
+    fn with_err_msg<M>(self, kind: VdrErrorKind, msg: M) -> VdrResult<T>
     where
         M: fmt::Display + Send + Sync + 'static;
-    fn with_input_err<M>(self, msg: M) -> LedgerResult<T>
+    fn with_input_err<M>(self, msg: M) -> VdrResult<T>
     where
         M: fmt::Display + Send + Sync + 'static;
 }
 
-impl<T, E> LedgerResultExt<T, E> for Result<T, E>
+impl<T, E> VdrResultExt<T, E> for Result<T, E>
 where
     E: std::error::Error + Send + Sync + 'static,
 {
@@ -142,34 +140,34 @@ where
         self.map_err(|err| err.to_string())
     }
 
-    fn map_input_err<F, M>(self, mapfn: F) -> LedgerResult<T>
+    fn map_input_err<F, M>(self, mapfn: F) -> VdrResult<T>
     where
         F: FnOnce() -> M,
         M: fmt::Display + Send + Sync + 'static,
     {
         self.map_err(|err| {
-            LedgerError::new(
-                LedgerErrorKind::Input,
+            VdrError::new(
+                VdrErrorKind::Input,
                 Some(mapfn().to_string()),
                 Some(Box::new(err)),
             )
         })
     }
 
-    fn with_err_msg<M>(self, kind: LedgerErrorKind, msg: M) -> LedgerResult<T>
+    fn with_err_msg<M>(self, kind: VdrErrorKind, msg: M) -> VdrResult<T>
     where
         M: fmt::Display + Send + Sync + 'static,
     {
-        self.map_err(|err| LedgerError::new(kind, Some(msg.to_string()), Some(Box::new(err))))
+        self.map_err(|err| VdrError::new(kind, Some(msg.to_string()), Some(Box::new(err))))
     }
 
-    fn with_input_err<M>(self, msg: M) -> LedgerResult<T>
+    fn with_input_err<M>(self, msg: M) -> VdrResult<T>
     where
         M: fmt::Display + Send + Sync + 'static,
     {
         self.map_err(|err| {
-            LedgerError::new(
-                LedgerErrorKind::Input,
+            VdrError::new(
+                VdrErrorKind::Input,
                 Some(msg.to_string()),
                 Some(Box::new(err)),
             )

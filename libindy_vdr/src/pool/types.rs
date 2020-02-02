@@ -25,11 +25,11 @@ impl ProtocolVersion {
         }
     }
 
-    pub fn from_id(value: u64) -> LedgerResult<Self> {
+    pub fn from_id(value: u64) -> VdrResult<Self> {
         value.try_into()
     }
 
-    pub fn from_str(value: &str) -> LedgerResult<Self> {
+    pub fn from_str(value: &str) -> VdrResult<Self> {
         let value = value
             .parse::<u64>()
             .map_input_err(|| format!("Invalid protocol version: {}", value))?;
@@ -42,9 +42,9 @@ impl ProtocolVersion {
 }
 
 impl TryFrom<u64> for ProtocolVersion {
-    type Error = LedgerError;
+    type Error = VdrError;
 
-    fn try_from(value: u64) -> LedgerResult<Self> {
+    fn try_from(value: u64) -> VdrResult<Self> {
         match value {
             x if x == Self::Node1_3 as u64 => Ok(Self::Node1_3),
             x if x == Self::Node1_4 as u64 => Ok(Self::Node1_4),
@@ -84,11 +84,11 @@ impl LedgerType {
         *self as i32
     }
 
-    pub fn from_id(value: i32) -> LedgerResult<Self> {
+    pub fn from_id(value: i32) -> VdrResult<Self> {
         value.try_into()
     }
 
-    pub fn from_str(value: &str) -> LedgerResult<Self> {
+    pub fn from_str(value: &str) -> VdrResult<Self> {
         let value = value
             .parse::<i32>()
             .map_err(|_| input_err(format!("Invalid ledger type: {}", value)))?;
@@ -97,9 +97,9 @@ impl LedgerType {
 }
 
 impl TryFrom<i32> for LedgerType {
-    type Error = LedgerError;
+    type Error = VdrError;
 
-    fn try_from(value: i32) -> LedgerResult<Self> {
+    fn try_from(value: i32) -> VdrResult<Self> {
         match value {
             x if x == LedgerType::POOL as i32 => Ok(LedgerType::POOL),
             x if x == LedgerType::DOMAIN as i32 => Ok(LedgerType::DOMAIN),
@@ -189,7 +189,7 @@ pub struct NodeTransactionV1 {
 impl NodeTransactionV1 {
     pub const VERSION: &'static str = "1.4";
 
-    pub fn update(&mut self, other: &mut NodeTransactionV1) -> LedgerResult<()> {
+    pub fn update(&mut self, other: &mut NodeTransactionV1) -> VdrResult<()> {
         assert_eq!(self.txn.data.dest, other.txn.data.dest);
         assert_eq!(self.txn.data.data.alias, other.txn.data.data.alias);
 
@@ -361,7 +361,7 @@ pub struct CatchupRep {
 }
 
 impl CatchupRep {
-    pub fn load_txns(&self) -> LedgerResult<Vec<Vec<u8>>> {
+    pub fn load_txns(&self) -> VdrResult<Vec<Vec<u8>>> {
         let mut keys = self
             .txns
             .keys()
@@ -369,7 +369,7 @@ impl CatchupRep {
                 k.parse::<usize>()
                     .with_input_err("Invalid key in catchup reply")
             })
-            .collect::<LedgerResult<Vec<usize>>>()?;
+            .collect::<VdrResult<Vec<usize>>>()?;
         keys.sort();
         Ok(keys
             .iter()
@@ -381,7 +381,7 @@ impl CatchupRep {
             .collect())
     }
 
-    pub fn min_tx(&self) -> LedgerResult<usize> {
+    pub fn min_tx(&self) -> VdrResult<usize> {
         let mut min = None;
 
         for (k, _) in self.txns.iter() {
@@ -518,7 +518,7 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn from_raw_str(str: &str) -> LedgerResult<Message> {
+    pub fn from_raw_str(str: &str) -> VdrResult<Message> {
         match str {
             "po" => Ok(Message::Pong),
             "pi" => Ok(Message::Ping),
@@ -536,7 +536,7 @@ impl Message {
         }
     }
 
-    pub fn serialize(&self) -> LedgerResult<serde_json::Value> {
+    pub fn serialize(&self) -> VdrResult<serde_json::Value> {
         serde_json::to_value(&self).with_input_err("Cannot serialize message")
     }
 }

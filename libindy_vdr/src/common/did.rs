@@ -13,7 +13,7 @@ lazy_static! {
 }
 
 impl Validatable for DidMethod {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         lazy_static! {
             static ref REGEX_METHOD_NAME: Regex = Regex::new("^[a-z0-9]+$").unwrap();
         }
@@ -59,7 +59,7 @@ impl DidValue {
         }
     }
 
-    pub fn from_str(did: &str) -> LedgerResult<Self> {
+    pub fn from_str(did: &str) -> VdrResult<Self> {
         let did = Self(did.to_owned());
         did.validate()?;
         Ok(did)
@@ -67,7 +67,7 @@ impl DidValue {
 }
 
 impl Validatable for DidValue {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         if self.is_fully_qualified() {
             // pass
         } else {
@@ -98,7 +98,7 @@ impl ShortDidValue {
 }
 
 impl Validatable for ShortDidValue {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         let did = self.0.from_base58()?;
 
         if did.len() != 16 && did.len() != 32 {

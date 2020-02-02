@@ -160,7 +160,7 @@ impl Node {
         &'a self,
         db: &'a TrieDB,
         path: &'b [u8],
-    ) -> LedgerResult<Option<String>> {
+    ) -> VdrResult<Option<String>> {
         let value = self.get_value(db, path)?;
         if let Some(vec) = value {
             let str = String::from_utf8(vec)
@@ -177,7 +177,7 @@ impl Node {
         &'a self,
         db: &'a TrieDB,
         prefix: Option<&[u8]>,
-    ) -> LedgerResult<Vec<(String, String)>> {
+    ) -> VdrResult<Vec<(String, String)>> {
         let node_and_prefix = prefix
             .map(|prf| self.get_node(db, &prf))
             .unwrap_or_else(|| Ok(Some((self, vec![]))))?;
@@ -197,7 +197,7 @@ impl Node {
         &'a self,
         db: &'a TrieDB,
         path: &'b [u8],
-    ) -> LedgerResult<Option<(&Node, Vec<u8>)>> {
+    ) -> VdrResult<Option<(&Node, Vec<u8>)>> {
         trace!("Node::get_node >> path: {:?}", path);
         let nibble_path = Node::path_to_nibbles(path);
         trace!(
@@ -212,7 +212,7 @@ impl Node {
         db: &'a TrieDB,
         path: &'b [u8],
         seen_path: &'b [u8],
-    ) -> LedgerResult<Option<(&Node, Vec<u8>)>> {
+    ) -> VdrResult<Option<(&Node, Vec<u8>)>> {
         trace!(
             "Getting node for prefix, cur node: {:?}, prefix: {:?}",
             self,
@@ -289,7 +289,7 @@ impl Node {
         &'a self,
         db: &'a TrieDB,
         prefix: Vec<u8>,
-    ) -> LedgerResult<Vec<(Vec<u8>, String)>> {
+    ) -> VdrResult<Vec<(Vec<u8>, String)>> {
         trace!("Getting all values, cur node: {:?}", self);
         match *self {
             Node::Full(ref node) => {
@@ -387,11 +387,7 @@ impl Node {
         }
     }
 
-    fn get_value<'a, 'b>(
-        &'a self,
-        db: &'a TrieDB,
-        path: &'b [u8],
-    ) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_value<'a, 'b>(&'a self, db: &'a TrieDB, path: &'b [u8]) -> VdrResult<Option<Vec<u8>>> {
         let nibble_path = Node::path_to_nibbles(path);
         match self._get_value(db, nibble_path.as_slice())? {
             Some(v) => {
@@ -416,7 +412,7 @@ impl Node {
         &'a self,
         db: &'a TrieDB,
         path: &'b [u8],
-    ) -> LedgerResult<Option<&'a Vec<u8>>> {
+    ) -> VdrResult<Option<&'a Vec<u8>>> {
         trace!("Check proof, cur node: {:?}", self);
         match self._get_node(db, path, vec![].as_slice())? {
             Some((Node::Full(ref node), _)) => Ok(node.value.as_ref()),
@@ -447,7 +443,7 @@ impl Node {
         nibble_path
     }
 
-    fn _nibbles_to_str(nibbles: &[u8]) -> LedgerResult<String> {
+    fn _nibbles_to_str(nibbles: &[u8]) -> VdrResult<String> {
         trace!("Node::_nibbles_to_str >> nibbles: {:?}", nibbles);
         let mut res: Vec<u8> = Vec::with_capacity(nibbles.len() / 2);
         for x in (0..nibbles.len()).step_by(2) {

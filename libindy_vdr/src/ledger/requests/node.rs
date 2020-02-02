@@ -55,7 +55,7 @@ pub struct NodeOperationData {
 }
 
 impl Validatable for NodeOperationData {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         if self.node_ip.is_none()
             && self.node_port.is_none()
             && self.client_ip.is_none()

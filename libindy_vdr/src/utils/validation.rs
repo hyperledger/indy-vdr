@@ -1,7 +1,7 @@
-use crate::common::error::LedgerResult;
+use crate::common::error::VdrResult;
 
 pub trait Validatable {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         Ok(())
     }
 }

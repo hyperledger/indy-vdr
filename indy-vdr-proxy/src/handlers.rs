@@ -18,7 +18,7 @@ use indy_vdr::pool::{Pool, RequestResult, TimingResult};
 fn format_request_result<T: std::fmt::Display>(
     (result, timing): (RequestResult<T>, Option<TimingResult>),
     pretty: bool,
-) -> LedgerResult<(String, TimingResult)> {
+) -> VdrResult<(String, TimingResult)> {
     match result {
         RequestResult::Reply(message) => {
             let message = message.to_string();
@@ -41,31 +41,31 @@ fn format_request_result<T: std::fmt::Display>(
     }
 }
 
-fn format_result<T: std::fmt::Debug>(result: LedgerResult<(String, T)>) -> LedgerResult<String> {
+fn format_result<T: std::fmt::Debug>(result: VdrResult<(String, T)>) -> VdrResult<String> {
     Ok(match result {
         Ok((msg, timing)) => format!("{}\n\n{:?}", msg, timing),
         Err(err) => err.to_string(),
     })
 }
 
-fn format_ledger_error(err: LedgerError) -> Result<Response<Body>, hyper::Error> {
+fn format_ledger_error(err: VdrError) -> Result<Response<Body>, hyper::Error> {
     let msg = err.to_string();
     let (errcode, msg) = match err.kind() {
-        LedgerErrorKind::PoolRequestFailed(failed) => (StatusCode::BAD_REQUEST, failed),
-        LedgerErrorKind::Input => (StatusCode::BAD_REQUEST, msg),
-        LedgerErrorKind::PoolTimeout => (StatusCode::GATEWAY_TIMEOUT, msg),
-        LedgerErrorKind::PoolNoConsensus => (StatusCode::CONFLICT, msg),
+        VdrErrorKind::PoolRequestFailed(failed) => (StatusCode::BAD_REQUEST, failed),
+        VdrErrorKind::Input => (StatusCode::BAD_REQUEST, msg),
+        VdrErrorKind::PoolTimeout => (StatusCode::GATEWAY_TIMEOUT, msg),
+        VdrErrorKind::PoolNoConsensus => (StatusCode::CONFLICT, msg),
         // FIXME - UNAUTHORIZED error when BadRequest msg points to a missing signature
         _ => (StatusCode::INTERNAL_SERVER_ERROR, msg),
     };
     http_status_msg(errcode, msg)
 }
 
-trait HandleLedgerError {
+trait HandleVdrError {
     fn make_response(self) -> Result<Response<Body>, hyper::Error>;
 }
 
-impl<T> HandleLedgerError for LedgerResult<T>
+impl<T> HandleVdrError for VdrResult<T>
 where
     Body: From<T>,
 {
@@ -91,12 +91,12 @@ where
         .unwrap())
 }
 
-async fn get_pool_genesis<T: Pool>(pool: &T) -> LedgerResult<String> {
+async fn get_pool_genesis<T: Pool>(pool: &T) -> VdrResult<String> {
     let txns = pool.get_transactions()?;
     Ok(txns.join("\n"))
 }
 
-fn format_pool_status(state: Rc<RefCell<AppState>>) -> LedgerResult<String> {
+fn format_pool_status(state: Rc<RefCell<AppState>>) -> VdrResult<String> {
     let opt_pool = &state.borrow().pool;
     let (status, mt_root, mt_size) = if let Some(pool) = opt_pool {
         let (mt_root, mt_size) = pool.get_merkle_tree_root();
@@ -108,10 +108,10 @@ fn format_pool_status(state: Rc<RefCell<AppState>>) -> LedgerResult<String> {
     let last_refresh = last_refresh.map(|tm| tm.elapsed().map(|d| d.as_secs()).ok());
     let result = json!({"status": status, "pool_mt_root": mt_root, "pool_mt_size": mt_size, "last_refresh": last_refresh});
     Ok(serde_json::to_string(&result)
-        .with_err_msg(LedgerErrorKind::Unexpected, "Error serializing JSON")?)
+        .with_err_msg(VdrErrorKind::Unexpected, "Error serializing JSON")?)
 }
 
-async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, pretty: bool) -> LedgerResult<String> {
+async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, pretty: bool) -> VdrResult<String> {
     let cred_def_id = CredentialDefinitionId::from_str(cred_def_id)?;
     let request = pool
         .get_request_builder()
@@ -120,12 +120,7 @@ async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, pretty: bool) -> Led
     format_result(format_request_result(result, pretty))
 }
 
-async fn get_attrib<T: Pool>(
-    pool: &T,
-    dest: &str,
-    raw: &str,
-    pretty: bool,
-) -> LedgerResult<String> {
+async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str, pretty: bool) -> VdrResult<String> {
     let dest = DidValue::from_str(dest)?;
     let request = pool.get_request_builder().build_get_attrib_request(
         None,
@@ -138,7 +133,7 @@ async fn get_attrib<T: Pool>(
     format_result(format_request_result(result, pretty))
 }
 
-async fn get_nym<T: Pool>(pool: &T, nym: &str, pretty: bool) -> LedgerResult<String> {
+async fn get_nym<T: Pool>(pool: &T, nym: &str, pretty: bool) -> VdrResult<String> {
     let nym = DidValue::from_str(nym)?;
     let request = pool
         .get_request_builder()
@@ -147,7 +142,7 @@ async fn get_nym<T: Pool>(pool: &T, nym: &str, pretty: bool) -> LedgerResult<Str
     format_result(format_request_result(result, pretty))
 }
 
-async fn get_schema<T: Pool>(pool: &T, schema_id: &str, pretty: bool) -> LedgerResult<String> {
+async fn get_schema<T: Pool>(pool: &T, schema_id: &str, pretty: bool) -> VdrResult<String> {
     let schema_id = SchemaId::from_str(schema_id)?;
     let request = pool
         .get_request_builder()
@@ -157,13 +152,13 @@ async fn get_schema<T: Pool>(pool: &T, schema_id: &str, pretty: bool) -> LedgerR
 }
 
 /*
-async fn test_get_validator_info<T: Pool>(pool: &T, pretty: bool) -> LedgerResult<String> {
+async fn test_get_validator_info<T: Pool>(pool: &T, pretty: bool) -> VdrResult<String> {
     let result = perform_get_validator_info(pool).await?;
     format_result(format_request_result(result, pretty))
 }
 */
 
-async fn get_taa<T: Pool>(pool: &T, pretty: bool) -> LedgerResult<String> {
+async fn get_taa<T: Pool>(pool: &T, pretty: bool) -> VdrResult<String> {
     let request = pool
         .get_request_builder()
         .build_get_txn_author_agreement_request(None, None)?;
@@ -171,7 +166,7 @@ async fn get_taa<T: Pool>(pool: &T, pretty: bool) -> LedgerResult<String> {
     format_result(format_request_result(result, pretty))
 }
 
-async fn get_aml<T: Pool>(pool: &T, pretty: bool) -> LedgerResult<String> {
+async fn get_aml<T: Pool>(pool: &T, pretty: bool) -> VdrResult<String> {
     let request = pool
         .get_request_builder()
         .build_get_acceptance_mechanisms_request(None, None, None)?;
@@ -179,12 +174,7 @@ async fn get_aml<T: Pool>(pool: &T, pretty: bool) -> LedgerResult<String> {
     format_result(format_request_result(result, pretty))
 }
 
-async fn get_txn<T: Pool>(
-    pool: &T,
-    ledger: i32,
-    seq_no: i32,
-    pretty: bool,
-) -> LedgerResult<String> {
+async fn get_txn<T: Pool>(pool: &T, ledger: i32, seq_no: i32, pretty: bool) -> VdrResult<String> {
     let result = perform_get_txn(pool, ledger, seq_no).await?;
     format_result(format_request_result(result, pretty))
 }
@@ -193,7 +183,7 @@ async fn submit_request<T: Pool>(
     pool: &T,
     message: Vec<u8>,
     pretty: bool,
-) -> LedgerResult<(String, String)> {
+) -> VdrResult<(String, String)> {
     let (request, target) = pool.get_request_builder().build_custom_request(&message)?;
     let result = perform_ledger_request(pool, request, target).await?;
     let (response, timing) = format_request_result(result, pretty)?;

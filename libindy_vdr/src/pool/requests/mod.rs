@@ -43,13 +43,13 @@ pub enum RequestExtEvent {
 #[derive(Debug)]
 pub enum RequestResult<T> {
     Reply(T),
-    Failed(LedgerError),
+    Failed(VdrError),
 }
 
 impl<T> RequestResult<T> {
-    pub fn map_result<F, R>(self, f: F) -> LedgerResult<RequestResult<R>>
+    pub fn map_result<F, R>(self, f: F) -> VdrResult<RequestResult<R>>
     where
-        F: FnOnce(T) -> LedgerResult<R>,
+        F: FnOnce(T) -> VdrResult<R>,
     {
         match self {
             Self::Reply(reply) => Ok(RequestResult::Reply(f(reply)?)),

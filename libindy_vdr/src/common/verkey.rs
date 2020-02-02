@@ -5,7 +5,7 @@ use crate::utils::crypto::DEFAULT_CRYPTO_TYPE;
 pub const VERKEY_ENC_BASE58: &str = "base58";
 pub const DEFAULT_VERKEY_ENC: &str = VERKEY_ENC_BASE58;
 
-pub fn build_full_verkey(dest: &str, key: &str) -> LedgerResult<String> {
+pub fn build_full_verkey(dest: &str, key: &str) -> VdrResult<String> {
     let key = VerKey::from_str_qualified(key, Some(dest), None, None)?;
     Ok(key.into())
 }
@@ -34,7 +34,7 @@ impl VerKey {
         }
     }
 
-    pub fn from_str(key: &str) -> LedgerResult<VerKey> {
+    pub fn from_str(key: &str) -> VdrResult<VerKey> {
         Self::from_str_qualified(key, None, None, None)
     }
 
@@ -43,7 +43,7 @@ impl VerKey {
         dest: Option<&str>,
         alg: Option<&str>,
         enc: Option<&str>,
-    ) -> LedgerResult<VerKey> {
+    ) -> VdrResult<VerKey> {
         let (key, alg) = if key.contains(':') {
             let splits: Vec<&str> = key.splitn(2, ':').collect();
             let alg = match splits[1] {
@@ -76,7 +76,7 @@ impl VerKey {
         result
     }
 
-    pub fn key_bytes(&self) -> LedgerResult<Vec<u8>> {
+    pub fn key_bytes(&self) -> VdrResult<Vec<u8>> {
         match self.enc.as_str() {
             VERKEY_ENC_BASE58 => self.key.from_base58(),
             _ => Err(input_err("Unsupported verkey format")),

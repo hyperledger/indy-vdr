@@ -24,7 +24,7 @@ pub struct PoolConfig {
 }
 
 impl Validatable for PoolConfig {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         if self.freshness_threshold == 0 {
             return Err(input_err("`freshness_threshold` must be greater than 0"));
         }

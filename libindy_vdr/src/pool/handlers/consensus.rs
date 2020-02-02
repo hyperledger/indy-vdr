@@ -11,7 +11,7 @@ use super::{
 
 pub async fn handle_consensus_request<Request: PoolRequest>(
     mut request: Request,
-) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("consensus request");
     let total_nodes_count = request.node_count();
     let f = min_consensus(total_nodes_count);
@@ -59,7 +59,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::PoolTimeout,
+                        VdrErrorKind::PoolTimeout,
                         "Request was interrupted",
                     )),
                     request.get_timing(),
@@ -70,12 +70,12 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
             let err = {
                 let counts = replies.counts();
                 if counts.replies > 0 {
-                    LedgerErrorKind::PoolNoConsensus.into()
+                    VdrErrorKind::PoolNoConsensus.into()
                 } else if counts.failed > 0 {
                     let failed = replies.sample_failed().unwrap();
-                    LedgerErrorKind::PoolRequestFailed(failed).into()
+                    VdrErrorKind::PoolRequestFailed(failed).into()
                 } else {
-                    LedgerErrorKind::PoolTimeout.into()
+                    VdrErrorKind::PoolTimeout.into()
                 }
             };
             return Ok((RequestResult::Failed(err), request.get_timing()));

@@ -15,7 +15,7 @@ pub type CatchupTarget = (Vec<u8>, usize);
 pub async fn handle_status_request<Request: PoolRequest>(
     mut request: Request,
     merkle_tree: MerkleTree,
-) -> LedgerResult<(RequestResult<Option<CatchupTarget>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<Option<CatchupTarget>>, Option<TimingResult>)> {
     trace!("status request");
     let total_node_count = request.node_count();
     let mut replies = ReplyState::new();
@@ -55,7 +55,7 @@ pub async fn handle_status_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::PoolTimeout,
+                        VdrErrorKind::PoolTimeout,
                         "Request was interrupted",
                     )),
                     request.get_timing(),
@@ -75,7 +75,7 @@ pub async fn handle_status_request<Request: PoolRequest>(
             Ok(CatchupProgress::InProgress) => {}
             Ok(CatchupProgress::NoConsensus) => {
                 return Ok((
-                    RequestResult::Failed(LedgerErrorKind::PoolNoConsensus.into()),
+                    RequestResult::Failed(VdrErrorKind::PoolNoConsensus.into()),
                     request.get_timing(),
                 ));
             }
@@ -106,7 +106,7 @@ fn check_nodes_responses_on_status<R>(
     consensus: &ConsensusState<(String, usize, Option<Vec<String>>), String>,
     total_nodes_count: usize,
     f: usize,
-) -> LedgerResult<CatchupProgress> {
+) -> VdrResult<CatchupProgress> {
     let max_consensus = if let Some((most_popular_vote, votes_count)) = consensus.max_entry() {
         if votes_count > f {
             return try_to_catch_up(most_popular_vote, merkle_tree);
@@ -124,7 +124,7 @@ fn check_nodes_responses_on_status<R>(
 fn try_to_catch_up(
     ledger_status: &(String, usize, Option<Vec<String>>),
     merkle_tree: &MerkleTree,
-) -> LedgerResult<CatchupProgress> {
+) -> VdrResult<CatchupProgress> {
     let &(ref target_mt_root, target_mt_size, ref hashes) = ledger_status;
     let cur_mt_size = merkle_tree.count();
     let cur_mt_hash = merkle_tree.root_hash().to_base58();

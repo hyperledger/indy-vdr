@@ -17,10 +17,10 @@ use crate::utils::crypto;
 
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
 
-pub fn read_transactions(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
+pub fn read_transactions(file_name: &PathBuf) -> VdrResult<Vec<String>> {
     let f = File::open(file_name).map_err(|err| {
         err_msg(
-            LedgerErrorKind::FileSystem(err),
+            VdrErrorKind::FileSystem(err),
             format!("Can't open genesis transactions file: {:?}", file_name),
         )
     })?;
@@ -28,7 +28,7 @@ pub fn read_transactions(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
     reader.lines().try_fold(vec![], |mut vec, line| {
         let line = line.map_err(|err| {
             err_msg(
-                LedgerErrorKind::FileSystem(err),
+                VdrErrorKind::FileSystem(err),
                 "Error reading from genesis transactions file",
             )
         })?;
@@ -40,7 +40,7 @@ pub fn read_transactions(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
     })
 }
 
-pub fn build_merkle_tree(json_tnxs: &[String]) -> LedgerResult<MerkleTree> {
+pub fn build_merkle_tree(json_tnxs: &[String]) -> VdrResult<MerkleTree> {
     let mut bin_txns: Vec<Vec<u8>> = vec![];
     for json_txn in json_tnxs {
         let bin_txn = parse_transaction_from_json(json_txn)?;
@@ -49,7 +49,7 @@ pub fn build_merkle_tree(json_tnxs: &[String]) -> LedgerResult<MerkleTree> {
     MerkleTree::from_vec(bin_txns)
 }
 
-pub fn parse_transaction_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
+pub fn parse_transaction_from_json(txn: &str) -> VdrResult<Vec<u8>> {
     let txn = txn.trim();
 
     if txn.is_empty() {
@@ -61,13 +61,13 @@ pub fn parse_transaction_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
     rmp_serde::encode::to_vec_named(&txn).with_input_err("Can't encode genesis txn as msgpack")
 }
 
-pub fn transaction_to_json(txn: &[u8]) -> LedgerResult<String> {
+pub fn transaction_to_json(txn: &[u8]) -> VdrResult<String> {
     let node_txn: SJsonValue = rmp_serde::decode::from_slice(txn)
         .with_input_err("Genesis transaction cannot be decoded")?;
     serde_json::to_string(&node_txn).with_input_err("Genesis txn is malformed JSON")
 }
 
-pub fn transactions_to_json<T>(txns: T) -> LedgerResult<Vec<String>>
+pub fn transactions_to_json<T>(txns: T) -> VdrResult<Vec<String>>
 where
     T: IntoIterator,
     T::Item: AsRef<[u8]>,
@@ -82,7 +82,7 @@ where
 pub fn build_node_transaction_map<T>(
     txns: T,
     protocol_version: ProtocolVersion,
-) -> LedgerResult<NodeTransactionMap>
+) -> VdrResult<NodeTransactionMap>
 where
     T: IntoIterator,
     T::Item: AsRef<[u8]>,
@@ -100,7 +100,7 @@ where
     })
 }
 
-pub fn build_verifiers(txn_map: NodeTransactionMap) -> LedgerResult<Verifiers> {
+pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
     Ok(txn_map
         .into_iter()
         .map(|(public_key, txn)| {
@@ -189,7 +189,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> LedgerResult<Verifiers> {
 fn _decode_transaction(
     gen_txn: &[u8],
     protocol_version: ProtocolVersion,
-) -> LedgerResult<NodeTransactionV1> {
+) -> VdrResult<NodeTransactionV1> {
     let gen_txn: NodeTransaction = rmp_serde::decode::from_slice(gen_txn)
         .with_input_err("Genesis transaction cannot be decoded")?;
 
@@ -268,7 +268,7 @@ mod tests {
         )
         .unwrap();
         let res = super::build_node_state(&merkle_tree);
-        assert_kind!(LedgerErrorKind::PoolIncompatibleProtocolVersion, res);
+        assert_kind!(VdrErrorKind::PoolIncompatibleProtocolVersion, res);
 
         test::cleanup_storage(
             "pool_worker_build_node_state_works_for_new_txns_format_and_1_protocol_version",
@@ -437,7 +437,7 @@ mod tests {
         )
         .unwrap();
         let res = super::build_node_state(&merkle_tree);
-        assert_kind!(LedgerErrorKind::PoolIncompatibleProtocolVersion, res);
+        assert_kind!(VdrErrorKind::PoolIncompatibleProtocolVersion, res);
 
         test::cleanup_storage(
             "pool_worker_build_node_state_works_for_old_txns_format_and_2_protocol_version",

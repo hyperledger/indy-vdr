@@ -42,12 +42,12 @@ fn datetime_to_date_timestamp(time: u64) -> u64 {
     time / SEC_IN_DAY * SEC_IN_DAY
 }
 
-fn calculate_hash(text: &str, version: &str) -> LedgerResult<Vec<u8>> {
+fn calculate_hash(text: &str, version: &str) -> VdrResult<Vec<u8>> {
     let content: String = version.to_string() + text;
     Ok(digest::<Sha256>(content.as_bytes()))
 }
 
-fn compare_hash(text: &str, version: &str, hash: &str) -> LedgerResult<()> {
+fn compare_hash(text: &str, version: &str, hash: &str) -> VdrResult<()> {
     let calculated_hash = calculate_hash(text, version)?;
 
     let passed_hash = Vec::from_hex(hash).with_input_err("Cannot decode hash")?;
@@ -89,18 +89,18 @@ impl PreparedRequest {
         }
     }
 
-    pub fn get_signature_input(&self) -> LedgerResult<String> {
+    pub fn get_signature_input(&self) -> VdrResult<String> {
         serialize_signature(&self.req_json)
     }
 
-    pub fn sign(&mut self, secret: &[u8]) -> LedgerResult<()> {
+    pub fn sign(&mut self, secret: &[u8]) -> VdrResult<()> {
         let keypair = import_keypair(&secret)?;
         let input = self.get_signature_input()?;
         let sig = sign_message(keypair, input.as_bytes());
         self.set_signature(&sig)
     }
 
-    pub fn set_signature(&mut self, signature: &[u8]) -> LedgerResult<()> {
+    pub fn set_signature(&mut self, signature: &[u8]) -> VdrResult<()> {
         self.req_json["signature"] = SJsonValue::String(signature.to_base58());
         Ok(())
     }
@@ -125,7 +125,7 @@ impl RequestBuilder {
         &self,
         operation: T,
         identifier: Option<&DidValue>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let req_id = get_request_id();
         let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
         let txn_type = T::get_txn_type().to_string();
@@ -154,7 +154,7 @@ impl RequestBuilder {
         verkey: Option<String>,
         alias: Option<String>,
         role: Option<String>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let role = if let Some(r) = role {
             Some(if r == ROLE_REMOVE {
                 SJsonValue::Null
@@ -179,7 +179,7 @@ impl RequestBuilder {
         &self,
         identifier: Option<&DidValue>,
         dest: &DidValue,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let dest = dest.to_short();
         let operation = GetNymOperation::new(dest.clone());
         self.build(operation, identifier)
@@ -189,7 +189,7 @@ impl RequestBuilder {
         &self,
         identifier: Option<&DidValue>,
         dest: &DidValue,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let operation = GetDdoOperation::new(dest.to_short());
         self.build(operation, identifier)
     }
@@ -201,7 +201,7 @@ impl RequestBuilder {
         hash: Option<String>,
         raw: Option<&SJsonValue>,
         enc: Option<String>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let operation =
             AttribOperation::new(dest.to_short(), hash, raw.map(SJsonValue::to_string), enc);
         self.build(operation, Some(identifier))
@@ -214,7 +214,7 @@ impl RequestBuilder {
         raw: Option<String>,
         hash: Option<String>,
         enc: Option<String>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let operation = GetAttribOperation::new(dest.to_short(), raw, hash, enc);
         self.build(operation, identifier)
     }
@@ -224,7 +224,7 @@ impl RequestBuilder {
         identifier: &DidValue,
         dest: &DidValue,
         data: NodeOperationData,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let operation = NodeOperation::new(dest.to_short(), data);
         self.build(operation, Some(identifier))
     }
@@ -232,7 +232,7 @@ impl RequestBuilder {
     pub fn build_get_validator_info_request(
         &self,
         identifier: &DidValue,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         self.build(GetValidatorInfoOperation::new(), Some(identifier))
     }
 
@@ -241,7 +241,7 @@ impl RequestBuilder {
         ledger_type: i32,
         seq_no: i32,
         identifier: Option<&DidValue>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         if seq_no <= 0 {
             return Err(input_err("Transaction number must be > 0"));
         }
@@ -253,7 +253,7 @@ impl RequestBuilder {
         identifier: &DidValue,
         writes: bool,
         force: bool,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         self.build(PoolConfigOperation::new(writes, force), Some(identifier))
     }
 
@@ -262,7 +262,7 @@ impl RequestBuilder {
         identifier: &DidValue,
         action: &str,
         datetime: Option<&str>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         self.build(
             PoolRestartOperation::new(action, datetime.map(String::from)),
             Some(identifier),
@@ -282,7 +282,7 @@ impl RequestBuilder {
         reinstall: bool,
         force: bool,
         package: Option<&str>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let operation = PoolUpgradeOperation::new(
             name,
             version,
@@ -307,7 +307,7 @@ impl RequestBuilder {
         old_value: Option<String>,
         new_value: Option<String>,
         constraint: Constraint,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let txn_type = txn_name_to_code(&txn_type)
             .ok_or_else(|| input_err(format!("Unsupported `txn_type`: {}", txn_type)))?
             .to_string();
@@ -324,7 +324,7 @@ impl RequestBuilder {
         &self,
         submitter_did: &DidValue,
         rules: AuthRules,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         self.build(AuthRulesOperation::new(rules), Some(submitter_did))
     }
 
@@ -336,7 +336,7 @@ impl RequestBuilder {
         field: Option<String>,
         old_value: Option<String>,
         new_value: Option<String>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let operation = match (auth_type, auth_action, field) {
             (None, None, None) => GetAuthRuleOperation::get_all(),
             (Some(auth_type), Some(auth_action), Some(field)) => {
@@ -368,7 +368,7 @@ impl RequestBuilder {
         identifier: &DidValue,
         text: String,
         version: String,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         self.build(
             TxnAuthorAgreementOperation::new(text, version),
             Some(identifier),
@@ -379,7 +379,7 @@ impl RequestBuilder {
         &self,
         identifier: Option<&DidValue>,
         data: Option<&GetTxnAuthorAgreementData>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         self.build(GetTxnAuthorAgreementOperation::new(data), identifier)
     }
 
@@ -389,7 +389,7 @@ impl RequestBuilder {
         aml: AcceptanceMechanisms,
         version: String,
         aml_context: Option<String>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let operation = SetAcceptanceMechanismOperation::new(
             aml,
             version.to_string(),
@@ -403,7 +403,7 @@ impl RequestBuilder {
         identifier: Option<&DidValue>,
         timestamp: Option<u64>,
         version: Option<String>,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         if timestamp.is_some() && version.is_some() {
             return Err(input_err(
                 "timestamp and version cannot be specified together.",
@@ -419,7 +419,7 @@ impl RequestBuilder {
         &self,
         identifier: &DidValue,
         schema: SchemaV1,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let schema_data =
             SchemaOperationData::new(schema.name, schema.version, schema.attr_names.into());
         self.build(SchemaOperation::new(schema_data), Some(identifier))
@@ -429,7 +429,7 @@ impl RequestBuilder {
         &self,
         identifier: Option<&DidValue>,
         id: &SchemaId,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let id = id.to_unqualified();
         let (dest, name, version) = id.parts().ok_or(input_err(format!(
             "Schema ID `{}` cannot be used to build request: invalid number of parts",
@@ -443,7 +443,7 @@ impl RequestBuilder {
         &self,
         identifier: &DidValue,
         cred_def: CredentialDefinitionV1,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let cred_def: CredentialDefinitionV1 = CredentialDefinitionV1 {
             id: cred_def.id.to_unqualified(),
             schema_id: cred_def.schema_id.to_unqualified(),
@@ -458,7 +458,7 @@ impl RequestBuilder {
         &self,
         identifier: Option<&DidValue>,
         id: &CredentialDefinitionId,
-    ) -> LedgerResult<PreparedRequest> {
+    ) -> VdrResult<PreparedRequest> {
         let id = id.to_unqualified();
         let (origin, signature_type, schema_id, tag) = id.parts()
             .ok_or_else(|| input_err(format!("Credential Definition ID `{}` cannot be used to build request: invalid number of parts", id.0)))?;
@@ -479,7 +479,7 @@ impl RequestBuilder {
         hash: Option<&str>,
         mechanism: &str,
         time: u64,
-    ) -> LedgerResult<TxnAuthrAgrmtAcceptanceData> {
+    ) -> VdrResult<TxnAuthrAgrmtAcceptanceData> {
         let taa_digest = match (text, version, hash) {
             (None, None, None) => {
                 return Err(input_err("Invalid combination of params: Either combination `text` + `version` or `taa_digest` must be passed."));
@@ -507,7 +507,7 @@ impl RequestBuilder {
     pub fn build_custom_request(
         &self,
         message: &[u8],
-    ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
+    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
         let message = std::str::from_utf8(message).with_input_err("Invalid UTF-8")?;
         self.build_custom_request_from_str(message)
     }
@@ -515,7 +515,7 @@ impl RequestBuilder {
     pub fn build_custom_request_from_str(
         &self,
         message: &str,
-    ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
+    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
         let mut req_json: SJsonValue =
             serde_json::from_str(message).with_input_err("Invalid request JSON")?;
 
@@ -826,7 +826,7 @@ mod tests {
         let ledger_service = LedgerService::new();
 
         let res = ledger_service.build_get_txn_request(Some(&identifier()), Some("type"), 1);
-        assert_kind!(LedgerErrorKind::InvalidStructure, res);
+        assert_kind!(VdrErrorKind::InvalidStructure, res);
     }
 
     #[test]
@@ -975,7 +975,7 @@ mod tests {
                 Some(NEW_VALUE),
                 _role_constraint(),
             );
-            assert_kind!(LedgerErrorKind::InvalidStructure, res);
+            assert_kind!(VdrErrorKind::InvalidStructure, res);
         }
 
         #[test]
@@ -1055,7 +1055,7 @@ mod tests {
                 None,
                 None,
             );
-            assert_kind!(LedgerErrorKind::InvalidStructure, res);
+            assert_kind!(VdrErrorKind::InvalidStructure, res);
         }
 
         #[test]
@@ -1070,7 +1070,7 @@ mod tests {
                 None,
                 None,
             );
-            assert_kind!(LedgerErrorKind::InvalidStructure, res);
+            assert_kind!(VdrErrorKind::InvalidStructure, res);
         }
 
         #[test]
@@ -1085,7 +1085,7 @@ mod tests {
                 None,
                 None,
             );
-            assert_kind!(LedgerErrorKind::InvalidStructure, res);
+            assert_kind!(VdrErrorKind::InvalidStructure, res);
         }
 
         #[test]
@@ -1279,7 +1279,7 @@ mod tests {
                 Some(TIMESTAMP),
                 Some(VERSION),
             );
-            assert_kind!(LedgerErrorKind::InvalidStructure, res);
+            assert_kind!(VdrErrorKind::InvalidStructure, res);
         }
     }
 

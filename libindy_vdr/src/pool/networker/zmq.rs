@@ -27,11 +27,7 @@ pub struct ZMQNetworkerFactory;
 
 impl NetworkerFactory for ZMQNetworkerFactory {
     type Output = ZMQNetworker;
-    fn make_networker(
-        &self,
-        config: PoolConfig,
-        verifiers: &Verifiers,
-    ) -> LedgerResult<ZMQNetworker> {
+    fn make_networker(&self, config: PoolConfig, verifiers: &Verifiers) -> VdrResult<ZMQNetworker> {
         let remotes = _get_remotes(verifiers);
         let socket_handle = *ZMQSocketHandle::next();
         let (zmq_ctx, cmd_send, cmd_recv) =
@@ -60,14 +56,14 @@ pub struct ZMQNetworker {
 }
 
 impl Networker for ZMQNetworker {
-    fn send(&self, event: NetworkerEvent) -> LedgerResult<()> {
+    fn send(&self, event: NetworkerEvent) -> VdrResult<()> {
         self.evt_send
             .send(event)
-            .with_err_msg(LedgerErrorKind::Resource, "Error sending networker event")?;
+            .with_err_msg(VdrErrorKind::Resource, "Error sending networker event")?;
         // stop waiting on current sockets
         self.cmd_send
             .send("", 0)
-            .with_err_msg(LedgerErrorKind::Resource, "Error sending networker command")
+            .with_err_msg(VdrErrorKind::Resource, "Error sending networker command")
     }
 }
 
@@ -285,7 +281,7 @@ impl ZMQThread {
         sub_id: String,
         body: String,
         sender: UnboundedSender<RequestExtEvent>,
-    ) -> LedgerResult<&mut PendingRequest> {
+    ) -> VdrResult<&mut PendingRequest> {
         let conn_id = self.get_active_connection(self.last_connection, sub_id.clone())?;
         let pending = PendingRequest {
             conn_id,
@@ -331,7 +327,7 @@ impl ZMQThread {
         handle: RequestHandle,
         node_aliases: Vec<String>,
         timeout: i64,
-    ) -> LedgerResult<()> {
+    ) -> VdrResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 for node_alias in node_aliases {
@@ -361,7 +357,7 @@ impl ZMQThread {
         Ok(())
     }
 
-    fn clean_timeout(&mut self, handle: RequestHandle, node_alias: String) -> LedgerResult<()> {
+    fn clean_timeout(&mut self, handle: RequestHandle, node_alias: String) -> VdrResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 conn.clean_timeout(request.sub_id.as_str(), Some(node_alias))
@@ -379,7 +375,7 @@ impl ZMQThread {
         handle: RequestHandle,
         node_alias: String,
         timeout: i64,
-    ) -> LedgerResult<()> {
+    ) -> VdrResult<()> {
         if let Some(request) = self.requests.get_mut(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 conn.extend_timeout(request.sub_id.as_str(), node_alias.as_str(), timeout)
@@ -396,7 +392,7 @@ impl ZMQThread {
         &mut self,
         conn_id: Option<ZMQConnectionHandle>,
         sub_id: String,
-    ) -> LedgerResult<ZMQConnectionHandle> {
+    ) -> VdrResult<ZMQConnectionHandle> {
         let req_limit = self.config.conn_request_limit;
         let conn = conn_id
             .and_then(|conn_id| self.pool_connections.get_mut(&conn_id))
@@ -586,7 +582,7 @@ impl ZMQConnection {
         msg: String,
         node_alias: String,
         timeout: i64,
-    ) -> LedgerResult<()> {
+    ) -> VdrResult<()> {
         trace!("send_request >> req_id: {} node: {}", req_id, node_alias);
         let node_index = self.remotes.iter().position(|node| node.name == node_alias);
         if let Some(node_index) = node_index {
@@ -672,7 +668,7 @@ impl ZMQConnection {
         !self.is_active() && !self.has_active_requests()
     }
 
-    fn _get_socket(&mut self, idx: usize) -> LedgerResult<&ZSocket> {
+    fn _get_socket(&mut self, idx: usize) -> VdrResult<&ZSocket> {
         if self.sockets[idx].is_none() {
             debug!("_get_socket: open new socket for node {}", idx);
             let s: ZSocket = self.remotes[idx].connect(&self.ctx, &self.key_pair)?;
@@ -691,7 +687,7 @@ struct RemoteNode {
 }
 
 impl RemoteNode {
-    fn connect(&self, ctx: &zmq::Context, key_pair: &zmq::CurveKeyPair) -> LedgerResult<ZSocket> {
+    fn connect(&self, ctx: &zmq::Context, key_pair: &zmq::CurveKeyPair) -> VdrResult<ZSocket> {
         let s = ctx.socket(zmq::SocketType::DEALER)?;
         s.set_identity(base64::encode(&key_pair.public_key).as_bytes())?;
         s.set_curve_secretkey(&key_pair.secret_key)?;

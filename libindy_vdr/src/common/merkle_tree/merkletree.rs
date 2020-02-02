@@ -1,4 +1,4 @@
-use crate::common::error::LedgerResult;
+use crate::common::error::VdrResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash, EMPTY_HASH_BYTES};
 
 use super::proof::{Lemma, Proof};
@@ -37,7 +37,7 @@ impl Default for MerkleTree {
 impl MerkleTree {
     /// Constructs a Merkle Tree from a vector of data blocks.
     /// Returns `None` if `values` is empty.
-    pub fn from_vec(values: Vec<TreeLeafData>) -> LedgerResult<Self> {
+    pub fn from_vec(values: Vec<TreeLeafData>) -> VdrResult<Self> {
         if values.is_empty() {
             return Ok(MerkleTree::default());
         }
@@ -118,7 +118,7 @@ impl MerkleTree {
 
     /// Generate an inclusion proof for the given value.
     /// Returns `None` if the given value is not found in the tree.
-    pub fn gen_proof(&self, value: TreeLeafData) -> LedgerResult<Option<Proof>> {
+    pub fn gen_proof(&self, value: TreeLeafData) -> VdrResult<Option<Proof>> {
         let root_hash = self.root_hash().clone();
         let leaf_hash = Hash::hash_leaf(&value)?;
 

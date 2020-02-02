@@ -40,7 +40,7 @@ pub struct GetTxnAuthorAgreementData {
 }
 
 impl Validatable for GetTxnAuthorAgreementData {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         match (
             self.digest.as_ref(),
             self.version.as_ref(),
@@ -86,7 +86,7 @@ impl RequestType for GetTxnAuthorAgreementOperation {
         GET_TXN_AUTHR_AGRMT
     }
 
-    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let key_str = match (
             self.version.as_ref(),
             self.digest.as_ref(),
@@ -100,7 +100,7 @@ impl RequestType for GetTxnAuthorAgreementOperation {
         Ok(Some(key_str.as_bytes().to_vec()))
     }
 
-    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+    fn get_sp_timestamps(&self) -> VdrResult<(Option<u64>, Option<u64>)> {
         Ok((None, self.timestamp))
     }
 }
@@ -115,7 +115,7 @@ impl AcceptanceMechanisms {
 }
 
 impl Validatable for AcceptanceMechanisms {
-    fn validate(&self) -> LedgerResult<()> {
+    fn validate(&self) -> VdrResult<()> {
         if self.0.is_empty() {
             return Err(input_err(
                 "Empty list of Acceptance Mechanisms has been passed",
@@ -182,7 +182,7 @@ impl RequestType for GetAcceptanceMechanismOperation {
         GET_TXN_AUTHR_AGRMT_AML
     }
 
-    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> LedgerResult<Option<Vec<u8>>> {
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let key_str = if let Some(version) = self.version.as_ref() {
             format!("3:v:{}", version)
         } else {
@@ -191,7 +191,7 @@ impl RequestType for GetAcceptanceMechanismOperation {
         Ok(Some(key_str.as_bytes().to_vec()))
     }
 
-    fn get_sp_timestamps(&self) -> LedgerResult<(Option<u64>, Option<u64>)> {
+    fn get_sp_timestamps(&self) -> VdrResult<(Option<u64>, Option<u64>)> {
         Ok((None, self.timestamp))
     }
 }
