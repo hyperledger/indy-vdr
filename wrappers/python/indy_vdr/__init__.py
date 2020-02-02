@@ -1,8 +1,15 @@
 from abc import ABC, abstractmethod
+from enum import IntEnum
 from typing import List, Union
 
 from . import bindings
 from .error import VdrError
+
+
+class LedgerType(IntEnum):
+    POOL = 0
+    DOMAIN = 1
+    CONFIG = 2
 
 
 class BaseRequest(ABC):

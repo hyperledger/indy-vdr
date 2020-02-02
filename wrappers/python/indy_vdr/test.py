@@ -1,5 +1,5 @@
 import asyncio
-from . import CustomRequest, Pool
+from . import CustomRequest, Pool, LedgerType
 
 test_req = {
     "identifier": "LibindyDid111111111111",
@@ -27,7 +27,7 @@ async def get_pool_txns():
 
 
 async def get_txn(seq_no: int):
-    req = {"operation": {"data": seq_no, "ledgerId": 1, "type": "3"}}
+    req = {"operation": {"data": seq_no, "ledgerId": LedgerType.DOMAIN, "type": "3"}}
     return await pool.submit_request(req)
 
 
@@ -36,6 +36,6 @@ async def get_txn_range(seq_nos):
 
 
 # asyncio.get_event_loop().run_until_complete(get_pool_txns())
-asyncio.get_event_loop().run_until_complete(get_txn(11))
+print(asyncio.get_event_loop().run_until_complete(get_txn(11)))
 
 print("done")
