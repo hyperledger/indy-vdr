@@ -19,7 +19,6 @@ use super::requests::author_agreement::*;
 use super::requests::cred_def::{
     CredDefOperation, CredentialDefinitionId, CredentialDefinitionV1, GetCredDefOperation,
 };
-use super::requests::ddo::GetDdoOperation;
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{GetNymOperation, NymOperation};
 use super::requests::pool::{
@@ -182,15 +181,6 @@ impl RequestBuilder {
     ) -> VdrResult<PreparedRequest> {
         let dest = dest.to_short();
         let operation = GetNymOperation::new(dest.clone());
-        self.build(operation, identifier)
-    }
-
-    pub fn build_get_ddo_request(
-        &self,
-        identifier: Option<&DidValue>,
-        dest: &DidValue,
-    ) -> VdrResult<PreparedRequest> {
-        let operation = GetDdoOperation::new(dest.to_short());
         self.build(operation, identifier)
     }
 

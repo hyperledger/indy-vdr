@@ -2,7 +2,6 @@ pub mod attrib;
 pub mod auth_rule;
 pub mod author_agreement;
 pub mod cred_def;
-pub mod ddo;
 pub mod node;
 pub mod nym;
 pub mod pool;
