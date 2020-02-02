@@ -34,10 +34,11 @@ impl NetworkerFactory for ZMQNetworkerFactory {
     ) -> LedgerResult<ZMQNetworker> {
         let remotes = _get_remotes(verifiers);
         let socket_handle = *ZMQSocketHandle::next();
-        let (cmd_send, cmd_recv) = _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
+        let (zmq_ctx, cmd_send, cmd_recv) =
+            _create_pair_of_sockets(&format!("zmqnet_{}", socket_handle));
         let (evt_send, evt_recv) = mpsc::channel::<NetworkerEvent>();
         let worker = thread::spawn(move || {
-            let mut zmq_thread = ZMQThread::new(config, cmd_recv, evt_recv, remotes);
+            let mut zmq_thread = ZMQThread::new(config, zmq_ctx, cmd_recv, evt_recv, remotes);
             if let Err(err) = zmq_thread.work() {
                 warn!("ZMQ worker exited with error: {}", err.to_string())
             } else {
@@ -86,6 +87,7 @@ impl Drop for ZMQNetworker {
 
 struct ZMQThread {
     config: PoolConfig,
+    zmq_ctx: zmq::Context,
     cmd_recv: zmq::Socket,
     evt_recv: mpsc::Receiver<NetworkerEvent>,
     node_aliases: HashSet<String>,
@@ -98,6 +100,7 @@ struct ZMQThread {
 impl ZMQThread {
     pub fn new(
         config: PoolConfig,
+        zmq_ctx: zmq::Context,
         cmd_recv: zmq::Socket,
         evt_recv: mpsc::Receiver<NetworkerEvent>,
         remotes: Vec<RemoteNode>,
@@ -105,6 +108,7 @@ impl ZMQThread {
         let node_aliases = HashSet::from_iter(remotes.iter().map(|r| r.name.clone()));
         ZMQThread {
             config,
+            zmq_ctx,
             cmd_recv,
             evt_recv,
             node_aliases,
@@ -400,8 +404,11 @@ impl ZMQThread {
                 conn.is_active() && conn.req_cnt < req_limit && !conn.seen_request(sub_id.as_str())
             });
         if conn.is_none() {
-            let mut conn =
-                ZMQConnection::new(self.remotes.clone(), self.config.conn_active_timeout);
+            let mut conn = ZMQConnection::new(
+                self.zmq_ctx.clone(),
+                self.remotes.clone(),
+                self.config.conn_active_timeout,
+            );
             trace!("Created new pool connection");
             conn.init_request(sub_id);
             let pc_id = ZMQConnectionHandle::next();
@@ -472,7 +479,7 @@ pub struct ZMQConnection {
 }
 
 impl ZMQConnection {
-    fn new(remotes: Vec<RemoteNode>, active_timeout: i64) -> Self {
+    fn new(zmq_ctx: zmq::Context, remotes: Vec<RemoteNode>, active_timeout: i64) -> Self {
         trace!("ZMQConnection::new: from remotes {:?}", remotes);
 
         let sockets = (0..remotes.len())
@@ -482,7 +489,7 @@ impl ZMQConnection {
         Self {
             remotes,
             sockets,
-            ctx: zmq::Context::new(),
+            ctx: zmq_ctx,
             key_pair: zmq::CurveKeyPair::new().expect("FIXME"),
             time_created: Instant::now(),
             idle_timeouts: HashMap::new(),
@@ -711,7 +718,7 @@ impl std::fmt::Debug for RemoteNode {
     }
 }
 
-fn _create_pair_of_sockets(addr: &str) -> (zmq::Socket, zmq::Socket) {
+fn _create_pair_of_sockets(addr: &str) -> (zmq::Context, zmq::Socket, zmq::Socket) {
     let zmq_ctx = zmq::Context::new();
     let send_cmd_sock = zmq_ctx.socket(zmq::SocketType::PAIR).unwrap();
     let recv_cmd_sock = zmq_ctx.socket(zmq::SocketType::PAIR).unwrap();
@@ -719,7 +726,7 @@ fn _create_pair_of_sockets(addr: &str) -> (zmq::Socket, zmq::Socket) {
     let inproc_sock_name: String = format!("inproc://{}", addr);
     recv_cmd_sock.bind(inproc_sock_name.as_str()).unwrap();
     send_cmd_sock.connect(inproc_sock_name.as_str()).unwrap();
-    (send_cmd_sock, recv_cmd_sock)
+    (zmq_ctx, send_cmd_sock, recv_cmd_sock)
 }
 
 fn _get_remotes(verifiers: &Verifiers) -> Vec<RemoteNode> {
