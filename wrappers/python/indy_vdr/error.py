@@ -8,5 +8,6 @@ class VdrErrorCode(IntEnum):
 
 class VdrError(Exception):
     def __init__(self, code: VdrErrorCode, message: str, extra: str = None):
-        super().__init__(message, extra)
+        super().__init__(message)
         self.code = code
+        self.extra = extra
