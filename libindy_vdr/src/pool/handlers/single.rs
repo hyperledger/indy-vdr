@@ -125,8 +125,8 @@ pub async fn handle_single_request<Request: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(err_msg(
-                        LedgerErrorKind::Network,
-                        "Request ended prematurely",
+                        LedgerErrorKind::PoolTimeout,
+                        "Request was interrupted",
                     )),
                     request.get_timing(),
                 ))

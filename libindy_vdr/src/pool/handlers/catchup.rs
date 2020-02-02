@@ -40,7 +40,7 @@ pub async fn handle_catchup_request<Request: PoolRequest>(
                         // FIXME could be more tolerant of ReqNACK etc
                         return Ok((
                             RequestResult::Failed(err_msg(
-                                LedgerErrorKind::Network,
+                                LedgerErrorKind::Connection,
                                 "Unexpected response",
                             )),
                             request.get_timing(),

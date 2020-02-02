@@ -28,10 +28,10 @@ pub enum LedgerErrorKind {
     Unexpected,
     #[error("Input error")]
     Input,
-    #[error("IO error: {0}")]
-    IO(#[from] std::io::Error),
-    #[error("Network error")]
-    Network,
+    #[error("File system error: {0}")]
+    FileSystem(std::io::Error),
+    #[error("Connection error")]
+    Connection,
     #[error("Resource error")]
     Resource,
     // Transaction errors
@@ -89,7 +89,7 @@ impl From<LedgerErrorKind> for LedgerError {
 
 impl From<zmq::Error> for LedgerError {
     fn from(err: zmq::Error) -> LedgerError {
-        LedgerError::new(LedgerErrorKind::Network, None, Some(Box::new(err)))
+        LedgerError::new(LedgerErrorKind::Connection, None, Some(Box::new(err)))
     }
 }
 

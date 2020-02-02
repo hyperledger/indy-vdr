@@ -18,10 +18,20 @@ use crate::utils::crypto;
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
 
 pub fn read_transactions(file_name: &PathBuf) -> LedgerResult<Vec<String>> {
-    let f = File::open(file_name).with_input_err("Can't open genesis transactions file")?;
+    let f = File::open(file_name).map_err(|err| {
+        err_msg(
+            LedgerErrorKind::FileSystem(err),
+            format!("Can't open genesis transactions file: {:?}", file_name),
+        )
+    })?;
     let reader = BufReader::new(&f);
     reader.lines().try_fold(vec![], |mut vec, line| {
-        let line = line.with_input_err("Can't read from genesis transactions file")?;
+        let line = line.map_err(|err| {
+            err_msg(
+                LedgerErrorKind::FileSystem(err),
+                "Error reading from genesis transactions file",
+            )
+        })?;
         let line = line.trim();
         if !line.is_empty() {
             vec.push(line.to_owned());
@@ -47,8 +57,8 @@ pub fn parse_transaction_from_json(txn: &str) -> LedgerResult<Vec<u8>> {
     }
 
     let txn: SJsonValue =
-        serde_json::from_str(txn).with_input_err("Genesis txn is mailformed json")?;
-    rmp_serde::encode::to_vec_named(&txn).with_input_err("Can't encode genesis txn as message pack")
+        serde_json::from_str(txn).with_input_err("Genesis txn is malformed JSON")?;
+    rmp_serde::encode::to_vec_named(&txn).with_input_err("Can't encode genesis txn as msgpack")
 }
 
 pub fn transaction_to_json(txn: &[u8]) -> LedgerResult<String> {
