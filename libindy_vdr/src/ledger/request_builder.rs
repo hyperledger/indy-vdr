@@ -504,37 +504,43 @@ impl RequestBuilder {
         Ok(acceptance_data)
     }
 
-    pub fn parse_inbound_request(
+    pub fn build_custom_request(
         &self,
         message: &[u8],
-        add_request_id: bool,
     ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
         let message = std::str::from_utf8(message).with_input_err("Invalid UTF-8")?;
-        self.parse_inbound_request_str(message, add_request_id)
+        self.build_custom_request_from_str(message)
     }
 
-    pub fn parse_inbound_request_str(
+    pub fn build_custom_request_from_str(
         &self,
         message: &str,
-        add_request_id: bool,
     ) -> LedgerResult<(PreparedRequest, Option<RequestTarget>)> {
         let mut req_json: SJsonValue =
             serde_json::from_str(message).with_input_err("Invalid request JSON")?;
 
-        let protocol_version = ProtocolVersion::from_id(
-            req_json["protocolVersion"]
-                .as_u64()
-                .ok_or_else(|| input_err("No protocol version request"))?,
-        )?;
+        let protocol_version = req_json["protocolVersion"].as_u64();
+        let protocol_version = if protocol_version.is_none() {
+            req_json["protocolVersion"] = SJsonValue::from(self.protocol_version as usize);
+            self.protocol_version
+        } else {
+            ProtocolVersion::from_id(protocol_version.unwrap())?
+        };
+
+        let ident = req_json["identifier"].as_str();
+        if ident.is_none() {
+            req_json["identifier"] = SJsonValue::from(DEFAULT_LIBINDY_DID.to_string());
+        } else {
+            // FIXME validate identifier
+        }
 
         let req_id = req_json["reqId"].as_u64();
-        let req_id = if add_request_id && req_id.is_none() {
+        let req_id = if req_id.is_none() {
             let new_req_id = get_request_id();
-            req_json["reqId"] = serde_json::to_value(new_req_id)
-                .with_err_msg(LedgerErrorKind::Unexpected, "Error inserting request ID")?;
+            req_json["reqId"] = SJsonValue::from(new_req_id);
             new_req_id
         } else {
-            req_id.ok_or_else(|| input_err("No reqId in request"))?
+            req_id.unwrap() // FIXME validate?
         }
         .to_string();
 

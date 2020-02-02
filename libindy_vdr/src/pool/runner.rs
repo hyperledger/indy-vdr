@@ -9,7 +9,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use super::helpers::perform_ledger_request;
 use super::networker::{Networker, NetworkerFactory};
 use super::requests::{RequestResult, TimingResult};
-use super::LocalPool;
+use super::{LocalPool, Pool};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
@@ -39,15 +39,23 @@ impl PoolRunner {
         }
     }
 
+    pub fn get_transactions(&self, callback: TxnCallback) -> LedgerResult<()> {
+        self.send_event(PoolEvent::GetTransactions(callback))
+    }
+
     pub fn send_request(
         &self,
         request: PreparedRequest,
         callback: ReqCallback,
     ) -> LedgerResult<()> {
+        self.send_event(PoolEvent::SendRequest(request, callback))
+    }
+
+    fn send_event(&self, event: PoolEvent) -> LedgerResult<()> {
         // FIXME error should indicate that the thread exited, so indicate such in result
         if let Some(sender) = &self.sender {
             sender
-                .unbounded_send(PoolEvent::SendRequest(request, callback))
+                .unbounded_send(event)
                 .map_err(|_| err_msg(LedgerErrorKind::Unexpected, "Error sending to pool thread"))
         } else {
             // FIXME error kind
@@ -79,7 +87,12 @@ type ReqCallback = Box<dyn (FnOnce(ReqResponse) -> ()) + Send>;
 
 type ReqResponse = LedgerResult<(RequestResult<String>, Option<TimingResult>)>;
 
+type TxnCallback = Box<dyn (FnOnce(TxnResponse) -> ()) + Send>;
+
+type TxnResponse = LedgerResult<Vec<String>>;
+
 enum PoolEvent {
+    GetTransactions(TxnCallback),
     SendRequest(PreparedRequest, ReqCallback),
 }
 
@@ -104,6 +117,10 @@ impl PoolThread {
             select! {
                 recv_evt = receiver.next() => {
                     match recv_evt {
+                        Some(PoolEvent::GetTransactions(callback)) => {
+                            let txns = self.pool.get_transactions();
+                            callback(txns);
+                        }
                         Some(PoolEvent::SendRequest(request, callback)) => {
                             let fut = _perform_ledger_request(&self.pool, request, callback);
                             requests.push(fut);
