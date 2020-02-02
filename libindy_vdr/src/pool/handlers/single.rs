@@ -27,8 +27,10 @@ pub async fn handle_single_request<Request: PoolRequest>(
     let node_keys = request.node_keys();
     let total_nodes_count = request.node_count();
     let f = min_consensus(total_nodes_count);
+    let f_nack = config.request_read_nodes - 1; // FIXME: should this be a separate setting?
     let mut replies = ReplyState::new();
-    let mut state = ConsensusState::new();
+    let mut consensus = ConsensusState::new();
+    let mut nack_consensus = ConsensusState::new();
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58()?).map_err(|err| {
             err_msg(
@@ -52,7 +54,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
                         let last_write_time = get_last_signed_time(result).unwrap_or(0);
                         trace!("last write {}", last_write_time);
                         let (cnt, soonest) = {
-                            let set = state.insert(
+                            let set = consensus.insert(
                                 hashable,
                                 NodeResponse {
                                     node_alias: node_alias.clone(),
@@ -106,7 +108,25 @@ pub async fn handle_single_request<Request: PoolRequest>(
                     request.extend_timeout(node_alias.clone(), config.reply_timeout)?;
                     continue;
                 }
-                Message::ReqNACK(_) | Message::Reject(_) => {
+                Message::ReqNACK(ref response) => {
+                    let reason = response.reason();
+                    if reason.is_some() {
+                        let set =
+                            nack_consensus.insert(reason.unwrap().clone(), node_alias.clone());
+                        if set.len() > f_nack {
+                            return Ok((
+                                RequestResult::Failed(
+                                    LedgerErrorKind::PoolRequestFailed(raw_msg).into(),
+                                ),
+                                request.get_timing(),
+                            ));
+                        }
+                    }
+                    replies.add_failed(node_alias.clone(), raw_msg);
+                    request.clean_timeout(node_alias)?;
+                    true
+                }
+                Message::Reject(_) => {
                     replies.add_failed(node_alias.clone(), raw_msg);
                     request.clean_timeout(node_alias)?;
                     true
@@ -132,7 +152,11 @@ pub async fn handle_single_request<Request: PoolRequest>(
                 ))
             }
         };
-        if replies.len() >= total_nodes_count {
+        let failed_replies = replies.failed_len();
+        let total_replies = replies.len();
+        if total_replies >= total_nodes_count
+            || (total_replies == failed_replies && failed_replies > f)
+        {
             let err = {
                 let counts = replies.counts();
                 if counts.replies > 0 {
@@ -147,7 +171,7 @@ pub async fn handle_single_request<Request: PoolRequest>(
             return Ok((RequestResult::Failed(err), request.get_timing()));
         }
         if resend {
-            request.send_to_any(2, config.ack_timeout)?;
+            request.send_to_any(1, config.ack_timeout)?;
         }
     }
 }

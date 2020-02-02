@@ -1,5 +1,7 @@
 use std::fmt;
 
+use serde_json;
+
 use thiserror::Error;
 
 // use failure::{Backtrace, Context, Fail};
@@ -39,7 +41,7 @@ pub enum LedgerErrorKind {
     PoolNoConsensus,
     #[error("Pool timeout")]
     PoolTimeout,
-    #[error("Request failed")]
+    #[error("Request failed: {}", pool_request_failed_reason(.0))]
     PoolRequestFailed(String),
     #[error("Unavailable")]
     Unavailable,
@@ -173,4 +175,13 @@ where
             )
         })
     }
+}
+
+fn pool_request_failed_reason(reply: &str) -> String {
+    if let Ok(reply) = serde_json::from_str::<serde_json::Value>(reply) {
+        if let Some(reason) = reply["reason"].as_str() {
+            return reason.to_owned();
+        }
+    }
+    return "Unknown reason".to_owned();
 }

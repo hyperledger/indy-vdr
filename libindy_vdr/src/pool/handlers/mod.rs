@@ -94,6 +94,19 @@ impl<T> ReplyState<T> {
         counts
     }
 
+    pub fn failed_len(&self) -> usize {
+        self.inner
+            .values()
+            .filter(|r| {
+                if let SingleReply::Failed(_) = r {
+                    true
+                } else {
+                    false
+                }
+            })
+            .count()
+    }
+
     pub fn sample_failed(&self) -> Option<String> {
         self.inner.values().find_map(|r| {
             if let SingleReply::Failed(msg) = r {

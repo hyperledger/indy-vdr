@@ -437,12 +437,19 @@ impl Response {
             Response::ResponseV1(ref res) => res.metadata.req_id,
         }
     }
+    pub fn reason(&self) -> Option<&String> {
+        match *self {
+            Response::ResponseV0(ref res) => res.reason.as_ref(),
+            Response::ResponseV1(ref res) => res.metadata.reason.as_ref(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseV0 {
     pub req_id: u64,
+    pub reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -454,6 +461,7 @@ pub struct ResponseV1 {
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMetadata {
     pub req_id: u64,
+    pub reason: Option<String>,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
