@@ -194,9 +194,7 @@ async fn submit_request<T: Pool>(
     message: Vec<u8>,
     pretty: bool,
 ) -> LedgerResult<(String, String)> {
-    let (request, target) = pool
-        .get_request_builder()
-        .parse_inbound_request(&message, true)?;
+    let (request, target) = pool.get_request_builder().build_custom_request(&message)?;
     let result = perform_ledger_request(pool, request, target).await?;
     let (response, timing) = format_request_result(result, pretty)?;
     Ok((response, format!("{:?}", timing)))
