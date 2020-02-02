@@ -57,6 +57,13 @@ impl LedgerError {
     pub fn kind(self) -> LedgerErrorKind {
         self.kind
     }
+
+    pub fn extra(self) -> Option<String> {
+        match self.kind {
+            LedgerErrorKind::PoolRequestFailed(ref response) => Some(response.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for LedgerError {
