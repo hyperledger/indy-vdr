@@ -166,7 +166,20 @@ pub fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
         result_without_proof["data"]
             .as_object_mut()
             .map(|obj| obj.remove("stateProofFrom"));
+
+        // Sort participant names to allow consensus matching
+        if let Some(multi_sig) = result_without_proof["data"]["multi_signature"].as_object_mut() {
+            if let Some(participants) = multi_sig["participants"].as_array() {
+                let mut entries = participants
+                    .iter()
+                    .filter_map(SJsonValue::as_str)
+                    .collect::<Vec<&str>>();
+                entries.sort();
+                multi_sig["participants"] = SJsonValue::from(entries);
+            }
+        }
     }
+
     result_without_proof
 }
 
@@ -257,10 +270,9 @@ pub fn verify_parsed_sp(
             }
         );
         if !_verify_proof_signature(signature, participants.as_slice(), &value, nodes, f, gen)
-            .map_err(|err| debug!("{:?}", err))
+            .map_err(|err| debug!("Proof signature verification failed: {}", err))
             .unwrap_or(false)
         {
-            debug!("Proof signature verification failed");
             return false;
         }
 
@@ -899,7 +911,11 @@ fn _verify_merkle_tree(
     });
 
     let turns = _calculate_turns(length, seq_no - 1);
-    trace!("_verify_merkle_tree >> turns: {:?}", turns);
+    trace!(
+        "_verify_merkle_tree >> seq_no: {}, turns: {:?}",
+        seq_no,
+        turns
+    );
 
     if hashes.len() != turns.len() {
         debug!("Different count of hashes and turns, unable to verify");
@@ -944,6 +960,8 @@ fn _verify_merkle_tree(
             hash.to_base58(),
             root_hash.to_base58()
         );
+    } else {
+        trace!("Matched root hash: {}", root_hash.to_base58())
     }
 
     result
@@ -1159,6 +1177,25 @@ fn _parse_reply_for_proof_value(
                 }
                 if !parsed_data["reqSignature"].is_null() {
                     value["reqSignature"] = parsed_data["reqSignature"].clone();
+                }
+
+                // Adjust attrib transaction to match stored state
+                if value["txn"]["type"].as_str() == Some("100") {
+                    if let Some(raw) = value["txn"]["data"]["raw"].as_str() {
+                        if raw.is_empty() {
+                            value["txn"]["data"]["raw"] = SJsonValue::from("");
+                        } else {
+                            value["txn"]["data"]["raw"] =
+                                SJsonValue::from(hex::encode(digest::<Sha256>(raw.as_bytes())));
+                        }
+                    } else if let Some(enc) = value["txn"]["data"]["enc"].as_str() {
+                        if enc.is_empty() {
+                            value["txn"]["data"]["enc"] = SJsonValue::from("");
+                        } else {
+                            value["txn"]["data"]["enc"] =
+                                SJsonValue::from(hex::encode(digest::<Sha256>(enc.as_bytes())));
+                        }
+                    }
                 }
             }
             constants::GET_NYM => {

@@ -100,7 +100,7 @@ where
             let handle = RequestHandle::next();
             let setup_ref = setup.as_ref();
             let node_order = choose_nodes(&setup_ref.verifiers, setup_ref.node_weights.clone());
-            debug!("New {}: {}", handle, &req_json);
+            debug!("New {}: reqId({})", handle, req_id);
             networker.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
             Ok(PoolRequestImpl::new(
                 handle, rx, setup, networker, node_order,

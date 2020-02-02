@@ -87,7 +87,11 @@ pub async fn handle_single_request<Request: PoolRequest>(
                                 request.get_timing(),
                             ));
                         } else if state_proof_key.is_some() {
-                            debug!("State proof verification failed for node: {}", node_alias);
+                            debug!(
+                                "State proof verification failed for node: {}, sp_key: '{}'",
+                                node_alias,
+                                base64::encode(state_proof_key.as_ref().unwrap()),
+                            );
                         }
                         request.clean_timeout(node_alias)?;
                         true
