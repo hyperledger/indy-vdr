@@ -5,8 +5,8 @@ use serde_json;
 use super::genesis::{parse_transaction_from_json, transactions_to_json};
 use super::handlers::{
     build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
-    handle_consensus_request, handle_full_request, handle_single_request, handle_status_request,
-    CatchupTarget, NodeReplies,
+    handle_consensus_request, handle_full_request, handle_status_request, CatchupTarget,
+    NodeReplies,
 };
 use super::pool::Pool;
 use super::requests::{RequestResult, RequestTarget, TimingResult};
@@ -136,13 +136,7 @@ pub async fn perform_ledger_request<T: Pool>(
             let (result, timing) = handle_full_request(request, node_aliases, timeout).await?;
             Ok((result.map_result(format_full_reply)?, timing))
         }
-        _ => {
-            if prepared.sp_key.is_some() {
-                handle_single_request(request, prepared.sp_key, prepared.sp_timestamps).await
-            } else {
-                handle_consensus_request(request).await
-            }
-        }
+        _ => handle_consensus_request(request, prepared.sp_key, prepared.sp_timestamps).await,
     }
 }
 

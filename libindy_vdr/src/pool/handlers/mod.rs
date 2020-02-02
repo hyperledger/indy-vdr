@@ -13,13 +13,11 @@ use super::types::{self, CatchupReq, LedgerStatus, LedgerType, Message, Protocol
 mod catchup;
 mod consensus;
 mod full;
-mod single;
 mod status;
 
 pub use catchup::handle_catchup_request;
 pub use consensus::handle_consensus_request;
 pub use full::handle_full_request;
-pub use single::handle_single_request;
 pub use status::{handle_status_request, CatchupTarget};
 
 #[derive(Debug)]
@@ -137,6 +135,7 @@ impl<K: Eq + Hash, T: Eq + Hash> ConsensusState<K, T> {
             .max_by_key(|entry| entry.1)
     }
 
+    #[allow(dead_code)]
     fn max_len(&self) -> usize {
         self.max_entry().map(|entry| entry.1).unwrap_or(0)
     }
