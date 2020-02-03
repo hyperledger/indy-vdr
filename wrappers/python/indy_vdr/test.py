@@ -1,5 +1,8 @@
 import asyncio
 from . import CustomRequest, Pool, LedgerType
+from .bindings import get_version
+
+print(get_version())
 
 test_req = {
     "identifier": "LibindyDid111111111111",

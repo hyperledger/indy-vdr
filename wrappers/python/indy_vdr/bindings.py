@@ -116,6 +116,10 @@ def get_current_error(expect: bool = False) -> VdrError:
     return VdrError(VdrError.OTHER, "Unknown error")
 
 
+def get_version() -> str:
+    return lib_string(LIB.indy_vdr_version()).value.decode("ascii")
+
+
 def build_custom_request(body: Union[str, bytes, dict]) -> RequestHandle:
     handle = RequestHandle()
     body_p = _encode_str(body) if isinstance(body, (str, bytes)) else _encode_json(body)

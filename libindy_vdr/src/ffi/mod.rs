@@ -1,14 +1,16 @@
 use crate::common::error::prelude::*;
+use crate::common::LIB_VERSION;
 use crate::config::PoolConfig;
 use crate::pool::ProtocolVersion;
 use crate::utils::validation::Validatable;
 
 use std::convert::TryFrom;
+use std::os::raw::c_char;
 use std::sync::RwLock;
 
 use serde_json;
 
-use ffi_support::{define_string_destructor, FfiStr};
+use ffi_support::{define_string_destructor, rust_string_to_c, FfiStr};
 
 #[macro_use]
 mod macros;
@@ -55,6 +57,11 @@ pub extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
         gcfg.protocol_version = version;
         Ok(ErrorCode::Success)
     }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_version() -> *mut c_char {
+    rust_string_to_c(LIB_VERSION.to_owned())
 }
 
 /*
