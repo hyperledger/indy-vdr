@@ -21,9 +21,8 @@ pub async fn handle_status_request<Request: PoolRequest>(
     let total_node_count = request.node_count();
     let mut replies = ReplyState::new();
     let mut consensus = ConsensusState::new();
-    let ack_timeout = "ACK".to_owned();
+    let f = min_consensus(total_node_count);
     request.send_to_all(config.reply_timeout)?;
-    request.add_timeout(ack_timeout.clone(), config.ack_timeout)?;
     loop {
         match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => {
@@ -52,17 +51,8 @@ pub async fn handle_status_request<Request: PoolRequest>(
                 };
                 request.clean_timeout(node_alias)?;
             }
-            Some(RequestEvent::Timeout(alias)) => {
-                if alias == ack_timeout {
-                    if replies.len() == 0 {
-                        return Ok((
-                            RequestResult::Failed(VdrErrorKind::PoolTimeout.into()),
-                            request.get_timing(),
-                        ));
-                    }
-                } else {
-                    replies.add_timeout(alias);
-                }
+            Some(RequestEvent::Timeout(node_alias)) => {
+                replies.add_timeout(node_alias);
             }
             None => {
                 return Ok((
@@ -79,7 +69,7 @@ pub async fn handle_status_request<Request: PoolRequest>(
             &replies,
             &consensus,
             total_node_count,
-            min_consensus(total_node_count),
+            f,
         ) {
             Ok(CatchupProgress::NotNeeded) => {
                 return Ok((RequestResult::Reply(None), request.get_timing()));

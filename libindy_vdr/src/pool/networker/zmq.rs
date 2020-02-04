@@ -183,6 +183,9 @@ impl ZMQThread {
         let (req_id, fwd) = match event {
             ConnectionEvent::Reply(message, meta, node_alias, time) => {
                 let req_id = meta.request_id().unwrap_or("".to_owned());
+                if let Some(conn) = self.pool_connections.get_mut(&conn_id) {
+                    conn.clean_idle_timeout(&req_id);
+                }
                 (
                     req_id,
                     RequestExtEvent::Received(node_alias, message, meta, time),
@@ -262,10 +265,6 @@ impl ZMQThread {
                 trace!("Dispatch {} {:?}", handle, node_aliases);
                 self.dispatch_request(handle, node_aliases, timeout)
                     .unwrap();
-                Ok(true)
-            }
-            NetworkerEvent::AddTimeout(handle, alias, timeout) => {
-                self.add_timeout(handle, alias, timeout).unwrap();
                 Ok(true)
             }
             NetworkerEvent::CleanTimeout(handle, node_alias) => {
@@ -361,19 +360,6 @@ impl ZMQThread {
         Ok(())
     }
 
-    fn add_timeout(&mut self, handle: RequestHandle, alias: String, timeout: i64) -> VdrResult<()> {
-        if let Some(request) = self.requests.get(&handle) {
-            if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
-                conn.add_timeout(request.sub_id.clone(), alias, timeout)
-            } else {
-                debug!("Pool connection expired for add timeout: {}", handle)
-            }
-        } else {
-            debug!("Unknown request ID for add timeout: {}", handle)
-        }
-        Ok(())
-    }
-
     fn clean_timeout(&mut self, handle: RequestHandle, node_alias: String) -> VdrResult<()> {
         if let Some(request) = self.requests.get(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
@@ -421,6 +407,7 @@ impl ZMQThread {
                 self.zmq_ctx.clone(),
                 self.remotes.clone(),
                 self.config.conn_active_timeout,
+                self.config.ack_timeout,
             );
             trace!("Created new pool connection");
             conn.init_request(sub_id);
@@ -489,10 +476,16 @@ pub struct ZMQConnection {
     req_cnt: usize,
     req_log: HashSet<String>,
     active_timeout: i64,
+    idle_timeout: i64,
 }
 
 impl ZMQConnection {
-    fn new(zmq_ctx: zmq::Context, remotes: Vec<RemoteNode>, active_timeout: i64) -> Self {
+    fn new(
+        zmq_ctx: zmq::Context,
+        remotes: Vec<RemoteNode>,
+        active_timeout: i64,
+        idle_timeout: i64,
+    ) -> Self {
         trace!("ZMQConnection::new: from remotes {:?}", remotes);
 
         let sockets = (0..remotes.len())
@@ -510,6 +503,7 @@ impl ZMQConnection {
             req_cnt: 0,
             req_log: HashSet::new(),
             active_timeout,
+            idle_timeout,
         }
     }
 
@@ -525,7 +519,7 @@ impl ZMQConnection {
                                 meta,
                                 rn.name.clone(),
                                 SystemTime::now(),
-                            ))
+                            ));
                         }
                         Err(err) => debug!("Error parsing received message: {:?}", err),
                     }
@@ -555,7 +549,7 @@ impl ZMQConnection {
             let min_idle = self
                 .idle_timeouts
                 .iter()
-                .min_by(|&(_, ref val1), &(_, ref val2)| val1.cmp(&val2))
+                .min_by(|&(_, inst1), &(_, inst2)| inst1.cmp(&inst2))
                 .map(|(req_id, inst)| ((req_id.as_str(), ""), inst));
             if let Some(((req_id, node_alias), timeout)) = self
                 .socket_timeouts
@@ -609,13 +603,16 @@ impl ZMQConnection {
             warn!("Cannot send to unknown node alias: {}", node_alias);
             return Ok(());
         }
+        if self.idle_timeouts.contains_key(&req_id) {
+            // will only be present if this request has received no responses
+            self.set_idle_timeout(req_id.clone());
+        }
         self.add_timeout(req_id, node_alias, timeout);
         trace!("send_request <<");
         Ok(())
     }
 
     fn add_timeout(&mut self, req_id: String, alias: String, timeout: i64) {
-        self.idle_timeouts.remove(&req_id);
         self.socket_timeouts.insert(
             (req_id, alias),
             Instant::now() + Duration::from_secs(::std::cmp::max(timeout, 0) as u64),
@@ -647,10 +644,7 @@ impl ZMQConnection {
                         .find(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
                         .is_none()
                 {
-                    self.idle_timeouts.insert(
-                        req_id.to_owned(),
-                        Instant::now() + Duration::from_secs(self.active_timeout as u64),
-                    );
+                    self.set_idle_timeout(req_id.to_string())
                 }
             }
             None => {
@@ -668,13 +662,21 @@ impl ZMQConnection {
         }
     }
 
+    fn set_idle_timeout(&mut self, req_id: String) {
+        self.idle_timeouts.insert(
+            req_id,
+            Instant::now() + Duration::from_secs(::std::cmp::max(self.idle_timeout, 0) as u64),
+        );
+    }
+
+    fn clean_idle_timeout(&mut self, req_id: &str) {
+        self.idle_timeouts.remove(req_id);
+    }
+
     fn init_request(&mut self, req_id: String) {
         self.req_cnt += 1;
         self.req_log.insert(req_id.clone());
-        self.idle_timeouts.insert(
-            req_id,
-            Instant::now() + Duration::from_secs(self.active_timeout as u64),
-        );
+        self.set_idle_timeout(req_id);
     }
 
     fn seen_request(&self, req_id: &str) -> bool {

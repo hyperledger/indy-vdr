@@ -20,7 +20,6 @@ new_handle_type!(RequestHandle, RQ_COUNTER);
 
 #[must_use = "requests do nothing unless polled"]
 pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
-    fn add_timeout(&self, alias: String, timeout: i64) -> VdrResult<()>;
     fn clean_timeout(&self, node_alias: String) -> VdrResult<()>;
     fn extend_timeout(&self, node_alias: String, timeout: i64) -> VdrResult<()>;
     fn get_timing(&self) -> Option<TimingResult>;
@@ -88,10 +87,6 @@ where
     S: AsRef<PoolSetup>,
     T: Networker,
 {
-    fn add_timeout(&self, alias: String, timeout: i64) -> VdrResult<()> {
-        self.trigger(NetworkerEvent::AddTimeout(self.handle, alias, timeout))
-    }
-
     fn clean_timeout(&self, node_alias: String) -> VdrResult<()> {
         self.trigger(NetworkerEvent::CleanTimeout(self.handle, node_alias))
     }
