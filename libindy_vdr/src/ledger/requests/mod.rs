@@ -5,6 +5,7 @@ pub mod cred_def;
 pub mod node;
 pub mod nym;
 pub mod pool;
+pub mod rev_reg_def;
 pub mod schema;
 pub mod txn;
 pub mod validator_info;

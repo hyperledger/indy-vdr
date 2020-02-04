@@ -11,6 +11,7 @@ use super::AppState;
 use indy_vdr::common::did::DidValue;
 use indy_vdr::common::error::prelude::*;
 use indy_vdr::ledger::requests::cred_def::CredentialDefinitionId;
+use indy_vdr::ledger::requests::rev_reg_def::RevocationRegistryId;
 use indy_vdr::ledger::requests::schema::SchemaId;
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
 use indy_vdr::pool::{Pool, RequestResult, TimingResult};
@@ -120,15 +121,6 @@ fn format_pool_status(state: Rc<RefCell<AppState>>) -> VdrResult<String> {
         .with_err_msg(VdrErrorKind::Unexpected, "Error serializing JSON")?)
 }
 
-async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, pretty: bool) -> VdrResult<String> {
-    let cred_def_id = CredentialDefinitionId::from_str(cred_def_id)?;
-    let request = pool
-        .get_request_builder()
-        .build_get_cred_def_request(None, &cred_def_id)?;
-    let result = perform_ledger_request(pool, request, None).await?;
-    format_result(format_request_result(result, pretty))
-}
-
 async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str, pretty: bool) -> VdrResult<String> {
     let dest = DidValue::from_str(dest)?;
     let request = pool.get_request_builder().build_get_attrib_request(
@@ -156,6 +148,28 @@ async fn get_schema<T: Pool>(pool: &T, schema_id: &str, pretty: bool) -> VdrResu
     let request = pool
         .get_request_builder()
         .build_get_schema_request(None, &schema_id)?;
+    let result = perform_ledger_request(pool, request, None).await?;
+    format_result(format_request_result(result, pretty))
+}
+
+async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, pretty: bool) -> VdrResult<String> {
+    let cred_def_id = CredentialDefinitionId::from_str(cred_def_id)?;
+    let request = pool
+        .get_request_builder()
+        .build_get_cred_def_request(None, &cred_def_id)?;
+    let result = perform_ledger_request(pool, request, None).await?;
+    format_result(format_request_result(result, pretty))
+}
+
+async fn get_revoc_reg_def<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    pretty: bool,
+) -> VdrResult<String> {
+    let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
+    let request = pool
+        .get_request_builder()
+        .build_get_revoc_reg_def_request(None, &revoc_reg_def_id)?;
     let result = perform_ledger_request(pool, request, None).await?;
     format_result(format_request_result(result, pretty))
 }
@@ -315,6 +329,15 @@ pub async fn handle_request<T: Pool>(
         (&Method::GET, "nym") => {
             if let Some(nym) = parts.next() {
                 get_nym(pool, &*nym, pretty).await.make_response()
+            } else {
+                http_status(StatusCode::NOT_FOUND)
+            }
+        }
+        (&Method::GET, "rev_reg_def") => {
+            if let Some(rev_reg_def_id) = parts.next() {
+                get_revoc_reg_def(pool, &*rev_reg_def_id, pretty)
+                    .await
+                    .make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }

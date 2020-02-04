@@ -47,7 +47,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
         let resend = match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => match parsed {
                 Message::Reply(reply) => {
-                    trace!("reply on single request");
+                    trace!("reply on consensus request");
                     if let Some(result) = reply.result() {
                         let result_without_proof = result_without_state_proof(result);
                         replies.add_reply(node_alias.clone(), true);

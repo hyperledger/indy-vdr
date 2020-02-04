@@ -24,6 +24,7 @@ use super::requests::nym::{GetNymOperation, NymOperation};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
+use super::requests::rev_reg_def::{GetRevRegDefOperation, RevocationRegistryId};
 use super::requests::schema::{
     GetSchemaOperation, GetSchemaOperationData, SchemaId, SchemaOperation, SchemaOperationData,
     SchemaV1,
@@ -460,6 +461,15 @@ impl RequestBuilder {
         let operation =
             GetCredDefOperation::new(ref_, signature_type, origin.to_short(), Some(tag));
         self.build(operation, identifier)
+    }
+
+    pub fn build_get_revoc_reg_def_request(
+        &self,
+        identifier: Option<&DidValue>,
+        id: &RevocationRegistryId,
+    ) -> VdrResult<PreparedRequest> {
+        let id = id.to_unqualified();
+        self.build(GetRevRegDefOperation::new(&id), identifier)
     }
 
     pub fn prepare_acceptance_data(
