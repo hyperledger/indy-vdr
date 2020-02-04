@@ -2,7 +2,8 @@ use serde_json::Value;
 use std::ops::Not;
 
 use super::constants::{AUTH_RULE, AUTH_RULES, GET_AUTH_RULE};
-use super::RequestType;
+use super::{ProtocolVersion, RequestType};
+use crate::common::error::prelude::*;
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug, Serialize, PartialEq)]
@@ -219,6 +220,51 @@ impl GetAuthRuleOperation {
 impl RequestType for GetAuthRuleOperation {
     fn get_txn_type<'a>() -> &'a str {
         GET_AUTH_RULE
+    }
+
+    fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
+        let (auth_type, auth_action, field, new_value, old_value) = match self {
+            GetAuthRuleOperation::Add(GetAddAuthRuleOperation {
+                _type,
+                auth_type,
+                auth_action,
+                field,
+                new_value,
+            }) => (
+                auth_type,
+                auth_action,
+                field,
+                new_value.as_ref().map(String::as_str),
+                Some("*"),
+            ),
+            GetAuthRuleOperation::Edit(GetEditAuthRuleOperation {
+                _type,
+                auth_type,
+                auth_action,
+                field,
+                new_value,
+                old_value,
+            }) => (
+                auth_type,
+                auth_action,
+                field,
+                new_value.as_ref().map(String::as_str),
+                old_value.as_ref().map(String::as_str),
+            ),
+            GetAuthRuleOperation::All(_) => return Ok(None),
+        };
+        Ok(Some(
+            format!(
+                "1:{}--{}--{}--{}--{}",
+                auth_type,
+                auth_action.to_string(),
+                field,
+                old_value.unwrap_or(""),
+                new_value.unwrap_or("")
+            )
+            .as_bytes()
+            .to_vec(),
+        ))
     }
 }
 

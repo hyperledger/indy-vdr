@@ -693,7 +693,7 @@ impl ZMQConnection {
 
     fn _get_socket(&mut self, idx: usize) -> VdrResult<&ZSocket> {
         if self.sockets[idx].is_none() {
-            debug!("_get_socket: open new socket for node {}", idx);
+            debug!("Open new socket for node {}", &self.remotes[idx].name);
             let s: ZSocket = self.remotes[idx].connect(&self.ctx, &self.key_pair)?;
             self.sockets[idx] = Some(s)
         }

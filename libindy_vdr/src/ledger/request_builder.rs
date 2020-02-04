@@ -340,8 +340,8 @@ impl RequestBuilder {
                     type_.to_string(),
                     field,
                     action,
-                    old_value,
-                    new_value,
+                    old_value.or_else(|| Some("*".to_owned())),
+                    new_value.or_else(|| Some("*".to_owned())),
                 )
             }
             _ => {

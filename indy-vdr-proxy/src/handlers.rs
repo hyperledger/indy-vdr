@@ -23,9 +23,18 @@ fn format_request_result<T: std::fmt::Display>(
         RequestResult::Reply(message) => {
             let message = message.to_string();
             trace!("Got request response {} {:?}", &message, timing);
-            let message = if pretty {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&message) {
-                    serde_json::to_string_pretty(&json).unwrap_or(message)
+            let message = if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&message)
+            {
+                let result = json["result"].as_object_mut();
+                if let Some(result) = result {
+                    if pretty {
+                        result.remove("identifier");
+                        result.remove("reqId");
+                        result.remove("state_proof");
+                        serde_json::to_string_pretty(&result).unwrap_or(message)
+                    } else {
+                        serde_json::to_string(&result).unwrap_or(message)
+                    }
                 } else {
                     message
                 }
@@ -174,6 +183,25 @@ async fn get_aml<T: Pool>(pool: &T, pretty: bool) -> VdrResult<String> {
     format_result(format_request_result(result, pretty))
 }
 
+async fn get_auth_rule<T: Pool>(
+    pool: &T,
+    auth_type: Option<String>,
+    auth_action: Option<String>,
+    field: Option<String>,
+    pretty: bool,
+) -> VdrResult<String> {
+    let request = pool.get_request_builder().build_get_auth_rule_request(
+        None,
+        auth_type,
+        auth_action,
+        field,
+        None,
+        None,
+    )?;
+    let result = perform_ledger_request(pool, request, None).await?;
+    format_result(format_request_result(result, pretty))
+}
+
 async fn get_txn<T: Pool>(pool: &T, ledger: i32, seq_no: i32, pretty: bool) -> VdrResult<String> {
     let result = perform_get_txn(pool, ledger, seq_no).await?;
     format_result(format_request_result(result, pretty))
@@ -252,6 +280,27 @@ pub async fn handle_request<T: Pool>(
                     .make_response()
             } else {
                 http_status(StatusCode::NOT_FOUND)
+            }
+        }
+        (&Method::GET, "auth") => {
+            if let Some(auth_type) = parts.next() {
+                if let Some(auth_action) = parts.next() {
+                    get_auth_rule(
+                        pool,
+                        Some(auth_type.to_owned()),
+                        Some(auth_action.to_owned()),
+                        Some("*".to_owned()),
+                        pretty,
+                    )
+                    .await
+                    .make_response()
+                } else {
+                    http_status(StatusCode::NOT_FOUND)
+                }
+            } else {
+                get_auth_rule(pool, None, None, None, pretty)
+                    .await
+                    .make_response() // get all
             }
         }
         (&Method::GET, "cred_def") => {
