@@ -26,6 +26,11 @@ pub enum NetworkerEvent {
         Vec<String>, // node aliases
         i64,         // timeout
     ),
+    AddTimeout(
+        RequestHandle,
+        String, // timeout alias
+        i64,    // timeout
+    ),
     CleanTimeout(
         RequestHandle,
         String, // node alias

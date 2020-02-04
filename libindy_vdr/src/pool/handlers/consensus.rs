@@ -165,17 +165,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
         if total_replies >= total_nodes_count
             || (total_replies == failed_replies && failed_replies > f)
         {
-            let err = {
-                let counts = replies.counts();
-                if counts.replies > 0 {
-                    VdrErrorKind::PoolNoConsensus.into()
-                } else if counts.failed > 0 {
-                    let failed = replies.sample_failed().unwrap();
-                    VdrErrorKind::PoolRequestFailed(failed).into()
-                } else {
-                    VdrErrorKind::PoolTimeout.into()
-                }
-            };
+            let err = replies.get_error();
             return Ok((RequestResult::Failed(err), request.get_timing()));
         }
         if resend {

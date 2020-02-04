@@ -264,6 +264,10 @@ impl ZMQThread {
                     .unwrap();
                 Ok(true)
             }
+            NetworkerEvent::AddTimeout(handle, alias, timeout) => {
+                self.add_timeout(handle, alias, timeout).unwrap();
+                Ok(true)
+            }
             NetworkerEvent::CleanTimeout(handle, node_alias) => {
                 self.clean_timeout(handle, node_alias).unwrap();
                 Ok(true)
@@ -357,8 +361,21 @@ impl ZMQThread {
         Ok(())
     }
 
+    fn add_timeout(&mut self, handle: RequestHandle, alias: String, timeout: i64) -> VdrResult<()> {
+        if let Some(request) = self.requests.get(&handle) {
+            if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
+                conn.add_timeout(request.sub_id.clone(), alias, timeout)
+            } else {
+                debug!("Pool connection expired for add timeout: {}", handle)
+            }
+        } else {
+            debug!("Unknown request ID for add timeout: {}", handle)
+        }
+        Ok(())
+    }
+
     fn clean_timeout(&mut self, handle: RequestHandle, node_alias: String) -> VdrResult<()> {
-        if let Some(request) = self.requests.get_mut(&handle) {
+        if let Some(request) = self.requests.get(&handle) {
             if let Some(conn) = self.pool_connections.get_mut(&request.conn_id) {
                 conn.clean_timeout(request.sub_id.as_str(), Some(node_alias))
             } else {
@@ -592,13 +609,17 @@ impl ZMQConnection {
             warn!("Cannot send to unknown node alias: {}", node_alias);
             return Ok(());
         }
-        self.idle_timeouts.remove(&req_id);
-        self.socket_timeouts.insert(
-            (req_id.clone(), node_alias),
-            Instant::now() + Duration::from_secs(::std::cmp::max(timeout, 0) as u64),
-        );
+        self.add_timeout(req_id, node_alias, timeout);
         trace!("send_request <<");
         Ok(())
+    }
+
+    fn add_timeout(&mut self, req_id: String, alias: String, timeout: i64) {
+        self.idle_timeouts.remove(&req_id);
+        self.socket_timeouts.insert(
+            (req_id, alias),
+            Instant::now() + Duration::from_secs(::std::cmp::max(timeout, 0) as u64),
+        );
     }
 
     fn extend_timeout(&mut self, req_id: &str, node_alias: &str, extended_timeout: i64) {

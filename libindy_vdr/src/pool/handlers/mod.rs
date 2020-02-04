@@ -114,6 +114,18 @@ impl<T> ReplyState<T> {
             }
         })
     }
+
+    pub fn get_error(&self) -> VdrError {
+        let counts = self.counts();
+        if counts.replies > 0 {
+            VdrErrorKind::PoolNoConsensus.into()
+        } else if counts.failed > 0 {
+            let failed = self.sample_failed().unwrap();
+            VdrErrorKind::PoolRequestFailed(failed).into()
+        } else {
+            VdrErrorKind::PoolTimeout.into()
+        }
+    }
 }
 
 #[derive(Debug)]

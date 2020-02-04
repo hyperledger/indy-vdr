@@ -13,8 +13,9 @@ pub async fn handle_catchup_request<Request: PoolRequest>(
     target_mt_size: usize,
 ) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, Option<TimingResult>)> {
     trace!("catchup request");
-    let ack_timeout = request.pool_config().ack_timeout;
-    request.send_to_any(1, ack_timeout)?;
+    let config = request.pool_config();
+    let ack_timeout = config.ack_timeout;
+    request.send_to_any(config.request_read_nodes, ack_timeout)?;
     loop {
         match request.next().await {
             Some(RequestEvent::Received(node_alias, _message, parsed)) => {
