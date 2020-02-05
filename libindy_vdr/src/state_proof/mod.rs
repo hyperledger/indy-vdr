@@ -648,7 +648,7 @@ fn _parse_reply_for_builtin_sp(
     ) {
         Ok(state_proof) => state_proofs.push(state_proof),
         Err(err) => {
-            trace!("_parse_reply_for_sp: <<<  {:?}", err);
+            debug!("_parse_reply_for_sp: <<<  {}", err);
             return None;
         }
     }
@@ -666,10 +666,10 @@ fn _parse_reply_for_builtin_sp(
                 state_proofs.push(state_proof);
             }
             Ok(None) => {
-                trace!("_parse_reply_for_multi_sp: <<<  No proof");
+                debug!("_parse_reply_for_multi_sp: <<<  No proof");
             }
             Err(err) => {
-                trace!("_parse_reply_for_multi_sp: <<<  {:?}", err);
+                debug!("_parse_reply_for_multi_sp: <<<  {}", err);
                 return None;
             }
         }
@@ -780,7 +780,7 @@ fn _parse_reply_for_multi_sp(
                 trace!("_parse_reply_for_multi_sp: proof: {:?}", proof);
                 proof
             } else {
-                return Err("No proof".to_string());
+                return Err("No proof found".to_string());
             };
 
             let root_hash =

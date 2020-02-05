@@ -2,6 +2,7 @@ extern crate percent_encoding;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+// use std::time::UNIX_EPOCH;
 
 use hyper::{Body, Method, Request, Response, StatusCode};
 use log::trace;
@@ -70,6 +71,10 @@ fn format_ledger_error(err: VdrError) -> Result<Response<Body>, hyper::Error> {
     };
     http_status_msg(errcode, msg)
 }
+
+/*fn timestamp_now() -> i64 {
+    UNIX_EPOCH.elapsed().unwrap().as_secs() as i64
+}*/
 
 trait HandleVdrError {
     fn make_response(self) -> Result<Response<Body>, hyper::Error>;
@@ -173,6 +178,36 @@ async fn get_revoc_reg_def<T: Pool>(
     let result = perform_ledger_request(pool, request, None).await?;
     format_result(format_request_result(result, pretty))
 }
+
+/*
+async fn get_revoc_reg<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    pretty: bool,
+) -> VdrResult<String> {
+    let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
+    let request = pool.get_request_builder().build_get_revoc_reg_request(
+        None,
+        &revoc_reg_def_id,
+        timestamp_now(),
+    )?;
+    let result = perform_ledger_request(pool, request, None).await?;
+    format_result(format_request_result(result, pretty))
+}
+
+async fn get_revoc_reg_delta<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    pretty: bool,
+) -> VdrResult<String> {
+    let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
+    let request = pool
+        .get_request_builder()
+        .build_get_revoc_reg_delta_request(None, &revoc_reg_def_id, Some(0), timestamp_now())?;
+    let result = perform_ledger_request(pool, request, None).await?;
+    format_result(format_request_result(result, pretty))
+}
+*/
 
 /*
 async fn test_get_validator_info<T: Pool>(pool: &T, pretty: bool) -> VdrResult<String> {
@@ -342,6 +377,24 @@ pub async fn handle_request<T: Pool>(
                 http_status(StatusCode::NOT_FOUND)
             }
         }
+        /*(&Method::GET, "rev_reg") => {
+            if let Some(rev_reg_def_id) = parts.next() {
+                get_revoc_reg(pool, &*rev_reg_def_id, pretty)
+                    .await
+                    .make_response()
+            } else {
+                http_status(StatusCode::NOT_FOUND)
+            }
+        }
+        (&Method::GET, "rev_reg_delta") => {
+            if let Some(rev_reg_def_id) = parts.next() {
+                get_revoc_reg_delta(pool, &*rev_reg_def_id, pretty)
+                    .await
+                    .make_response()
+            } else {
+                http_status(StatusCode::NOT_FOUND)
+            }
+        }*/
         (&Method::GET, "schema") => {
             if let Some(schema_id) = parts.next() {
                 get_schema(pool, &*schema_id, pretty).await.make_response()

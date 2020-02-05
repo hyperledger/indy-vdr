@@ -24,6 +24,9 @@ use super::requests::nym::{GetNymOperation, NymOperation};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
+use super::requests::rev_reg::{
+    GetRevRegDeltaOperation, GetRevRegOperation, RevRegEntryOperation, RevocationRegistryDeltaV1,
+};
 use super::requests::rev_reg_def::{GetRevRegDefOperation, RevocationRegistryId};
 use super::requests::schema::{
     GetSchemaOperation, GetSchemaOperationData, SchemaId, SchemaOperation, SchemaOperationData,
@@ -137,6 +140,12 @@ impl RequestBuilder {
             identifier,
             Some(self.protocol_version as usize),
         )?;
+        let sp_key_2 = parse_key_from_request_for_builtin_sp(&body, self.protocol_version);
+        debug!(
+            "SP KEY {} {}",
+            base64::encode(sp_key.as_ref().unwrap()),
+            base64::encode(sp_key_2.as_ref().unwrap())
+        );
         Ok(PreparedRequest::new(
             self.protocol_version,
             txn_type,
@@ -470,6 +479,47 @@ impl RequestBuilder {
     ) -> VdrResult<PreparedRequest> {
         let id = id.to_unqualified();
         self.build(GetRevRegDefOperation::new(&id), identifier)
+    }
+
+    pub fn build_revoc_reg_entry_request(
+        &self,
+        identifier: &DidValue,
+        revoc_reg_def_id: &RevocationRegistryId,
+        revoc_def_type: &str,
+        rev_reg_entry: RevocationRegistryDeltaV1,
+    ) -> VdrResult<PreparedRequest> {
+        let revoc_reg_def_id = revoc_reg_def_id.to_unqualified();
+        self.build(
+            RevRegEntryOperation::new(revoc_def_type, &revoc_reg_def_id, rev_reg_entry),
+            Some(identifier),
+        )
+    }
+
+    pub fn build_get_revoc_reg_request(
+        &self,
+        identifier: Option<&DidValue>,
+        revoc_reg_def_id: &RevocationRegistryId,
+        timestamp: i64,
+    ) -> VdrResult<PreparedRequest> {
+        let revoc_reg_def_id = revoc_reg_def_id.to_unqualified();
+        self.build(
+            GetRevRegOperation::new(&revoc_reg_def_id, timestamp),
+            identifier,
+        )
+    }
+
+    pub fn build_get_revoc_reg_delta_request(
+        &self,
+        identifier: Option<&DidValue>,
+        revoc_reg_def_id: &RevocationRegistryId,
+        from: Option<i64>,
+        to: i64,
+    ) -> VdrResult<PreparedRequest> {
+        let revoc_reg_def_id = revoc_reg_def_id.to_unqualified();
+        self.build(
+            GetRevRegDeltaOperation::new(&revoc_reg_def_id, from, to),
+            identifier,
+        )
     }
 
     pub fn prepare_acceptance_data(
