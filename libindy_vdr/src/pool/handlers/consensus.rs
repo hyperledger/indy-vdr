@@ -29,6 +29,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
     let f = min_consensus(total_nodes_count);
     let mut replies = ReplyState::new();
     let mut consensus = ConsensusState::new();
+    let mut fail_consensus = ConsensusState::new();
     let generator: Generator =
         Generator::from_bytes(&DEFAULT_GENERATOR.from_base58()?).map_err(|err| {
             err_msg(
@@ -114,13 +115,22 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
                     request.extend_timeout(node_alias.clone(), config.reply_timeout)?;
                     continue;
                 }
-                Message::ReqNACK(_) => {
-                    replies.add_failed(node_alias.clone(), raw_msg);
-                    request.clean_timeout(node_alias)?;
-                    true
-                }
-                Message::Reject(_) => {
-                    replies.add_failed(node_alias.clone(), raw_msg);
+                Message::ReqNACK(ref response) | Message::Reject(ref response) => {
+                    replies.add_failed(node_alias.clone(), raw_msg.clone());
+                    if let Some(reason) = response.reason() {
+                        if fail_consensus
+                            .insert(reason.clone(), node_alias.clone())
+                            .len()
+                            > f
+                        {
+                            return Ok((
+                                RequestResult::Failed(
+                                    VdrErrorKind::PoolRequestFailed(raw_msg).into(),
+                                ),
+                                request.get_timing(),
+                            ));
+                        }
+                    }
                     request.clean_timeout(node_alias)?;
                     true
                 }
@@ -145,11 +155,8 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
                 ))
             }
         };
-        let failed_replies = replies.failed_len();
         let total_replies = replies.len();
-        if total_replies >= total_nodes_count
-            || (total_replies == failed_replies && failed_replies > f)
-        {
+        if total_replies >= total_nodes_count {
             let err = replies.get_error();
             return Ok((RequestResult::Failed(err), request.get_timing()));
         }

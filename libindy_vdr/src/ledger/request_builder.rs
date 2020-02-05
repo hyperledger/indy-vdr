@@ -140,12 +140,7 @@ impl RequestBuilder {
             identifier,
             Some(self.protocol_version as usize),
         )?;
-        let sp_key_2 = parse_key_from_request_for_builtin_sp(&body, self.protocol_version);
-        debug!(
-            "SP KEY {} {}",
-            base64::encode(sp_key.as_ref().unwrap()),
-            base64::encode(sp_key_2.as_ref().unwrap())
-        );
+        trace!("Prepared request: {} {}", req_id, body);
         Ok(PreparedRequest::new(
             self.protocol_version,
             txn_type,
