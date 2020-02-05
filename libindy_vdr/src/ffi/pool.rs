@@ -105,7 +105,6 @@ pub extern "C" fn indy_vdr_pool_refresh(
                 };
                 cb(errcode)
             }))?;
-        debug!("release pools lock?");
         Ok(ErrorCode::Success)
     }
 }
