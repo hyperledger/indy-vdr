@@ -52,7 +52,7 @@ def _fulfill_future(fut: asyncio.Future, err: Exception, result):
 
 
 def _create_callback(cb_type: CFUNCTYPE, fut: asyncio.Future, post_proc=None):
-    def _cb(err: int, result):
+    def _cb(err: int, result=None):
         if post_proc:
             result = post_proc(result)
         exc = get_current_error() if err else None
@@ -72,15 +72,17 @@ def _do_call(fn, *args):
         raise get_current_error(True)
 
 
-def _do_call_async(fn, *args, return_type):
+def _do_call_async(fn, *args, return_type=None):
     loop = asyncio.get_event_loop()
     fut = loop.create_future()
-    if hasattr(return_type, "load_c_ptr"):
-        post_proc = return_type.load_c_ptr
-        return_type = c_void_p
-    else:
-        post_proc = None
-    cb_type = CFUNCTYPE(None, c_size_t, return_type)  # could be cached by return type
+    cf_args = [None, c_size_t]
+    post_proc = None
+    if return_type:
+        if hasattr(return_type, "load_c_ptr"):
+            post_proc = return_type.load_c_ptr
+            return_type = c_void_p
+        cf_args.append(return_type)
+    cb_type = CFUNCTYPE(*cf_args)  # could be cached
     res = _create_callback(cb_type, fut, post_proc)
     result = fn(*args, res)
     if result:
@@ -133,6 +135,10 @@ def pool_create_from_genesis_file(path: Union[str, bytes]) -> PoolHandle:
     path_p = _encode_str(path)
     _do_call(LIB.indy_vdr_pool_create_from_genesis_file, path_p, byref(handle))
     return handle
+
+
+def pool_refresh(pool_handle: PoolHandle) -> asyncio.Future:
+    return _do_call_async(LIB.indy_vdr_pool_refresh, pool_handle)
 
 
 def pool_submit_request(

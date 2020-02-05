@@ -3,10 +3,10 @@ use std::thread;
 
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures::executor::block_on;
-use futures::select;
 use futures::stream::{FuturesUnordered, StreamExt};
+use futures::{select, FutureExt};
 
-use super::helpers::perform_ledger_request;
+use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
 use super::requests::{RequestResult, TimingResult};
 use super::{LocalPool, Pool};
@@ -39,11 +39,19 @@ impl PoolRunner {
         }
     }
 
-    pub fn get_transactions(&self, callback: TxnCallback) -> VdrResult<()> {
+    pub fn get_transactions(&self, callback: GetTxnsCallback) -> VdrResult<()> {
         self.send_event(PoolEvent::GetTransactions(callback))
     }
 
-    pub fn send_request(&self, request: PreparedRequest, callback: ReqCallback) -> VdrResult<()> {
+    pub fn refresh(&self, callback: RefreshCallback) -> VdrResult<()> {
+        self.send_event(PoolEvent::Refresh(callback))
+    }
+
+    pub fn send_request(
+        &self,
+        request: PreparedRequest,
+        callback: SendReqCallback,
+    ) -> VdrResult<()> {
         self.send_event(PoolEvent::SendRequest(request, callback))
     }
 
@@ -79,17 +87,22 @@ impl Drop for PoolRunner {
     }
 }
 
-type ReqCallback = Box<dyn (FnOnce(ReqResponse) -> ()) + Send>;
+type GetTxnsCallback = Box<dyn (FnOnce(GetTxnsResponse) -> ()) + Send>;
 
-type ReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
+type GetTxnsResponse = VdrResult<Vec<String>>;
 
-type TxnCallback = Box<dyn (FnOnce(TxnResponse) -> ()) + Send>;
+type RefreshCallback = Box<dyn (FnOnce(RefreshResponse) -> ()) + Send>;
 
-type TxnResponse = VdrResult<Vec<String>>;
+type RefreshResponse = VdrResult<(Vec<String>, Option<Vec<String>>, Option<TimingResult>)>;
+
+type SendReqCallback = Box<dyn (FnOnce(SendReqResponse) -> ()) + Send>;
+
+type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 enum PoolEvent {
-    GetTransactions(TxnCallback),
-    SendRequest(PreparedRequest, ReqCallback),
+    GetTransactions(GetTxnsCallback),
+    Refresh(RefreshCallback),
+    SendRequest(PreparedRequest, SendReqCallback),
 }
 
 struct PoolThread {
@@ -107,7 +120,7 @@ impl PoolThread {
     }
 
     async fn run_loop(&mut self) {
-        let mut requests = FuturesUnordered::new();
+        let mut futures = FuturesUnordered::new();
         let receiver = &mut self.receiver;
         loop {
             select! {
@@ -117,17 +130,21 @@ impl PoolThread {
                             let txns = self.pool.get_transactions();
                             callback(txns);
                         }
+                        Some(PoolEvent::Refresh(callback)) => {
+                            let fut = _perform_refresh(&self.pool, callback);
+                            futures.push(fut.boxed_local());
+                        }
                         Some(PoolEvent::SendRequest(request, callback)) => {
                             let fut = _perform_ledger_request(&self.pool, request, callback);
-                            requests.push(fut);
+                            futures.push(fut.boxed_local());
                         }
                         None => { trace!("Pool runner sender dropped") }
                     }
                 }
-                req_evt = requests.next() => {
+                req_evt = futures.next() => {
                     match req_evt {
-                        Some(()) => trace!("Request response dispatched"),
-                        None => trace!("No pending requests")
+                        Some(()) => trace!("Callback response dispatched"),
+                        None => trace!("No pending callbacks")
                     }
                 }
                 complete => break
@@ -136,10 +153,23 @@ impl PoolThread {
     }
 }
 
+async fn _perform_refresh(pool: &LocalPool, callback: RefreshCallback) {
+    let result = {
+        match perform_refresh(pool).await {
+            Ok((new_txns, timing)) => match pool.get_transactions() {
+                Ok(old_txns) => Ok((old_txns, new_txns, timing)),
+                Err(err) => Err(err),
+            },
+            Err(err) => Err(err),
+        }
+    };
+    callback(result);
+}
+
 async fn _perform_ledger_request(
     pool: &LocalPool,
     request: PreparedRequest,
-    callback: ReqCallback,
+    callback: SendReqCallback,
 ) {
     let result = perform_ledger_request(pool, request, None).await;
     callback(result);

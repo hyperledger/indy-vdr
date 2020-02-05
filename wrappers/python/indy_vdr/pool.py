@@ -29,6 +29,9 @@ class Pool:
         txns = await bindings.pool_get_transactions(self.handle)
         return txns.split("\n")
 
+    async def refresh(self):
+        print(await bindings.pool_refresh(self.handle))
+
     def close(self):
         if self.handle:
             bindings.pool_close(self.handle)

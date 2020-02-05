@@ -39,14 +39,22 @@ macro_rules! slice_from_c_ptr {
 
 macro_rules! read_lock {
     ($e:expr) => {
-        ($e).read()
-            .map_err(|_| err_msg(VdrErrorKind::Unexpected, "Error acquiring read lock"))
+        ($e).read().map_err(|err| {
+            err_msg(
+                VdrErrorKind::Unexpected,
+                format!("Error acquiring read lock: {}", err),
+            )
+        })
     };
 }
 
 macro_rules! write_lock {
     ($e:expr) => {
-        ($e).write()
-            .map_err(|_| err_msg(VdrErrorKind::Unexpected, "Error acquiring write lock"))
+        ($e).write().map_err(|err| {
+            err_msg(
+                VdrErrorKind::Unexpected,
+                format!("Error acquiring write lock: {}", err),
+            )
+        })
     };
 }

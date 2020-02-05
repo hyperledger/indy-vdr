@@ -4,6 +4,7 @@ use crate::pool::{PoolFactory, PoolRunner, RequestResult};
 use std::collections::BTreeMap;
 use std::os::raw::c_char;
 use std::sync::RwLock;
+use std::thread;
 
 use ffi_support::{rust_string_to_c, FfiStr};
 
@@ -41,6 +42,74 @@ pub extern "C" fn indy_vdr_pool_create_from_genesis_file(
     }
 }
 
+fn handle_pool_refresh(
+    pool_handle: PoolHandle,
+    old_txns: Vec<String>,
+    new_txns: Vec<String>,
+) -> ErrorCode {
+    catch_err! {
+        let mut factory = PoolFactory::from_transactions(&old_txns)?;
+        factory.add_transactions(&new_txns)?;
+        {
+            let gcfg = read_lock!(POOL_CONFIG)?;
+            factory.set_config(*gcfg)?;
+        }
+        let pool = factory.create_runner()?;
+        let mut pools = write_lock!(POOLS)?;
+        if !pools.contains_key(&pool_handle) {
+            let error = (VdrErrorKind::Unexpected, "Pool was freed before refresh completed").into();
+            let code = ErrorCode::from(&error);
+            set_last_error(Some(error));
+            Ok(code)
+        } else {
+            pools.insert(pool_handle, pool);
+            // previous pool instance will now be dropped
+            Ok(ErrorCode::Success)
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_pool_refresh(
+    pool_handle: usize,
+    cb: Option<extern "C" fn(err: ErrorCode)>,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Refresh pool");
+        let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
+        let pools = read_lock!(POOLS)?;
+        let pool = pools.get(&PoolHandle(pool_handle))
+            .ok_or_else(|| input_err("Unknown pool handle"))?;
+        pool.refresh(Box::new(
+            move |result| {
+                let errcode = match result {
+                    Ok((old_txns, new_txns, _timing)) => {
+                        if let Some(new_txns) = new_txns {
+                            // We must spawn a new thread here because this callback
+                            // is being run in the PoolRunner's thread, and if we drop
+                            // the instance now it will create a deadlock
+                            thread::spawn(move || {
+                                let result = handle_pool_refresh(PoolHandle(pool_handle), old_txns, new_txns);
+                                cb(result)
+                            });
+                            return
+                        } else {
+                            ErrorCode::Success
+                        }
+                    },
+                    Err(err) => {
+                        let code = ErrorCode::from(&err);
+                        set_last_error(Some(err));
+                        code
+                    }
+                };
+                cb(errcode)
+            }))?;
+        debug!("release pools lock?");
+        Ok(ErrorCode::Success)
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_transactions(
     pool_handle: usize,
@@ -66,7 +135,6 @@ pub extern "C" fn indy_vdr_pool_get_transactions(
                 };
                 cb(errcode, rust_string_to_c(reply))
             }))?;
-
         Ok(ErrorCode::Success)
     }
 }

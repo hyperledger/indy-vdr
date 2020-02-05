@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
+#![recursion_limit = "1024"] // for select! macro usage
 
 #[macro_use]
 extern crate lazy_static;
