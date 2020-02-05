@@ -1,6 +1,5 @@
 cargo-registry
 target
-build
 node_modules
 package-lock.json
 .idea
@@ -11,5 +10,4 @@ package-lock.json
 Podfile.lock
 .vscode
 .pytest_cache
-/wrappers/python/venv/
-_build/
+__pycache__
