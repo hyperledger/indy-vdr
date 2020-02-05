@@ -1,10 +1,16 @@
 macro_rules! catch_err {
     ($($e:tt)*) => {
-        match (|| -> VdrResult<_> {$($e)*})() {
-            Ok(a) => a,
-            Err(err) => {
+        match (std::panic::catch_unwind(|| -> VdrResult<_> {$($e)*})) {
+            Ok(Ok(a)) => a,
+            Ok(Err(err)) => { // vdr error
                 let code = ErrorCode::from(&err);
                 set_last_error(Some(err));
+                code
+            }
+            Err(_) => { // panic error
+                let error = (VdrErrorKind::Unexpected, "Panic during execution").into();
+                let code = ErrorCode::from(&error);
+                set_last_error(Some(error));
                 code
             }
         }

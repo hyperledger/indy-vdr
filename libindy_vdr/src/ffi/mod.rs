@@ -43,9 +43,11 @@ pub extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_set_default_logger() -> ErrorCode {
-    env_logger::init();
-    debug!("Initialized default logger");
-    ErrorCode::Success
+    catch_err! {
+        env_logger::init();
+        debug!("Initialized default logger");
+        Ok(ErrorCode::Success)
+    }
 }
 
 #[no_mangle]
