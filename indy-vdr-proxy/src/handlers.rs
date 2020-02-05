@@ -278,12 +278,12 @@ pub async fn handle_request<T: Pool>(
         .path()
         .split('/')
         .map(percent_decode_str)
-        .flat_map(|part| part.decode_utf8().map(|p| p.into_owned()).ok());
-    let fst = parts.next();
-    if fst.is_none() || !fst.unwrap().is_empty() {
-        // path must start with '/'
-        return http_status(StatusCode::NOT_FOUND);
-    }
+        .flat_map(|part| {
+            part.decode_utf8()
+                .map(|p| p.into_owned())
+                .ok()
+                .filter(|p| !p.is_empty())
+        });
     let pretty = req.uri().query() == Some("fmt");
     let fst = parts.next().unwrap_or_else(|| "".to_owned());
     let req_method = req.method();
