@@ -37,7 +37,7 @@ class lib_string(c_char_p):
 def _load_library(lib_name: str) -> CDLL:
     found = find_library(lib_name)
     if not found:
-        raise VdrError(VdrErrorCode.OTHER, f"Error loading library: {lib_name}")
+        raise VdrError(VdrErrorCode.WRAPPER, f"Error loading library: {lib_name}")
     return CDLL(name=found)
     # except OSError:
 
@@ -113,10 +113,11 @@ def get_current_error(expect: bool = False) -> VdrError:
             return VdrError(VdrErrorCode(msg["code"]), msg["message"], msg.get("extra"))
         if not expect:
             return None
-    return VdrError(VdrError.OTHER, "Unknown error")
+    return VdrError(VdrError.WRAPPER, "Unknown error")
 
 
 def get_version() -> str:
+    LIB.indy_vdr_version.restype = c_void_p
     return lib_string(LIB.indy_vdr_version()).value.decode("ascii")
 
 

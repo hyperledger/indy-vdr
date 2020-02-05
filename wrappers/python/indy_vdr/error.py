@@ -4,6 +4,7 @@ from enum import IntEnum
 class VdrErrorCode(IntEnum):
     SUCCESS = 0
     FAILED = 1
+    WRAPPER = 99
 
 
 class VdrError(Exception):
