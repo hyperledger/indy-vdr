@@ -136,7 +136,15 @@ pub async fn perform_ledger_request<T: Pool>(
             let (result, timing) = handle_full_request(request, node_aliases, timeout).await?;
             Ok((result.map_result(format_full_reply)?, timing))
         }
-        _ => handle_consensus_request(request, prepared.sp_key, prepared.sp_timestamps).await,
+        _ => {
+            handle_consensus_request(
+                request,
+                prepared.sp_key,
+                prepared.sp_timestamps,
+                prepared.is_read_request,
+            )
+            .await
+        }
     }
 }
 

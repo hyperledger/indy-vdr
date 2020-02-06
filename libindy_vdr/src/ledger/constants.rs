@@ -24,9 +24,8 @@ pub const GET_VALIDATOR_INFO: &str = "119";
 pub const AUTH_RULE: &str = "120";
 pub const GET_AUTH_RULE: &str = "121";
 pub const AUTH_RULES: &str = "122";
-pub const GET_DDO: &str = "120"; //TODO change number
 
-pub const REQUESTS: [&str; 25] = [
+pub const REQUESTS: [&str; 24] = [
     NODE,
     NYM,
     GET_TXN,
@@ -47,11 +46,25 @@ pub const REQUESTS: [&str; 25] = [
     GET_REVOC_REG_DELTA,
     GET_VALIDATOR_INFO,
     AUTH_RULE,
-    GET_DDO,
     TXN_AUTHR_AGRMT,
     TXN_AUTHR_AGRMT_AML,
     GET_TXN_AUTHR_AGRMT,
     GET_TXN_AUTHR_AGRMT_AML,
+];
+
+// likely matches REQUESTS_FOR_STATE_PROOFS
+pub const READ_REQUESTS: [&str; 11] = [
+    GET_NYM,
+    GET_TXN_AUTHR_AGRMT,
+    GET_TXN_AUTHR_AGRMT_AML,
+    GET_SCHEMA,
+    GET_CRED_DEF,
+    GET_ATTR,
+    GET_REVOC_REG,
+    GET_REVOC_REG_DEF,
+    GET_REVOC_REG_DELTA,
+    GET_AUTH_RULE,
+    GET_TXN,
 ];
 
 pub const TRUSTEE: &str = "0";
@@ -88,7 +101,6 @@ pub fn txn_name_to_code(txn: &str) -> Option<&str> {
         "GET_REVOC_REG_DELTA" => Some(GET_REVOC_REG_DELTA),
         "GET_VALIDATOR_INFO" => Some(GET_VALIDATOR_INFO),
         "AUTH_RULE" => Some(AUTH_RULE),
-        "GET_DDO" => Some(GET_DDO),
         "TXN_AUTHR_AGRMT" => Some(TXN_AUTHR_AGRMT),
         "TXN_AUTHR_AGRMT_AML" => Some(TXN_AUTHR_AGRMT_AML),
         "GET_TXN_AUTHR_AGRMT" => Some(GET_TXN_AUTHR_AGRMT),

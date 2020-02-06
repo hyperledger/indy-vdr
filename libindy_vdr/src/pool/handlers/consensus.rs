@@ -21,6 +21,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
     mut request: Request,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
+    as_read_request: bool,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("consensus request");
     let config = request.pool_config();
@@ -40,8 +41,10 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
 
     let init_send = if state_proof_key.is_some() {
         config.request_read_nodes
-    } else {
+    } else if as_read_request {
         f + config.request_read_nodes
+    } else {
+        total_nodes_count
     };
     request.send_to_any(init_send, config.ack_timeout)?;
     loop {

@@ -37,7 +37,8 @@ use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
 use super::constants::{
-    txn_name_to_code, ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE,
+    txn_name_to_code, ENDORSER, NETWORK_MONITOR, READ_REQUESTS, ROLES, ROLE_REMOVE, STEWARD,
+    TRUSTEE,
 };
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
@@ -71,6 +72,7 @@ pub struct PreparedRequest {
     pub req_json: SJsonValue,
     pub sp_key: Option<Vec<u8>>,
     pub sp_timestamps: (Option<u64>, Option<u64>),
+    pub is_read_request: bool,
 }
 
 impl PreparedRequest {
@@ -81,6 +83,7 @@ impl PreparedRequest {
         req_json: SJsonValue,
         sp_key: Option<Vec<u8>>,
         sp_timestamps: (Option<u64>, Option<u64>),
+        is_read_request: bool,
     ) -> Self {
         Self {
             protocol_version,
@@ -89,6 +92,7 @@ impl PreparedRequest {
             req_json,
             sp_key,
             sp_timestamps,
+            is_read_request,
         }
     }
 
@@ -134,6 +138,7 @@ impl RequestBuilder {
         let txn_type = T::get_txn_type().to_string();
         let sp_key = operation.get_sp_key(self.protocol_version)?;
         let sp_timestamps = operation.get_sp_timestamps()?;
+        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
         let body = Request::build_request(
             req_id,
             operation,
@@ -148,6 +153,7 @@ impl RequestBuilder {
             body,
             sp_key,
             sp_timestamps,
+            is_read_request,
         ))
     }
 
@@ -612,6 +618,7 @@ impl RequestBuilder {
                 parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
             )
         };
+        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
         Ok((
             PreparedRequest::new(
                 protocol_version,
@@ -620,6 +627,7 @@ impl RequestBuilder {
                 req_json,
                 sp_key,
                 sp_timestamps,
+                is_read_request,
             ),
             target,
         ))
