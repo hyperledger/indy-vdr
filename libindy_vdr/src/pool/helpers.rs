@@ -2,7 +2,7 @@ use std::iter::FromIterator;
 
 use serde_json;
 
-use super::genesis::{parse_transaction_from_json, transactions_to_json};
+use super::genesis::PoolTransactions;
 use super::handlers::{
     build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
     handle_consensus_request, handle_full_request, handle_status_request, CatchupTarget,
@@ -48,7 +48,7 @@ pub async fn perform_refresh<T: Pool>(
     match result {
         RequestResult::Reply(target) => match target {
             Some((target_mt_root, target_mt_size)) => {
-                info!(
+                debug!(
                     "Catchup target found {} {} {:?}",
                     target_mt_root.to_base58(),
                     target_mt_size,
@@ -82,14 +82,14 @@ pub async fn perform_catchup<T: Pool>(
     match catchup_result {
         RequestResult::Reply(ref txns) => {
             info!("Catchup completed {:?}", timing);
-            let json_txns = transactions_to_json(txns)?;
-            for (idx, txn) in json_txns.iter().enumerate() {
-                if parse_transaction_from_json(txn)? != txns[idx] {
-                    return Err(err_msg(
-                        VdrErrorKind::Unexpected,
-                        format!("Error validating rount-trip for pool transaction: {}", txn),
-                    ));
-                }
+            let new_txns = PoolTransactions::from_transactions(txns);
+            let json_txns = new_txns.encode_json()?;
+            let reload_txns = PoolTransactions::from_json(&json_txns)?;
+            if new_txns != reload_txns {
+                return Err(err_msg(
+                    VdrErrorKind::Unexpected,
+                    "Error validating rount-trip for pool transactions",
+                ));
             }
             Ok((json_txns, timing))
         }

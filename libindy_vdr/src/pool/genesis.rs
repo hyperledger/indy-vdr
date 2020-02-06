@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::BufReader;
 use std::iter::IntoIterator;
 use std::path::PathBuf;
 
-use serde_json::{self, Value as SJsonValue};
+use serde_json::{self, Deserializer, Value as SJsonValue};
 
 use super::types::{
     BlsVerKey, NodeTransaction, NodeTransactionV0, NodeTransactionV1, ProtocolVersion,
@@ -17,66 +18,161 @@ use crate::utils::crypto;
 
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
 
-pub fn read_transactions(file_name: &PathBuf) -> VdrResult<Vec<String>> {
-    let f = File::open(file_name).map_err(|err| {
-        err_msg(
-            VdrErrorKind::FileSystem(err),
-            format!("Can't open genesis transactions file: {:?}", file_name),
-        )
-    })?;
-    let reader = BufReader::new(&f);
-    reader.lines().try_fold(vec![], |mut vec, line| {
-        let line = line.map_err(|err| {
+#[derive(Clone, PartialEq, Eq)]
+pub struct PoolTransactions {
+    inner: Vec<Vec<u8>>, // stored in msgpack format
+}
+
+impl PoolTransactions {
+    fn new(inner: Vec<Vec<u8>>) -> Self {
+        Self { inner }
+    }
+
+    pub fn from_file(file_name: &str) -> VdrResult<Self> {
+        Self::from_file_path(&PathBuf::from(file_name))
+    }
+
+    pub fn from_file_path(file_name: &PathBuf) -> VdrResult<Self> {
+        let f = File::open(file_name).map_err(|err| {
             err_msg(
                 VdrErrorKind::FileSystem(err),
-                "Error reading from genesis transactions file",
+                format!("Can't open genesis transactions file: {:?}", file_name),
             )
         })?;
-        let line = line.trim();
-        if !line.is_empty() {
-            vec.push(line.to_owned());
+        let reader = BufReader::new(&f);
+        let mut stream = Deserializer::from_reader(reader).into_iter::<SJsonValue>();
+        let txns = stream.try_fold(vec![], |mut vec, txn| match txn {
+            Ok(txn) => {
+                let mp_txn = _json_to_msgpack(&txn)?;
+                vec.push(mp_txn);
+                Ok(vec)
+            }
+            Err(err) => Err(input_err(format!(
+                "Error reading from genesis transactions file: {}",
+                err
+            ))),
+        })?;
+        if txns.is_empty() {
+            Err(input_err("No genesis transactions found"))
+        } else {
+            Ok(Self::new(txns))
         }
-        Ok(vec)
-    })
-}
-
-pub fn build_merkle_tree(json_tnxs: &[String]) -> VdrResult<MerkleTree> {
-    let mut bin_txns: Vec<Vec<u8>> = vec![];
-    for json_txn in json_tnxs {
-        let bin_txn = parse_transaction_from_json(json_txn)?;
-        bin_txns.push(bin_txn)
-    }
-    MerkleTree::from_vec(bin_txns)
-}
-
-pub fn parse_transaction_from_json(txn: &str) -> VdrResult<Vec<u8>> {
-    let txn = txn.trim();
-
-    if txn.is_empty() {
-        return Ok(vec![]);
     }
 
-    let txn: SJsonValue =
-        serde_json::from_str(txn).with_input_err("Genesis txn is malformed JSON")?;
-    rmp_serde::encode::to_vec_named(&txn).with_input_err("Can't encode genesis txn as msgpack")
+    pub fn from_transactions<T>(txns: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: AsRef<[u8]>,
+    {
+        Self::new(txns.into_iter().map(|t| t.as_ref().to_vec()).collect())
+    }
+
+    pub fn from_json<T>(txns: T) -> VdrResult<Self>
+    where
+        T: IntoIterator,
+        T::Item: AsRef<str>,
+    {
+        let mut pt = Self { inner: vec![] };
+        pt.extend_from_json(txns)?;
+        Ok(pt)
+    }
+
+    pub fn extend<T>(&mut self, txns: T)
+    where
+        T: IntoIterator<Item = Vec<u8>>,
+    {
+        self.inner.extend(txns)
+    }
+
+    pub fn extend_from_json<'a, T>(&mut self, txns: T) -> VdrResult<()>
+    where
+        T: IntoIterator,
+        T::Item: AsRef<str>,
+    {
+        for txn in txns {
+            let txn = serde_json::from_str::<SJsonValue>(txn.as_ref())
+                .with_input_err("Error deserializing transaction as JSON")?;
+            self.inner.push(_json_to_msgpack(&txn)?);
+        }
+        Ok(())
+    }
+
+    pub fn merkle_tree(&self) -> VdrResult<MerkleTree> {
+        MerkleTree::from_vec(self.inner.clone())
+    }
+
+    pub fn into_merkle_tree(self) -> VdrResult<MerkleTree> {
+        MerkleTree::from_vec(self.inner)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Vec<u8>> {
+        self.inner.iter()
+    }
+
+    pub fn encode_json(&self) -> VdrResult<Vec<String>> {
+        Ok(self
+            .json_values()?
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect())
+    }
+
+    pub fn json_values(&self) -> VdrResult<Vec<SJsonValue>> {
+        self.inner.iter().try_fold(vec![], |mut vec, txn| {
+            let value = rmp_serde::decode::from_slice(txn)
+                .with_input_err("Genesis transaction cannot be decoded")?;
+            vec.push(value);
+            Ok(vec)
+        })
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
 }
 
-pub fn transaction_to_json(txn: &[u8]) -> VdrResult<String> {
-    let node_txn: SJsonValue = rmp_serde::decode::from_slice(txn)
-        .with_input_err("Genesis transaction cannot be decoded")?;
-    serde_json::to_string(&node_txn).with_input_err("Genesis txn is malformed JSON")
+impl std::fmt::Debug for PoolTransactions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PoolTransactions(len={})", self.len())
+    }
 }
 
-pub fn transactions_to_json<T>(txns: T) -> VdrResult<Vec<String>>
-where
-    T: IntoIterator,
-    T::Item: AsRef<[u8]>,
-{
-    txns.into_iter().try_fold(vec![], |mut vec, txn| {
-        let txn = transaction_to_json(txn.as_ref())?;
-        vec.push(txn);
-        Ok(vec)
-    })
+impl std::fmt::Display for PoolTransactions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let vec_json = unwrap_or_return!(self.encode_json(), Err(std::fmt::Error {}));
+        let txns = SJsonValue::from(vec_json);
+        write!(f, "{}", txns)
+    }
+}
+
+impl From<Vec<Vec<u8>>> for PoolTransactions {
+    fn from(txns: Vec<Vec<u8>>) -> Self {
+        Self::new(txns)
+    }
+}
+
+impl From<&MerkleTree> for PoolTransactions {
+    fn from(merkle_tree: &MerkleTree) -> Self {
+        Self::from_transactions(merkle_tree)
+    }
+}
+
+impl TryFrom<&[String]> for PoolTransactions {
+    type Error = VdrError;
+
+    fn try_from(txns: &[String]) -> VdrResult<Self> {
+        PoolTransactions::from_json(txns)
+    }
+}
+
+fn _json_to_msgpack(txn: &SJsonValue) -> VdrResult<Vec<u8>> {
+    if let Some(txn) = txn.as_object() {
+        let mp_txn = rmp_serde::encode::to_vec_named(txn)
+            .with_input_err("Can't encode genesis txn as msgpack")?;
+        Ok(mp_txn)
+    } else {
+        Err(input_err("Unexpected value, not a JSON object"))
+    }
 }
 
 pub fn build_node_transaction_map<T>(

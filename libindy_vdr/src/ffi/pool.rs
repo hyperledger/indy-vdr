@@ -1,5 +1,5 @@
 use crate::common::error::prelude::*;
-use crate::pool::{PoolFactory, PoolRunner, RequestResult};
+use crate::pool::{PoolBuilder, PoolRunner, PoolTransactions, RequestResult};
 
 use std::collections::BTreeMap;
 use std::os::raw::c_char;
@@ -26,12 +26,12 @@ pub extern "C" fn indy_vdr_pool_create_from_genesis_file(
     catch_err! {
         trace!("Create pool from genesis file");
         check_useful_c_ptr!(handle_p);
-        let mut factory = PoolFactory::from_genesis_file(path.as_str())?;
-        {
+        let txns = PoolTransactions::from_file(path.as_str())?;
+        let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            factory.set_config(*gcfg)?;
-        }
-        let pool = factory.create_runner()?;
+            PoolBuilder::from_config(*gcfg)
+        };
+        let pool = builder.transactions(txns)?.into_runner()?;
         let handle = PoolHandle::next();
         let mut pools = write_lock!(POOLS)?;
         pools.insert(handle, pool);
@@ -48,13 +48,14 @@ fn handle_pool_refresh(
     new_txns: Vec<String>,
 ) -> ErrorCode {
     catch_err! {
-        let mut factory = PoolFactory::from_transactions(&old_txns)?;
-        factory.add_transactions(&new_txns)?;
-        {
+        debug!("Adding {} new pool transactions", new_txns.len());
+        let mut txns = PoolTransactions::from_json(old_txns)?;
+        txns.extend_from_json(&new_txns)?;
+        let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            factory.set_config(*gcfg)?;
-        }
-        let pool = factory.create_runner()?;
+            PoolBuilder::from_config(*gcfg)
+        };
+        let pool = builder.transactions(txns)?.into_runner()?;
         let mut pools = write_lock!(POOLS)?;
         if !pools.contains_key(&pool_handle) {
             let error = (VdrErrorKind::Unexpected, "Pool was freed before refresh completed").into();

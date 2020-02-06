@@ -9,7 +9,7 @@ use futures::channel::mpsc::unbounded;
 use futures::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
 
-use super::genesis::{build_node_transaction_map, build_verifiers, transactions_to_json};
+use super::genesis::{build_node_transaction_map, build_verifiers, PoolTransactions};
 use super::networker::{
     LocalNetworker, Networker, NetworkerEvent, NetworkerFactory, SharedNetworker,
 };
@@ -41,7 +41,7 @@ pub trait Pool: Clone {
         RequestBuilder::new(self.get_config().protocol_version)
     }
     fn get_transactions(&self) -> VdrResult<Vec<String>> {
-        transactions_to_json(self.get_merkle_tree())
+        PoolTransactions::from(self.get_merkle_tree()).encode_json()
     }
 }
 

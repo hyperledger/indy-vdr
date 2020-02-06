@@ -19,7 +19,7 @@ use hyper::Server;
 use hyper_unix_connector::UnixConnector;
 
 use indy_vdr::common::error::VdrResult;
-use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolFactory};
+use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolBuilder, PoolTransactions};
 
 fn main() {
     let config = app::load_config().unwrap_or_else(|err| {
@@ -43,17 +43,17 @@ fn main() {
 }
 
 pub struct AppState {
-    pool_factory: PoolFactory,
     pool: Option<LocalPool>,
     last_refresh: Option<SystemTime>,
+    transactions: PoolTransactions,
 }
 
 async fn init_app_state(genesis: String) -> VdrResult<AppState> {
-    let pool_factory = PoolFactory::from_genesis_file(genesis.as_str())?;
+    let transactions = PoolTransactions::from_file(genesis.as_str())?;
     let state = AppState {
-        pool_factory,
         pool: None,
         last_refresh: None,
+        transactions,
     };
     Ok(state)
 }
@@ -73,7 +73,8 @@ async fn init_pool(state: Rc<RefCell<AppState>>, refresh: bool) {
 }
 
 async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> VdrResult<LocalPool> {
-    let pool = state.borrow().pool_factory.create_local()?;
+    let builder = PoolBuilder::default().transactions(state.borrow().transactions.clone())?;
+    let pool = builder.into_local()?;
     let refresh_pool = if refresh {
         refresh_pool(state, &pool).await?
     } else {
@@ -89,8 +90,12 @@ async fn refresh_pool(
     let (txns, _timing) = perform_refresh(pool).await?;
     state.borrow_mut().last_refresh.replace(SystemTime::now());
     if let Some(txns) = txns {
-        state.borrow_mut().pool_factory.add_transactions(&txns)?;
-        Ok(Some(state.borrow().pool_factory.create_local()?))
+        let builder = {
+            let pool_txns = &mut state.borrow_mut().transactions;
+            pool_txns.extend_from_json(&txns)?;
+            PoolBuilder::default().transactions(pool_txns.clone())?
+        };
+        Ok(Some(builder.into_local()?))
     } else {
         Ok(None)
     }
