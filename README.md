@@ -54,6 +54,8 @@ Sending prepared requests to the ledger is performed by delivering a POST reques
 
 Whether using the library or the proxy server, you will need a `genesis.txn` file containing the set of pool genesis transactions. You can run a local pool in Docker using [VON-Network](https://github.com/bcgov/von-network) or follow the [Indy-SDK instructions](https://github.com/hyperledger/indy-sdk#how-to-start-local-nodes-pool-with-docker).
 
+However the library is used, the `RUST_LOG` enviroment variable may be set in order to adjust the volume of logging messages produced. Acceptable values are `error`, `warn`, `info`, `debug`, and `trace`. The `RUST_BACKTRACE` enviroment variable may also be set to `full` for extended output in the case of fatal errors.
+
 ## How to Contribute
 
 - Join us on the Hyperledger Rocket.Chat at [chat.hyperledger.org](https://chat.hyperledger.org).
