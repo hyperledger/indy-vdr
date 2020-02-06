@@ -40,18 +40,8 @@ impl PoolTransactions {
             )
         })?;
         let reader = BufReader::new(&f);
-        let mut stream = Deserializer::from_reader(reader).into_iter::<SJsonValue>();
-        let txns = stream.try_fold(vec![], |mut vec, txn| match txn {
-            Ok(txn) => {
-                let mp_txn = _json_to_msgpack(&txn)?;
-                vec.push(mp_txn);
-                Ok(vec)
-            }
-            Err(err) => Err(input_err(format!(
-                "Error reading from genesis transactions file: {}",
-                err
-            ))),
-        })?;
+        let stream = Deserializer::from_reader(reader).into_iter::<SJsonValue>();
+        let txns = _json_iter_to_msgpack(stream)?;
         if txns.is_empty() {
             Err(input_err("No genesis transactions found"))
         } else {
@@ -67,7 +57,17 @@ impl PoolTransactions {
         Self::new(txns.into_iter().map(|t| t.as_ref().to_vec()).collect())
     }
 
-    pub fn from_json<T>(txns: T) -> VdrResult<Self>
+    pub fn from_json(txns: &str) -> VdrResult<Self> {
+        let stream = Deserializer::from_str(txns).into_iter::<SJsonValue>();
+        let txns = _json_iter_to_msgpack(stream)?;
+        if txns.is_empty() {
+            Err(input_err("No genesis transactions found"))
+        } else {
+            Ok(Self::new(txns))
+        }
+    }
+
+    pub fn from_transactions_json<T>(txns: T) -> VdrResult<Self>
     where
         T: IntoIterator,
         T::Item: AsRef<str>,
@@ -161,7 +161,7 @@ impl TryFrom<&[String]> for PoolTransactions {
     type Error = VdrError;
 
     fn try_from(txns: &[String]) -> VdrResult<Self> {
-        PoolTransactions::from_json(txns)
+        PoolTransactions::from_transactions_json(txns)
     }
 }
 
@@ -173,6 +173,23 @@ fn _json_to_msgpack(txn: &SJsonValue) -> VdrResult<Vec<u8>> {
     } else {
         Err(input_err("Unexpected value, not a JSON object"))
     }
+}
+
+fn _json_iter_to_msgpack<T>(mut iter: T) -> VdrResult<Vec<Vec<u8>>>
+where
+    T: Iterator<Item = Result<SJsonValue, serde_json::Error>>,
+{
+    iter.try_fold(vec![], |mut vec, txn| match txn {
+        Ok(txn) => {
+            let mp_txn = _json_to_msgpack(&txn)?;
+            vec.push(mp_txn);
+            Ok(vec)
+        }
+        Err(err) => Err(input_err(format!(
+            "Error parsing genesis transactions: {}",
+            err
+        ))),
+    })
 }
 
 pub fn build_node_transaction_map<T>(

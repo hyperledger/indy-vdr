@@ -51,7 +51,7 @@ fn handle_pool_refresh(
 ) -> ErrorCode {
     catch_err! {
         debug!("Adding {} new pool transactions", new_txns.len());
-        let mut txns = PoolTransactions::from_json(old_txns)?;
+        let mut txns = PoolTransactions::from_transactions_json(old_txns)?;
         txns.extend_from_json(&new_txns)?;
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;

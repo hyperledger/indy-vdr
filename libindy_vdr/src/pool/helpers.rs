@@ -84,7 +84,7 @@ pub async fn perform_catchup<T: Pool>(
             info!("Catchup completed {:?}", timing);
             let new_txns = PoolTransactions::from_transactions(txns);
             let json_txns = new_txns.encode_json()?;
-            let reload_txns = PoolTransactions::from_json(&json_txns)?;
+            let reload_txns = PoolTransactions::from_transactions_json(&json_txns)?;
             if new_txns != reload_txns {
                 return Err(err_msg(
                     VdrErrorKind::Unexpected,
