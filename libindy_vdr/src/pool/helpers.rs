@@ -110,19 +110,6 @@ pub async fn perform_get_txn<T: Pool>(
     perform_ledger_request(pool, prepared, None).await
 }
 
-/* testing only
-pub async fn perform_get_validator_info<T: Pool>(
-    pool: &T,
-) -> LedgerResult<(RequestResult<String>, Option<TimingResult>)> {
-    let builder = pool.get_request_builder();
-    let did = DidValue::new("V4SGRU86Z58d6TV7PBUe6f", None);
-    let mut prepared = builder.build_get_validator_info_request(&did)?;
-    prepared.sign(b"000000000000000000000000Trustee1")?;
-    trace!("{}", prepared.req_json);
-    perform_ledger_request(pool, prepared, Some(RequestTarget::Full(None, None))).await
-}
-*/
-
 pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
     prepared: PreparedRequest,

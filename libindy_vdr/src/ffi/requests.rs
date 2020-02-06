@@ -5,9 +5,7 @@ use std::collections::BTreeMap;
 use std::os::raw::c_char;
 use std::sync::RwLock;
 
-use serde_json;
-
-use ffi_support::{rust_string_to_c, FfiStr};
+use ffi_support::rust_string_to_c;
 
 use super::error::{set_last_error, ErrorCode};
 use super::POOL_CONFIG;
@@ -19,29 +17,16 @@ lazy_static! {
         RwLock::new(BTreeMap::new());
 }
 
-fn get_request_builder() -> VdrResult<RequestBuilder> {
-    let version = read_lock!(POOL_CONFIG)?.protocol_version;
-    Ok(RequestBuilder::new(version))
+pub fn add_request(request: PreparedRequest) -> VdrResult<RequestHandle> {
+    let handle = RequestHandle::next();
+    let mut requests = write_lock!(REQUESTS)?;
+    requests.insert(handle, request);
+    Ok(handle)
 }
 
-#[no_mangle]
-pub extern "C" fn indy_vdr_build_custom_request(
-    request_json: FfiStr,
-    handle_p: *mut usize,
-) -> ErrorCode {
-    catch_err! {
-        trace!("Build custom pool request");
-        check_useful_c_ptr!(handle_p);
-        let builder = get_request_builder()?;
-        let (req, _target) = builder.build_custom_request_from_str(request_json.as_str(), None, (None, None))?;
-        let handle = RequestHandle::next();
-        let mut requests = write_lock!(REQUESTS)?;
-        requests.insert(handle, req);
-        unsafe {
-            *handle_p = *handle;
-        }
-        Ok(ErrorCode::Success)
-    }
+pub fn get_request_builder() -> VdrResult<RequestBuilder> {
+    let version = read_lock!(POOL_CONFIG)?.protocol_version;
+    Ok(RequestBuilder::new(version))
 }
 
 #[no_mangle]
@@ -56,8 +41,7 @@ pub extern "C" fn indy_vdr_request_get_body(
             let reqs = read_lock!(REQUESTS)?;
             let req = reqs.get(&RequestHandle(request_handle))
                 .ok_or_else(|| input_err("Unknown request handle"))?;
-            serde_json::to_string(&req.req_json)
-                .with_err_msg(VdrErrorKind::Unexpected, "Error serializing request body")?
+            &req.req_json.to_string()
         };
         let body = rust_string_to_c(body);
         unsafe {

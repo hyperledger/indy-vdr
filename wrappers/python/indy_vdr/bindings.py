@@ -1,9 +1,9 @@
 import asyncio
-from ctypes import CDLL, CFUNCTYPE, byref, c_char_p, c_size_t, c_void_p
+from ctypes import CDLL, CFUNCTYPE, byref, c_char_p, c_size_t, c_void_p, c_int32
 from ctypes.util import find_library
 import json
 import logging
-from typing import Union
+from typing import Sequence, Union
 
 from .error import VdrError, VdrErrorCode
 
@@ -130,6 +130,28 @@ def build_custom_request(body: Union[str, bytes, dict]) -> RequestHandle:
     return handle
 
 
+def build_get_txn_request(
+    ledger_type: int, seq_no: int, submitter_did: str = None
+) -> RequestHandle:
+    handle = RequestHandle()
+    did_p = _encode_str(submitter_did) if submitter_did else None
+    _do_call(
+        LIB.indy_vdr_build_get_txn_request,
+        did_p,
+        c_int32(ledger_type),
+        c_int32(seq_no),
+        byref(handle),
+    )
+    return handle
+
+
+def build_get_validator_info_request(submitter_did: str) -> RequestHandle:
+    handle = RequestHandle()
+    did_p = _encode_str(submitter_did)
+    _do_call(LIB.indy_vdr_build_get_validator_info_request, did_p, byref(handle))
+    return handle
+
+
 def pool_create_from_genesis_file(path: Union[str, bytes]) -> PoolHandle:
     handle = PoolHandle()
     path_p = _encode_str(path)
@@ -139,6 +161,24 @@ def pool_create_from_genesis_file(path: Union[str, bytes]) -> PoolHandle:
 
 def pool_refresh(pool_handle: PoolHandle) -> asyncio.Future:
     return _do_call_async(LIB.indy_vdr_pool_refresh, pool_handle)
+
+
+def pool_submit_action(
+    pool_handle: PoolHandle,
+    request_handle: RequestHandle,
+    nodes: Sequence[str] = None,
+    timeout: int = None,
+) -> asyncio.Future:
+    nodes_p = _encode_json(nodes) if nodes else c_void_p()
+    timeout = c_int32(-1 if timeout is None else timeout)
+    return _do_call_async(
+        LIB.indy_vdr_pool_submit_action,
+        pool_handle,
+        request_handle,
+        nodes_p,
+        timeout,
+        return_type=lib_string,
+    )
 
 
 def pool_submit_request(

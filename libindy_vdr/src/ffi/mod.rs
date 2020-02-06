@@ -16,6 +16,7 @@ use ffi_support::{define_string_destructor, rust_string_to_c, FfiStr};
 mod macros;
 
 mod error;
+mod ledger;
 mod pool;
 mod requests;
 

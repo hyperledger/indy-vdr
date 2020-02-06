@@ -51,3 +51,27 @@ class CustomRequest(BaseRequest):
 
     def build(self):
         self.handle = bindings.build_custom_request(self.init_body)
+
+
+class GetTxnRequest(BaseRequest):
+    def __init__(self, ledger_type: int, seq_no: int, submitter_did: str = None):
+        super().__init__()
+        self.ledger_type = ledger_type
+        self.seq_no = seq_no
+        self.submitter_did = submitter_did
+        self.build()
+
+    def build(self):
+        self.handle = bindings.build_get_txn_request(
+            self.ledger_type, self.seq_no, self.submitter_did
+        )
+
+
+class GetValidatorInfoRequest(BaseRequest):
+    def __init__(self, submitter_did: str):
+        super().__init__()
+        self.submitter_did = submitter_did
+        self.build()
+
+    def build(self):
+        self.handle = bindings.build_get_validator_info_request(self.submitter_did)

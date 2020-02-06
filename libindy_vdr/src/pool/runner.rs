@@ -8,7 +8,7 @@ use futures::{select, FutureExt};
 
 use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
-use super::requests::{RequestResult, TimingResult};
+use super::requests::{RequestResult, RequestTarget, TimingResult};
 use super::{LocalPool, Pool};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -50,9 +50,10 @@ impl PoolRunner {
     pub fn send_request(
         &self,
         request: PreparedRequest,
+        target: Option<RequestTarget>,
         callback: SendReqCallback,
     ) -> VdrResult<()> {
-        self.send_event(PoolEvent::SendRequest(request, callback))
+        self.send_event(PoolEvent::SendRequest(request, target, callback))
     }
 
     fn send_event(&self, event: PoolEvent) -> VdrResult<()> {
@@ -102,7 +103,7 @@ type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 enum PoolEvent {
     GetTransactions(GetTxnsCallback),
     Refresh(RefreshCallback),
-    SendRequest(PreparedRequest, SendReqCallback),
+    SendRequest(PreparedRequest, Option<RequestTarget>, SendReqCallback),
 }
 
 struct PoolThread {
@@ -134,8 +135,8 @@ impl PoolThread {
                             let fut = _perform_refresh(&self.pool, callback);
                             futures.push(fut.boxed_local());
                         }
-                        Some(PoolEvent::SendRequest(request, callback)) => {
-                            let fut = _perform_ledger_request(&self.pool, request, callback);
+                        Some(PoolEvent::SendRequest(request, target, callback)) => {
+                            let fut = _perform_ledger_request(&self.pool, request, target, callback);
                             futures.push(fut.boxed_local());
                         }
                         None => { trace!("Pool runner sender dropped") }
@@ -169,8 +170,9 @@ async fn _perform_refresh(pool: &LocalPool, callback: RefreshCallback) {
 async fn _perform_ledger_request(
     pool: &LocalPool,
     request: PreparedRequest,
+    target: Option<RequestTarget>,
     callback: SendReqCallback,
 ) {
-    let result = perform_ledger_request(pool, request, None).await;
+    let result = perform_ledger_request(pool, request, target).await;
     callback(result);
 }

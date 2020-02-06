@@ -1,4 +1,5 @@
-from typing import List, Union
+import json
+from typing import Sequence, List, Union
 
 from . import bindings
 from .error import VdrError
@@ -10,9 +11,26 @@ class Pool:
         self.handle = None
         self.handle = bindings.pool_create_from_genesis_file(genesis_path)
 
+    async def submit_action(
+        self,
+        request: Union[str, bytes, dict, BaseRequest],
+        nodes: Sequence[str] = None,
+        timeout: int = None,
+    ) -> str:
+        if not isinstance(request, BaseRequest):
+            request = CustomRequest(request)
+        if not self.handle:
+            raise VdrError(None, "pool is closed")
+        if not request.handle:
+            raise VdrError(None, "no request handle")
+        fut = bindings.pool_submit_action(self.handle, request.handle, nodes, timeout)
+        request.handle = None  # request has been removed
+        result = await fut
+        return json.loads(result)
+
     async def submit_request(
         self, request: Union[str, bytes, dict, BaseRequest]
-    ) -> str:
+    ) -> dict:
         if not isinstance(request, BaseRequest):
             request = CustomRequest(request)
         if not self.handle:
@@ -21,7 +39,9 @@ class Pool:
             raise VdrError(None, "no request handle")
         fut = bindings.pool_submit_request(self.handle, request.handle)
         request.handle = None  # request has been removed
-        return await fut
+        result = await fut
+        # FIXME improve handling of bad request
+        return json.loads(result)["result"]
 
     async def get_transactions(self) -> List[str]:
         if not self.handle:
@@ -30,7 +50,7 @@ class Pool:
         return txns.split("\n")
 
     async def refresh(self):
-        print(await bindings.pool_refresh(self.handle))
+        return await bindings.pool_refresh(self.handle)
 
     def close(self):
         if self.handle:

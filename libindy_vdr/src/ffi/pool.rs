@@ -1,5 +1,7 @@
 use crate::common::error::prelude::*;
-use crate::pool::{PoolBuilder, PoolRunner, PoolTransactions, RequestResult};
+use crate::pool::{
+    PoolBuilder, PoolRunner, PoolTransactions, RequestResult, RequestTarget, TimingResult,
+};
 
 use std::collections::BTreeMap;
 use std::os::raw::c_char;
@@ -139,6 +141,57 @@ pub extern "C" fn indy_vdr_pool_get_transactions(
     }
 }
 
+fn handle_request_result(
+    result: VdrResult<(RequestResult<String>, Option<TimingResult>)>,
+) -> (ErrorCode, String) {
+    match result {
+        Ok((reply, _timing)) => match reply {
+            RequestResult::Reply(body) => (ErrorCode::Success, body),
+            RequestResult::Failed(err) => {
+                let code = ErrorCode::from(&err);
+                set_last_error(Some(err));
+                (code, String::new())
+            }
+        },
+        Err(err) => {
+            let code = ErrorCode::from(&err);
+            set_last_error(Some(err));
+            (code, String::new())
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_pool_submit_action(
+    pool_handle: usize,
+    request_handle: usize,
+    nodes: FfiStr, // optional
+    timeout: i32,  // -1 for default
+    cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Submit action: {} {} {:?} {}", pool_handle, request_handle, nodes, timeout);
+        let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
+        let pools = read_lock!(POOLS)?;
+        let pool = pools.get(&PoolHandle(pool_handle))
+            .ok_or_else(|| input_err("Unknown pool handle"))?;
+        let req = {
+            let mut reqs = write_lock!(REQUESTS)?;
+            reqs.remove(&RequestHandle(request_handle))
+                .ok_or_else(|| input_err("Unknown request handle"))?
+        };
+        let nodes = nodes.as_opt_str().map(serde_json::from_str::<Vec<String>>)
+            .transpose().with_input_err("Invalid JSON value for 'nodes'")?;
+        let timeout = if timeout == -1 { None } else { Some(timeout as i64) };
+        pool.send_request(req, Some(RequestTarget::Full(nodes, timeout)), Box::new(
+            move |result| {
+                let (errcode, reply) = handle_request_result(result);
+                cb(errcode, rust_string_to_c(reply))
+            }))?;
+        Ok(ErrorCode::Success)
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_submit_request(
     pool_handle: usize,
@@ -156,27 +209,9 @@ pub extern "C" fn indy_vdr_pool_submit_request(
             reqs.remove(&RequestHandle(request_handle))
                 .ok_or_else(|| input_err("Unknown request handle"))?
         };
-        pool.send_request(req, Box::new(
+        pool.send_request(req, None, Box::new(
             move |result| {
-                let (errcode, reply) = match result {
-                    Ok((reply, _timing)) => {
-                        match reply {
-                            RequestResult::Reply(body) => {
-                                (ErrorCode::Success, body)
-                            }
-                            RequestResult::Failed(err) => {
-                                let code = ErrorCode::from(&err);
-                                set_last_error(Some(err));
-                                (code, String::new())
-                            }
-                        }
-                    },
-                    Err(err) => {
-                        let code = ErrorCode::from(&err);
-                        set_last_error(Some(err));
-                        (code, String::new())
-                    }
-                };
+                let (errcode, reply) = handle_request_result(result);
                 cb(errcode, rust_string_to_c(reply))
             }))?;
         Ok(ErrorCode::Success)
