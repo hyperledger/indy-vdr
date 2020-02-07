@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     genesis_path = len(sys.argv) > 1 and sys.argv[1] or "genesis.txn"
 
-    pool = Pool(genesis_path="genesis.txn")
+    pool = Pool(genesis_path=genesis_path)
     log(f"Created pool: {pool}")
 
     test_req = {"operation": {"data": 1, "ledgerId": 1, "type": "3"}}
