@@ -14,6 +14,7 @@ use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
 use crate::ledger::PreparedRequest;
+use crate::utils::base58::ToBase58;
 
 pub struct PoolRunner {
     sender: Option<UnboundedSender<PoolEvent>>,
@@ -37,6 +38,10 @@ impl PoolRunner {
             sender: Some(sender),
             worker: Some(worker),
         }
+    }
+
+    pub fn get_status(&self, callback: GetStatusCallback) -> VdrResult<()> {
+        self.send_event(PoolEvent::GetStatus(callback))
     }
 
     pub fn get_transactions(&self, callback: GetTxnsCallback) -> VdrResult<()> {
@@ -88,6 +93,10 @@ impl Drop for PoolRunner {
     }
 }
 
+type GetStatusCallback = Box<dyn (FnOnce(GetStatusResponse) -> ()) + Send>;
+
+type GetStatusResponse = VdrResult<PoolStatus>;
+
 type GetTxnsCallback = Box<dyn (FnOnce(GetTxnsResponse) -> ()) + Send>;
 
 type GetTxnsResponse = VdrResult<Vec<String>>;
@@ -101,9 +110,24 @@ type SendReqCallback = Box<dyn (FnOnce(SendReqResponse) -> ()) + Send>;
 type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 enum PoolEvent {
+    GetStatus(GetStatusCallback),
     GetTransactions(GetTxnsCallback),
     Refresh(RefreshCallback),
     SendRequest(PreparedRequest, Option<RequestTarget>, SendReqCallback),
+}
+
+#[derive(Serialize)]
+pub struct PoolStatus {
+    pub mt_root: String,
+    pub mt_size: usize,
+}
+
+impl PoolStatus {
+    pub fn serialize(&self) -> VdrResult<String> {
+        Ok(serde_json::to_value(self)
+            .with_err_msg(VdrErrorKind::Unexpected, "Error serializing pool status")?
+            .to_string())
+    }
 }
 
 struct PoolThread {
@@ -127,6 +151,14 @@ impl PoolThread {
             select! {
                 recv_evt = receiver.next() => {
                     match recv_evt {
+                        Some(PoolEvent::GetStatus(callback)) => {
+                            let tree = self.pool.get_merkle_tree();
+                            let status = PoolStatus {
+                                mt_root: tree.root_hash().to_base58(),
+                                mt_size: tree.count()
+                            };
+                            callback(Ok(status));
+                        }
                         Some(PoolEvent::GetTransactions(callback)) => {
                             let txns = self.pool.get_transactions();
                             callback(txns);

@@ -42,6 +42,11 @@ class BaseRequest(ABC):
             bindings.request_free(self.handle)
             self.handle = None
 
+    def __repr__(self):
+        if not self.handle:
+            return f"{self.__class__.__name__}(freed)"
+        return super().__repr__(self)
+
 
 class CustomRequest(BaseRequest):
     def __init__(self, body: Union[str, bytes, dict]):

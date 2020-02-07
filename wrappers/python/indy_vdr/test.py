@@ -45,9 +45,9 @@ if __name__ == "__main__":
     sig_in = req.signature_input
     log("Custom request signature input:", sig_in)
 
-    print("Refresh pool..")
-    asyncio.get_event_loop().run_until_complete(pool.refresh())
-    print()
+    print("Refreshing pool")
+    status = asyncio.get_event_loop().run_until_complete(pool.refresh())
+    log("Pool status:", status)
 
     txn = asyncio.get_event_loop().run_until_complete(get_txn(pool, 11))
     log(json.dumps(txn, indent=2))

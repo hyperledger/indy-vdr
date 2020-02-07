@@ -113,6 +113,36 @@ pub extern "C" fn indy_vdr_pool_refresh(
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_pool_get_status(
+    pool_handle: usize,
+    cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Get pool status: {}", pool_handle);
+        let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
+        let pools = read_lock!(POOLS)?;
+        let pool = pools.get(&PoolHandle(pool_handle))
+            .ok_or_else(|| input_err("Unknown pool handle"))?;
+        pool.get_status(Box::new(
+            move |result| {
+                let (errcode, reply) = match result {
+                    Ok(status) => {
+                        let status = status.serialize().unwrap();
+                        (ErrorCode::Success, status)
+                    },
+                    Err(err) => {
+                        let code = ErrorCode::from(&err);
+                        set_last_error(Some(err));
+                        (code, String::new())
+                    }
+                };
+                cb(errcode, rust_string_to_c(reply))
+            }))?;
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_transactions(
     pool_handle: usize,
     cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,

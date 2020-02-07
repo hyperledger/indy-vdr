@@ -1,6 +1,6 @@
 macro_rules! catch_err {
     ($($e:tt)*) => {
-        match (std::panic::catch_unwind(|| -> VdrResult<_> {$($e)*})) {
+        match std::panic::catch_unwind(|| -> VdrResult<_> {$($e)*}) {
             Ok(Ok(a)) => a,
             Ok(Err(err)) => { // vdr error
                 let code = ErrorCode::from(&err);

@@ -159,6 +159,12 @@ def pool_create_from_genesis_file(path: Union[str, bytes]) -> PoolHandle:
     return handle
 
 
+def pool_get_status(pool_handle: PoolHandle) -> asyncio.Future:
+    return _do_call_async(
+        LIB.indy_vdr_pool_get_status, pool_handle, return_type=lib_string
+    )
+
+
 def pool_refresh(pool_handle: PoolHandle) -> asyncio.Future:
     return _do_call_async(LIB.indy_vdr_pool_refresh, pool_handle)
 
