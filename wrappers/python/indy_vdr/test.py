@@ -3,7 +3,14 @@ import json
 import sys
 
 from .bindings import get_version
-from .ledger import CustomRequest, GetTxnRequest, GetValidatorInfoRequest, LedgerType
+from .ledger import (
+    build_custom_request,
+    build_get_txn_request,
+    build_get_acceptance_mechanisms_request,
+    build_get_txn_author_agreement_request,
+    build_get_validator_info_request,
+    LedgerType,
+)
 from .pool import Pool
 
 
@@ -11,13 +18,13 @@ def log(*args):
     print(*args, "\n")
 
 
-async def get_pool_txns():
+async def get_pool_txns(pool: Pool):
     for txn in await pool.get_transactions():
         print(txn)
 
 
 async def get_txn(pool: Pool, seq_no: int):
-    req = GetTxnRequest(LedgerType.DOMAIN, seq_no)
+    req = build_get_txn_request(LedgerType.DOMAIN, seq_no)
     return await pool.submit_request(req)
 
 
@@ -26,8 +33,36 @@ async def get_txn_range(pool: Pool, seq_nos):
 
 
 async def get_validator_info(pool: Pool):
-    req = GetValidatorInfoRequest("V4SGRU86Z58d6TV7PBUe6f")
+    req = build_get_validator_info_request("V4SGRU86Z58d6TV7PBUe6f")
     return await pool.submit_action(req)
+
+
+async def basic_test(genesis_path):
+    pool = Pool(genesis_path=genesis_path)
+    log(f"Created pool: {pool}")
+
+    test_req = {"operation": {"data": 1, "ledgerId": 1, "type": "3"}}
+    req = build_custom_request(test_req)
+    log("Custom request body:", req.body)
+
+    sig_in = req.signature_input
+    log("Custom request signature input:", sig_in)
+
+    print("Refreshing pool")
+    status = await pool.refresh()
+    log("Pool status:", status)
+
+    req = build_get_txn_author_agreement_request()
+    log(await pool.submit_request(req))
+
+    req = build_get_acceptance_mechanisms_request()
+    log(await pool.submit_request(req))
+
+    # req = build_disable_all_txn_author_agreements_request("V4SGRU86Z58d6TV7PBUe6f")
+    # log(await pool.submit_request(req))
+
+    txn = await get_txn(pool, 11)
+    log(json.dumps(txn, indent=2))
 
 
 if __name__ == "__main__":
@@ -35,19 +70,4 @@ if __name__ == "__main__":
 
     genesis_path = len(sys.argv) > 1 and sys.argv[1] or "genesis.txn"
 
-    pool = Pool(genesis_path=genesis_path)
-    log(f"Created pool: {pool}")
-
-    test_req = {"operation": {"data": 1, "ledgerId": 1, "type": "3"}}
-    req = CustomRequest(test_req)
-    log("Custom request body:", req.body)
-
-    sig_in = req.signature_input
-    log("Custom request signature input:", sig_in)
-
-    print("Refreshing pool")
-    status = asyncio.get_event_loop().run_until_complete(pool.refresh())
-    log("Pool status:", status)
-
-    txn = asyncio.get_event_loop().run_until_complete(get_txn(pool, 11))
-    log(json.dumps(txn, indent=2))
+    asyncio.get_event_loop().run_until_complete(basic_test(genesis_path))

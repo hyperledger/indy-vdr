@@ -2,8 +2,8 @@ import json
 from typing import Sequence, List, Union
 
 from . import bindings
-from .error import VdrError
-from .ledger import BaseRequest, CustomRequest
+from .error import VdrError, VdrErrorCode
+from .ledger import Request, build_custom_request
 
 
 class Pool:
@@ -18,13 +18,13 @@ class Pool:
 
     async def get_status(self) -> dict:
         if not self.handle:
-            raise VdrError(None, "pool is closed")
+            raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
         result = await bindings.pool_get_status(self.handle)
         return json.loads(result)
 
     async def get_transactions(self) -> List[str]:
         if not self.handle:
-            raise VdrError(None, "pool is closed")
+            raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
         txns = await bindings.pool_get_transactions(self.handle)
         return txns.split("\n")
 
@@ -34,30 +34,28 @@ class Pool:
 
     async def submit_action(
         self,
-        request: Union[str, bytes, dict, BaseRequest],
+        request: Union[str, bytes, dict, Request],
         nodes: Sequence[str] = None,
         timeout: int = None,
     ) -> str:
-        if not isinstance(request, BaseRequest):
-            request = CustomRequest(request)
+        if not isinstance(request, Request):
+            request = build_custom_request(request)
         if not self.handle:
-            raise VdrError(None, "pool is closed")
+            raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
         if not request.handle:
-            raise VdrError(None, "no request handle")
+            raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
         fut = bindings.pool_submit_action(self.handle, request.handle, nodes, timeout)
         request.handle = None  # request has been removed
         result = await fut
         return json.loads(result)
 
-    async def submit_request(
-        self, request: Union[str, bytes, dict, BaseRequest]
-    ) -> dict:
-        if not isinstance(request, BaseRequest):
-            request = CustomRequest(request)
+    async def submit_request(self, request: Union[str, bytes, dict, Request]) -> dict:
+        if not isinstance(request, Request):
+            request = build_custom_request(request)
         if not self.handle:
-            raise VdrError(None, "pool is closed")
+            raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
         if not request.handle:
-            raise VdrError(None, "no request handle")
+            raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
         fut = bindings.pool_submit_request(self.handle, request.handle)
         request.handle = None  # request has been removed
         result = await fut

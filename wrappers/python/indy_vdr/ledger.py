@@ -1,9 +1,8 @@
-from abc import ABC, abstractmethod
 from enum import IntEnum
-from typing import Union
+from typing import Optional, Union
 
 from . import bindings
-from .error import VdrError
+from .error import VdrError, VdrErrorCode
 
 
 class LedgerType(IntEnum):
@@ -12,29 +11,25 @@ class LedgerType(IntEnum):
     CONFIG = 2
 
 
-class BaseRequest(ABC):
-    def __init__(self):
-        self.handle: bindings.RequestHandle = None
-
-    @abstractmethod
-    def build(self):
-        raise NotImplementedError()
+class Request:
+    def __init__(self, handle: bindings.RequestHandle):
+        self.handle = handle
 
     @property
     def body(self):
         if not self.handle:
-            raise VdrError(None, "no request handle")
+            raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
         return bindings.request_get_body(self.handle)
 
     @property
     def signature_input(self):
         if not self.handle:
-            raise VdrError(None, "no request handle")
+            raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
         return bindings.request_get_signature_input(self.handle)
 
     def set_signature(self, signature: bytes):
         if not self.handle:
-            raise VdrError(None, "no request handle")
+            raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
         return bindings.request_set_signature(self.handle, signature)
 
     def __del__(self):
@@ -48,35 +43,78 @@ class BaseRequest(ABC):
         return super().__repr__(self)
 
 
-class CustomRequest(BaseRequest):
-    def __init__(self, body: Union[str, bytes, dict]):
-        super().__init__()
-        self.init_body = body
-        self.build()
-
-    def build(self):
-        self.handle = bindings.build_custom_request(self.init_body)
-
-
-class GetTxnRequest(BaseRequest):
-    def __init__(self, ledger_type: int, seq_no: int, submitter_did: str = None):
-        super().__init__()
-        self.ledger_type = ledger_type
-        self.seq_no = seq_no
-        self.submitter_did = submitter_did
-        self.build()
-
-    def build(self):
-        self.handle = bindings.build_get_txn_request(
-            self.ledger_type, self.seq_no, self.submitter_did
+async def build_acceptance_mechanisms_request(
+    submitter_did: str,
+    aml: Union[str, bytes, dict],
+    version: str,
+    aml_context: str = None,
+) -> Request:
+    return Request(
+        bindings.build_acceptance_mechanisms_request(
+            submitter_did, aml, version, aml_context
         )
+    )
 
 
-class GetValidatorInfoRequest(BaseRequest):
-    def __init__(self, submitter_did: str):
-        super().__init__()
-        self.submitter_did = submitter_did
-        self.build()
+def build_custom_request(body: Union[str, bytes, dict]) -> Request:
+    return Request(bindings.build_custom_request(body))
 
-    def build(self):
-        self.handle = bindings.build_get_validator_info_request(self.submitter_did)
+
+def build_disable_all_txn_author_agreements_request(submitter_did: str) -> Request:
+    return Request(
+        bindings.build_disable_all_txn_author_agreements_request(submitter_did)
+    )
+
+
+def build_get_acceptance_mechanisms_request(
+    timestamp: int = None, version: str = None, submitter_did: str = None
+) -> Request:
+    return Request(
+        bindings.build_get_acceptance_mechanisms_request(
+            submitter_did, timestamp, version
+        )
+    )
+
+
+def build_get_nym_request(nym: str, submitter_did: str = None) -> Request:
+    return Request(bindings.build_get_nym_request(submitter_did, nym))
+
+
+def build_get_txn_author_agreement_request(
+    data: Union[bytes, str, dict] = None, submitter_did: str = None
+) -> Request:
+    return Request(bindings.build_get_txn_author_agreement_request(submitter_did, data))
+
+
+def build_get_txn_request(
+    ledger_type: int, seq_no: int, submitter_did: str = None
+) -> Request:
+    return Request(bindings.build_get_txn_request(submitter_did, ledger_type, seq_no))
+
+
+def build_get_validator_info_request(submitter_did: str) -> Request:
+    return Request(bindings.build_get_validator_info_request(submitter_did))
+
+
+def build_nym_request(
+    submitter_did: str,
+    nym: str,
+    verkey: str = None,
+    alias: str = None,
+    role: str = None,
+) -> Request:
+    return Request(bindings.build_nym_request(submitter_did, nym, verkey, alias, role))
+
+
+def build_txn_author_agreement_request(
+    submitter_did: str,
+    text: Optional[str],
+    version: str,
+    ratification_ts: int = None,
+    retirement_ts: int = None,
+) -> Request:
+    return Request(
+        bindings.build_txn_author_agreement_request(
+            submitter_did, text, version, ratification_ts, retirement_ts
+        )
+    )
