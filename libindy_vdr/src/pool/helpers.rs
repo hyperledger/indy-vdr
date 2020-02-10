@@ -106,7 +106,7 @@ pub async fn perform_get_txn<T: Pool>(
     seq_no: i32,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     let builder = pool.get_request_builder();
-    let prepared = builder.build_get_txn_request(ledger_type, seq_no, None)?;
+    let prepared = builder.build_get_txn_request(None, ledger_type, seq_no)?;
     perform_ledger_request(pool, prepared, None).await
 }
 

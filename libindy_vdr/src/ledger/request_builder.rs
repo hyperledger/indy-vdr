@@ -239,9 +239,9 @@ impl RequestBuilder {
 
     pub fn build_get_txn_request(
         &self,
+        identifier: Option<&DidValue>,
         ledger_type: i32,
         seq_no: i32,
-        identifier: Option<&DidValue>,
     ) -> VdrResult<PreparedRequest> {
         if seq_no <= 0 {
             return Err(input_err("Transaction number must be > 0"));
@@ -367,11 +367,13 @@ impl RequestBuilder {
     pub fn build_txn_author_agreement_request(
         &self,
         identifier: &DidValue,
-        text: String,
+        text: Option<String>,
         version: String,
+        ratification_ts: Option<u64>,
+        retirement_ts: Option<u64>,
     ) -> VdrResult<PreparedRequest> {
         self.build(
-            TxnAuthorAgreementOperation::new(text, version),
+            TxnAuthorAgreementOperation::new(text, version, ratification_ts, retirement_ts),
             Some(identifier),
         )
     }
@@ -382,6 +384,16 @@ impl RequestBuilder {
         data: Option<&GetTxnAuthorAgreementData>,
     ) -> VdrResult<PreparedRequest> {
         self.build(GetTxnAuthorAgreementOperation::new(data), identifier)
+    }
+
+    pub fn build_disable_all_txn_author_agreements_request(
+        &self,
+        identifier: &DidValue,
+    ) -> VdrResult<PreparedRequest> {
+        self.build(
+            DisableAllTxnAuthorAgreementsOperation::new(),
+            Some(identifier),
+        )
     }
 
     pub fn build_acceptance_mechanisms_request(

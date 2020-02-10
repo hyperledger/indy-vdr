@@ -4,7 +4,8 @@ use crate::common::error::prelude::*;
 use crate::utils::validation::Validatable;
 
 use super::constants::{
-    GET_TXN_AUTHR_AGRMT, GET_TXN_AUTHR_AGRMT_AML, TXN_AUTHR_AGRMT, TXN_AUTHR_AGRMT_AML,
+    DISABLE_ALL_TXN_AUTHR_AGRMTS, GET_TXN_AUTHR_AGRMT, GET_TXN_AUTHR_AGRMT_AML, TXN_AUTHR_AGRMT,
+    TXN_AUTHR_AGRMT_AML,
 };
 use super::{ProtocolVersion, RequestType};
 
@@ -12,16 +13,28 @@ use super::{ProtocolVersion, RequestType};
 pub struct TxnAuthorAgreementOperation {
     #[serde(rename = "type")]
     _type: String,
-    text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<String>,
     version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ratification_ts: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    retirement_ts: Option<u64>,
 }
 
 impl TxnAuthorAgreementOperation {
-    pub fn new(text: String, version: String) -> TxnAuthorAgreementOperation {
+    pub fn new(
+        text: Option<String>,
+        version: String,
+        ratification_ts: Option<u64>,
+        retirement_ts: Option<u64>,
+    ) -> TxnAuthorAgreementOperation {
         TxnAuthorAgreementOperation {
             _type: Self::get_txn_type().to_string(),
             text,
             version,
+            ratification_ts,
+            retirement_ts,
         }
     }
 }
@@ -193,5 +206,25 @@ impl RequestType for GetAcceptanceMechanismOperation {
 
     fn get_sp_timestamps(&self) -> VdrResult<(Option<u64>, Option<u64>)> {
         Ok((None, self.timestamp))
+    }
+}
+
+#[derive(Serialize, PartialEq, Debug)]
+pub struct DisableAllTxnAuthorAgreementsOperation {
+    #[serde(rename = "type")]
+    _type: String,
+}
+
+impl DisableAllTxnAuthorAgreementsOperation {
+    pub fn new() -> Self {
+        Self {
+            _type: Self::get_txn_type().to_string(),
+        }
+    }
+}
+
+impl RequestType for DisableAllTxnAuthorAgreementsOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        DISABLE_ALL_TXN_AUTHR_AGRMTS
     }
 }

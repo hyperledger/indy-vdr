@@ -5,6 +5,7 @@ pub const TXN_AUTHR_AGRMT: &str = "4"; // TODO Use nonabbreviated names as in up
 pub const TXN_AUTHR_AGRMT_AML: &str = "5";
 pub const GET_TXN_AUTHR_AGRMT: &str = "6";
 pub const GET_TXN_AUTHR_AGRMT_AML: &str = "7";
+pub const DISABLE_ALL_TXN_AUTHR_AGRMTS: &str = "8";
 pub const ATTRIB: &str = "100";
 pub const SCHEMA: &str = "101";
 pub const CRED_DEF: &str = "102";
@@ -25,7 +26,7 @@ pub const AUTH_RULE: &str = "120";
 pub const GET_AUTH_RULE: &str = "121";
 pub const AUTH_RULES: &str = "122";
 
-pub const REQUESTS: [&str; 24] = [
+pub const REQUESTS: [&str; 25] = [
     NODE,
     NYM,
     GET_TXN,
@@ -50,6 +51,7 @@ pub const REQUESTS: [&str; 24] = [
     TXN_AUTHR_AGRMT_AML,
     GET_TXN_AUTHR_AGRMT,
     GET_TXN_AUTHR_AGRMT_AML,
+    DISABLE_ALL_TXN_AUTHR_AGRMTS,
 ];
 
 // likely matches REQUESTS_FOR_STATE_PROOFS
@@ -105,6 +107,7 @@ pub fn txn_name_to_code(txn: &str) -> Option<&str> {
         "TXN_AUTHR_AGRMT_AML" => Some(TXN_AUTHR_AGRMT_AML),
         "GET_TXN_AUTHR_AGRMT" => Some(GET_TXN_AUTHR_AGRMT),
         "GET_TXN_AUTHR_AGRMT_AML" => Some(GET_TXN_AUTHR_AGRMT_AML),
+        "DISABLE_ALL_TXN_AUTHR_AGRMTS" => Some(DISABLE_ALL_TXN_AUTHR_AGRMTS),
         val => Some(val),
     }
 }
