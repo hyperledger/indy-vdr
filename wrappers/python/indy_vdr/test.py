@@ -24,7 +24,7 @@ async def get_pool_txns(pool: Pool):
 
 
 async def get_txn(pool: Pool, seq_no: int):
-    req = build_get_txn_request(LedgerType.DOMAIN, seq_no)
+    req = build_get_txn_request(None, LedgerType.DOMAIN, seq_no)
     return await pool.submit_request(req)
 
 

@@ -12,7 +12,7 @@ class Pool:
         self.handle = bindings.pool_create_from_genesis_file(genesis_path)
 
     def close(self):
-        if self.handle:
+        if hasattr(self, "handle") and self.handle:
             bindings.pool_close(self.handle)
             self.handle = None
 

@@ -1,6 +1,13 @@
+from .bindings import set_config, set_protocol_version
 from .error import VdrError, VdrErrorCode
+from .pool import Pool
+from .request import Request
 
-__all__ = ["VdrError", "VdrErrorCode"]
-
-# Note: 'bindings' is not imported here
-# this allows VdrError to be caught if an library import error occurs later
+__all__ = [
+    "set_config",
+    "set_protocol_version",
+    "Pool",
+    "Request",
+    "VdrError",
+    "VdrErrorCode",
+]

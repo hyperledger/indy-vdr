@@ -73,14 +73,16 @@ RUN echo "$HOME/.local/lib" > /etc/ld.so.conf.d/local.conf && ldconfig
 #   under random UID.
 RUN usermod -a -G 0 indy
 
+USER $user
+
 # Create standard directories to allow volume mounting and set permissions
 # Note: PIP_NO_CACHE_DIR environment variable should be cleared to allow caching
 RUN mkdir -p \
         $HOME/.cache/pip/http \
-        $HOME/log
-RUN chmod -R ug+rw $HOME/.cache $HOME/log
-
-USER $user
+        $HOME/log && \
+    touch $HOME/genesis.txn && \
+    chown -R indy:indy $HOME/.cache $HOME/log genesis.txn && \
+    chmod -R ug+rw $HOME/.cache $HOME/log genesis.txn
 
 COPY --chown=indy:indy wrappers/python/* wrapper/
 
@@ -88,8 +90,5 @@ RUN pip3 install -e wrapper
 
 ENV RUST_LOG=${RUST_LOG:-debug}
 ENV RUST_BACKTRACE=full
-
-ARG GENESIS_PATH=genesis.txn
-ADD $GENESIS_PATH genesis.txn
 
 CMD python3 -m indy_vdr.test
