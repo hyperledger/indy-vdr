@@ -1,48 +1,15 @@
-use curve25519_dalek::edwards::CompressedEdwardsY;
-pub use ed25519_dalek::{ExpandedSecretKey, Keypair, PublicKey, SecretKey};
-use rand::rngs::OsRng;
+use ursa::keys::PublicKey;
+use ursa::signatures::ed25519::Ed25519Sha512;
 
 use crate::common::error::prelude::*;
 
 pub const CRYPTO_TYPE_ED25519: &str = "ed25519";
 pub const DEFAULT_CRYPTO_TYPE: &str = CRYPTO_TYPE_ED25519;
 
-#[allow(dead_code)]
-pub fn gen_keypair() -> VdrResult<Keypair> {
-    let mut csprng = OsRng {};
-    Ok(Keypair::generate(&mut csprng))
-}
-
-pub fn import_verkey(vk: &[u8]) -> VdrResult<PublicKey> {
-    PublicKey::from_bytes(&vk).map_err(|err| input_err(format!("Error decoding verkey: {}", err)))
-}
-
-pub fn import_keypair(secret: &[u8]) -> VdrResult<Keypair> {
-    let sk = SecretKey::from_bytes(&secret)
-        .map_err(|err| input_err(format!("Error decoding verkey: {}", err)))?;
-    let pk: PublicKey = (&sk).into();
-    Ok(Keypair {
-        secret: sk,
-        public: pk,
-    })
-}
-
-pub fn vk_to_curve25519(vk: PublicKey) -> VdrResult<Vec<u8>> {
-    let edw = CompressedEdwardsY::from_slice(&vk.to_bytes())
-        .decompress()
-        .ok_or(input_err("Error loading public key"))?;
-    Ok(edw.to_montgomery().to_bytes().to_vec())
-}
-
-#[allow(dead_code)]
-pub fn sk_to_curve25519(sk: SecretKey) -> VdrResult<Vec<u8>> {
-    let edw = CompressedEdwardsY::from_slice(&sk.to_bytes())
-        .decompress()
-        .ok_or(input_err("Error loading secret key"))?;
-    Ok(edw.to_montgomery().to_bytes().to_vec())
-}
-
-pub fn sign_message(keypair: Keypair, message: &[u8]) -> Vec<u8> {
-    let signature = keypair.sign(message);
-    signature.to_bytes().to_vec()
+pub fn vk_to_curve25519(vk: &[u8]) -> VdrResult<Vec<u8>> {
+    let vk = PublicKey(vk.to_vec());
+    Ok(Ed25519Sha512::ver_key_to_key_exchange(&vk)
+        .map_err(|err| input_err(format!("Error converting to curve25519 key: {}", err)))?
+        .0
+        .clone())
 }

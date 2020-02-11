@@ -242,14 +242,12 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 )
             })?;
 
-            let enc_key = crypto::import_verkey(&verkey_bin)
-                .and_then(|vk| crypto::vk_to_curve25519(vk))
-                .map_input_err(|| {
-                    format!(
-                        "Node '{}' has invalid field 'dest': key not accepted",
-                        node_alias
-                    )
-                })?;
+            let enc_key = crypto::vk_to_curve25519(&verkey_bin).map_input_err(|| {
+                format!(
+                    "Node '{}' has invalid field 'dest': key not accepted",
+                    node_alias
+                )
+            })?;
 
             let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
                 (&Some(ref client_ip), &Some(ref client_port)) => {

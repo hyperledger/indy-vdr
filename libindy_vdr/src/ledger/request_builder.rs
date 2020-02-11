@@ -9,7 +9,6 @@ use crate::state_proof::{
     parse_timestamp_from_req_for_builtin_sp,
 };
 use crate::utils::base58::ToBase58;
-use crate::utils::crypto::{import_keypair, sign_message};
 use crate::utils::hash::{digest, Sha256};
 use crate::utils::signature::serialize_signature;
 
@@ -98,13 +97,6 @@ impl PreparedRequest {
 
     pub fn get_signature_input(&self) -> VdrResult<String> {
         serialize_signature(&self.req_json)
-    }
-
-    pub fn sign(&mut self, secret: &[u8]) -> VdrResult<()> {
-        let keypair = import_keypair(&secret)?;
-        let input = self.get_signature_input()?;
-        let sig = sign_message(keypair, input.as_bytes());
-        self.set_signature(&sig)
     }
 
     pub fn set_signature(&mut self, signature: &[u8]) -> VdrResult<()> {
