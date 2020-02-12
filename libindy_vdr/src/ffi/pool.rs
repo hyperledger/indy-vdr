@@ -60,8 +60,8 @@ fn handle_pool_refresh(
         let pool = builder.transactions(txns)?.into_runner()?;
         let mut pools = write_lock!(POOLS)?;
         if !pools.contains_key(&pool_handle) {
-            let error = (VdrErrorKind::Unexpected, "Pool was freed before refresh completed").into();
-            let code = ErrorCode::from(&error);
+            let error: VdrError = (VdrErrorKind::Unexpected, "Pool was freed before refresh completed").into();
+            let code = ErrorCode::from(error.kind());
             set_last_error(Some(error));
             Ok(code)
         } else {
@@ -101,7 +101,7 @@ pub extern "C" fn indy_vdr_pool_refresh(
                         }
                     },
                     Err(err) => {
-                        let code = ErrorCode::from(&err);
+                        let code = ErrorCode::from(err.kind());
                         set_last_error(Some(err));
                         code
                     }
@@ -131,7 +131,7 @@ pub extern "C" fn indy_vdr_pool_get_status(
                         (ErrorCode::Success, status)
                     },
                     Err(err) => {
-                        let code = ErrorCode::from(&err);
+                        let code = ErrorCode::from(err.kind());
                         set_last_error(Some(err));
                         (code, String::new())
                     }
@@ -160,7 +160,7 @@ pub extern "C" fn indy_vdr_pool_get_transactions(
                         (ErrorCode::Success, txns.join("\n"))
                     },
                     Err(err) => {
-                        let code = ErrorCode::from(&err);
+                        let code = ErrorCode::from(err.kind());
                         set_last_error(Some(err));
                         (code, String::new())
                     }
@@ -178,13 +178,13 @@ fn handle_request_result(
         Ok((reply, _timing)) => match reply {
             RequestResult::Reply(body) => (ErrorCode::Success, body),
             RequestResult::Failed(err) => {
-                let code = ErrorCode::from(&err);
+                let code = ErrorCode::from(err.kind());
                 set_last_error(Some(err));
                 (code, String::new())
             }
         },
         Err(err) => {
-            let code = ErrorCode::from(&err);
+            let code = ErrorCode::from(err.kind());
             set_last_error(Some(err));
             (code, String::new())
         }

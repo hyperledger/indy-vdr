@@ -13,12 +13,32 @@ lazy_static! {
 #[repr(usize)]
 pub enum ErrorCode {
     Success = 0,
-    Failed = 1,
+    Config = 1,
+    Connection = 2,
+    FileSystem = 3,
+    Input = 4,
+    Resource = 5,
+    Unavailable = 6,
+    Unexpected = 7,
+    PoolNoConsensus = 30,
+    PoolRequestFailed = 31,
+    PoolTimeout = 32,
 }
 
-impl From<&VdrError> for ErrorCode {
-    fn from(_err: &VdrError) -> ErrorCode {
-        ErrorCode::Failed
+impl From<&VdrErrorKind> for ErrorCode {
+    fn from(kind: &VdrErrorKind) -> ErrorCode {
+        match kind {
+            VdrErrorKind::Config => ErrorCode::Config,
+            VdrErrorKind::Connection => ErrorCode::Connection,
+            VdrErrorKind::FileSystem(_) => ErrorCode::FileSystem,
+            VdrErrorKind::Input => ErrorCode::Input,
+            VdrErrorKind::Resource => ErrorCode::Resource,
+            VdrErrorKind::Unavailable => ErrorCode::Unavailable,
+            VdrErrorKind::Unexpected => ErrorCode::Unexpected,
+            VdrErrorKind::PoolNoConsensus => ErrorCode::PoolNoConsensus,
+            VdrErrorKind::PoolRequestFailed(_) => ErrorCode::PoolRequestFailed,
+            VdrErrorKind::PoolTimeout => ErrorCode::PoolTimeout,
+        }
     }
 }
 
@@ -26,7 +46,7 @@ impl<T> From<VdrResult<T>> for ErrorCode {
     fn from(result: VdrResult<T>) -> ErrorCode {
         match result {
             Ok(_) => ErrorCode::Success,
-            Err(ref err) => ErrorCode::from(err),
+            Err(err) => ErrorCode::from(err.kind()),
         }
     }
 }
@@ -44,7 +64,7 @@ pub extern "C" fn indy_vdr_get_current_error(error_json_p: *mut *const c_char) -
 pub fn get_current_error_json() -> String {
     if let Some(err) = LAST_ERROR.write().unwrap().take() {
         let message = err.to_string();
-        let code = ErrorCode::from(&err) as usize;
+        let code = ErrorCode::from(err.kind()) as usize;
         let extra = err.extra();
         json!({"code": code, "message": message, "extra": extra}).to_string()
     } else {

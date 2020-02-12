@@ -2,7 +2,7 @@ from ctypes import byref, c_int32, c_int64
 from enum import IntEnum
 from typing import Optional, Union
 
-from .bindings import RequestHandle, do_call, encode_str, encode_json
+from .bindings import RequestHandle, do_call, encode_json, encode_str
 from .request import Request
 
 
@@ -11,8 +11,21 @@ class LedgerType(IntEnum):
     DOMAIN = 1
     CONFIG = 2
 
+    @classmethod
+    def from_value(cls, val: [int, str, "LedgerType"]) -> "LedgerType":
+        if isinstance(val, str):
+            if val.isdigit():
+                return cls(int(val))
+            else:
+                return cls[val.upper()]
+        elif isinstance(val, int):
+            return cls(val)
+        elif isinstance(val, LedgerType):
+            return val
+        raise TypeError
 
-async def build_acceptance_mechanisms_request(
+
+def build_acceptance_mechanisms_request(
     submitter_did: str,
     aml: Union[str, bytes, dict],
     version: str,
@@ -24,7 +37,7 @@ async def build_acceptance_mechanisms_request(
     version_p = encode_str(version)
     aml_context_p = encode_str(aml_context)
     do_call(
-        "indy_vdr_build_get_acceptance_mechanisms_request",
+        "indy_vdr_build_acceptance_mechanisms_request",
         did_p,
         aml_p,
         version_p,
@@ -92,10 +105,11 @@ def build_get_txn_author_agreement_request(
 
 
 def build_get_txn_request(
-    submitter_did: Optional[str], ledger_type: int, seq_no: int
+    submitter_did: Optional[str], ledger_type: [int, str, LedgerType], seq_no: int
 ) -> Request:
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
+    ledger_type = LedgerType.from_value(ledger_type)
     do_call(
         "indy_vdr_build_get_txn_request",
         did_p,
@@ -106,7 +120,7 @@ def build_get_txn_request(
     return Request(handle)
 
 
-def build_get_validator_info_request(submitter_did: str) -> RequestHandle:
+def build_get_validator_info_request(submitter_did: str) -> Request:
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     do_call("indy_vdr_build_get_validator_info_request", did_p, byref(handle))

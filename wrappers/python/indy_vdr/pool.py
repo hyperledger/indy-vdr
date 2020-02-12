@@ -1,5 +1,5 @@
 import json
-from typing import Sequence, List, Union
+from typing import Sequence, Union
 
 from . import bindings
 from .error import VdrError, VdrErrorCode
@@ -22,11 +22,10 @@ class Pool:
         result = await bindings.pool_get_status(self.handle)
         return json.loads(result)
 
-    async def get_transactions(self) -> List[str]:
+    async def get_transactions(self) -> str:
         if not self.handle:
             raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
-        txns = await bindings.pool_get_transactions(self.handle)
-        return txns.split("\n")
+        return await bindings.pool_get_transactions(self.handle)
 
     async def refresh(self) -> dict:
         await bindings.pool_refresh(self.handle)

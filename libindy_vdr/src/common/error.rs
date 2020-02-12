@@ -24,25 +24,25 @@ pub enum VdrErrorKind {
     // General errors
     #[error("Configuration error")]
     Config,
-    #[error("Unexpected error")]
-    Unexpected,
-    #[error("Input error")]
-    Input,
-    #[error("File system error: {0}")]
-    FileSystem(std::io::Error),
     #[error("Connection error")]
     Connection,
+    #[error("File system error: {0}")]
+    FileSystem(std::io::Error),
+    #[error("Input error")]
+    Input,
     #[error("Resource error")]
     Resource,
+    #[error("Service unavailable")]
+    Unavailable,
+    #[error("Unexpected error")]
+    Unexpected,
     // Transaction errors
     #[error("No consensus from verifiers")]
     PoolNoConsensus,
-    #[error("Pool timeout")]
-    PoolTimeout,
     #[error("Request failed: {}", pool_request_failed_reason(.0))]
     PoolRequestFailed(String),
-    #[error("Unavailable")]
-    Unavailable,
+    #[error("Pool timeout")]
+    PoolTimeout,
 }
 
 impl VdrError {
@@ -54,11 +54,11 @@ impl VdrError {
         Self { kind, msg, source }
     }
 
-    pub fn kind(self) -> VdrErrorKind {
-        self.kind
+    pub fn kind<'a>(&'a self) -> &'a VdrErrorKind {
+        &self.kind
     }
 
-    pub fn extra(self) -> Option<String> {
+    pub fn extra(&self) -> Option<String> {
         match self.kind {
             VdrErrorKind::PoolRequestFailed(ref response) => Some(response.clone()),
             _ => None,
@@ -78,6 +78,12 @@ impl fmt::Display for VdrError {
             write!(f, "\n{}", source)?;
         }
         Ok(())
+    }
+}
+
+impl From<VdrError> for VdrErrorKind {
+    fn from(error: VdrError) -> VdrErrorKind {
+        error.kind
     }
 }
 
