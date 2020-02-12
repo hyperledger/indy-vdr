@@ -32,6 +32,7 @@ pub trait Pool: Clone {
         req_json: String,
     ) -> LocalBoxFuture<'a, VdrResult<Self::Request>>;
     fn get_merkle_tree(&self) -> &MerkleTree;
+    fn get_node_aliases(&self) -> Vec<String>;
 
     fn get_merkle_tree_root(&self) -> (String, usize) {
         let tree = self.get_merkle_tree();
@@ -115,6 +116,10 @@ where
 
     fn get_merkle_tree(&self) -> &MerkleTree {
         &self.setup.as_ref().merkle_tree
+    }
+
+    fn get_node_aliases(&self) -> Vec<String> {
+        self.setup.as_ref().verifiers.keys().cloned().collect()
     }
 }
 

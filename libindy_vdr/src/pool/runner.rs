@@ -120,6 +120,7 @@ enum PoolEvent {
 pub struct PoolStatus {
     pub mt_root: String,
     pub mt_size: usize,
+    pub nodes: Vec<String>,
 }
 
 impl PoolStatus {
@@ -155,7 +156,8 @@ impl PoolThread {
                             let tree = self.pool.get_merkle_tree();
                             let status = PoolStatus {
                                 mt_root: tree.root_hash().to_base58(),
-                                mt_size: tree.count()
+                                mt_size: tree.count(),
+                                nodes: self.pool.get_node_aliases(),
                             };
                             callback(Ok(status));
                         }

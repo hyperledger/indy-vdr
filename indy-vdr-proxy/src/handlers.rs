@@ -61,7 +61,7 @@ fn format_result<T: std::fmt::Debug>(result: VdrResult<(String, T)>) -> VdrResul
 
 fn format_ledger_error(err: VdrError) -> Result<Response<Body>, hyper::Error> {
     let msg = err.to_string();
-    let (errcode, msg) = match err.kind() {
+    let (errcode, msg) = match err.into() {
         VdrErrorKind::PoolRequestFailed(failed) => (StatusCode::BAD_REQUEST, failed),
         VdrErrorKind::Input => (StatusCode::BAD_REQUEST, msg),
         VdrErrorKind::PoolTimeout => (StatusCode::GATEWAY_TIMEOUT, msg),
@@ -113,15 +113,17 @@ async fn get_pool_genesis<T: Pool>(pool: &T) -> VdrResult<String> {
 
 fn format_pool_status(state: Rc<RefCell<AppState>>) -> VdrResult<String> {
     let opt_pool = &state.borrow().pool;
-    let (status, mt_root, mt_size) = if let Some(pool) = opt_pool {
+    let (status, mt_root, mt_size, nodes) = if let Some(pool) = opt_pool {
         let (mt_root, mt_size) = pool.get_merkle_tree_root();
-        ("active", Some(mt_root), Some(mt_size))
+        let nodes = pool.get_node_aliases();
+        ("active", Some(mt_root), Some(mt_size), Some(nodes))
     } else {
-        ("init", None, None)
+        ("init", None, None, None)
     };
     let last_refresh = &state.borrow().last_refresh;
     let last_refresh = last_refresh.map(|tm| tm.elapsed().map(|d| d.as_secs()).ok());
-    let result = json!({"status": status, "pool_mt_root": mt_root, "pool_mt_size": mt_size, "last_refresh": last_refresh});
+
+    let result = json!({"status": status, "pool_mt_root": mt_root, "pool_mt_size": mt_size, "pool_nodes": nodes, "last_refresh": last_refresh});
     Ok(serde_json::to_string(&result)
         .with_err_msg(VdrErrorKind::Unexpected, "Error serializing JSON")?)
 }
