@@ -79,10 +79,10 @@ USER $user
 # Note: PIP_NO_CACHE_DIR environment variable should be cleared to allow caching
 RUN mkdir -p \
         $HOME/.cache/pip/http \
+        $HOME/config \
         $HOME/log && \
-    touch $HOME/genesis.txn && \
-    chown -R indy:indy $HOME/.cache $HOME/log genesis.txn && \
-    chmod -R ug+rw $HOME/.cache $HOME/log genesis.txn
+    chown -R indy:indy $HOME/.cache $HOME/config $HOME/log && \
+    chmod -R ug+rw $HOME/.cache $HOME/config $HOME/log
 
 COPY --chown=indy:indy wrappers/python/* wrapper/
 
@@ -91,4 +91,4 @@ RUN pip3 install -e wrapper
 ENV RUST_LOG=${RUST_LOG:-debug}
 ENV RUST_BACKTRACE=full
 
-CMD python3 -m indy_vdr.test
+CMD python3 -m indy_vdr.test config/genesis.txn
