@@ -14,6 +14,11 @@ class Request:
             raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
         return bindings.request_get_body(self.handle)
 
+    def free(self):
+        if hasattr(self, "handle") and self.handle:
+            bindings.request_free(self.handle)
+            self.handle = None
+
     @property
     def signature_input(self):
         if not self.handle:
@@ -36,11 +41,11 @@ class Request:
         bindings.request_set_taa_acceptance(self.handle, acceptance)
 
     def __del__(self):
-        if self.handle:
-            bindings.request_free(self.handle)
-            self.handle = None
+        self.free()
 
     def __repr__(self):
-        if not self.handle:
-            return f"{self.__class__.__name__}(freed)"
-        return super().__repr__(self)
+        if self.handle:
+            status = self.handle
+        else:
+            status = "freed"
+        return f"{self.__class__.__name__}({status})"

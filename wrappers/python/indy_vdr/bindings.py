@@ -137,10 +137,12 @@ def get_version() -> str:
     return lib_string(lib.indy_vdr_version()).value.decode("ascii")
 
 
-def pool_create_from_genesis_file(path: Union[str, bytes]) -> PoolHandle:
+def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
     handle = PoolHandle()
-    path_p = encode_str(path)
-    do_call("indy_vdr_pool_create_from_genesis_file", path_p, byref(handle))
+    params_p = (
+        encode_str(params) if isinstance(params, (str, bytes)) else encode_json(params)
+    )
+    do_call("indy_vdr_pool_create", params_p, byref(handle))
     return handle
 
 

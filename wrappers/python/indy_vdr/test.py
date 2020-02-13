@@ -12,7 +12,7 @@ from .ledger import (
     prepare_taa_acceptance,
     LedgerType,
 )
-from .pool import Pool
+from .pool import Pool, open_pool
 
 
 def log(*args):
@@ -38,8 +38,8 @@ async def get_validator_info(pool: Pool):
     return await pool.submit_action(req)
 
 
-async def basic_test(genesis_path):
-    pool = Pool(genesis_path=genesis_path)
+async def basic_test(transactions_path):
+    pool = await open_pool(transactions_path=transactions_path)
     log(f"Created pool: {pool}")
 
     test_req = {"operation": {"data": 1, "ledgerId": 1, "type": "3"}}
@@ -48,10 +48,6 @@ async def basic_test(genesis_path):
 
     sig_in = req.signature_input
     log("Custom request signature input:", sig_in)
-
-    print("Refreshing pool")
-    status = await pool.refresh()
-    log("Pool status:", status)
 
     req = build_get_txn_author_agreement_request()
     log(await pool.submit_request(req))

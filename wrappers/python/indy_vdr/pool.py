@@ -1,5 +1,5 @@
 import json
-from typing import Sequence, Union
+from typing import Mapping, Sequence, Union
 
 from . import bindings
 from .error import VdrError, VdrErrorCode
@@ -7,9 +7,9 @@ from .ledger import Request, build_custom_request
 
 
 class Pool:
-    def __init__(self, genesis_path: str, transactions=None):
-        self.handle = None
-        self.handle = bindings.pool_create_from_genesis_file(genesis_path)
+    def __init__(self, handle: bindings.PoolHandle):
+        self.handle = handle
+        self.last_status: dict = None
 
     def close(self):
         if hasattr(self, "handle") and self.handle:
@@ -20,7 +20,8 @@ class Pool:
         if not self.handle:
             raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
         result = await bindings.pool_get_status(self.handle)
-        return json.loads(result)
+        self.last_status = json.loads(result)
+        return result
 
     async def get_transactions(self) -> str:
         if not self.handle:
@@ -29,7 +30,9 @@ class Pool:
 
     async def refresh(self) -> dict:
         await bindings.pool_refresh(self.handle)
-        return await bindings.pool_get_status(self.handle)
+        result = await bindings.pool_get_status(self.handle)
+        self.last_status = json.loads(result)
+        return self.last_status
 
     async def submit_action(
         self,
@@ -66,7 +69,30 @@ class Pool:
 
     def __repr__(self):
         if self.handle:
-            status = self.handle
+            mt_size = self.last_status and self.last_status.get("mt_size")
+            status = f"{{handle: {self.handle.value}, mt_size: {mt_size}}}"
         else:
-            status = "closed"
-        return f"{self.__class__.__name__}({status})"
+            status = "(closed)"
+        return f"{self.__class__.__name__}{status}"
+
+
+async def open_pool(
+    transactions_path: str = None,
+    transactions: str = None,
+    node_weights: Mapping[str, float] = None,
+    no_refresh: bool = False,
+) -> Pool:
+    if not (bool(transactions_path) ^ bool(transactions)):
+        raise VdrError(
+            VdrErrorCode.WRAPPER,
+            "Must provide one of transactions or transactions_path",
+        )
+    params = {
+        "transactions": transactions,
+        "transactions_path": transactions_path,
+        "node_weights": node_weights,
+    }
+    pool = Pool(bindings.pool_create(params))
+    if not no_refresh:
+        await pool.refresh()
+    return pool

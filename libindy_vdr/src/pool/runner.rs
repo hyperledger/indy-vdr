@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::thread;
 
@@ -22,14 +23,20 @@ pub struct PoolRunner {
 }
 
 impl PoolRunner {
-    pub fn new<F>(config: PoolConfig, merkle_tree: MerkleTree, networker_factory: F) -> Self
+    pub fn new<F>(
+        config: PoolConfig,
+        merkle_tree: MerkleTree,
+        networker_factory: F,
+        node_weights: Option<HashMap<String, f32>>,
+    ) -> Self
     where
         F: NetworkerFactory<Output = Rc<dyn Networker>> + Send + 'static,
     {
         let (sender, receiver) = unbounded();
         let worker = thread::spawn(move || {
             // FIXME handle error on build
-            let pool = LocalPool::build(config, merkle_tree, networker_factory, None).unwrap();
+            let pool =
+                LocalPool::build(config, merkle_tree, networker_factory, node_weights).unwrap();
             let mut thread = PoolThread::new(pool, receiver);
             thread.run();
             debug!("Pool thread ended")

@@ -3,7 +3,7 @@ use crate::pool::{
     PoolBuilder, PoolRunner, PoolTransactions, RequestResult, RequestTarget, TimingResult,
 };
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::os::raw::c_char;
 use std::sync::RwLock;
 use std::thread;
@@ -20,20 +20,39 @@ lazy_static! {
     pub static ref POOLS: RwLock<BTreeMap<PoolHandle, PoolRunner>> = RwLock::new(BTreeMap::new());
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct PoolCreateParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transactions: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transactions_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node_weights: Option<HashMap<String, f32>>,
+}
+
 #[no_mangle]
-pub extern "C" fn indy_vdr_pool_create_from_genesis_file(
-    path: FfiStr,
-    handle_p: *mut usize,
-) -> ErrorCode {
+pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> ErrorCode {
     catch_err! {
-        trace!("Create pool from genesis file");
+        trace!("Create pool");
         check_useful_c_ptr!(handle_p);
-        let txns = PoolTransactions::from_file(path.as_str())?;
+        let params = serde_json::from_str::<PoolCreateParams>(params.as_str())
+            .with_input_err("Error deserializing pool create parameters")?;
+        let txns = if let Some(txns) = params.transactions {
+            PoolTransactions::from_json(txns.as_str())?
+        }
+        else if let Some(path) = params.transactions_path {
+            PoolTransactions::from_file(path.as_str())?
+        }
+        else {
+            return Err(input_err(
+                "Invalid pool create parameters: must provide transactions or transactions_path"
+            ));
+        };
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            PoolBuilder::from_config(*gcfg)
+            PoolBuilder::from_config(*gcfg).transactions(txns)?.node_weights(params.node_weights)
         };
-        let pool = builder.transactions(txns)?.into_runner()?;
+        let pool = builder.into_runner()?;
         let handle = PoolHandle::next();
         let mut pools = write_lock!(POOLS)?;
         pools.insert(handle, pool);
