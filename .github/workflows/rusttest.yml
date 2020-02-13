@@ -1,4 +1,4 @@
-name: "Rust: Check Formatting and Run Tests"
+name: "Unit Tests"
 
 on: [push]
 

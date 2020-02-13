@@ -1,6 +1,6 @@
 # Indy-VDR
 
-![Tests](https://github.com/andrewwhitehead/indy-vdr/workflows/Rust:%20Check%20Formatting%20and%20Run%20Tests/badge.svg)
+![Unit Tests](https://github.com/andrewwhitehead/indy-vdr/workflows/Unit%20Tests/badge.svg)
 
 - [Introduction](#introduction)
 - [Features](#features)
