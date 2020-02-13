@@ -31,7 +31,7 @@ pub fn get_request_builder() -> VdrResult<RequestBuilder> {
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_prepare_taa_acceptance(
+pub extern "C" fn indy_vdr_prepare_txn_author_agreement_acceptance(
     text: FfiStr,       // optional
     version: FfiStr,    // optional
     taa_digest: FfiStr, // optional
@@ -42,7 +42,7 @@ pub extern "C" fn indy_vdr_prepare_taa_acceptance(
     catch_err! {
         trace!("Prepare TAA acceptance");
         let builder = get_request_builder()?;
-        let acceptance = builder.prepare_acceptance_data(
+        let acceptance = builder.prepare_txn_author_agreement_acceptance_data(
             text.as_opt_str(),
             version.as_opt_str(),
             taa_digest.as_opt_str(),
@@ -147,7 +147,7 @@ pub extern "C" fn indy_vdr_request_set_signature(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_request_set_taa_acceptance(
+pub extern "C" fn indy_vdr_request_set_txn_author_agreement_acceptance(
     request_handle: usize,
     acceptance: FfiStr,
 ) -> ErrorCode {
@@ -158,7 +158,7 @@ pub extern "C" fn indy_vdr_request_set_taa_acceptance(
         let mut reqs = write_lock!(REQUESTS)?;
         let req = reqs.get_mut(&RequestHandle(request_handle))
             .ok_or_else(|| input_err("Unknown request handle"))?;
-        req.set_taa_acceptance(&acceptance)?;
+        req.set_txn_author_agreement_acceptance(&acceptance)?;
         Ok(ErrorCode::Success)
     }
 }

@@ -1,4 +1,4 @@
-"""Low-level interaction with the compiled library."""
+"""Low-level interaction with the indy_vdr library."""
 
 import asyncio
 import json
@@ -175,6 +175,11 @@ def encode_str(arg: Optional[Union[str, bytes]]) -> c_char_p:
 
 
 def get_current_error(expect: bool = False) -> VdrError:
+    """Get the error result from the previous failed API method.
+
+    Args:
+        expect: Return a default error message if none is found
+    """
     err_json = lib_string()
     if not get_library().indy_vdr_get_current_error(byref(err_json)):
         try:
@@ -190,6 +195,12 @@ def get_current_error(expect: bool = False) -> VdrError:
 
 
 def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
+    """Create a new pool instance.
+
+    Args:
+        params: A JSON-encoded str or bytes instance or a dict representing the
+            pool creation parameters. See `pool.open_pool` for the parameters.
+    """
     handle = PoolHandle()
     params_p = (
         encode_str(params) if isinstance(params, (str, bytes)) else encode_json(params)
@@ -199,6 +210,7 @@ def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
 
 
 def pool_get_status(pool_handle: PoolHandle) -> asyncio.Future:
+    """Get the status of an opened pool instance."""
     return do_call_async(
         "indy_vdr_pool_get_status",
         pool_handle,
@@ -208,16 +220,18 @@ def pool_get_status(pool_handle: PoolHandle) -> asyncio.Future:
 
 
 def pool_refresh(pool_handle: PoolHandle) -> asyncio.Future:
+    """Fetch the latest transactions for the ledger's verifier pool."""
     return do_call_async("indy_vdr_pool_refresh", pool_handle)
 
 
 def pool_submit_action(
     pool_handle: PoolHandle,
     request_handle: RequestHandle,
-    nodes: Sequence[str] = None,
+    node_aliases: Sequence[str] = None,
     timeout: int = None,
 ) -> asyncio.Future:
-    nodes_p = encode_json(nodes) if nodes else c_void_p()
+    """Publishes a prepared pool action request message to the validator pool."""
+    nodes_p = encode_json(node_aliases) if node_aliases else c_void_p()
     timeout = c_int32(-1 if timeout is None else timeout)
     return do_call_async(
         "indy_vdr_pool_submit_action",
@@ -233,6 +247,7 @@ def pool_submit_action(
 def pool_submit_request(
     pool_handle: PoolHandle, request_handle: RequestHandle
 ) -> asyncio.Future:
+    """Publishes a prepared request message to the validator pool."""
     return do_call_async(
         "indy_vdr_pool_submit_request",
         pool_handle,
@@ -243,10 +258,12 @@ def pool_submit_request(
 
 
 def pool_close(pool_handle: PoolHandle):
+    """Close and free a pool instance."""
     do_call("indy_vdr_pool_close", pool_handle)
 
 
 def pool_get_transactions(pool_handle: PoolHandle) -> asyncio.Future:
+    """Fetch the transactions for an opened pool instance."""
     return do_call_async(
         "indy_vdr_pool_get_transactions",
         pool_handle,
@@ -256,50 +273,62 @@ def pool_get_transactions(pool_handle: PoolHandle) -> asyncio.Future:
 
 
 def request_free(handle: RequestHandle):
+    """Manually free a prepared request which won't be submitted."""
     do_call("indy_vdr_request_free", handle)
 
 
 def request_get_body(handle: RequestHandle) -> str:
+    """Get the canonical signature input for a prepared request."""
     body = lib_string()
     do_call("indy_vdr_request_get_body", handle, byref(body))
     return body.value.decode("utf-8")
 
 
 def request_get_signature_input(handle: RequestHandle) -> bytes:
+    """Get the canonical signature input for a prepared request."""
     sig_input = lib_string()
     do_call("indy_vdr_request_get_signature_input", handle, byref(sig_input))
     return sig_input.value
 
 
 def request_set_endorser(handle: RequestHandle, endorser_did: str):
+    """Set the endorser on a prepared request."""
     endorser_p = encode_str(endorser_did)
     do_call("indy_vdr_request_set_endorser", handle, endorser_p)
 
 
 def request_set_signature(handle: RequestHandle, signature: bytes):
+    """Set the signature on a prepared request."""
     sig_len = len(signature)
     do_call("indy_vdr_request_set_signature", handle, signature, sig_len)
 
 
-def request_set_taa_acceptance(handle: RequestHandle, acceptance: Union[str, dict]):
+def request_set_txn_author_agreement_acceptance(
+    handle: RequestHandle, acceptance: Union[str, dict]
+):
+    """Set the transaction author agreement acceptance on a prepared request."""
     acceptance_p = (
         encode_str(acceptance)
         if isinstance(acceptance, str)
         else encode_json(acceptance)
     )
-    do_call("indy_vdr_request_set_taa_acceptance", handle, acceptance_p)
+    do_call(
+        "indy_vdr_request_set_txn_author_agreement_acceptance", handle, acceptance_p
+    )
 
 
 def set_config(config: dict):
-    # config = {"freshness_threshold": 1}
+    """Set the library configuration."""
     do_call("indy_vdr_set_config", encode_json(config))
 
 
 def set_protocol_version(version: int):
+    """Set the library protocol version."""
     do_call("indy_vdr_set_protocol_version", c_size_t(version))
 
 
 def version() -> str:
+    """Set the version of the installed indy_vdr library."""
     lib = get_library()
     lib.indy_vdr_version.restype = c_void_p
     return lib_string(lib.indy_vdr_version()).value.decode("utf-8")

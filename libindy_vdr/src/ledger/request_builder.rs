@@ -109,7 +109,7 @@ impl PreparedRequest {
         Ok(())
     }
 
-    pub fn set_taa_acceptance(
+    pub fn set_txn_author_agreement_acceptance(
         &mut self,
         acceptance: &TxnAuthrAgrmtAcceptanceData,
     ) -> VdrResult<()> {
@@ -541,7 +541,7 @@ impl RequestBuilder {
         )
     }
 
-    pub fn prepare_acceptance_data(
+    pub fn prepare_txn_author_agreement_acceptance_data(
         &self,
         text: Option<&str>,
         version: Option<&str>,

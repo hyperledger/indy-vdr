@@ -9,7 +9,7 @@ from .ledger import (
     build_get_acceptance_mechanisms_request,
     build_get_txn_author_agreement_request,
     build_get_validator_info_request,
-    prepare_taa_acceptance,
+    prepare_txn_author_agreement_acceptance,
     LedgerType,
 )
 from .pool import Pool, open_pool
@@ -55,13 +55,13 @@ async def basic_test(transactions_path):
     req = build_get_acceptance_mechanisms_request()
     log(await pool.submit_request(req))
 
-    acceptance = prepare_taa_acceptance(
+    acceptance = prepare_txn_author_agreement_acceptance(
         "acceptance text", "1.1.1", None, mechanism="manual"
     )
     req = build_get_txn_request(None, 1, 15)
-    req.set_taa_acceptance(acceptance)
+    req.set_txn_author_agreement_acceptance(acceptance)
     req.set_endorser("V4SGRU86Z58d6TV7PBUe6f")
-    print(req.body)
+    log("Request with TAA acceptance and endorser:", req.body)
 
     # req = build_disable_all_txn_author_agreements_request("V4SGRU86Z58d6TV7PBUe6f")
     # log(await pool.submit_request(req))
