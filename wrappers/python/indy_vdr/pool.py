@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import Mapping, Sequence, Union
 
 from . import bindings
@@ -9,6 +10,7 @@ from .ledger import Request, build_custom_request
 class Pool:
     def __init__(self, handle: bindings.PoolHandle):
         self.handle = handle
+        self.last_refresh: datetime = None
         self.last_status: dict = None
 
     def close(self):
@@ -32,6 +34,7 @@ class Pool:
         await bindings.pool_refresh(self.handle)
         result = await bindings.pool_get_status(self.handle)
         self.last_status = json.loads(result)
+        self.last_refresh = datetime.now()
         return self.last_status
 
     async def submit_action(
@@ -70,7 +73,10 @@ class Pool:
     def __repr__(self):
         if self.handle:
             mt_size = self.last_status and self.last_status.get("mt_size")
-            status = f"{{handle: {self.handle.value}, mt_size: {mt_size}}}"
+            node_count = len(self.last_status and self.last_status.get("nodes") or ())
+            status = (
+                f"(handle={self.handle.value}, count={node_count}, mt_size={mt_size})"
+            )
         else:
             status = "(closed)"
         return f"{self.__class__.__name__}{status}"
