@@ -1,3 +1,5 @@
+"""Error classes."""
+
 from enum import IntEnum
 
 

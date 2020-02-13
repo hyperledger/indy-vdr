@@ -1,7 +1,6 @@
 cargo-registry
 target
 node_modules
-package-lock.json
 .idea
 *.iml
 .venv
@@ -9,5 +8,3 @@ package-lock.json
 .DS_Store
 Podfile.lock
 .vscode
-.pytest_cache
-__pycache__

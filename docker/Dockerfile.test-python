@@ -31,8 +31,7 @@ ADD libindy_vdr .
 RUN --mount=type=cache,target=target \
     --mount=type=cache,target=.cargo/registry \
     cargo build --lib $cargo_build_flags && \
-    cp target/*/libindy_vdr.so .local/lib
-
+    cp target/*/libindy_vdr.so .
 
 ## Start fresh (new image) ##
 FROM ubuntu:18.04
@@ -64,10 +63,6 @@ WORKDIR $HOME
 # Copy build results
 COPY --from=builder --chown=indy:indy $HOME/.local .local
 
-# Make libraries resolvable by python
-ENV LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
-RUN echo "$HOME/.local/lib" > /etc/ld.so.conf.d/local.conf && ldconfig
-
 # - In order to drop the root user, we have to make some directories writable
 #   to the root group as OpenShift default security model is to run the container
 #   under random UID.
@@ -85,6 +80,7 @@ RUN mkdir -p \
     chmod -R ug+rw $HOME/.cache $HOME/config $HOME/log
 
 COPY --chown=indy:indy wrappers/python/* wrapper/
+COPY --from=builder /home/indy/libindy_vdr.so wrapper/indy_vdr/
 
 RUN pip3 install -e wrapper
 

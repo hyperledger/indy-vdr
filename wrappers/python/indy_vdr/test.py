@@ -2,7 +2,7 @@ import asyncio
 import json
 import sys
 
-from .bindings import get_version
+from .bindings import version
 from .ledger import (
     build_custom_request,
     build_get_txn_request,
@@ -71,7 +71,7 @@ async def basic_test(transactions_path):
 
 
 if __name__ == "__main__":
-    log("indy-vdr version:", get_version())
+    log("indy-vdr version:", version())
 
     genesis_path = len(sys.argv) > 1 and sys.argv[1] or "genesis.txn"
 

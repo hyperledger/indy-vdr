@@ -14,7 +14,9 @@ if __name__ == "__main__":
         url="https://github.com/andrewwhitehead/indy-vdr",
         packages=find_packages(),
         include_package_data=True,
-        package_data={"indy_vdr": []},
+        package_data={
+            "indy_vdr": ["indy_vdr.dll", "libindy_vdr.dylib", "libindy_vdr.so"]
+        },
         python_requires=">=3.6.3",
         classifiers=[
             "Programming Language :: Python :: 3",

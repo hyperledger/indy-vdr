@@ -1,8 +1,12 @@
+"""Low-level interaction with the compiled library."""
+
 import asyncio
-from ctypes import CDLL, CFUNCTYPE, byref, c_char_p, c_size_t, c_void_p, c_int32
-from ctypes.util import find_library
 import json
 import logging
+import os
+import sys
+from ctypes import CDLL, CFUNCTYPE, byref, c_char_p, c_size_t, c_void_p, c_int32
+from ctypes.util import find_library
 from typing import Optional, Sequence, Union
 
 from .error import VdrError, VdrErrorCode
@@ -14,31 +18,44 @@ LOGGER = logging.getLogger(__name__)
 
 
 class PoolHandle(c_size_t):
+    """Index of an active Pool instance."""
+
     def __repr__(self) -> str:
+        """Format pool handle as a string."""
         return f"{self.__class__.__name__}({self.value})"
 
 
 class RequestHandle(c_size_t):
+    """Index of an active Request instance."""
+
     def __repr__(self) -> str:
+        """Format request handle as a string."""
         return f"{self.__class__.__name__}({self.value})"
 
 
 class lib_string(c_char_p):
+    """A string allocated by the library."""
+
     @classmethod
     def from_param(cls):
+        """Returns the type ctypes should use for loading the result."""
         return c_void_p
 
     def __bytes__(self):
+        """Convert to bytes."""
         return self.value
 
     def __str__(self):
+        """Convert to str."""
         return self.value.decode("utf-8")
 
     def __del__(self):
+        """Call the string destructor when this instance is released."""
         get_library().indy_vdr_string_free(self)
 
 
 def get_library() -> CDLL:
+    """Return the CDLL instance, loading it if necessary."""
     global LIB
     if LIB is None:
         LIB = _load_library("indy_vdr")
@@ -47,14 +64,44 @@ def get_library() -> CDLL:
 
 
 def _load_library(lib_name: str) -> CDLL:
-    found = find_library(lib_name)
-    if not found:
+    """Load the CDLL library.
+
+    The python module directory is searched first, followed by the usual
+    library resolution for the current system.
+    """
+    lib_prefix_mapping = {"darwin": "lib", "linux": "lib", "linux2": "lib", "win32": ""}
+    lib_suffix_mapping = {
+        "darwin": ".dylib",
+        "linux": ".so",
+        "linux2": ".so",
+        "win32": ".dll",
+    }
+    try:
+        os_name = sys.platform
+        lib_prefix = lib_prefix_mapping[os_name]
+        lib_suffix = lib_suffix_mapping[os_name]
+        lib_path = os.path.join(
+            os.path.dirname(__file__), f"{lib_prefix}{lib_name}{lib_suffix}"
+        )
+        return CDLL(lib_path)
+    except KeyError:
+        LOGGER.debug("Unknown platform for shared library")
+    except OSError:
+        LOGGER.warning("Library not loaded from python package")
+
+    lib_path = find_library(lib_name)
+    if not lib_path:
         raise VdrError(VdrErrorCode.WRAPPER, f"Error loading library: {lib_name}")
-    return CDLL(name=found)
-    # except OSError:
+    try:
+        return CDLL(lib_path)
+    except OSError as e:
+        raise VdrError(
+            VdrErrorCode.WRAPPER, f"Error loading library: {lib_name}"
+        ) from e
 
 
-def _fulfill_future(fut: asyncio.Future, err: Exception, result):
+def _fulfill_future(fut: asyncio.Future, result, err: Exception = None):
+    """Resolve a callback future given the result and exception, if any."""
     if fut.cancelled():
         LOGGER.debug("callback previously cancelled")
     elif err:
@@ -64,7 +111,10 @@ def _fulfill_future(fut: asyncio.Future, err: Exception, result):
 
 
 def _create_callback(cb_type: CFUNCTYPE, fut: asyncio.Future, post_process=None):
+    """Create a callback to handle the response from an async library method."""
+
     def _cb(err: int, result=None):
+        """Callback function passed to the CFUNCTYPE for invocation."""
         if post_process:
             result = post_process(result)
         exc = get_current_error() if err else None
@@ -73,13 +123,14 @@ def _create_callback(cb_type: CFUNCTYPE, fut: asyncio.Future, post_process=None)
         except KeyError:
             LOGGER.debug("callback already fulfilled")
             return
-        loop.call_soon_threadsafe(lambda: _fulfill_future(fut, exc, result))
+        loop.call_soon_threadsafe(lambda: _fulfill_future(fut, result, exc))
 
     res = cb_type(_cb)
     return res
 
 
 def do_call(fn_name, *args):
+    """Perform a synchronous library function call."""
     lib_fn = getattr(get_library(), fn_name)
     result = lib_fn(*args)
     if result:
@@ -87,6 +138,7 @@ def do_call(fn_name, *args):
 
 
 def do_call_async(fn_name, *args, return_type=None, post_process=None):
+    """Perform a asynchronous library function call."""
     lib_fn = getattr(get_library(), fn_name)
     loop = asyncio.get_event_loop()
     fut = loop.create_future()
@@ -106,10 +158,15 @@ def do_call_async(fn_name, *args, return_type=None, post_process=None):
 
 
 def encode_json(arg) -> c_char_p:
+    """Encode an input argument as JSON."""
     return encode_str(json.dumps(arg))
 
 
 def encode_str(arg: Optional[Union[str, bytes]]) -> c_char_p:
+    """Encode an optional input argument as a string.
+
+    Returns: None if the argument is None, otherwise the value encoded utf-8.
+    """
     if arg is None:
         return None
     if isinstance(arg, bytes):
@@ -123,18 +180,13 @@ def get_current_error(expect: bool = False) -> VdrError:
         try:
             msg = json.loads(err_json.value)
         except json.JSONDecodeError:
+            LOGGER.warning("JSON decode error for indy_vdr_get_current_error")
             msg = None
         if msg and "message" in msg and "code" in msg:
             return VdrError(VdrErrorCode(msg["code"]), msg["message"], msg.get("extra"))
         if not expect:
             return None
     return VdrError(VdrError.WRAPPER, "Unknown error")
-
-
-def get_version() -> str:
-    lib = get_library()
-    lib.indy_vdr_version.restype = c_void_p
-    return lib_string(lib.indy_vdr_version()).value.decode("ascii")
 
 
 def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
@@ -245,3 +297,9 @@ def set_config(config: dict):
 
 def set_protocol_version(version: int):
     do_call("indy_vdr_set_protocol_version", c_size_t(version))
+
+
+def version() -> str:
+    lib = get_library()
+    lib.indy_vdr_version.restype = c_void_p
+    return lib_string(lib.indy_vdr_version()).value.decode("utf-8")
