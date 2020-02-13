@@ -30,6 +30,14 @@ class Pool:
             raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
         return await bindings.pool_get_transactions(self.handle)
 
+    @property
+    def last_refresh_seconds(self) -> float:
+        return (
+            (datetime.now() - self.last_refresh).total_seconds()
+            if self.last_refresh
+            else None
+        )
+
     async def refresh(self) -> dict:
         await bindings.pool_refresh(self.handle)
         result = await bindings.pool_get_status(self.handle)
@@ -72,10 +80,13 @@ class Pool:
 
     def __repr__(self):
         if self.handle:
+            last_refresh = self.last_refresh_seconds
+            last_refresh = int(last_refresh) if last_refresh is not None else None
             mt_size = self.last_status and self.last_status.get("mt_size")
             node_count = len(self.last_status and self.last_status.get("nodes") or ())
             status = (
-                f"(handle={self.handle.value}, count={node_count}, mt_size={mt_size})"
+                f"({self.handle.value}, count={node_count}, "
+                f"last_refresh={last_refresh}, mt_size={mt_size})"
             )
         else:
             status = "(closed)"
