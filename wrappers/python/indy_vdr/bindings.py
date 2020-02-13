@@ -25,10 +25,14 @@ class RequestHandle(c_size_t):
 
 class lib_string(c_char_p):
     @classmethod
-    def load_c_ptr(cls, value):
-        # convert to lib_string, which will call library's string destructor
-        inst = cls(value)
-        return inst.value.decode("utf-8")
+    def from_param(cls):
+        return c_void_p
+
+    def __bytes__(self):
+        return self.value
+
+    def __str__(self):
+        return self.value.decode("utf-8")
 
     def __del__(self):
         get_library().indy_vdr_string_free(self)
@@ -59,10 +63,10 @@ def _fulfill_future(fut: asyncio.Future, err: Exception, result):
         fut.set_result(result)
 
 
-def _create_callback(cb_type: CFUNCTYPE, fut: asyncio.Future, post_proc=None):
+def _create_callback(cb_type: CFUNCTYPE, fut: asyncio.Future, post_process=None):
     def _cb(err: int, result=None):
-        if post_proc:
-            result = post_proc(result)
+        if post_process:
+            result = post_process(result)
         exc = get_current_error() if err else None
         try:
             (loop, _cb) = CALLBACKS.pop(fut)
@@ -82,19 +86,15 @@ def do_call(fn_name, *args):
         raise get_current_error(True)
 
 
-def do_call_async(fn_name, *args, return_type=None):
+def do_call_async(fn_name, *args, return_type=None, post_process=None):
     lib_fn = getattr(get_library(), fn_name)
     loop = asyncio.get_event_loop()
     fut = loop.create_future()
     cf_args = [None, c_size_t]
-    post_proc = None
     if return_type:
-        if hasattr(return_type, "load_c_ptr"):
-            post_proc = return_type.load_c_ptr
-            return_type = c_void_p
         cf_args.append(return_type)
     cb_type = CFUNCTYPE(*cf_args)  # could be cached
-    res = _create_callback(cb_type, fut, post_proc)
+    res = _create_callback(cb_type, fut, post_process)
     result = lib_fn(*args, res)
     if result:
         # callback will not be executed
@@ -148,7 +148,10 @@ def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
 
 def pool_get_status(pool_handle: PoolHandle) -> asyncio.Future:
     return do_call_async(
-        "indy_vdr_pool_get_status", pool_handle, return_type=lib_string
+        "indy_vdr_pool_get_status",
+        pool_handle,
+        return_type=lib_string,
+        post_process=str,
     )
 
 
@@ -171,6 +174,7 @@ def pool_submit_action(
         nodes_p,
         timeout,
         return_type=lib_string,
+        post_process=str,
     )
 
 
@@ -182,6 +186,7 @@ def pool_submit_request(
         pool_handle,
         request_handle,
         return_type=lib_string,
+        post_process=str,
     )
 
 
@@ -191,7 +196,10 @@ def pool_close(pool_handle: PoolHandle):
 
 def pool_get_transactions(pool_handle: PoolHandle) -> asyncio.Future:
     return do_call_async(
-        "indy_vdr_pool_get_transactions", pool_handle, return_type=lib_string
+        "indy_vdr_pool_get_transactions",
+        pool_handle,
+        return_type=lib_string,
+        post_process=str,
     )
 
 
