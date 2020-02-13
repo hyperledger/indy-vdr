@@ -1,8 +1,9 @@
-from ctypes import byref, c_int32, c_int64
+from ctypes import byref, c_int32, c_int64, c_uint64
+from datetime import datetime, date
 from enum import IntEnum
 from typing import Optional, Union
 
-from .bindings import RequestHandle, do_call, encode_json, encode_str
+from .bindings import RequestHandle, do_call, encode_json, encode_str, lib_string
 from .request import Request
 
 
@@ -175,3 +176,32 @@ def build_txn_author_agreement_request(
         byref(handle),
     )
     return Request(handle)
+
+
+def prepare_taa_acceptance(
+    text: Optional[str],
+    version: Optional[str],
+    taa_digest: Optional[str],
+    mechanism: str,
+    accepted_time: int = None,
+) -> str:
+    text_p = encode_str(text)
+    version_p = encode_str(version)
+    taa_digest_p = encode_str(taa_digest)
+    mechanism_p = encode_str(mechanism)
+    if not accepted_time:
+        # rough timestamp
+        accepted_time = int(
+            datetime.combine(date.today(), datetime.min.time()).timestamp()
+        )
+    result = lib_string()
+    do_call(
+        "indy_vdr_prepare_taa_acceptance",
+        text_p,
+        version_p,
+        taa_digest_p,
+        mechanism_p,
+        c_uint64(accepted_time),
+        byref(result),
+    )
+    return result.value.decode("utf-8")

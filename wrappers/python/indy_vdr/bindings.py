@@ -193,6 +193,10 @@ def pool_get_transactions(pool_handle: PoolHandle) -> asyncio.Future:
     )
 
 
+def request_free(handle: RequestHandle):
+    do_call("indy_vdr_request_free", handle)
+
+
 def request_get_body(handle: RequestHandle) -> str:
     body = lib_string()
     do_call("indy_vdr_request_get_body", handle, byref(body))
@@ -205,13 +209,23 @@ def request_get_signature_input(handle: RequestHandle) -> bytes:
     return sig_input.value
 
 
+def request_set_endorser(handle: RequestHandle, endorser_did: str):
+    endorser_p = encode_str(endorser_did)
+    do_call("indy_vdr_request_set_endorser", handle, endorser_p)
+
+
 def request_set_signature(handle: RequestHandle, signature: bytes):
     sig_len = len(signature)
     do_call("indy_vdr_request_set_signature", handle, signature, sig_len)
 
 
-def request_free(handle: RequestHandle):
-    do_call("indy_vdr_request_free", handle)
+def request_set_taa_acceptance(handle: RequestHandle, acceptance: Union[str, dict]):
+    acceptance_p = (
+        encode_str(acceptance)
+        if isinstance(acceptance, str)
+        else encode_json(acceptance)
+    )
+    do_call("indy_vdr_request_set_taa_acceptance", handle, acceptance_p)
 
 
 def set_config(config: dict):

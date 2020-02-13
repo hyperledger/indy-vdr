@@ -99,8 +99,22 @@ impl PreparedRequest {
         serialize_signature(&self.req_json)
     }
 
+    pub fn set_endorser(&mut self, endorser: &DidValue) -> VdrResult<()> {
+        self.req_json["endorser"] = SJsonValue::String(endorser.to_short().to_string());
+        Ok(())
+    }
+
     pub fn set_signature(&mut self, signature: &[u8]) -> VdrResult<()> {
         self.req_json["signature"] = SJsonValue::String(signature.to_base58());
+        Ok(())
+    }
+
+    pub fn set_taa_acceptance(
+        &mut self,
+        acceptance: &TxnAuthrAgrmtAcceptanceData,
+    ) -> VdrResult<()> {
+        self.req_json["taaAcceptance"] = serde_json::to_value(acceptance)
+            .with_err_msg(VdrErrorKind::Unexpected, "Error serializing TAA acceptance")?;
         Ok(())
     }
 }
