@@ -1,5 +1,7 @@
 # Indy-VDR
 
+![Tests](https://github.com/andrewwhitehead/indy-vdr/workflows/Rust:%20Check%20Formatting%20and%20Run%20Tests/badge.svg)
+
 - [Introduction](#introduction)
 - [Features](#features)
 - [Building from Source](#building-from-source)
@@ -10,7 +12,7 @@
 
 ## Introduction
 
-This library is derived from [Hyperledger Indy SDK](https://github.com/hyperledger/indy-sdk) for the more limited use case of connecting to an Indy Node blockchain ledger, otherwise known as a Verifiable Data Registry. It is written in Rust, and currently includes a Python wrapper and a standalone proxy server.
+This library is derived from [Hyperledger Indy SDK](https://github.com/hyperledger/indy-sdk) for the more limited use case of connecting to an Indy Node blockchain ledger, a Verifiable Data Registry. It is written in Rust and currently includes a Python wrapper and a standalone proxy server.
 
 _This library is still in development and there are currently no standard release packages._
 
@@ -28,7 +30,7 @@ This should compile and place the shared library and `indy-vdr-proxy` executable
 
 ## Wrappers
 
-The Python wrapper is located in `wrappers/python/indy_vdr`. In order for the wrapper to locate the shared library, the latter may be placed in a system shared library directory like `/usr/local/lib`. Otherwise, the location of the shared library must be added to the `LD_LIBRARY_PATH` (or `DYLD_LIBRARY_PATH` on Mac OS) environment variable.
+The Python wrapper is located in `wrappers/python/indy_vdr`. In order for the wrapper to locate the shared library, the latter may be placed in a system shared library directory like `/usr/local/lib`. Otherwise, the location of the shared library must be added to the appropriate environment variable for your platform: `PATH` for Windows, `LD_LIBRARY_PATH` for Linux or `DYLD_LIBRARY_PATH` for Mac OS.
 
 At a later stage it should be possible to install a precompiled 'wheel' package for your platform using `pip install indy_vdr`, but at the moment it is necessary to build the library from source.
 
