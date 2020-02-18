@@ -1,105 +1,13 @@
 use super::constants::{GET_SCHEMA, SCHEMA};
+use super::identifiers::schema::SchemaId;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
-use crate::common::did::{DidValue, ShortDidValue};
+use crate::common::did::ShortDidValue;
 use crate::common::error::prelude::*;
-use crate::utils::qualifier;
 use crate::utils::validation::Validatable;
 
 use std::collections::HashSet;
 
 pub const MAX_ATTRIBUTES_COUNT: usize = 125;
-
-qualifiable_type!(SchemaId);
-
-impl SchemaId {
-    pub const DELIMITER: &'static str = ":";
-    pub const PREFIX: &'static str = "schema";
-    pub const MARKER: &'static str = "2";
-
-    pub fn new(did: &DidValue, name: &str, version: &str) -> Self {
-        let id = Self(format!(
-            "{}{}{}{}{}{}{}",
-            did.0,
-            Self::DELIMITER,
-            Self::MARKER,
-            Self::DELIMITER,
-            name,
-            Self::DELIMITER,
-            version
-        ));
-        match did.get_method() {
-            Some(method) => id.set_method(&method),
-            None => id,
-        }
-    }
-
-    pub fn parts(&self) -> Option<(DidValue, String, String)> {
-        let parts = self
-            .0
-            .split_terminator(Self::DELIMITER)
-            .collect::<Vec<&str>>();
-
-        if parts.len() == 1 {
-            // 1
-            return None;
-        }
-
-        if parts.len() == 4 {
-            // NcYxiDXkpYi6ov5FcYDi1e:2:gvt:1.0
-            let did = parts[0].to_string();
-            let name = parts[2].to_string();
-            let version = parts[3].to_string();
-            return Some((DidValue(did), name, version));
-        }
-
-        if parts.len() == 8 {
-            // schema:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:2:gvt:1.0
-            let did = parts[2..5].join(Self::DELIMITER);
-            let name = parts[6].to_string();
-            let version = parts[7].to_string();
-            return Some((DidValue(did), name, version));
-        }
-
-        None
-    }
-
-    pub fn qualify(&self, method: &str) -> SchemaId {
-        match self.parts() {
-            Some((did, name, version)) => SchemaId::new(&did.qualify(method), &name, &version),
-            None => self.clone(),
-        }
-    }
-
-    pub fn to_unqualified(&self) -> SchemaId {
-        match self.parts() {
-            Some((did, name, version)) => SchemaId::new(&did.to_unqualified(), &name, &version),
-            None => self.clone(),
-        }
-    }
-
-    pub fn from_str(schema_id: &str) -> VdrResult<Self> {
-        let schema_id = Self(schema_id.to_owned());
-        schema_id.validate()?;
-        Ok(schema_id)
-    }
-}
-
-impl Validatable for SchemaId {
-    fn validate(&self) -> VdrResult<()> {
-        if self.0.parse::<i32>().is_ok() {
-            return Ok(());
-        }
-
-        self.parts().ok_or_else(|| {
-            input_err(format!(
-                "SchemaId validation failed: {:?}, doesn't match pattern",
-                self.0
-            ))
-        })?;
-
-        Ok(())
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -300,3 +208,59 @@ pub struct GetSchemaResultDataValueV1 {
     pub attr_names: HashSet<String>,
 }
 */
+
+#[cfg(test)]
+mod test_schema_validation {
+    use super::*;
+
+    fn _schema_id_qualified() -> SchemaId {
+        SchemaId("schema:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:2:gvt:1.0".to_string())
+    }
+
+    #[test]
+    fn test_valid_schema() {
+        let schema_json = json!({
+            "id": _schema_id_qualified(),
+            "name": "gvt",
+            "ver": "1.0",
+            "version": "1.0",
+            "attrNames": ["aaa", "bbb", "ccc"],
+        })
+        .to_string();
+
+        let schema: SchemaV1 = serde_json::from_str(&schema_json).unwrap();
+        schema.validate().unwrap();
+        assert_eq!(schema.name, "gvt");
+        assert_eq!(schema.version, "1.0");
+    }
+
+    #[test]
+    fn test_invalid_name_schema() {
+        let schema_json = json!({
+            "id": _schema_id_qualified(),
+            "name": "gvt1",
+            "ver": "1.0",
+            "version": "1.0",
+            "attrNames": ["aaa", "bbb", "ccc"],
+        })
+        .to_string();
+
+        let schema: SchemaV1 = serde_json::from_str(&schema_json).unwrap();
+        schema.validate().unwrap_err();
+    }
+
+    #[test]
+    fn test_invalid_version_schema() {
+        let schema_json = json!({
+            "id": _schema_id_qualified(),
+            "name": "gvt",
+            "ver": "1.0",
+            "version": "1.1",
+            "attrNames": ["aaa", "bbb", "ccc"],
+        })
+        .to_string();
+
+        let schema: SchemaV1 = serde_json::from_str(&schema_json).unwrap();
+        schema.validate().unwrap_err();
+    }
+}

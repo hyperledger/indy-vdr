@@ -12,6 +12,7 @@ pub mod txn;
 pub mod validator_info;
 
 pub use super::constants;
+pub use super::identifiers;
 pub use crate::common::did;
 pub use crate::common::verkey;
 pub use crate::pool::ProtocolVersion;

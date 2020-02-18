@@ -12,12 +12,13 @@ use crate::utils::base58::ToBase58;
 use crate::utils::hash::{digest, Sha256};
 use crate::utils::signature::serialize_signature;
 
+use super::identifiers::cred_def::CredentialDefinitionId;
+use super::identifiers::rev_reg_def::RevocationRegistryId;
+use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
 use super::requests::auth_rule::*;
 use super::requests::author_agreement::*;
-use super::requests::cred_def::{
-    CredDefOperation, CredentialDefinitionId, CredentialDefinitionV1, GetCredDefOperation,
-};
+use super::requests::cred_def::{CredDefOperation, CredentialDefinitionV1, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{GetNymOperation, NymOperation};
 use super::requests::pool::{
@@ -26,10 +27,9 @@ use super::requests::pool::{
 use super::requests::rev_reg::{
     GetRevRegDeltaOperation, GetRevRegOperation, RevRegEntryOperation, RevocationRegistryDeltaV1,
 };
-use super::requests::rev_reg_def::{GetRevRegDefOperation, RevocationRegistryId};
+use super::requests::rev_reg_def::GetRevRegDefOperation;
 use super::requests::schema::{
-    GetSchemaOperation, GetSchemaOperationData, SchemaId, SchemaOperation, SchemaOperationData,
-    SchemaV1,
+    GetSchemaOperation, GetSchemaOperationData, SchemaOperation, SchemaOperationData, SchemaV1,
 };
 use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;

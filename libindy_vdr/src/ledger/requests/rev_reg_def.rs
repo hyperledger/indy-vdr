@@ -1,19 +1,12 @@
-use regex::Regex;
 use ursa::cl::RevocationKeyPublic;
 
 use super::constants::{GET_REVOC_REG_DEF, REVOC_REG_DEF};
-use super::cred_def::CredentialDefinitionId;
+use super::identifiers::cred_def::CredentialDefinitionId;
+use super::identifiers::rev_reg_def::RevocationRegistryId;
 use super::{ProtocolVersion, RequestType};
-use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
-use crate::utils::qualifier;
-use crate::utils::validation::Validatable;
 
 pub const CL_ACCUM: &str = "CL_ACCUM";
-
-lazy_static! {
-    static ref QUALIFIED_REV_REG_ID: Regex = Regex::new("(^revreg:(?P<method>[a-z0-9]+):)?(?P<did>.+):4:(?P<cred_def_id>.+):(?P<rev_reg_type>.+):(?P<tag>.+)$").unwrap();
-}
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct RevocationRegistryConfig {
@@ -72,78 +65,6 @@ pub struct RevocationRegistryDefinitionV1 {
     pub tag: String,
     pub cred_def_id: CredentialDefinitionId,
     pub value: RevocationRegistryDefinitionValue,
-}
-
-qualifiable_type!(RevocationRegistryId);
-
-impl RevocationRegistryId {
-    pub const PREFIX: &'static str = "revreg";
-    pub const DELIMITER: &'static str = ":";
-    pub const MARKER: &'static str = "3";
-
-    pub fn new(
-        did: &DidValue,
-        cred_def_id: &CredentialDefinitionId,
-        rev_reg_type: &str,
-        tag: &str,
-    ) -> RevocationRegistryId {
-        let id = RevocationRegistryId(format!(
-            "{}{}{}{}{}{}{}{}{}",
-            did.0,
-            Self::DELIMITER,
-            Self::MARKER,
-            Self::DELIMITER,
-            cred_def_id.0,
-            Self::DELIMITER,
-            rev_reg_type,
-            Self::DELIMITER,
-            tag
-        ));
-        match did.get_method() {
-            Some(method) => RevocationRegistryId(qualifier::qualify(&id.0, Self::PREFIX, &method)),
-            None => id,
-        }
-    }
-
-    pub fn parts(&self) -> Option<(DidValue, CredentialDefinitionId, String, String)> {
-        match QUALIFIED_REV_REG_ID.captures(&self.0) {
-            Some(caps) => Some((
-                DidValue(caps["did"].to_string()),
-                CredentialDefinitionId(caps["cred_def_id"].to_string()),
-                caps["rev_reg_type"].to_string(),
-                caps["tag"].to_string(),
-            )),
-            None => None,
-        }
-    }
-
-    pub fn to_unqualified(&self) -> RevocationRegistryId {
-        match self.parts() {
-            Some((did, cred_def_id, rev_reg_type, tag)) => RevocationRegistryId::new(
-                &did.to_unqualified(),
-                &cred_def_id.to_unqualified(),
-                &rev_reg_type,
-                &tag,
-            ),
-            None => self.clone(),
-        }
-    }
-
-    pub fn from_str(rev_reg_def_id: &str) -> VdrResult<Self> {
-        let rev_reg_def_id = Self(rev_reg_def_id.to_owned());
-        rev_reg_def_id.validate()?;
-        Ok(rev_reg_def_id)
-    }
-}
-
-impl Validatable for RevocationRegistryId {
-    fn validate(&self) -> VdrResult<()> {
-        self.parts().ok_or(input_err(format!(
-            "Revocation Registry Id validation failed: {:?}, doesn't match pattern",
-            self.0
-        )))?;
-        Ok(())
-    }
 }
 
 #[derive(Serialize, Debug)]
