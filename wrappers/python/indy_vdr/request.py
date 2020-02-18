@@ -64,7 +64,7 @@ class Request:
 
         Args:
             signature: A bytes instance with the ed25519 signature
-                generated over request.signature_input
+                generated over `request.signature_input`
         """
         if not self.handle:
             raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
