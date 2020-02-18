@@ -9,5 +9,6 @@ GENESIS_PATH=$(realpath "$GENESIS_PATH")
 DOCKER_BUILDKIT=1 docker build -t indy-vdr-test-python \
     -f Dockerfile.test-python .. || exit 1
 
-docker run --rm -ti -v "$GENESIS_PATH:/home/indy/config/genesis.txn" \
+docker run --rm -ti \
+	-v "$GENESIS_PATH:/home/indy/config/genesis.txn" \
 	indy-vdr-test-python

@@ -1,40 +1,21 @@
 # syntax = docker/dockerfile:1.0-experimental
 
-FROM ubuntu:18.04 as builder
+FROM rust:1.41-slim as builder
 
-ARG user=indy
-ENV HOME="/home/$user"
-WORKDIR $HOME
-RUN mkdir -p .local/bin .local/etc .local/lib
-
-# Install environment
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
-        build-essential \
-        ca-certificates \
-        cmake \
-        curl && \
+    	build-essential cmake lcov && \
     rm -rf /var/lib/apt/lists/*
-
-ENV LIBRARY_PATH="$HOME/.local/lib:$LIBRARY_PATH"
-
-RUN curl -o rustup https://sh.rustup.rs && \
-    chmod +x rustup && \
-    ./rustup --default-toolchain 1.39.0 -y
-
-ENV PATH="$PATH:$HOME/.cargo/bin"
-
-# set to --release for smaller, optimized library
-ARG cargo_build_flags=
 
 ADD libindy_vdr .
 RUN --mount=type=cache,target=target \
-    --mount=type=cache,target=.cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --lib $cargo_build_flags && \
     cp target/*/libindy_vdr.so .
 
+
 ## Start fresh (new image) ##
-FROM ubuntu:18.04
+FROM debian:buster-slim
 
 
 ARG uid=1001
