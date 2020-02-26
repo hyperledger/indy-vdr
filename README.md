@@ -1,6 +1,6 @@
 # Indy-VDR
 
-[![Unit Tests](https://github.com/andrewwhitehead/indy-vdr/workflows/Unit%20Tests/badge.svg)](https://github.com/andrewwhitehead/indy-vdr/actions)
+[![Unit Tests](https://github.com/hyperledger/indy-vdr/workflows/Unit%20Tests/badge.svg)](https://github.com/hyperledger/indy-vdr/actions)
 
 - [Introduction](#introduction)
 - [Features](#features)
