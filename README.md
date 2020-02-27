@@ -42,13 +42,15 @@ Sending prepared requests to the ledger is performed by delivering a POST reques
 
 - `/` The root path shows basic status information about the server and the ledger pool
 - `/genesis` Return the current set of genesis transactions
-- `/taa` Fetch the current Transaction Author Agreement
-- `/aml` Fetch the current Acceptance Methods List (for the TAA)
+- `/taa` Fetch the current ledger Transaction Author Agreement
+- `/aml` Fetch the current ledger Acceptance Methods List (for the TAA)
 - `/nym/{DID}` Fetch the NYM transaction associated with a DID
-- `/attrib/{DID}/endpoint` Fetch the registered endpoint for a NYM
+- `/attrib/{DID}/endpoint` Fetch the registered endpoint for a DID
 - `/schema/{SCHEMA_ID}` Fetch a schema by its identifier
 - `/cred_def/{CRED_DEF_ID}` Fetch a credential definition by its identifier
-- `/rev_reg_def/{REV_REG_ID}` Fetch a revocation registration definition by its identifier
+- `/rev_reg/{REV_REG_ID}` Fetch a revocation registry by its identifier
+- `/rev_reg_def/{REV_REG_ID}` Fetch a revocation registry definition by its registry identifier
+- `/rev_reg_delta/{REV_REG_ID}` Fetch a revocation registry delta by its registry identifier
 - `/auth` Fetch all AUTH rules for the ledger
 - `/auth/{TXN_TYPE}/{ADD|EDIT}` Fetch the AUTH rule for a specific transaction type and action
 
