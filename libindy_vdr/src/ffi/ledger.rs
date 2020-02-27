@@ -1,7 +1,7 @@
 use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
 use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
-use crate::ledger::identifiers::rev_reg_def::RevocationRegistryId;
+use crate::ledger::identifiers::rev_reg::RevocationRegistryId;
 use crate::ledger::identifiers::schema::SchemaId;
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::ledger::requests::cred_def::CredentialDefinition;

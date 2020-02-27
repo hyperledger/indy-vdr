@@ -148,9 +148,12 @@ pub fn get_cur_time() -> u64 {
 }
 
 fn extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
-    match msg_result["type"].as_str() {
-        Some(constants::GET_REVOC_REG_DELTA) => {
-            msg_result["data"]["stateProofFrom"]["multi_signature"]["value"]["timestamp"].as_u64()
+    let state_proof = &msg_result["data"]["stateProofFrom"]
+        .as_object()
+        .or(msg_result["state_proof"].as_object());
+    match (msg_result["type"].as_str(), state_proof) {
+        (Some(constants::GET_REVOC_REG_DELTA), Some(state_proof)) => {
+            state_proof["multi_signature"]["value"]["timestamp"].as_u64()
         }
         _ => None,
     }
@@ -666,7 +669,7 @@ fn _parse_reply_for_builtin_sp(
                 state_proofs.push(state_proof);
             }
             Ok(None) => {
-                debug!("_parse_reply_for_multi_sp: <<<  No proof");
+                trace!("_parse_reply_for_multi_sp: <<<  No proof");
             }
             Err(err) => {
                 debug!("_parse_reply_for_multi_sp: <<<  {}", err);
@@ -773,25 +776,24 @@ fn _parse_reply_for_multi_sp(
         data,
         parsed_data
     );
-
+    let state_proof = &parsed_data["stateProofFrom"];
     let (proof_nodes, root_hash, multi_signature, value) = match xtype {
         constants::GET_REVOC_REG_DELTA if _if_rev_delta_multi_state_proof_expected(sp_key) => {
-            let proof = if let Some(proof) = parsed_data["stateProofFrom"]["proof_nodes"].as_str() {
+            let proof = if let Some(proof) = state_proof["proof_nodes"].as_str() {
                 trace!("_parse_reply_for_multi_sp: proof: {:?}", proof);
                 proof
             } else {
                 return Err("No proof found".to_string());
             };
 
-            let root_hash =
-                if let Some(root_hash) = parsed_data["stateProofFrom"]["root_hash"].as_str() {
-                    trace!("_parse_reply_for_multi_sp: root_hash: {:?}", root_hash);
-                    root_hash
-                } else {
-                    return Err("No root hash".to_string());
-                };
+            let root_hash = if let Some(root_hash) = state_proof["root_hash"].as_str() {
+                trace!("_parse_reply_for_multi_sp: root_hash: {:?}", root_hash);
+                root_hash
+            } else {
+                return Err("No root hash".to_string());
+            };
 
-            let multi_signature = parsed_data["stateProofFrom"]["multi_signature"].clone();
+            let multi_signature = state_proof["multi_signature"].clone();
 
             let value_str = if !parsed_data["value"]["accum_from"].is_null() {
                 Some(
@@ -813,7 +815,10 @@ fn _parse_reply_for_multi_sp(
                 value_str,
             )
         }
-        constants::GET_REVOC_REG_DELTA => return Ok(None),
+        constants::GET_REVOC_REG_DELTA => {
+            trace!("_parse_reply_for_multi_sp: <<< proof not expected");
+            return Ok(None);
+        }
         _ => {
             return Err("Unsupported transaction".to_string());
         }
@@ -1035,7 +1040,7 @@ fn _verify_proof_range(
         let vals = if let Ok(vals) = res {
             vals
         } else {
-            debug!("Some errors happened while collecting values from state proof");
+            debug!("Errors occurred when collecting values from state proof");
             return false;
         };
         // Preparation of data for verification

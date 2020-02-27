@@ -13,7 +13,7 @@ use crate::utils::hash::{digest, Sha256};
 use crate::utils::signature::serialize_signature;
 
 use super::identifiers::cred_def::CredentialDefinitionId;
-use super::identifiers::rev_reg_def::RevocationRegistryId;
+use super::identifiers::rev_reg::RevocationRegistryId;
 use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
 use super::requests::auth_rule::*;
