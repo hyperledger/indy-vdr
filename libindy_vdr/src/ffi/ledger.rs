@@ -1,5 +1,8 @@
 use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
+use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
+use crate::ledger::identifiers::rev_reg_def::RevocationRegistryId;
+use crate::ledger::identifiers::schema::SchemaId;
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 
 use ffi_support::FfiStr;
@@ -99,6 +102,27 @@ pub extern "C" fn indy_vdr_build_disable_all_txn_author_agreements_request(
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_build_get_cred_def_request(
+    submitter_did: FfiStr, // optional
+    cred_def_id: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_CRED_DEF request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let cred_def_id = CredentialDefinitionId::from_str(cred_def_id.as_str())?;
+        let req = builder.build_get_cred_def_request(identifier.as_ref(), &cred_def_id)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_build_get_nym_request(
     submitter_did: FfiStr, // optional
     dest: FfiStr,
@@ -111,6 +135,94 @@ pub extern "C" fn indy_vdr_build_get_nym_request(
         let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
         let dest = DidValue::from_str(dest.as_str())?;
         let req = builder.build_get_nym_request(identifier.as_ref(), &dest)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_revoc_reg_def_request(
+    submitter_did: FfiStr, // optional
+    revoc_reg_id: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_REVOC_REG_DEF request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let revoc_reg_id = RevocationRegistryId::from_str(revoc_reg_id.as_str())?;
+        let req = builder.build_get_revoc_reg_def_request(identifier.as_ref(), &revoc_reg_id)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_revoc_reg_request(
+    submitter_did: FfiStr, // optional
+    revoc_reg_id: FfiStr,
+    timestamp: i64,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_REVOC_REG request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let revoc_reg_id = RevocationRegistryId::from_str(revoc_reg_id.as_str())?;
+        let req = builder.build_get_revoc_reg_request(identifier.as_ref(), &revoc_reg_id, timestamp)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_revoc_reg_delta_request(
+    submitter_did: FfiStr, // optional
+    revoc_reg_id: FfiStr,
+    from_ts: i64, // -1 for none
+    to_ts: i64,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_REVOC_REG_DELTA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let revoc_reg_id = RevocationRegistryId::from_str(revoc_reg_id.as_str())?;
+        let from_ts = if from_ts == -1 {None} else {Some(from_ts)};
+        let req = builder.build_get_revoc_reg_delta_request(identifier.as_ref(), &revoc_reg_id, from_ts, to_ts)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_schema_request(
+    submitter_did: FfiStr, // optional
+    schema_id: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_SCHEMA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let schema_id = SchemaId::from_str(schema_id.as_str())?;
+        let req = builder.build_get_schema_request(identifier.as_ref(), &schema_id)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;

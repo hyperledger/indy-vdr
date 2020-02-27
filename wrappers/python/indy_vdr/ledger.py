@@ -132,19 +132,137 @@ def build_get_acceptance_mechanisms_request(
     return Request(handle)
 
 
+def build_get_cred_def_request(
+    submitter_did: Optional[str], cred_def_id: str
+) -> Request:
+    """
+    Builds a GET_CRED_DEF request to fetch a credential definition by ID.
+
+    Args:
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be used
+        cred_def_id: ID of the corresponding credential definition on the ledger
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    cred_def_id_p = encode_str(cred_def_id)
+    do_call("indy_vdr_build_get_cred_def_request", did_p, cred_def_id_p, byref(handle))
+    return Request(handle)
+
+
 def build_get_nym_request(submitter_did: Optional[str], dest: str) -> Request:
     """
     Builds a GET_NYM request to get information about a DID (NYM).
 
     Args:
-        submitter_did: (Optional) DID of the read request sender (if not provided
-            then the default Libindy DID will be used)
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be use)
         target_did: Target DID as base58-encoded string for 16 or 32 bit DID value
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     dest_p = encode_str(dest)
     do_call("indy_vdr_build_get_nym_request", did_p, dest_p, byref(handle))
+    return Request(handle)
+
+
+def build_get_revoc_reg_def_request(
+    submitter_did: Optional[str], revoc_reg_id: str
+) -> Request:
+    """
+    Builds a GET_REVOC_REG_DEF request.
+
+    Request to get the revocation registry definition for a given revocation
+    registry ID.
+
+    Args:
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be used.
+        revoc_reg_id: ID of the corresponding revocation registry definition
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    rev_id_p = encode_str(revoc_reg_id)
+    do_call("indy_vdr_build_get_revoc_reg_def_request", did_p, rev_id_p, byref(handle))
+    return Request(handle)
+
+
+def build_get_revoc_reg_request(
+    submitter_did: Optional[str], revoc_reg_id: str, timestamp: int
+) -> Request:
+    """
+    Builds a GET_REVOC_REG request.
+
+    Request to get the accumulated state of the revocation registry by ID. The state
+    is defined by the given timestamp.
+
+    Args:
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be used
+        revoc_reg_id: ID of the corresponding revocation registry definition
+        timestamp: Requested time represented as a total number of seconds since the
+            Unix epoch
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    rev_id_p = encode_str(revoc_reg_id)
+    timestamp_c = c_int64(timestamp)
+    do_call(
+        "indy_vdr_build_get_revoc_reg_request",
+        did_p,
+        rev_id_p,
+        timestamp_c,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_get_revoc_reg_delta_request(
+    submitter_did: Optional[str], revoc_reg_id: str, from_ts: Optional[int], to_ts: int
+) -> Request:
+    """
+    Builds a GET_REVOC_REG_DELTA request.
+
+    Request to get the delta of the accumulated state of the revocation registry
+    identified by `revoc_reg_id`. The delta is defined by from and to timestamp fields.
+    If from is not specified, then the whole state until `to` will be returned.
+
+    Args:
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be used
+        revoc_reg_id: ID of the corresponding revocation registry definition
+        from_ts: Requested time represented as a total number of seconds from Unix epoch
+        to_ts: Requested time represented as a total number of seconds from Unix epoch
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    rev_id_p = encode_str(revoc_reg_id)
+    from_c = c_int64(from_ts if from_ts is not None else -1)
+    to_c = c_int64(to_ts)
+    do_call(
+        "indy_vdr_build_get_revoc_reg_delta_request",
+        did_p,
+        rev_id_p,
+        from_c,
+        to_c,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_get_schema_request(submitter_did: Optional[str], schema_id: str) -> Request:
+    """
+    Builds a GET_SCHEMA request to fetch a credential schema by ID.
+
+    Args:
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be used
+        schema_id: ID of the corresponding schema on the ledger
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    schema_id_p = encode_str(schema_id)
+    do_call("indy_vdr_build_get_schema_request", did_p, schema_id_p, byref(handle))
     return Request(handle)
 
 
@@ -157,8 +275,8 @@ def build_get_txn_author_agreement_request(
     Used to get a specific Transaction Author Agreement from the ledger.
 
     Args:
-        submitter_did: (Optional) DID of the read request sender (if not provided
-            then the default Libindy DID will be used).
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be used
         data: (Optional) specifies conditions for getting a specific TAA
             Contains 3 mutually exclusive optional fields:
             {
@@ -192,8 +310,8 @@ def build_get_txn_request(
     Builds a GET_TXN request to get any transaction by its sequence number.
 
     Args:
-        submitter_did: (Optional) DID of the read request sender (if not provided
-            then the default Libindy DID will be used)
+        submitter_did: (Optional) DID of the read request sender. If not provided
+            then the default Libindy DID will be used
         ledger_type: (Optional) type of the ledger the requested transaction belongs to
             Pass a `LedgerType` instance for known values
         seq_no: requested transaction sequence number as it's stored on the ledger

@@ -9,6 +9,11 @@ from .ledger import (
     build_get_acceptance_mechanisms_request,
     build_get_txn_author_agreement_request,
     build_get_validator_info_request,
+    build_get_cred_def_request,
+    build_get_revoc_reg_def_request,
+    build_get_revoc_reg_request,
+    build_get_revoc_reg_delta_request,
+    build_get_schema_request,
     prepare_txn_author_agreement_acceptance,
     LedgerType,
 )
@@ -68,6 +73,28 @@ async def basic_test(transactions_path):
 
     txn = await get_txn(pool, 11)
     log(json.dumps(txn, indent=2))
+
+    req = build_get_schema_request(
+        None, "6qnvgJtqwK44D8LFYnV5Yf:2:relationship.dflow:1.0.0"
+    )
+    log("Get schema request:", req.body)
+
+    req = build_get_cred_def_request(None, "A9Rsuu7FNquw8Ne2Smu5Nr:3:CL:15:tag")
+    log("Get cred def request:", req.body)
+
+    revoc_id = (
+        "L5wx9FUxCDpFJEdFc23jcn:4:L5wx9FUxCDpFJEdFc23jcn:3:CL:1954:"
+        "default:CL_ACCUM:c024e30d-f3eb-42c5-908a-ff885667588d"
+    )
+
+    req = build_get_revoc_reg_def_request(None, revoc_id)
+    log("Get revoc reg def request:", req.body)
+
+    req = build_get_revoc_reg_request(None, revoc_id, timestamp=1)
+    log("Get revoc reg request:", req.body)
+
+    req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
+    log("Get revoc reg delta request:", req.body)
 
 
 if __name__ == "__main__":
