@@ -59,11 +59,10 @@ async fn fetch_transactions(genesis: String) -> VdrResult<PoolTransactions> {
     let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);
     let mut res = client
-        .get(
-            genesis
-                .parse()
-                .with_err_msg(VdrErrorKind::Config, "Error parsing genesis URL")?,
-        )
+        .get(genesis.parse().with_err_msg(
+            VdrErrorKind::Config,
+            format!("Error parsing genesis URL: {}", genesis),
+        )?)
         .await
         .with_err_msg(VdrErrorKind::Config, "Error fetching genesis transactions")?;
     if res.status() != 200 {
