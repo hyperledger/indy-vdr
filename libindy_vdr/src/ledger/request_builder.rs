@@ -18,18 +18,20 @@ use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
 use super::requests::auth_rule::*;
 use super::requests::author_agreement::*;
-use super::requests::cred_def::{CredDefOperation, CredentialDefinitionV1, GetCredDefOperation};
+use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{GetNymOperation, NymOperation};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
 use super::requests::rev_reg::{
-    GetRevRegDeltaOperation, GetRevRegOperation, RevRegEntryOperation, RevocationRegistryDeltaV1,
+    GetRevRegDeltaOperation, GetRevRegOperation, RevRegEntryOperation, RevocationRegistryDelta,
 };
-use super::requests::rev_reg_def::GetRevRegDefOperation;
+use super::requests::rev_reg_def::{
+    GetRevRegDefOperation, RegistryType, RevRegDefOperation, RevocationRegistryDefinition,
+};
 use super::requests::schema::{
-    GetSchemaOperation, GetSchemaOperationData, SchemaOperation, SchemaOperationData, SchemaV1,
+    GetSchemaOperation, GetSchemaOperationData, Schema, SchemaOperation, SchemaOperationData,
 };
 use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
@@ -437,8 +439,11 @@ impl RequestBuilder {
     pub fn build_schema_request(
         &self,
         identifier: &DidValue,
-        schema: SchemaV1,
+        schema: Schema,
     ) -> VdrResult<PreparedRequest> {
+        let schema = match schema {
+            Schema::SchemaV1(s) => s,
+        };
         let schema_data =
             SchemaOperationData::new(schema.name, schema.version, schema.attr_names.into());
         self.build(SchemaOperation::new(schema_data), Some(identifier))
@@ -461,14 +466,10 @@ impl RequestBuilder {
     pub fn build_cred_def_request(
         &self,
         identifier: &DidValue,
-        cred_def: CredentialDefinitionV1,
+        cred_def: CredentialDefinition,
     ) -> VdrResult<PreparedRequest> {
-        let cred_def: CredentialDefinitionV1 = CredentialDefinitionV1 {
-            id: cred_def.id.to_unqualified(),
-            schema_id: cred_def.schema_id.to_unqualified(),
-            signature_type: cred_def.signature_type,
-            tag: cred_def.tag,
-            value: cred_def.value,
+        let cred_def = match cred_def.to_unqualified() {
+            CredentialDefinition::CredentialDefinitionV1(cred_def) => cred_def,
         };
         self.build(CredDefOperation::new(cred_def), Some(identifier))
     }
@@ -500,20 +501,6 @@ impl RequestBuilder {
         self.build(GetRevRegDefOperation::new(&id), identifier)
     }
 
-    pub fn build_revoc_reg_entry_request(
-        &self,
-        identifier: &DidValue,
-        revoc_reg_def_id: &RevocationRegistryId,
-        revoc_def_type: &str,
-        rev_reg_entry: RevocationRegistryDeltaV1,
-    ) -> VdrResult<PreparedRequest> {
-        let revoc_reg_def_id = revoc_reg_def_id.to_unqualified();
-        self.build(
-            RevRegEntryOperation::new(revoc_def_type, &revoc_reg_def_id, rev_reg_entry),
-            Some(identifier),
-        )
-    }
-
     pub fn build_get_revoc_reg_request(
         &self,
         identifier: Option<&DidValue>,
@@ -538,6 +525,34 @@ impl RequestBuilder {
         self.build(
             GetRevRegDeltaOperation::new(&revoc_reg_def_id, from, to),
             identifier,
+        )
+    }
+
+    pub fn build_revoc_reg_def_request(
+        &self,
+        identifier: &DidValue,
+        revoc_reg: RevocationRegistryDefinition,
+    ) -> VdrResult<PreparedRequest> {
+        let revoc_reg = match revoc_reg.to_unqualified() {
+            RevocationRegistryDefinition::RevocationRegistryDefinitionV1(revoc_reg) => revoc_reg,
+        };
+        self.build(RevRegDefOperation::new(revoc_reg), Some(identifier))
+    }
+
+    pub fn build_revoc_reg_entry_request(
+        &self,
+        identifier: &DidValue,
+        revoc_reg_def_id: &RevocationRegistryId,
+        revoc_def_type: &RegistryType,
+        rev_reg_entry: RevocationRegistryDelta,
+    ) -> VdrResult<PreparedRequest> {
+        let revoc_reg_def_id = revoc_reg_def_id.to_unqualified();
+        let rev_reg_entry = match rev_reg_entry {
+            RevocationRegistryDelta::RevocationRegistryDeltaV1(entry) => entry,
+        };
+        self.build(
+            RevRegEntryOperation::new(revoc_def_type, &revoc_reg_def_id, rev_reg_entry),
+            Some(identifier),
         )
     }
 

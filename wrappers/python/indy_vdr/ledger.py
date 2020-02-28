@@ -74,6 +74,47 @@ def build_acceptance_mechanisms_request(
     return Request(handle)
 
 
+def build_cred_def_request(
+    submitter_did: str, cred_def: Union[bytes, str, dict]
+) -> Request:
+    """
+    Builds a CRED_DEF request to to add a credential definition to the ledger.
+
+    In particular, this publishes the public key that the issuer created for
+    issuing credentials against a particular schema.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string
+        cred_def: Credential definition.
+            ```jsonc
+            {
+                "id": "<credential definition identifier>",
+                "schemaId": "<schema identifier>",
+                "type": "CL",
+                    // type of the credential definition. CL is currently
+                    // the only supported type
+                "tag": "",
+                    // allows to distinguish between credential definitions
+                    // for the same issuer and schema
+                "value": /* Dictionary with Credential Definition's data: */ {
+                    "primary": "<primary credential public key>",
+                    "revocation": /* Optional */ "<revocation credential public key>"
+                },
+                ver: Version of the CredDef json
+            }```
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    cred_def_p = (
+        encode_str(cred_def)
+        if isinstance(cred_def, (str, bytes))
+        else encode_json(cred_def)
+    )
+    do_call("indy_vdr_build_cred_def_request", did_p, cred_def_p, byref(handle))
+    return Request(handle)
+
+
 def build_custom_request(body: Union[str, bytes, dict]) -> Request:
     handle = RequestHandle()
     body_p = encode_str(body) if isinstance(body, (str, bytes)) else encode_json(body)
@@ -387,6 +428,124 @@ def build_nym_request(
         role_p,
         byref(handle),
     )
+    return Request(handle)
+
+
+def build_revoc_reg_def_request(
+    submitter_did: str, revoc_reg_def: Union[bytes, str, dict]
+) -> Request:
+    """
+    Builds a REVOC_REG_DEF request.
+
+    Request to add the definition of revocation registry to an existing
+    credential definition.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string
+        revoc_reg_def: Revocation Registry data:
+            ```jsonc
+            {
+                "id": "<revocation registry identifier>",
+                "revocDefType": "CL_ACCUM",
+                    // revocation registry type (only CL_ACCUM is supported for now)
+                "tag": "", // Unique descriptive ID of the registry definition
+                "credDefId": "<credential definition ID>",
+                "value": /* Registry-specific data */ {
+                    "issuanceType": "ISSUANCE_BY_DEFAULT",
+                        // Type of issuance: ISSUANCE_BY_DEFAULT or ISSUANCE_ON_DEMAND
+                    "maxCredNum": 10000,
+                        // Maximum number of credentials the Registry can serve.
+                    "tailsHash": "<sha256 hash of tails file in base58>",
+                    "tailsLocation": "<URL or path for the tails file>",
+                    "publicKeys": { /* <public_keys> */ } // registry's public keys
+                },
+                "ver": "<version of revocation registry definition json>"
+            }```
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    revoc_reg_def_p = (
+        encode_str(revoc_reg_def)
+        if isinstance(revoc_reg_def, (str, bytes))
+        else encode_json(revoc_reg_def)
+    )
+    do_call(
+        "indy_vdr_build_revoc_reg_def_request", did_p, revoc_reg_def_p, byref(handle)
+    )
+    return Request(handle)
+
+
+def build_revoc_reg_entry_request(
+    submitter_did: str,
+    revoc_reg_def_id: str,
+    revoc_reg_def_type: str,
+    entry: Union[bytes, str, dict],
+) -> Request:
+    """
+    Builds a REVOC_REG_ENTRY request.
+
+    Request to add the revocation registry entry containing the new accumulator
+    value and issued/revoked indices. This is just a delta of indices, not the
+    whole list. It can be sent each time a new credential is issued/revoked.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string
+        entry: Registry-specific data:
+            ```jsonc
+            {
+                "value": {
+                    "prevAccum": "<previous accumulator value>",
+                    "accum": "<current accumulator value>",
+                    "issued": [], // array<number> - an array of issued indices
+                    "revoked": [] // array<number> an array of revoked indices
+                },
+                "ver": "<version of the revocation registry entry json>"
+            }```
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    entry_p = (
+        encode_str(entry) if isinstance(entry, (str, bytes)) else encode_json(entry)
+    )
+    do_call(
+        "indy_vdr_build_revoc_reg_entry_request",
+        did_p,
+        revoc_reg_def_id,
+        revoc_reg_def_type,
+        entry_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_schema_request(
+    submitter_did: str, schema: Union[bytes, str, dict]
+) -> Request:
+    """
+    Builds a SCHEMA request to to add a credential schema to the ledger.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string
+        schema: Credential schema:
+            ```jsonc
+            {
+                "id": "<identifier of schema>",
+                "attrNames": "<array of attribute name strings (the number of attributes
+                    should be less or equal than 125)>",
+                "name": "<schema's name string>",
+                "version": "<schema's version string>",
+                "ver": "<version of the schema json>"
+            }```
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    schema_p = (
+        encode_str(schema) if isinstance(schema, (str, bytes)) else encode_json(schema)
+    )
+    do_call("indy_vdr_build_schema_request", did_p, schema_p, byref(handle))
     return Request(handle)
 
 
