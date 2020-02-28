@@ -14,11 +14,17 @@ use std::process::exit;
 use std::rc::Rc;
 use std::time::SystemTime;
 
+#[cfg(feature = "fetch")]
+use hyper::body::Buf;
 use hyper::service::{make_service_fn, service_fn};
+#[cfg(feature = "fetch")]
+use hyper::Client;
 use hyper::Server;
+#[cfg(feature = "fetch")]
+use hyper_tls::HttpsConnector;
 use hyper_unix_connector::UnixConnector;
 
-use indy_vdr::common::error::VdrResult;
+use indy_vdr::common::error::prelude::*;
 use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolBuilder, PoolTransactions};
 
 fn main() {
@@ -48,8 +54,48 @@ pub struct AppState {
     transactions: PoolTransactions,
 }
 
+#[cfg(feature = "fetch")]
+async fn fetch_transactions(genesis: String) -> VdrResult<PoolTransactions> {
+    let https = HttpsConnector::new();
+    let client = Client::builder().build::<_, hyper::Body>(https);
+    let mut res = client
+        .get(genesis.parse().with_err_msg(
+            VdrErrorKind::Config,
+            format!("Error parsing genesis URL: {}", genesis),
+        )?)
+        .await
+        .with_err_msg(VdrErrorKind::Config, "Error fetching genesis transactions")?;
+    if res.status() != 200 {
+        return Err(err_msg(
+            VdrErrorKind::Config,
+            format!(
+                "Unexpected HTTP status for genesis transactions: {}",
+                res.status()
+            ),
+        ));
+    };
+    let body = hyper::body::aggregate(res.body_mut())
+        .await
+        .with_err_msg(VdrErrorKind::Config, "Error receiving genesis transactions")?
+        .to_bytes();
+    let txns = String::from_utf8_lossy(&body);
+    PoolTransactions::from_json(&txns)
+}
+
+#[cfg(not(feature = "fetch"))]
+async fn fetch_transactions(_genesis: String) -> VdrResult<PoolTransactions> {
+    Err(err_msg(
+        VdrErrorKind::Config,
+        "This application is not compiled with HTTP(S) request support",
+    ))
+}
+
 async fn init_app_state(genesis: String) -> VdrResult<AppState> {
-    let transactions = PoolTransactions::from_file(genesis.as_str())?;
+    let transactions = if genesis.starts_with("http:") || genesis.starts_with("https:") {
+        fetch_transactions(genesis).await?
+    } else {
+        PoolTransactions::from_file(genesis.as_str())?
+    };
     let state = AppState {
         pool: None,
         last_refresh: None,
