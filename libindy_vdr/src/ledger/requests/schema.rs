@@ -9,6 +9,21 @@ use std::collections::HashSet;
 
 pub const MAX_ATTRIBUTES_COUNT: usize = 125;
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "ver")]
+pub enum Schema {
+    #[serde(rename = "1.0")]
+    SchemaV1(SchemaV1),
+}
+
+impl Validatable for Schema {
+    fn validate(&self) -> VdrResult<()> {
+        match self {
+            Schema::SchemaV1(schema) => schema.validate(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaV1 {

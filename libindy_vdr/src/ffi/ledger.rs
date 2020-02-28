@@ -1,6 +1,13 @@
 use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
+use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
+use crate::ledger::identifiers::rev_reg_def::RevocationRegistryId;
+use crate::ledger::identifiers::schema::SchemaId;
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
+use crate::ledger::requests::cred_def::CredentialDefinition;
+use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
+use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
+use crate::ledger::requests::schema::Schema;
 
 use ffi_support::FfiStr;
 
@@ -60,6 +67,28 @@ pub extern "C" fn indy_vdr_build_get_acceptance_mechanisms_request(
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_build_cred_def_request(
+    submitter_did: FfiStr,
+    cred_def: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build CRED_DEF request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let cred_def = serde_json::from_str::<CredentialDefinition>(cred_def.as_str())
+            .with_input_err("Error deserializing CredentialDefinition")?;
+        let req = builder.build_cred_def_request(&identifier, cred_def)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_build_custom_request(
     request_json: FfiStr,
     handle_p: *mut usize,
@@ -99,6 +128,27 @@ pub extern "C" fn indy_vdr_build_disable_all_txn_author_agreements_request(
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_build_get_cred_def_request(
+    submitter_did: FfiStr, // optional
+    cred_def_id: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_CRED_DEF request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let cred_def_id = CredentialDefinitionId::from_str(cred_def_id.as_str())?;
+        let req = builder.build_get_cred_def_request(identifier.as_ref(), &cred_def_id)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_build_get_nym_request(
     submitter_did: FfiStr, // optional
     dest: FfiStr,
@@ -111,6 +161,94 @@ pub extern "C" fn indy_vdr_build_get_nym_request(
         let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
         let dest = DidValue::from_str(dest.as_str())?;
         let req = builder.build_get_nym_request(identifier.as_ref(), &dest)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_revoc_reg_def_request(
+    submitter_did: FfiStr, // optional
+    revoc_reg_id: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_REVOC_REG_DEF request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let revoc_reg_id = RevocationRegistryId::from_str(revoc_reg_id.as_str())?;
+        let req = builder.build_get_revoc_reg_def_request(identifier.as_ref(), &revoc_reg_id)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_revoc_reg_request(
+    submitter_did: FfiStr, // optional
+    revoc_reg_id: FfiStr,
+    timestamp: i64,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_REVOC_REG request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let revoc_reg_id = RevocationRegistryId::from_str(revoc_reg_id.as_str())?;
+        let req = builder.build_get_revoc_reg_request(identifier.as_ref(), &revoc_reg_id, timestamp)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_revoc_reg_delta_request(
+    submitter_did: FfiStr, // optional
+    revoc_reg_id: FfiStr,
+    from_ts: i64, // -1 for none
+    to_ts: i64,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_REVOC_REG_DELTA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let revoc_reg_id = RevocationRegistryId::from_str(revoc_reg_id.as_str())?;
+        let from_ts = if from_ts == -1 {None} else {Some(from_ts)};
+        let req = builder.build_get_revoc_reg_delta_request(identifier.as_ref(), &revoc_reg_id, from_ts, to_ts)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_schema_request(
+    submitter_did: FfiStr, // optional
+    schema_id: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_SCHEMA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let schema_id = SchemaId::from_str(schema_id.as_str())?;
+        let req = builder.build_get_schema_request(identifier.as_ref(), &schema_id)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;
@@ -206,6 +344,77 @@ pub extern "C" fn indy_vdr_build_nym_request(
         let alias = alias.into_opt_string();
         let role = role.into_opt_string();
         let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_revoc_reg_def_request(
+    submitter_did: FfiStr,
+    revoc_reg_def: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build REVOC_REG_DEF request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let revoc_reg_def = serde_json::from_str::<RevocationRegistryDefinition>(revoc_reg_def.as_str())
+            .with_input_err("Error deserializing RevocationRegistryDefinition")?;
+        let req = builder.build_revoc_reg_def_request(&identifier, revoc_reg_def)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_revoc_reg_entry_request(
+    submitter_did: FfiStr,
+    revoc_reg_def_id: FfiStr,
+    revoc_reg_def_type: FfiStr,
+    revoc_reg_entry: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build REVOC_REG_ENTRY request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id.as_str())?;
+        let revoc_reg_def_type = serde_json::from_str::<RegistryType>(revoc_reg_def_type.as_str())
+            .with_input_err("Unknown revocation registry type")?;
+        let revoc_reg_entry = serde_json::from_str::<RevocationRegistryDelta>(revoc_reg_entry.as_str())
+            .with_input_err("Error deserializing RevocationRegistryDelta")?;
+        let req = builder.build_revoc_reg_entry_request(&identifier, &revoc_reg_def_id, &revoc_reg_def_type, revoc_reg_entry)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_schema_request(
+    submitter_did: FfiStr,
+    schema: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build SCHEMA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let schema = serde_json::from_str::<Schema>(schema.as_str())
+            .with_input_err("Error deserializing Schema")?;
+        let req = builder.build_schema_request(&identifier, schema)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;

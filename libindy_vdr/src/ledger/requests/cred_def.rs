@@ -30,6 +30,37 @@ pub struct CredentialDefinitionData {
     pub revocation: Option<CredentialRevocationPublicKey>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "ver")]
+pub enum CredentialDefinition {
+    #[serde(rename = "1.0")]
+    CredentialDefinitionV1(CredentialDefinitionV1),
+}
+
+impl CredentialDefinition {
+    pub fn to_unqualified(self) -> CredentialDefinition {
+        match self {
+            CredentialDefinition::CredentialDefinitionV1(cred_def) => {
+                CredentialDefinition::CredentialDefinitionV1(CredentialDefinitionV1 {
+                    id: cred_def.id.to_unqualified(),
+                    schema_id: cred_def.schema_id.to_unqualified(),
+                    signature_type: cred_def.signature_type,
+                    tag: cred_def.tag,
+                    value: cred_def.value,
+                })
+            }
+        }
+    }
+}
+
+impl Validatable for CredentialDefinition {
+    fn validate(&self) -> VdrResult<()> {
+        match self {
+            CredentialDefinition::CredentialDefinitionV1(cred_def) => cred_def.validate(),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialDefinitionV1 {
