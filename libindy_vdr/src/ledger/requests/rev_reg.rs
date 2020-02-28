@@ -4,7 +4,7 @@ use ursa::cl::{
 };
 
 use super::constants::{GET_REVOC_REG, GET_REVOC_REG_DELTA, REVOC_REG_ENTRY};
-use super::identifiers::rev_reg_def::RevocationRegistryId;
+use super::identifiers::rev_reg::RevocationRegistryId;
 use super::rev_reg_def::RegistryType;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;

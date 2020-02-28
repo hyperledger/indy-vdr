@@ -2,7 +2,7 @@ use ursa::cl::RevocationKeyPublic;
 
 use super::constants::{GET_REVOC_REG_DEF, REVOC_REG_DEF};
 use super::identifiers::cred_def::CredentialDefinitionId;
-use super::identifiers::rev_reg_def::RevocationRegistryId;
+use super::identifiers::rev_reg::RevocationRegistryId;
 use super::{ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
 use crate::utils::validation::Validatable;

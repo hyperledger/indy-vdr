@@ -42,4 +42,4 @@ zmq = "0.9.2"
 [dependencies.ursa]
 version = "0.3.2"
 default-features = false
-features = ["bls_bn254", "cl", "ed25519", "sha2", "sha3", "serde", "x25519"]
+features = ["bls_bn254", "cl_native", "ed25519", "sha2", "sha3", "serde", "x25519"]
