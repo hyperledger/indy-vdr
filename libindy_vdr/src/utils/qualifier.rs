@@ -5,18 +5,6 @@ use super::validation::{Validatable, ValidationError};
 lazy_static! {
     pub static ref REGEX: Regex = Regex::new("^([a-z0-9]+):([a-z0-9]+):(.*)$").unwrap();
 }
-#[derive(Clone, Debug)]
-pub enum QualifierError {
-    MethodDiffers,
-}
-
-impl std::fmt::Display for QualifierError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::MethodDiffers => write!(f, "Identifier has a pre-existing method"),
-        }
-    }
-}
 
 pub fn combine(prefix: &str, method: Option<&str>, entity: &str) -> String {
     match method {
@@ -93,13 +81,15 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
         self.get_method().is_some()
     }
 
-    fn to_qualified(&self, method: &str) -> Result<Self, QualifierError> {
+    fn to_qualified(&self, method: &str) -> Result<Self, ValidationError> {
         match self.split() {
             (None, rest) => Ok(Self::combine(Some(method), rest)),
             (Some(prev_method), rest) if prev_method == method => {
                 Ok(Self::combine(Some(method), rest))
             }
-            _ => Err(QualifierError::MethodDiffers),
+            _ => Err(ValidationError::from(
+                "Identifier is already qualified with another method",
+            )),
         }
     }
 
