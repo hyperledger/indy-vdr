@@ -15,7 +15,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 #[macro_use]
-mod utils;
+pub mod utils;
 
 pub mod common;
 pub mod config;

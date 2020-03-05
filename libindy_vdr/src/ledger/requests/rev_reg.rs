@@ -12,6 +12,21 @@ use crate::utils::validation::Validatable;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "ver")]
+pub enum RevocationRegistry {
+    #[serde(rename = "1.0")]
+    RevocationRegistryV1(RevocationRegistryV1),
+}
+
+impl From<RevocationRegistry> for RevocationRegistryV1 {
+    fn from(rev_reg: RevocationRegistry) -> Self {
+        match rev_reg {
+            RevocationRegistry::RevocationRegistryV1(rev_reg) => rev_reg,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "ver")]
 pub enum RevocationRegistryDelta {
     #[serde(rename = "1.0")]
     RevocationRegistryDeltaV1(RevocationRegistryDeltaV1),
