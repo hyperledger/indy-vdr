@@ -16,6 +16,7 @@ crate-type = ["staticlib", "rlib", "cdylib"]
 [features]
 ffi = ["ffi-support", "logger"]
 logger = ["env_logger", "log"]
+zmq_dynamic = ["zmq"]
 zmq_vendored = ["zmq/vendored"]
 default = ["ffi", "log", "zmq_vendored"]
 
@@ -37,7 +38,7 @@ serde = "1.0.99"
 serde_derive = "1.0.99"
 serde_json = "1.0.40"
 thiserror = "1.0.9"
-zmq = "0.9.2"
+zmq = { version = "0.9.2", optional = true }
 
 [dependencies.ursa]
 version = "0.3.2"
