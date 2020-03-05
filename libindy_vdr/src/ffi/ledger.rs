@@ -8,6 +8,7 @@ use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
 use crate::ledger::requests::schema::Schema;
+use crate::utils::qualifier::Qualifiable;
 
 use ffi_support::FfiStr;
 

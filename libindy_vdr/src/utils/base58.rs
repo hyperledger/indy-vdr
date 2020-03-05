@@ -1,16 +1,16 @@
 use bs58;
 
-use crate::common::error::prelude::*;
+use super::validation::ValidationError;
 
 pub trait FromBase58 {
-    fn from_base58(&self) -> VdrResult<Vec<u8>>;
+    fn from_base58(&self) -> Result<Vec<u8>, ValidationError>;
 }
 
 impl FromBase58 for str {
-    fn from_base58(&self) -> VdrResult<Vec<u8>> {
+    fn from_base58(&self) -> Result<Vec<u8>, ValidationError> {
         bs58::decode(self)
             .into_vec()
-            .with_input_err("Error decoding base58 string")
+            .map_err(|_| ValidationError(Some("Error decoding base58 string".to_owned())))
     }
 }
 

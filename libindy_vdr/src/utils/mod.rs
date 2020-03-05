@@ -2,13 +2,14 @@
 mod macros;
 #[macro_use]
 pub mod qualifier;
+#[macro_use]
+pub mod validation;
 
 pub mod base58;
 pub mod crypto;
 pub mod environment;
 pub mod hash;
 pub mod signature;
-pub mod validation;
 
 #[macro_use]
 #[allow(unused_macros)]

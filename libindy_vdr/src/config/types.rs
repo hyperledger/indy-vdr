@@ -1,7 +1,6 @@
 pub use crate::pool::ProtocolVersion;
 
-use crate::common::error::prelude::*;
-use crate::utils::validation::Validatable;
+use crate::utils::validation::{Validatable, ValidationError};
 
 use super::constants;
 
@@ -24,24 +23,24 @@ pub struct PoolConfig {
 }
 
 impl Validatable for PoolConfig {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         if self.freshness_threshold == 0 {
-            return Err(input_err("`freshness_threshold` must be greater than 0"));
+            return Err(invalid!("`freshness_threshold` must be greater than 0"));
         }
         if self.ack_timeout <= 0 {
-            return Err(input_err("`ack_timeout` must be greater than 0"));
+            return Err(invalid!("`ack_timeout` must be greater than 0"));
         }
         if self.reply_timeout <= 0 {
-            return Err(input_err("`reply_timeout` must be greater than 0"));
+            return Err(invalid!("`reply_timeout` must be greater than 0"));
         }
         if self.conn_request_limit == 0 {
-            return Err(input_err("`conn_request_limit` must be greater than 0"));
+            return Err(invalid!("`conn_request_limit` must be greater than 0"));
         }
         if self.conn_active_timeout <= 0 {
-            return Err(input_err("`conn_active_timeout` must be greater than 0"));
+            return Err(invalid!("`conn_active_timeout` must be greater than 0"));
         }
         if self.request_read_nodes == 0 {
-            return Err(input_err("`request_read_nodes` must be greater than 0"));
+            return Err(invalid!("`request_read_nodes` must be greater than 0"));
         }
         Ok(())
     }

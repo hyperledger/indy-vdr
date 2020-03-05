@@ -1,8 +1,8 @@
 use std::cmp;
 
 pub use super::proof::{Lemma, Positioned, Proof};
-use crate::common::error::VdrResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use crate::utils::validation::ValidationError;
 
 pub type TreeLeafData = Vec<u8>;
 
@@ -42,7 +42,7 @@ impl Tree {
     }
 
     /// Create a new leaf
-    pub fn new_leaf(value: TreeLeafData) -> VdrResult<Tree> {
+    pub fn new_leaf(value: TreeLeafData) -> Result<Tree, ValidationError> {
         let hash = Hash::hash_leaf(&value)?;
         Ok(Tree::new(hash, value))
     }

@@ -1,5 +1,5 @@
-use crate::common::error::VdrResult;
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
+use crate::utils::validation::ValidationError;
 
 use super::tree::{Tree, TreeLeafData};
 
@@ -29,7 +29,7 @@ impl Proof {
 
     /// Checks whether this inclusion proof is well-formed,
     /// and whether its root hash matches the given `root_hash`.
-    pub fn validate(&self, root_hash: &[u8]) -> VdrResult<bool> {
+    pub fn validate(&self, root_hash: &[u8]) -> Result<bool, ValidationError> {
         if self.root_hash != root_hash || self.lemma.node_hash != root_hash {
             return Ok(false);
         }
@@ -37,7 +37,7 @@ impl Proof {
         Ok(self.validate_lemma(&self.lemma)?)
     }
 
-    fn validate_lemma(&self, lemma: &Lemma) -> VdrResult<bool> {
+    fn validate_lemma(&self, lemma: &Lemma) -> Result<bool, ValidationError> {
         match lemma.sub_lemma {
             None => Ok(lemma.sibling_hash.is_none()),
 

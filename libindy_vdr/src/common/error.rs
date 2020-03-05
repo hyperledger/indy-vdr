@@ -93,6 +93,12 @@ impl From<VdrErrorKind> for VdrError {
     }
 }
 
+impl From<crate::utils::validation::ValidationError> for VdrError {
+    fn from(err: crate::utils::validation::ValidationError) -> Self {
+        VdrError::new(VdrErrorKind::Input, Some(err.to_string()), None)
+    }
+}
+
 impl From<zmq::Error> for VdrError {
     fn from(err: zmq::Error) -> VdrError {
         VdrError::new(VdrErrorKind::Connection, None, Some(Box::new(err)))
