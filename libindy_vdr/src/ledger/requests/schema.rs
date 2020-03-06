@@ -16,14 +16,6 @@ pub enum Schema {
     SchemaV1(SchemaV1),
 }
 
-impl From<Schema> for SchemaV1 {
-    fn from(schema: Schema) -> Self {
-        match schema {
-            Schema::SchemaV1(schema) => schema
-        }
-    }
-}
-
 impl Schema {
     pub fn to_unqualified(self) -> Schema {
         match self {

@@ -83,14 +83,6 @@ impl RevocationRegistryDefinition {
     }
 }
 
-impl From<RevocationRegistryDefinition> for RevocationRegistryDefinitionV1 {
-    fn from(rev_reg_def: RevocationRegistryDefinition) -> Self {
-        match rev_reg_def {
-            RevocationRegistryDefinition::RevocationRegistryDefinitionV1(rev_reg_def) => rev_reg_def
-        }
-    }
-}
-
 impl Validatable for RevocationRegistryDefinition {
     fn validate(&self) -> VdrResult<()> {
         match self {

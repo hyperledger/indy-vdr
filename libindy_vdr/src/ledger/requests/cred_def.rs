@@ -53,14 +53,6 @@ impl CredentialDefinition {
     }
 }
 
-impl From<CredentialDefinition> for CredentialDefinitionV1 {
-    fn from(cred_def: CredentialDefinition) -> Self {
-        match cred_def {
-            CredentialDefinition::CredentialDefinitionV1(cred_def) => cred_def
-        }
-    }
-}
-
 impl Validatable for CredentialDefinition {
     fn validate(&self) -> VdrResult<()> {
         match self {
