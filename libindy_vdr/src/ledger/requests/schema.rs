@@ -3,6 +3,7 @@ use super::identifiers::schema::SchemaId;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::did::ShortDidValue;
 use crate::common::error::prelude::*;
+use crate::utils::qualifier::Qualifiable;
 use crate::utils::validation::{Validatable, ValidationError};
 
 use std::collections::HashSet;
@@ -19,15 +20,13 @@ pub enum Schema {
 impl Schema {
     pub fn to_unqualified(self) -> Schema {
         match self {
-            Schema::SchemaV1(schema) => {
-                Schema::SchemaV1(SchemaV1 {
-                    id: schema.id.to_unqualified(),
-                    name: schema.name,
-                    version: schema.version,
-                    attr_names: schema.attr_names,
-                    seq_no: schema.seq_no,
-                })
-            }
+            Schema::SchemaV1(schema) => Schema::SchemaV1(SchemaV1 {
+                id: schema.id.to_unqualified(),
+                name: schema.name,
+                version: schema.version,
+                attr_names: schema.attr_names,
+                seq_no: schema.seq_no,
+            }),
         }
     }
 }
