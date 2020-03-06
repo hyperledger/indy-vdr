@@ -98,11 +98,11 @@ impl PoolTransactions {
     }
 
     pub fn merkle_tree(&self) -> VdrResult<MerkleTree> {
-        MerkleTree::from_vec(self.inner.clone())
+        Ok(MerkleTree::from_vec(self.inner.clone())?)
     }
 
     pub fn into_merkle_tree(self) -> VdrResult<MerkleTree> {
-        MerkleTree::from_vec(self.inner)
+        Ok(MerkleTree::from_vec(self.inner)?)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Vec<u8>> {

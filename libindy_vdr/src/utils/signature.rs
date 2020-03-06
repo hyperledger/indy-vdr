@@ -1,9 +1,10 @@
-use super::hash::{digest, Sha256};
-use crate::common::error::prelude::*;
-use crate::ledger::constants::{ATTRIB, GET_ATTR};
 use serde_json::Value as SJsonValue;
 
-pub fn serialize_signature(v: &SJsonValue) -> VdrResult<String> {
+use super::hash::{digest, Sha256};
+use super::validation::ValidationError;
+use crate::ledger::constants::{ATTRIB, GET_ATTR};
+
+pub fn serialize_signature(v: &SJsonValue) -> Result<String, ValidationError> {
     let _type = v["operation"]["type"].clone();
     _serialize_signature(v, true, _type.as_str())
 }
@@ -12,7 +13,7 @@ fn _serialize_signature(
     v: &SJsonValue,
     is_top_level: bool,
     _type: Option<&str>,
-) -> VdrResult<String> {
+) -> Result<String, ValidationError> {
     match v {
         SJsonValue::Bool(value) => Ok(if *value {
             "True".to_string()
@@ -24,7 +25,7 @@ fn _serialize_signature(
         SJsonValue::Array(array) => array
             .into_iter()
             .map(|element| _serialize_signature(element, false, _type))
-            .collect::<VdrResult<Vec<String>>>()
+            .collect::<Result<Vec<String>, ValidationError>>()
             .map(|res| res.join(",")),
         SJsonValue::Object(map) => {
             let mut result = "".to_string();
@@ -47,7 +48,7 @@ fn _serialize_signature(
                     let hash = digest::<Sha256>(
                         &value
                             .as_str()
-                            .ok_or_else(|| input_err("Cannot update hash context"))?
+                            .ok_or_else(|| invalid!("Cannot update hash context"))?
                             .as_bytes(),
                     );
                     value = SJsonValue::String(hex::encode(hash));

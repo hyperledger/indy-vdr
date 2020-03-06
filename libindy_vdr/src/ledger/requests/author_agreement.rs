@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::common::error::prelude::*;
-use crate::utils::validation::Validatable;
+use crate::utils::validation::{Validatable, ValidationError};
 
 use super::constants::{
     DISABLE_ALL_TXN_AUTHR_AGRMTS, GET_TXN_AUTHR_AGRMT, GET_TXN_AUTHR_AGRMT_AML, TXN_AUTHR_AGRMT,
@@ -53,7 +53,7 @@ pub struct GetTxnAuthorAgreementData {
 }
 
 impl Validatable for GetTxnAuthorAgreementData {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         match (
             self.digest.as_ref(),
             self.version.as_ref(),
@@ -63,10 +63,12 @@ impl Validatable for GetTxnAuthorAgreementData {
             (None, Some(_), None) => Ok(()),
             (None, None, Some(_)) => Ok(()),
             (None, None, None) => Ok(()),
-            (digest, version, timestamp) => Err(input_err(format!(
+            (digest, version, timestamp) => {
+                Err(invalid!(
                 "Only one of field can be specified: digest: {:?}, version: {:?}, timestamp: {:?}",
                 digest, version, timestamp
-            ))),
+            ))
+            }
         }
     }
 }
@@ -128,9 +130,9 @@ impl AcceptanceMechanisms {
 }
 
 impl Validatable for AcceptanceMechanisms {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         if self.0.is_empty() {
-            return Err(input_err(
+            return Err(invalid!(
                 "Empty list of Acceptance Mechanisms has been passed",
             ));
         }

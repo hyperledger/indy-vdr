@@ -6,6 +6,7 @@ use serde_json::{self, Value as SJsonValue};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::utils::base58::{FromBase58, ToBase58};
+use crate::utils::validation::ValidationError;
 
 use super::requests::{PoolRequest, RequestEvent, RequestResult, TimingResult};
 use super::types::{self, CatchupReq, LedgerStatus, LedgerType, Message, ProtocolVersion};
@@ -191,7 +192,7 @@ fn check_cons_proofs(
     cons_proofs: &Vec<String>,
     target_mt_root: &Vec<u8>,
     target_mt_size: usize,
-) -> VdrResult<()> {
+) -> Result<(), ValidationError> {
     let mut bytes_proofs: Vec<Vec<u8>> = Vec::new();
 
     for cons_proof in cons_proofs {
@@ -200,12 +201,12 @@ fn check_cons_proofs(
         bytes_proofs.push(
             cons_proof
                 .from_base58()
-                .with_input_err("Can't decode node consistency proof")?,
+                .map_err(|_| invalid!("Can't decode node consistency proof"))?,
         );
     }
 
     if !mt.consistency_proof(target_mt_root, target_mt_size, &bytes_proofs)? {
-        return Err(input_err("Consistency proof verification failed"));
+        return Err(invalid!("Consistency proof verification failed"));
     }
 
     Ok(())

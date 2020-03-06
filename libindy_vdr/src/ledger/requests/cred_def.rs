@@ -4,7 +4,8 @@ use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::schema::SchemaId;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
-use crate::utils::validation::Validatable;
+use crate::utils::qualifier::Qualifiable;
+use crate::utils::validation::{Validatable, ValidationError};
 
 use ursa::cl::{CredentialPrimaryPublicKey, CredentialRevocationPublicKey};
 
@@ -54,7 +55,7 @@ impl CredentialDefinition {
 }
 
 impl Validatable for CredentialDefinition {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         match self {
             CredentialDefinition::CredentialDefinitionV1(cred_def) => cred_def.validate(),
         }
@@ -73,7 +74,7 @@ pub struct CredentialDefinitionV1 {
 }
 
 impl Validatable for CredentialDefinitionV1 {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         self.id.validate()?;
         self.schema_id.validate()
     }

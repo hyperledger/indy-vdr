@@ -3,7 +3,7 @@ use super::identifiers::schema::SchemaId;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::did::ShortDidValue;
 use crate::common::error::prelude::*;
-use crate::utils::validation::Validatable;
+use crate::utils::validation::{Validatable, ValidationError};
 
 use std::collections::HashSet;
 
@@ -33,7 +33,7 @@ impl Schema {
 }
 
 impl Validatable for Schema {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         match self {
             Schema::SchemaV1(schema) => schema.validate(),
         }
@@ -73,21 +73,23 @@ impl Into<HashSet<String>> for AttributeNames {
 }
 
 impl Validatable for SchemaV1 {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         self.attr_names.validate()?;
         self.id.validate()?;
-        if let Some((_, name, version)) = self.id.parts() {
+        if let Some((_, _, name, version)) = self.id.parts() {
             if name != self.name {
-                return Err(input_err(format!(
+                return Err(invalid!(
                     "Inconsistent Schema Id and Schema Name: {:?} and {}",
-                    self.id, self.name,
-                )));
+                    self.id,
+                    self.name,
+                ));
             }
             if version != self.version {
-                return Err(input_err(format!(
+                return Err(invalid!(
                     "Inconsistent Schema Id and Schema Version: {:?} and {}",
-                    self.id, self.version,
-                )));
+                    self.id,
+                    self.version,
+                ));
             }
         }
         Ok(())
@@ -95,17 +97,17 @@ impl Validatable for SchemaV1 {
 }
 
 impl Validatable for AttributeNames {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         if self.0.is_empty() {
-            return Err(input_err("Empty list of Schema attributes has been passed"));
+            return Err(invalid!("Empty list of Schema attributes has been passed"));
         }
 
         if self.0.len() > MAX_ATTRIBUTES_COUNT {
-            return Err(input_err(format!(
+            return Err(invalid!(
                 "The number of Schema attributes {} cannot be greater than {}",
                 self.0.len(),
                 MAX_ATTRIBUTES_COUNT
-            )));
+            ));
         }
         Ok(())
     }

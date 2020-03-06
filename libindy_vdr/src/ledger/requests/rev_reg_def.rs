@@ -5,7 +5,8 @@ use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::rev_reg::RevocationRegistryId;
 use super::{ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
-use crate::utils::validation::Validatable;
+use crate::utils::qualifier::Qualifiable;
+use crate::utils::validation::{Validatable, ValidationError};
 
 pub const CL_ACCUM: &str = "CL_ACCUM";
 
@@ -84,7 +85,7 @@ impl RevocationRegistryDefinition {
 }
 
 impl Validatable for RevocationRegistryDefinition {
-    fn validate(&self) -> VdrResult<()> {
+    fn validate(&self) -> Result<(), ValidationError> {
         match self {
             RevocationRegistryDefinition::RevocationRegistryDefinitionV1(revoc_reg_def) => {
                 revoc_reg_def.id.validate()?;

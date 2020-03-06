@@ -16,6 +16,7 @@ use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
 use indy_vdr::ledger::identifiers::schema::SchemaId;
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
 use indy_vdr::pool::{Pool, RequestResult, TimingResult};
+use indy_vdr::utils::qualifier::Qualifiable;
 
 fn format_request_result<T: std::fmt::Display>(
     (result, timing): (RequestResult<T>, Option<TimingResult>),

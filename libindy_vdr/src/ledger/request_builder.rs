@@ -10,6 +10,7 @@ use crate::state_proof::{
 };
 use crate::utils::base58::ToBase58;
 use crate::utils::hash::{digest, Sha256};
+use crate::utils::qualifier::Qualifiable;
 use crate::utils::signature::serialize_signature;
 
 use super::identifiers::cred_def::CredentialDefinitionId;
@@ -98,7 +99,7 @@ impl PreparedRequest {
     }
 
     pub fn get_signature_input(&self) -> VdrResult<String> {
-        serialize_signature(&self.req_json)
+        Ok(serialize_signature(&self.req_json)?)
     }
 
     pub fn set_endorser(&mut self, endorser: &DidValue) -> VdrResult<()> {
@@ -491,7 +492,7 @@ impl RequestBuilder {
         id: &SchemaId,
     ) -> VdrResult<PreparedRequest> {
         let id = id.to_unqualified();
-        let (dest, name, version) = id.parts().ok_or(input_err(format!(
+        let (_, dest, name, version) = id.parts().ok_or(input_err(format!(
             "Schema ID `{}` cannot be used to build request: invalid number of parts",
             id.0
         )))?;
@@ -516,7 +517,7 @@ impl RequestBuilder {
         id: &CredentialDefinitionId,
     ) -> VdrResult<PreparedRequest> {
         let id = id.to_unqualified();
-        let (origin, signature_type, schema_id, tag) = id.parts()
+        let (_, origin, signature_type, schema_id, tag) = id.parts()
             .ok_or_else(|| input_err(format!("Credential Definition ID `{}` cannot be used to build request: invalid number of parts", id.0)))?;
 
         let ref_ = schema_id
