@@ -65,11 +65,8 @@ impl Qualifiable for SchemaId {
     fn combine(method: Option<&str>, entity: &str) -> Self {
         let sid = Self(entity.to_owned());
         match sid.parts() {
-            Some((_, did, name, version)) => Self::from(qualifier::combine(
-                Self::PREFIX,
-                method,
-                Self::new(&did.default_method(method), &name, &version).as_str(),
-            )),
+            Some((_, did, name, version)) =>
+                Self::new(&did.default_method(method), &name, &version),
             None => sid,
         }
     }
@@ -215,6 +212,15 @@ mod tests {
         fn test_validate_schema_id_for_invalid_fully_qualified() {
             let id = SchemaId("schema:sov:NcYxiDXkpYi6ov5FcYDi1e:2:1.0".to_string());
             id.validate().unwrap_err();
+        }
+    }
+
+    mod to_qualified {
+        use super::*;
+
+        #[test]
+        fn test_schema_to_qualified() {
+            assert_eq!(_schema_id_unqualified().to_qualified("sov").unwrap(), _schema_id_qualified())
         }
     }
 }

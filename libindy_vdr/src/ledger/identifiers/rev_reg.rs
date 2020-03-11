@@ -59,6 +59,15 @@ impl Qualifiable for RevocationRegistryId {
         Self::PREFIX
     }
 
+    fn combine(method: Option<&str>, entity: &str) -> Self {
+        let sid = Self(entity.to_owned());
+        match sid.parts() {
+            Some((did, cred_def_id, rev_reg_type, tag)) =>
+                Self::new(&did.default_method(method), &cred_def_id.default_method(method), &rev_reg_type, &tag),
+            None => sid,
+        }
+    }
+
     fn to_unqualified(&self) -> Self {
         match self.parts() {
             Some((did, cred_def_id, rev_reg_type, tag)) => Self::new(
@@ -173,6 +182,15 @@ mod tests {
         #[test]
         fn test_validate_rev_reg_id_as_fully_qualified() {
             _rev_reg_id_qualified().validate().unwrap();
+        }
+    }
+
+    mod to_qualified {
+        use super::*;
+
+        #[test]
+        fn test_red_def_to_qualified() {
+            assert_eq!(_rev_reg_id_unqualified().to_qualified("sov").unwrap(), _rev_reg_id_qualified())
         }
     }
 }
