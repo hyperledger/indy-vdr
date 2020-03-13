@@ -151,8 +151,12 @@ impl Qualifiable for CredentialDefinitionId {
     fn combine(method: Option<&str>, entity: &str) -> Self {
         let cid = Self(entity.to_owned());
         match cid.parts() {
-            Some((_, did, sigtype, schema_id, tag)) =>
-                Self::new(&did.default_method(method), &schema_id.default_method(method), &sigtype, &tag),
+            Some((_, did, sigtype, schema_id, tag)) => Self::new(
+                &did.default_method(method),
+                &schema_id.default_method(method),
+                &sigtype,
+                &tag,
+            ),
             None => cid,
         }
     }
@@ -408,7 +412,10 @@ mod tests {
 
         #[test]
         fn test_red_def_to_qualified() {
-            assert_eq!(_cred_def_id_unqualified().to_qualified("sov").unwrap(), _cred_def_id_qualified())
+            assert_eq!(
+                _cred_def_id_unqualified().to_qualified("sov").unwrap(),
+                _cred_def_id_qualified()
+            )
         }
     }
 }

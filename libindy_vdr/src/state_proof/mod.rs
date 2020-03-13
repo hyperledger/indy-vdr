@@ -38,7 +38,12 @@ pub fn check_state_proof(
 ) -> bool {
     trace!("process_reply: Try to verify proof and signature >>");
 
-    let res = match parse_generic_reply_for_proof_checking(&msg_result, raw_msg, sp_key, custom_state_proof_parser) {
+    let res = match parse_generic_reply_for_proof_checking(
+        &msg_result,
+        raw_msg,
+        sp_key,
+        custom_state_proof_parser,
+    ) {
         Some(parsed_sps) => {
             trace!("process_reply: Proof and signature are present");
             if verify_parsed_sp(parsed_sps, bls_keys, f, gen) {
@@ -227,8 +232,8 @@ pub fn verify_parsed_sp(
             .as_str()
             .ne(&Some(&parsed_sp.root_hash))
             && parsed_sp.multi_signature["value"]["txn_root_hash"]
-            .as_str()
-            .ne(&Some(&parsed_sp.root_hash))
+                .as_str()
+                .ne(&Some(&parsed_sp.root_hash))
         {
             debug!("Given signature is not for current root hash, aborting");
             return false;
@@ -771,7 +776,7 @@ fn _parse_reply_for_multi_sp(
                         "lut": parsed_data["value"]["accum_from"]["txnTime"],
                         "val": parsed_data["value"]["accum_from"],
                     })
-                        .to_string(),
+                    .to_string(),
                 )
             } else {
                 None
@@ -1120,12 +1125,12 @@ fn _parse_reply_for_proof_value(
             }
             constants::GET_AUTH_RULE => {}
             xtype
-            if xtype.ne(constants::GET_TXN_AUTHR_AGRMT)
-                || _is_full_taa_state_value_expected(sp_key) =>
-                {
-                    value["lsn"] = seq_no;
-                    value["lut"] = time;
-                }
+                if xtype.ne(constants::GET_TXN_AUTHR_AGRMT)
+                    || _is_full_taa_state_value_expected(sp_key) =>
+            {
+                value["lsn"] = seq_no;
+                value["lut"] = time;
+            }
             _ => {}
         }
 
@@ -1280,7 +1285,7 @@ mod tests {
             "68TGAdRjeQ29eNcuFYhsX5uLakGQLgKMKp5wSyPzt9Nq",
             "25KLEkkyCEPSBj4qMFE3AcH87mFocyJEuPJ5xzPGwDgz"
         ])
-            .to_string();
+        .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
         let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
@@ -1301,7 +1306,7 @@ mod tests {
             "68TGAdRjeQ29eNcuFYhsX5uLakGQLgKMKp5wSyPzt9Nq",
             "25KLEkkyCEPSBj4qMFE3AcH87mFocyJEuPJ5xzPGwDgz"
         ])
-            .to_string();
+        .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
         let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
@@ -1322,7 +1327,7 @@ mod tests {
             "68TGAdRjeQ29eNcuFYhsX5uLakGQLgKMKp5wSyPzt9Nq",
             "25KLEkkyCEPSBj4qMFE3AcH87mFocyJEuPJ5xzPGwDgz"
         ])
-            .to_string();
+        .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
         let root_hash = "G9QooEDKSmEtLGNyTwafQiPfGHMqw3A3Fjcj2eLRG4G1"
@@ -1343,7 +1348,7 @@ mod tests {
             "68TGAdRjeQ29eNcuFYhsX5uLakGQLgKMKp5wSyPzt9Nq",
             "25KLEkkyCEPSBj4qMFE3AcH87mFocyJEuPJ5xzPGwDgz"
         ])
-            .to_string();
+        .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
         let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
@@ -1364,7 +1369,7 @@ mod tests {
             "68TGAdRjeQ29eNcuFYhsX5uLakGQLgKMKp5wSyPzt9Nq",
             "25KLEkkyCEPSBj4qMFE3AcH87mFocyJEuPJ5xzPGwDgz"
         ])
-            .to_string();
+        .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"4":"4"}"#.to_string()))];
         let node_bytes = &nodes;
         let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
@@ -1385,7 +1390,7 @@ mod tests {
             "68TGAdRjeQ29eNcuFYhsX5uLakGQLgKMKp5wSyPzt9Nq",
             "25KLEkkyCEPSBj4qMFE3AcH87mFocyJEuPJ5xzPGwDgz"
         ])
-            .to_string();
+        .to_string();
         let kvs = vec![(base64::encode("4"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
         let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
@@ -1680,7 +1685,8 @@ mod tests {
     }
 
     #[test]
-    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next_fails_missing_values() {
+    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next_fails_missing_values(
+    ) {
         /*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
@@ -1744,7 +1750,8 @@ mod tests {
     }
 
     #[test]
-    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next_fails_changed_values() {
+    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_next_fails_changed_values(
+    ) {
         /*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
@@ -1805,7 +1812,8 @@ mod tests {
     }
 
     #[test]
-    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_missing_values() {
+    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_missing_values(
+    ) {
         /*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
@@ -1867,7 +1875,8 @@ mod tests {
     }
 
     #[test]
-    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_changed_values() {
+    fn state_proof_verify_proof_works_for_get_value_from_leaf_in_range_no_from_fails_changed_values(
+    ) {
         /*
             'abcdefgh1'     -> '3630'
             'abcdefgh4'     -> '3037'
@@ -2016,7 +2025,8 @@ mod tests {
     }
 
     #[test]
-    fn transaction_handler_parse_generic_reply_for_proof_checking_works_for_get_txn_no_multi_signature() {
+    fn transaction_handler_parse_generic_reply_for_proof_checking_works_for_get_txn_no_multi_signature(
+    ) {
         let json_msg = &json!({
                     "type": constants::GET_TXN,
                     "data": {
@@ -2052,7 +2062,8 @@ mod tests {
     }
 
     #[test]
-    fn transaction_handler_parse_generic_reply_for_proof_checking_works_for_get_txn_no_ledger_length() {
+    fn transaction_handler_parse_generic_reply_for_proof_checking_works_for_get_txn_no_ledger_length(
+    ) {
         let json_msg = &json!({
                     "type": constants::GET_TXN,
                     "data": {
@@ -2066,10 +2077,13 @@ mod tests {
                     }
                 });
 
-        assert!(
-            super::parse_generic_reply_for_proof_checking(json_msg, "", Some("2".as_bytes()), None)
-                .is_none()
-        );
+        assert!(super::parse_generic_reply_for_proof_checking(
+            json_msg,
+            "",
+            Some("2".as_bytes()),
+            None
+        )
+        .is_none());
     }
 
     #[test]
@@ -2107,7 +2121,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn transaction_handler_parse_generic_reply_for_proof_checking_works_for_plugged() {
         let parsed_sp = json!([{
@@ -2120,11 +2133,15 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(_txn_type: &str, reply_from_node: &str) -> Option<Vec<ParsedSP>> {
+        fn custom_state_proofs_parser(
+            _txn_type: &str,
+            reply_from_node: &str,
+        ) -> Option<Vec<ParsedSP>> {
             Some(serde_json::from_str(reply_from_node).unwrap())
         }
 
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> = Box::new(custom_state_proofs_parser);
+        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
+            Box::new(custom_state_proofs_parser);
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
@@ -2132,7 +2149,7 @@ mod tests {
             None,
             Some(&custom_state_proofs_parser_),
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(parsed_sps.len(), 1);
         let parsed_sp = parsed_sps.remove(0);
@@ -2166,11 +2183,15 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(_txn_type: &str, reply_from_node: &str) -> Option<Vec<ParsedSP>> {
+        fn custom_state_proofs_parser(
+            _txn_type: &str,
+            reply_from_node: &str,
+        ) -> Option<Vec<ParsedSP>> {
             Some(serde_json::from_str(reply_from_node).unwrap())
         }
 
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> = Box::new(custom_state_proofs_parser);
+        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
+            Box::new(custom_state_proofs_parser);
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
@@ -2178,7 +2199,7 @@ mod tests {
             None,
             Some(&custom_state_proofs_parser_),
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(parsed_sps.len(), 1);
         let parsed_sp = parsed_sps.remove(0);
@@ -2190,13 +2211,13 @@ mod tests {
             KeyValuesInSP::Simple(KeyValueSimpleData {
                 kvs: Vec::new(),
                 verification_type:
-                KeyValueSimpleDataVerificationType::NumericalSuffixAscendingNoGaps(
-                    NumericalSuffixAscendingNoGapsData {
-                        from: Some(1),
-                        next: Some(2),
-                        prefix: "abc".to_string(),
-                    }
-                ),
+                    KeyValueSimpleDataVerificationType::NumericalSuffixAscendingNoGaps(
+                        NumericalSuffixAscendingNoGapsData {
+                            from: Some(1),
+                            next: Some(2),
+                            prefix: "abc".to_string(),
+                        }
+                    ),
             })
         );
     }
@@ -2219,11 +2240,15 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(_txn_type: &str, reply_from_node: &str) -> Option<Vec<ParsedSP>> {
+        fn custom_state_proofs_parser(
+            _txn_type: &str,
+            reply_from_node: &str,
+        ) -> Option<Vec<ParsedSP>> {
             Some(serde_json::from_str(reply_from_node).unwrap())
         }
 
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> = Box::new(custom_state_proofs_parser);
+        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
+            Box::new(custom_state_proofs_parser);
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
@@ -2231,7 +2256,7 @@ mod tests {
             None,
             Some(&custom_state_proofs_parser_),
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(parsed_sps.len(), 1);
         let parsed_sp = parsed_sps.remove(0);
@@ -2243,13 +2268,13 @@ mod tests {
             KeyValuesInSP::Simple(KeyValueSimpleData {
                 kvs: Vec::new(),
                 verification_type:
-                KeyValueSimpleDataVerificationType::NumericalSuffixAscendingNoGaps(
-                    NumericalSuffixAscendingNoGapsData {
-                        from: None,
-                        next: None,
-                        prefix: "abc".to_string(),
-                    }
-                ),
+                    KeyValueSimpleDataVerificationType::NumericalSuffixAscendingNoGaps(
+                        NumericalSuffixAscendingNoGapsData {
+                            from: None,
+                            next: None,
+                            prefix: "abc".to_string(),
+                        }
+                    ),
             })
         );
     }
