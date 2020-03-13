@@ -23,7 +23,7 @@ pub mod config;
 mod ffi;
 pub mod ledger;
 pub mod pool;
-mod state_proof;
+pub mod state_proof;
 
 #[cfg(test)]
 mod tests {
