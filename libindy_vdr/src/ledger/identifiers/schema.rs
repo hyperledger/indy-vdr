@@ -65,8 +65,9 @@ impl Qualifiable for SchemaId {
     fn combine(method: Option<&str>, entity: &str) -> Self {
         let sid = Self(entity.to_owned());
         match sid.parts() {
-            Some((_, did, name, version)) =>
-                Self::new(&did.default_method(method), &name, &version),
+            Some((_, did, name, version)) => {
+                Self::new(&did.default_method(method), &name, &version)
+            }
             None => sid,
         }
     }
@@ -220,7 +221,10 @@ mod tests {
 
         #[test]
         fn test_schema_to_qualified() {
-            assert_eq!(_schema_id_unqualified().to_qualified("sov").unwrap(), _schema_id_qualified())
+            assert_eq!(
+                _schema_id_unqualified().to_qualified("sov").unwrap(),
+                _schema_id_qualified()
+            )
         }
     }
 }

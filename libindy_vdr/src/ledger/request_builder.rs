@@ -29,7 +29,7 @@ use super::requests::rev_reg::{
     GetRevRegDeltaOperation, GetRevRegOperation, RevRegEntryOperation, RevocationRegistryDelta,
 };
 use super::requests::rev_reg_def::{
-    RevRegDefOperation, GetRevRegDefOperation, RegistryType, RevocationRegistryDefinition
+    GetRevRegDefOperation, RegistryType, RevRegDefOperation, RevocationRegistryDefinition,
 };
 use super::requests::schema::{
     GetSchemaOperation, GetSchemaOperationData, Schema, SchemaOperation, SchemaOperationData,
@@ -121,16 +121,19 @@ impl PreparedRequest {
         Ok(())
     }
 
-    pub fn from_request_json(message: &str) -> VdrResult<PreparedRequest>{
+    pub fn from_request_json(message: &str) -> VdrResult<PreparedRequest> {
         let req_json: SJsonValue =
             serde_json::from_str(message).with_input_err("Invalid request JSON")?;
 
-        let protocol_version = req_json["protocolVersion"].as_u64()
+        let protocol_version = req_json["protocolVersion"]
+            .as_u64()
             .ok_or(input_err("Invalid request JSON: protocolVersion not found"))
             .and_then(ProtocolVersion::from_id)?;
 
-        let req_id = req_json["reqId"].as_u64()
-            .ok_or(input_err("Invalid request JSON: reqId not found"))?.to_string();
+        let req_id = req_json["reqId"]
+            .as_u64()
+            .ok_or(input_err("Invalid request JSON: reqId not found"))?
+            .to_string();
 
         let txn_type = req_json["operation"]["type"]
             .as_str()
@@ -138,23 +141,21 @@ impl PreparedRequest {
             .to_string();
 
         let (sp_key, sp_timestamps) = (
-                parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
-                parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
-            );
+            parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
+            parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
+        );
 
         let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
 
-        Ok(
-            PreparedRequest::new(
-                protocol_version,
-                txn_type,
-                req_id,
-                req_json,
-                sp_key,
-                sp_timestamps,
-                is_read_request,
-            )
-        )
+        Ok(PreparedRequest::new(
+            protocol_version,
+            txn_type,
+            req_id,
+            req_json,
+            sp_key,
+            sp_timestamps,
+            is_read_request,
+        ))
     }
 }
 
