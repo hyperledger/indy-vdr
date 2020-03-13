@@ -1,5 +1,7 @@
 # Indy-VDR
 
+[<img src="https://raw.githubusercontent.com/hyperledger/indy-node/master/collateral/logos/indy-logo.png" width="50%" height="auto">](https://github.com/hyperledger/indy-sdk/)
+
 [![Unit Tests](https://github.com/hyperledger/indy-vdr/workflows/Unit%20Tests/badge.svg)](https://github.com/hyperledger/indy-vdr/actions)
 
 - [Introduction](#introduction)
