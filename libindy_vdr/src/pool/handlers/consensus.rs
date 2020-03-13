@@ -16,12 +16,14 @@ use super::{
     min_consensus, ConsensusState, HashableValue, PoolRequest, ReplyState, RequestEvent,
     RequestResult, TimingResult,
 };
+use crate::state_proof::types::ParsedSP;
 
 pub async fn handle_consensus_request<Request: PoolRequest>(
     mut request: Request,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
     as_read_request: bool,
+    custom_state_proof_parser: Option<Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>>>,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("consensus request");
     let config = request.pool_config();
@@ -39,7 +41,9 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
             )
         })?;
 
-    let init_send = if state_proof_key.is_some() {
+    let request_with_state_proof = state_proof_key.is_some() || custom_state_proof_parser.is_some();
+
+    let init_send = if request_with_state_proof {
         config.request_read_nodes
     } else if as_read_request {
         f + config.request_read_nodes
@@ -47,6 +51,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
         total_nodes_count
     };
     request.send_to_any(init_send, config.ack_timeout)?;
+    let custom_state_proof_parser = custom_state_proof_parser.as_ref();
     loop {
         let resend = match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => match parsed {
@@ -79,7 +84,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
                             )
                         };
                         if cnt > f
-                            || (state_proof_key.is_some()
+                            || (request_with_state_proof
                                 && check_state_proof(
                                     &result,
                                     f,
@@ -90,6 +95,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
                                     state_proof_timestamps,
                                     last_write_time,
                                     config.freshness_threshold,
+                                    custom_state_proof_parser,
                                 ))
                         {
                             return Ok((
