@@ -1,4 +1,4 @@
-# Indy-VDR
+# Indy-VDR (Verifiable Data Registry)
 
 [<img src="https://raw.githubusercontent.com/hyperledger/indy-node/master/collateral/logos/indy-logo.png" width="50%" height="auto">](https://github.com/hyperledger/indy-sdk/)
 
@@ -14,7 +14,7 @@
 
 ## Introduction
 
-This library is derived from [Hyperledger Indy SDK](https://github.com/hyperledger/indy-sdk) for the more limited use case of connecting to an Indy Node blockchain ledger, a Verifiable Data Registry. It is written in Rust and currently includes a Python wrapper and a standalone proxy server.
+This library is derived from [Hyperledger Indy SDK](https://github.com/hyperledger/indy-sdk) for the more limited use case of connecting to an [Indy Node](https://github.com/hyperledger/indy-node) blockchain ledger. It is written in Rust and currently includes a Python wrapper and a standalone proxy server.
 
 _This library is still in development and there are currently no standard release packages._
 
@@ -40,7 +40,9 @@ At a later stage it should be possible to install a precompiled 'wheel' package 
 
 The `indy-vdr-proxy` executable can be used to provide a simple REST API for interacting with the ledger. Command line options can be inspected by running `indy-vdr-proxy --help`.
 
-Sending prepared requests to the ledger is performed by delivering a POST request to the `/submit` endpoint. Additional endpoints are provided as shortcuts for ledger read transactions:
+Responses can be formatted in either HTML or JSON formats. HTML formatting is selected when the `text/html` content type is requested according to the Accept header (as sent by web browsers) or the request query string is set to `?html`. JSON formatting is selected otherwise, and may be explitly selected by using the query string `?raw`. For most ledger requests, JSON responses include information regarding which nodes were contacted is returned in the `X-Requests` header.
+
+Sending prepared requests to the ledger is performed by delivering a POST request to the `/submit` endpoint, where the body of the request is the JSON-formatted payload. Additional endpoints are provided as shortcuts for ledger read transactions:
 
 - `/` The root path shows basic status information about the server and the ledger pool
 - `/genesis` Return the current set of genesis transactions
