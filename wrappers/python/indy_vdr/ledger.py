@@ -659,3 +659,32 @@ def prepare_txn_author_agreement_acceptance(
         byref(result),
     )
     return result.value.decode("utf-8")
+
+
+def build_rich_schema_request(
+    submitter_did: str, rich_schema: Union[bytes, str, dict]
+) -> Request:
+    """
+    Builds a RICH_SCHEMA request to add it to the ledger.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string
+        schema: Credential schema:
+            ```jsonc
+            {
+                "id": "<identifier of rich schema>",
+                "content": "<JSON-LD string object>",
+                "rsName": "<rich schema name>",
+                "rsVersion": "<rich schema version>",
+                "rsType": <type constant as integer>,
+                "ver": <version as integer>
+            }```
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    rich_schema = (
+        encode_str(rich_schema) if isinstance(rich_schema, (str, bytes)) else encode_json(rich_schema)
+    )
+    do_call("indy_vdr_build_rich_schema_request", did_p, rich_schema, byref(handle))
+    return Request(handle)

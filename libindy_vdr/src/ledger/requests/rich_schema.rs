@@ -38,7 +38,7 @@ impl Validatable for RSContent {
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RichSchemaV1 {
+pub struct RichSchema {
     pub id: RichSchemaId,
     pub content: RSContent,
     pub rs_name: String,
@@ -48,7 +48,7 @@ pub struct RichSchemaV1 {
 }
 
 
-impl RichSchemaV1 {
+impl RichSchema {
     pub fn new(id: RichSchemaId, content: RSContent, rs_name: String, rs_version: String, rs_type: i32, ver: i32) -> Self {
         Self {
             id,
@@ -62,7 +62,7 @@ impl RichSchemaV1 {
 }
 
 
-impl Validatable for RichSchemaV1 {
+impl Validatable for RichSchema {
     fn validate(&self) -> Result<(), ValidationError> {
         // ToDo: add specific validation
         return self.id.validate()
@@ -92,7 +92,7 @@ pub struct RichSchemaOperation {
 
 
 impl RichSchemaOperation {
-    pub fn new(rs_schema: RichSchemaV1) -> RichSchemaOperation {
+    pub fn new(rs_schema: RichSchema) -> RichSchemaOperation {
         RichSchemaOperation {
             _type: Self::get_txn_type().to_string(),
             id: rs_schema.id,
@@ -116,8 +116,8 @@ impl RequestType for RichSchemaOperation {
 mod tests {
     use super::*;
 
-    fn _rs_schema_v1() -> RichSchemaV1 {
-        RichSchemaV1::new(
+    fn _rs_schema_v1() -> RichSchema {
+        RichSchema::new(
             RichSchemaId::new("did:sov:some_hash_value".to_string()),
             RSContent::new(r#"{"json": "ld"; "valid": "object"}"#.to_string()),
             "test_rich_schema".to_string(),

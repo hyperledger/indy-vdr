@@ -8,6 +8,7 @@ use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
 use crate::ledger::requests::schema::Schema;
+use crate::ledger::requests::rich_schema::RichSchema;
 use crate::utils::qualifier::Qualifiable;
 
 use ffi_support::FfiStr;
@@ -445,6 +446,29 @@ pub extern "C" fn indy_vdr_build_txn_author_agreement_request(
         let req = builder.build_txn_author_agreement_request(
             &identifier, text, version, ratification_ts, retirement_ts
         )?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_rich_schema_request(
+    submitter_did: FfiStr,
+    rich_schema: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build SCHEMA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let rich_schema = serde_json::from_str::<RichSchema>(rich_schema.as_str())
+            .with_input_err("Error deserializing RichSchema")?;
+        let req = builder.build_rich_schema_request(&identifier, rich_schema)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;
