@@ -1,14 +1,13 @@
-use crate::utils::validation::{ValidationError, Validatable};
+use crate::utils::validation::{Validatable, ValidationError};
 
 qualifiable_type!(RichSchemaId);
 
 impl RichSchemaId {
-    pub fn new(did_string: String) -> RichSchemaId{
+    pub fn new(did_string: String) -> RichSchemaId {
         // ToDo: add RichSchema specific id forming if needed
-        return RichSchemaId(did_string)
+        return RichSchemaId(did_string);
     }
 }
-
 
 impl Validatable for RichSchemaId {
     fn validate(&self) -> Result<(), ValidationError> {
@@ -16,7 +15,6 @@ impl Validatable for RichSchemaId {
         return Ok(());
     }
 }
-
 
 #[cfg(test)]
 mod tests {

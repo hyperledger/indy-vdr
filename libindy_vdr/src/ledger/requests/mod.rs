@@ -7,10 +7,10 @@ pub mod nym;
 pub mod pool;
 pub mod rev_reg;
 pub mod rev_reg_def;
+pub mod rich_schema;
 pub mod schema;
 pub mod txn;
 pub mod validator_info;
-pub mod rich_schema;
 
 pub use super::constants;
 pub use super::identifiers;
