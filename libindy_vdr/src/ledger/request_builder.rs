@@ -42,6 +42,7 @@ use super::constants::{
     txn_name_to_code, ENDORSER, NETWORK_MONITOR, READ_REQUESTS, ROLES, ROLE_REMOVE, STEWARD,
     TRUSTEE,
 };
+use crate::ledger::requests::rich_schema::{RichSchemaOperation, RichSchemaV1};
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
     const SEC_IN_DAY: u64 = 86400;
@@ -702,6 +703,14 @@ impl RequestBuilder {
             ),
             target,
         ))
+    }
+    pub fn build_rich_schema_request(
+        &self,
+        identifier: &DidValue,
+        rs_schema: RichSchemaV1,
+    ) -> VdrResult<PreparedRequest> {
+        let rs_schema: RichSchemaV1 = RichSchemaV1::new(rs_schema.id, rs_schema.content, rs_schema.rs_name, rs_schema.rs_version, rs_schema.rs_type, rs_schema.ver);
+        self.build(RichSchemaOperation::new(rs_schema), Some(identifier))
     }
 }
 
