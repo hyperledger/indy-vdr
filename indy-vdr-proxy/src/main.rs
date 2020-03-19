@@ -12,7 +12,9 @@ use std::fs;
 use std::net::IpAddr;
 use std::process::exit;
 use std::rc::Rc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
+
+use futures::FutureExt;
 
 #[cfg(feature = "fetch")]
 use hyper::body::Buf;
@@ -23,6 +25,9 @@ use hyper::Server;
 #[cfg(feature = "fetch")]
 use hyper_tls::HttpsConnector;
 use hyper_unix_connector::UnixConnector;
+
+use tokio::select;
+use tokio::signal::unix::SignalKind;
 
 use indy_vdr::common::error::prelude::*;
 use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolBuilder, PoolTransactions};
@@ -104,25 +109,65 @@ async fn init_app_state(genesis: String) -> VdrResult<AppState> {
     Ok(state)
 }
 
-async fn init_pool(state: Rc<RefCell<AppState>>, refresh: bool) {
-    match create_pool(state.clone(), refresh).await {
+async fn run_pool(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_refresh: u32) {
+    let mut pool = match create_pool(state.clone(), init_refresh).await {
         Ok(pool) => {
-            state.borrow_mut().pool.replace(pool);
+            state.borrow_mut().pool.replace(pool.clone());
+            pool
         }
         Err(err) => {
             eprintln!("Error initializing pool: {}", err);
-            // FIXME send shutdown signal
+            return;
+        }
+    };
+    let shutdown = shutdown_signal().fuse().shared();
+    if interval_refresh > 0 {
+        loop {
+            select! {
+                refresh_result = refresh_pool(state.clone(), &pool, interval_refresh) => {
+                    match refresh_result {
+                        Ok(Some(upd_pool)) => {
+                            state.borrow_mut().pool.replace(upd_pool.clone());
+                            pool = upd_pool;
+                            log::info!("Refreshed validator pool");
+                        }
+                        Ok(None) => {
+                            log::debug!("Refreshed validator pool, no change");
+                        }
+                        Err(err) => {
+                            log::error!("Error refreshing validator pool: {}", err);
+                        }
+                    }
+                }
+                _ = shutdown.clone() => {
+                    println!("Shutting down");
+                    break;
+                }
+            }
+        }
+    } else {
+        shutdown.await
+    }
+}
+
+async fn shutdown_signal() {
+    let mut term = tokio::signal::unix::signal(SignalKind::terminate())
+        .expect("failed to install SIGTERM handler");
+    select! {
+        _ = term.recv() => {
+            ()
+        }
+        ctlc = tokio::signal::ctrl_c() => {
+            ctlc.expect("failed to install Ctrl-C handler")
         }
     }
-    // FIXME wait for refresh timeout, then perform refresh
-    // use return from this async fn to signal shutdown
 }
 
 async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> VdrResult<LocalPool> {
     let builder = PoolBuilder::default().transactions(state.borrow().transactions.clone())?;
     let pool = builder.into_local()?;
     let refresh_pool = if refresh {
-        refresh_pool(state, &pool).await?
+        refresh_pool(state, &pool, 0).await?
     } else {
         None
     };
@@ -132,9 +177,16 @@ async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> VdrResult<L
 async fn refresh_pool(
     state: Rc<RefCell<AppState>>,
     pool: &LocalPool,
+    delay_mins: u32,
 ) -> VdrResult<Option<LocalPool>> {
+    if delay_mins > 0 {
+        tokio::time::delay_for(Duration::from_secs((delay_mins * 60) as u64)).await
+    }
+
     let (txns, _timing) = perform_refresh(pool).await?;
+
     state.borrow_mut().last_refresh.replace(SystemTime::now());
+
     if let Some(txns) = txns {
         let builder = {
             let pool_txns = &mut state.borrow_mut().transactions;
@@ -147,38 +199,37 @@ async fn refresh_pool(
     }
 }
 
-async fn shutdown_signal() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("failed to install CTRL+C signal handler");
-}
-
 async fn init_server(config: app::Config) -> Result<(), String> {
     let state = Rc::new(RefCell::new(
-        init_app_state(config.genesis)
+        init_app_state(config.genesis.clone())
             .await
             .map_err(|err| format!("Error loading config: {}", err))?,
     ));
 
-    tokio::task::spawn_local(init_pool(state.clone(), config.init_refresh));
-
-    if let Some(socket) = config.socket {
-        fs::remove_file(&socket)
+    if let Some(socket) = &config.socket {
+        fs::remove_file(socket)
             .map_err(|err| format!("Error removing socket: {}", err.to_string()))?;
-        let uc: UnixConnector = tokio::net::UnixListener::bind(&socket)
+        let uc: UnixConnector = tokio::net::UnixListener::bind(socket)
             .map_err(|err| format!("Error binding UNIX socket: {}", err.to_string()))?
             .into();
-        run_server(Server::builder(uc), state, format!("socket {}", socket)).await
+        run_server(
+            Server::builder(uc),
+            state,
+            format!("socket {}", socket),
+            config,
+        )
+        .await
     } else {
         let ip = config
             .host
+            .as_ref()
             .unwrap()
             .parse::<IpAddr>()
             .map_err(|_| "Error parsing host IP")?;
         let addr = (ip, config.port.unwrap()).into();
         let builder = Server::try_bind(&addr)
             .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
-        run_server(builder, state, format!("http://{}", addr)).await
+        run_server(builder, state, format!("http://{}", addr), config).await
     }
 }
 
@@ -186,12 +237,14 @@ async fn run_server<I>(
     builder: hyper::server::Builder<I>,
     state: Rc<RefCell<AppState>>,
     address: String,
+    config: app::Config,
 ) -> Result<(), String>
 where
     I: hyper::server::accept::Accept + 'static,
     I::Conn: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
     I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
+    let until_done = run_pool(state.clone(), config.init_refresh, config.interval_refresh);
     let svc = make_service_fn(move |_| {
         let state = state.clone();
         async move {
@@ -203,8 +256,9 @@ where
     });
     let server = builder.executor(LocalExec).serve(svc);
     println!("Listening on {} ...", address);
+
     server
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(until_done)
         .await
         .map_err(|err| format!("Server terminated: {}", err))
 }
