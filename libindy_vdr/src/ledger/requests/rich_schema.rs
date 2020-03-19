@@ -1,8 +1,8 @@
 use super::constants::RICH_SCHEMA;
 use super::RequestType;
+use crate::ledger::constants::{GET_RICH_SCHEMA_BY_ID, GET_RICH_SCHEMA_BY_METADATA};
 use crate::ledger::identifiers::rich_schema::RichSchemaId;
 use crate::utils::validation::{Validatable, ValidationError};
-use crate::ledger::constants::{GET_RICH_SCHEMA_BY_ID, GET_RICH_SCHEMA_BY_METADATA};
 
 pub const MAX_ATTRIBUTES_COUNT: usize = 125;
 
@@ -107,9 +107,7 @@ impl RequestType for RichSchemaOperation {
     }
 }
 
-
 // Get RichSchema object from ledger using RichSchema's ID.
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetRichSchemaById {
@@ -119,9 +117,7 @@ pub struct GetRichSchemaById {
 
 impl GetRichSchemaById {
     pub fn new(id: RichSchemaId) -> Self {
-        Self {
-            id
-        }
+        Self { id }
     }
 }
 
@@ -142,7 +138,7 @@ pub struct GetRichSchemaByIdOperation {
 impl GetRichSchemaByIdOperation {
     pub fn new(get_rs: GetRichSchemaById) -> Self {
         Self {
-            _type : Self::get_txn_type().to_string(),
+            _type: Self::get_txn_type().to_string(),
             id: get_rs.id,
         }
     }
@@ -161,12 +157,10 @@ impl RequestType for GetRichSchemaByIdOperation {
     }
 }
 
-
 // Get RichSchema object from ledger using metadata:
 //      rs_type: Rich Schema object's type enum
 //      rs_name: Rich Schema object's name,
 //      rs_version: Rich Schema object's version,
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetRichSchemaByMetadata {
@@ -176,9 +170,7 @@ pub struct GetRichSchemaByMetadata {
 }
 
 impl GetRichSchemaByMetadata {
-    pub fn new(rs_type: i32,
-               rs_name: String,
-               rs_version: String) -> Self {
+    pub fn new(rs_type: i32, rs_name: String, rs_version: String) -> Self {
         Self {
             rs_type,
             rs_name,
@@ -199,7 +191,7 @@ pub struct GetRichSchemaByMetadataOperation {
 impl GetRichSchemaByMetadataOperation {
     pub fn new(get_rs: GetRichSchemaByMetadata) -> Self {
         Self {
-            _type : Self::get_txn_type().to_string(),
+            _type: Self::get_txn_type().to_string(),
             rs_type: get_rs.rs_type,
             rs_name: get_rs.rs_name,
             rs_version: get_rs.rs_version,
@@ -212,8 +204,6 @@ impl RequestType for GetRichSchemaByMetadataOperation {
         GET_RICH_SCHEMA_BY_METADATA
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

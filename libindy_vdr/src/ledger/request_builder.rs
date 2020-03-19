@@ -15,8 +15,8 @@ use crate::utils::signature::serialize_signature;
 
 use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::rev_reg::RevocationRegistryId;
-use super::identifiers::schema::SchemaId;
 use super::identifiers::rich_schema::RichSchemaId;
+use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
 use super::requests::auth_rule::*;
 use super::requests::author_agreement::*;
@@ -43,7 +43,10 @@ use super::constants::{
     txn_name_to_code, ENDORSER, NETWORK_MONITOR, READ_REQUESTS, ROLES, ROLE_REMOVE, STEWARD,
     TRUSTEE,
 };
-use crate::ledger::requests::rich_schema::{RichSchema, RichSchemaOperation, GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata, GetRichSchemaByMetadataOperation};
+use crate::ledger::requests::rich_schema::{
+    GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
+    GetRichSchemaByMetadataOperation, RichSchema, RichSchemaOperation,
+};
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
     const SEC_IN_DAY: u64 = 86400;
@@ -726,7 +729,10 @@ impl RequestBuilder {
         rs_id: &RichSchemaId,
     ) -> VdrResult<PreparedRequest> {
         let get_rs_by_id: GetRichSchemaById = GetRichSchemaById::new(rs_id.to_unqualified());
-        self.build(GetRichSchemaByIdOperation::new(get_rs_by_id), Some(identifier))
+        self.build(
+            GetRichSchemaByIdOperation::new(get_rs_by_id),
+            Some(identifier),
+        )
     }
     pub fn build_get_rich_schema_by_metadata(
         &self,
@@ -735,8 +741,12 @@ impl RequestBuilder {
         rs_name: String,
         rs_version: String,
     ) -> VdrResult<PreparedRequest> {
-        let get_rs_by_meta: GetRichSchemaByMetadata = GetRichSchemaByMetadata::new(rs_type, rs_name, rs_version);
-        self.build(GetRichSchemaByMetadataOperation::new(get_rs_by_meta), Some(identifier))
+        let get_rs_by_meta: GetRichSchemaByMetadata =
+            GetRichSchemaByMetadata::new(rs_type, rs_name, rs_version);
+        self.build(
+            GetRichSchemaByMetadataOperation::new(get_rs_by_meta),
+            Some(identifier),
+        )
     }
 }
 
