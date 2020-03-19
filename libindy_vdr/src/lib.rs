@@ -24,13 +24,3 @@ mod ffi;
 pub mod ledger;
 pub mod pool;
 pub mod state_proof;
-
-#[cfg(test)]
-mod tests {
-    //use super::*;
-
-    #[test]
-    fn dummy() {
-        assert!(true, "Dummy check!");
-    }
-}
