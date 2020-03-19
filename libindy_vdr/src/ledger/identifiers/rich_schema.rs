@@ -1,8 +1,10 @@
 use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::qualifier::Qualifiable;
 
 qualifiable_type!(RichSchemaId);
 
 impl RichSchemaId {
+    pub const PREFIX: &'static str = "rich_schema";
     pub fn new(did_string: String) -> RichSchemaId {
         // ToDo: add RichSchema specific id forming if needed
         return RichSchemaId(did_string);
@@ -13,6 +15,12 @@ impl Validatable for RichSchemaId {
     fn validate(&self) -> Result<(), ValidationError> {
         // ToDO: add RichSchema ID specific validation
         return Ok(());
+    }
+}
+
+impl Qualifiable for RichSchemaId {
+    fn prefix() -> &'static str {
+        Self::PREFIX
     }
 }
 

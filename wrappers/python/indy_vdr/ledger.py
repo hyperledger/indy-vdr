@@ -670,7 +670,7 @@ def build_rich_schema_request(
     Args:
         submitter_did: Identifier (DID) of the transaction author as base58-encoded
             string
-        schema: Credential schema:
+        rich_schema: Credential schema:
             ```jsonc
             {
                 "id": "<identifier of rich schema>",
@@ -687,4 +687,47 @@ def build_rich_schema_request(
         encode_str(rich_schema) if isinstance(rich_schema, (str, bytes)) else encode_json(rich_schema)
     )
     do_call("indy_vdr_build_rich_schema_request", did_p, rich_schema, byref(handle))
+    return Request(handle)
+
+
+def build_get_schema_object_by_id_request(
+    submitter_did: str, rs_id: Union[bytes, str, dict]
+) -> Request:
+    """
+    Builds a GET_RICH_SCHEMA_BY_ID request to get RICH_SCHEMA from the ledger using RICH_SCHEMA_ID.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string
+        rs_id: DID-string like object which represents id of requested RICH_SCHEMA
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    rs_id = (
+        encode_str(rs_id) if isinstance(rs_id, (str, bytes)) else encode_json(rs_id)
+    )
+    do_call("indy_vdr_build_get_schema_object_by_id_request", did_p, rs_id, byref(handle))
+    return Request(handle)
+
+
+def build_get_schema_object_by_metadata_request(
+    submitter_did: str, rs_type: Union[int, str], rs_name: Union[bytes, str], rs_version: Union[bytes, str]
+) -> Request:
+    """
+    Builds a GET_RICH_SCHEMA_BY_METADATA request to get RICH_SCHEMA from the ledger using RICH_SCHEMA's metadata.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string
+        rs_type: Rich Schema object's type enum
+        rs_name: Rich Schema object's name,
+        rs_version: Rich Schema object's version,
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    rs_type = c_int32(rs_type)
+    rs_name = encode_str(rs_name)
+    rs_version = encode_str(rs_version)
+    )
+    do_call("indy_vdr_build_get_schema_object_by_metadata_request", did_p, rs_type, rs_name, rs_version, byref(handle))
     return Request(handle)
