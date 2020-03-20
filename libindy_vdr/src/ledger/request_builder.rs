@@ -22,7 +22,7 @@ use super::requests::auth_rule::*;
 use super::requests::author_agreement::*;
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
-use super::requests::nym::{GetNymOperation, NymOperation};
+use super::requests::nym::{GetNymOperation, NymOperation, role_to_code};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
@@ -40,8 +40,7 @@ use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
 use super::constants::{
-    txn_name_to_code, ENDORSER, NETWORK_MONITOR, READ_REQUESTS, ROLES, ROLE_REMOVE, STEWARD,
-    TRUSTEE,
+    txn_name_to_code, READ_REQUESTS,
 };
 use crate::ledger::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
@@ -216,22 +215,7 @@ impl RequestBuilder {
         alias: Option<String>,
         role: Option<String>,
     ) -> VdrResult<PreparedRequest> {
-        let role = if let Some(r) = role {
-            Some(if r == ROLE_REMOVE {
-                SJsonValue::Null
-            } else {
-                json!(match r.as_str() {
-                    "STEWARD" => STEWARD,
-                    "TRUSTEE" => TRUSTEE,
-                    "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
-                    "NETWORK_MONITOR" => NETWORK_MONITOR,
-                    role if ROLES.contains(&role) => role,
-                    role => return Err(input_err(format!("Invalid role: {}", role))),
-                })
-            })
-        } else {
-            None
-        };
+        let role = role_to_code(role)?;
         let operation = NymOperation::new(dest.to_short(), verkey, alias, role);
         self.build(operation, Some(identifier))
     }

@@ -1,9 +1,17 @@
-use crate::common::error::VdrResult;
+use crate::common::error::{VdrResult, input_err};
 use crate::utils::hash::{digest, Sha256};
 
 use super::constants::{GET_NYM, NYM};
 use super::did::ShortDidValue;
 use super::{ProtocolVersion, RequestType};
+use crate::ledger::constants::{
+    ROLE_REMOVE,
+    STEWARD,
+    TRUSTEE,
+    ENDORSER,
+    NETWORK_MONITOR,
+    ROLES
+};
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {
@@ -65,5 +73,24 @@ impl RequestType for GetNymOperation {
     fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let hash = digest::<Sha256>(self.dest.as_bytes());
         Ok(Some(hash))
+    }
+}
+
+pub fn role_to_code(role: Option<String>) -> VdrResult<Option<serde_json::Value>> {
+    if let Some(r) = role {
+        Ok(Some(if r == ROLE_REMOVE {
+            serde_json::Value::Null
+        } else {
+            json!(match r.as_str() {
+                    "STEWARD" => STEWARD,
+                    "TRUSTEE" => TRUSTEE,
+                    "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
+                    "NETWORK_MONITOR" => NETWORK_MONITOR,
+                    role if ROLES.contains(&role) => role,
+                    role => return Err(input_err(format!("Invalid role: {}", role))),
+                })
+        }))
+    } else {
+        Ok(None)
     }
 }
