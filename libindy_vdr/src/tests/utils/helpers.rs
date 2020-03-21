@@ -11,6 +11,11 @@ pub fn check_response_type(response: &str, expected_type: &str) {
     assert_eq!(response_["op"].as_str().unwrap(), expected_type);
 }
 
+pub fn match_response_error(response: &str, expected_msg: &str) {
+    let response_: serde_json::Value = serde_json::from_str(response).unwrap();
+    assert!(response_["reason"].to_string().contains(expected_msg));
+}
+
 pub fn get_response_data(response: &str) -> Result<serde_json::Value, String> {
     let response_: serde_json::Value = serde_json::from_str(response).unwrap();
     if !response_["result"]["data"].is_null() {
