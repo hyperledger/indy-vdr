@@ -348,26 +348,33 @@ mod tests {
         }
 
         #[test]
-        fn test_pool_transactions_from_transactions_json_works(){
+        fn test_pool_transactions_from_transactions_json_works() {
             let transaction = GenesisTransactions::new(None);
 
-            let transactions: PoolTransactions = PoolTransactions::from_transactions_json(&transaction.transactions).unwrap();
+            let transactions: PoolTransactions =
+                PoolTransactions::from_transactions_json(&transaction.transactions).unwrap();
 
-            assert_eq!(transactions.encode_json().unwrap(), GenesisTransactions::default_transactions())
+            assert_eq!(
+                transactions.encode_json().unwrap(),
+                GenesisTransactions::default_transactions()
+            )
         }
 
         #[test]
-        fn test_pool_transactions_from_file_works(){
+        fn test_pool_transactions_from_file_works() {
             let mut transaction = GenesisTransactions::new(None);
             let file = transaction.store_to_file();
 
             let transactions: PoolTransactions = PoolTransactions::from_file_path(&file).unwrap();
 
-            assert_eq!(transactions.encode_json().unwrap(), GenesisTransactions::default_transactions())
+            assert_eq!(
+                transactions.encode_json().unwrap(),
+                GenesisTransactions::default_transactions()
+            )
         }
 
         #[test]
-        fn test_pool_transactions_from_file_for_unknown_file(){
+        fn test_pool_transactions_from_file_for_unknown_file() {
             let file = {
                 let mut transaction = GenesisTransactions::new(None);
                 let file = transaction.store_to_file();
@@ -379,13 +386,13 @@ mod tests {
         }
 
         #[test]
-        fn test_pool_transactions_from_file_for_invalid_transactions(){
+        fn test_pool_transactions_from_file_for_invalid_transactions() {
             let file = TempFile::create(r#"{invalid}"#);
             let _err = PoolTransactions::from_file_path(&file.path).unwrap_err();
         }
 
         #[test]
-        fn test_merkle_tree_from_transactions_works(){
+        fn test_merkle_tree_from_transactions_works() {
             let merkle_tree = _merkle_tree();
 
             assert_eq!(merkle_tree.count(), 4, "test restored MT size");
@@ -404,10 +411,10 @@ mod tests {
         pub const NODE1_OLD: &str = r#"{"data":{"alias":"Node1","client_ip":"192.168.1.35","client_port":9702,"node_ip":"192.168.1.35","node_port":9701,"services":["VALIDATOR"]},"dest":"Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv","identifier":"FYmoFw55GeQH7SRFa37dkx1d2dZ3zUF8ckg7wmL7ofN4","txnId":"fea82e10e894419fe2bea7d96296a6d46f50f93f9eeda954ec461b2ed2950b62","type":"0"}"#;
         pub const NODE2_OLD: &str = r#"{"data":{"alias":"Node2","client_ip":"192.168.1.35","client_port":9704,"node_ip":"192.168.1.35","node_port":9703,"services":["VALIDATOR"]},"dest":"8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb","identifier":"8QhFxKxyaFsJy4CyxeYX34dFH8oWqyBv1P4HLQCsoeLy","txnId":"1ac8aece2a18ced660fef8694b61aac3af08ba875ce3026a160acbc3a3af35fc","type":"0"}"#;
 
-
         #[test]
-        fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_4(){
-            let txn_map = build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_4).unwrap();
+        fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_4() {
+            let txn_map =
+                build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_4).unwrap();
 
             assert_eq!(4, txn_map.len());
             assert!(txn_map.contains_key("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"));
@@ -427,27 +434,31 @@ mod tests {
         }
 
         #[test]
-        fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_3(){
-            let _err = build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_3).unwrap_err();
+        fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_3() {
+            let _err =
+                build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_3).unwrap_err();
         }
 
         #[test]
-        fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_3(){
+        fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_3() {
             let merkle_tree = PoolTransactions::from_transactions_json(vec![NODE1_OLD, NODE2_OLD])
                 .unwrap()
                 .merkle_tree()
                 .unwrap();
 
-            let txn_map = build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_3).unwrap();
+            let txn_map =
+                build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_3).unwrap();
 
             assert_eq!(2, txn_map.len());
             assert!(txn_map.contains_key("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"));
             assert!(txn_map.contains_key("8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"));
 
-            let node1: NodeTransactionV1 =
-                NodeTransactionV1::from(serde_json::from_str::<NodeTransactionV0>(NODE1_OLD).unwrap());
-            let node2: NodeTransactionV1 =
-                NodeTransactionV1::from(serde_json::from_str::<NodeTransactionV0>(NODE2_OLD).unwrap());
+            let node1: NodeTransactionV1 = NodeTransactionV1::from(
+                serde_json::from_str::<NodeTransactionV0>(NODE1_OLD).unwrap(),
+            );
+            let node2: NodeTransactionV1 = NodeTransactionV1::from(
+                serde_json::from_str::<NodeTransactionV0>(NODE2_OLD).unwrap(),
+            );
 
             assert_eq!(
                 txn_map["Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"],
@@ -460,13 +471,14 @@ mod tests {
         }
 
         #[test]
-        fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_4(){
+        fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_4() {
             let merkle_tree = PoolTransactions::from_transactions_json(vec![NODE1_OLD, NODE2_OLD])
                 .unwrap()
                 .merkle_tree()
                 .unwrap();
 
-            let _err = build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_4).unwrap_err();
+            let _err =
+                build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_4).unwrap_err();
         }
     }
 }

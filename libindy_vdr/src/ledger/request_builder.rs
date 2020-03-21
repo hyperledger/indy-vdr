@@ -22,7 +22,7 @@ use super::requests::auth_rule::*;
 use super::requests::author_agreement::*;
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
-use super::requests::nym::{GetNymOperation, NymOperation, role_to_code};
+use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
@@ -39,9 +39,7 @@ use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
-use super::constants::{
-    txn_name_to_code, READ_REQUESTS,
-};
+use super::constants::{txn_name_to_code, READ_REQUESTS};
 use crate::ledger::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
     GetRichSchemaByMetadataOperation, RichSchema, RichSchemaOperation,

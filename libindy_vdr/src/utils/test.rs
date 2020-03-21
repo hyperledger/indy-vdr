@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
 use crate::utils::environment;
-use std::{env, fs};
 use std::path::PathBuf;
+use std::{env, fs};
 
-use rand::Rng;
 use rand::distributions::Alphanumeric;
+use rand::Rng;
 
 #[macro_export]
 macro_rules! assert_match {
@@ -50,7 +50,10 @@ macro_rules! assert_code {
 }
 
 pub fn get_rand_string(len: usize) -> String {
-    rand::thread_rng().sample_iter(&Alphanumeric).take(len).collect()
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(len)
+        .collect()
 }
 
 pub struct GenesisTransactions {
