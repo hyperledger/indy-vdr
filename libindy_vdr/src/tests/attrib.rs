@@ -162,7 +162,7 @@ mod builder {
             let expected_result = json!({
                 "type": constants::GET_ATTR,
                 "dest": MY1_DID,
-                "raw": ATTRIB_HASH_DATA
+                "hash": ATTRIB_HASH_DATA
             });
 
             helpers::check_request_operation(&attrib_request, expected_result);
