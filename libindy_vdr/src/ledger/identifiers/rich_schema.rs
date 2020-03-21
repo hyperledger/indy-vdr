@@ -37,7 +37,7 @@ mod tests {
     }
 
     #[test]
-    fn _validate_qualified_rs_id() {
+    fn test_validate_qualified_rs_id() {
         assert_eq!(_rs_id_qualified().validate().unwrap(), ())
     }
 

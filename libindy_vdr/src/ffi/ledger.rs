@@ -501,7 +501,7 @@ pub extern "C" fn indy_vdr_build_get_schema_object_by_id_request(
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_get_schema_object_by_metadata_request(
     submitter_did: FfiStr,
-    rs_type: i32,
+    rs_type: FfiStr,
     rs_name: FfiStr,
     rs_version: FfiStr,
     handle_p: *mut usize,
@@ -511,6 +511,7 @@ pub extern "C" fn indy_vdr_build_get_schema_object_by_metadata_request(
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let rs_type = rs_type.into_string();
         let rs_name = rs_name.into_string();
         let rs_version = rs_version.into_string();
         let req = builder.build_get_rich_schema_by_metadata(&identifier, rs_type, rs_name, rs_version)?;

@@ -25,9 +25,9 @@ pub const GET_VALIDATOR_INFO: &str = "119";
 pub const AUTH_RULE: &str = "120";
 pub const GET_AUTH_RULE: &str = "121";
 pub const AUTH_RULES: &str = "122";
-pub const RICH_SCHEMA: &str = "123";
-pub const GET_RICH_SCHEMA_BY_ID: &str = "124";
-pub const GET_RICH_SCHEMA_BY_METADATA: &str = "125";
+pub const RICH_SCHEMA: &str = "201";
+pub const GET_RICH_SCHEMA_BY_ID: &str = "300";
+pub const GET_RICH_SCHEMA_BY_METADATA: &str = "301";
 
 pub const REQUESTS: [&str; 25] = [
     NODE,
@@ -77,6 +77,7 @@ pub const STEWARD: &str = "2";
 pub const ENDORSER: &str = "101";
 pub const NETWORK_MONITOR: &str = "201";
 pub const ROLE_REMOVE: &str = "";
+pub const RS_SCHEMA_TYPE_VALUE: &str = "sch";
 
 pub const ROLES: [&str; 4] = [TRUSTEE, STEWARD, ENDORSER, NETWORK_MONITOR];
 

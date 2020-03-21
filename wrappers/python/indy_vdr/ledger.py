@@ -677,8 +677,8 @@ def build_rich_schema_request(
                 "content": "<JSON-LD string object>",
                 "rsName": "<rich schema name>",
                 "rsVersion": "<rich schema version>",
-                "rsType": <type constant as integer>,
-                "ver": <version as integer>
+                "rsType": <type constant as string>,
+                "ver": <version as string>
             }```
     """
     handle = RequestHandle()
@@ -711,7 +711,7 @@ def build_get_schema_object_by_id_request(
 
 
 def build_get_schema_object_by_metadata_request(
-    submitter_did: str, rs_type: Union[int, str], rs_name: Union[bytes, str], rs_version: Union[bytes, str]
+    submitter_did: str, rs_type: Union[bytes, str], rs_name: Union[bytes, str], rs_version: Union[bytes, str]
 ) -> Request:
     """
     Builds a GET_RICH_SCHEMA_BY_METADATA request to get RICH_SCHEMA from the ledger using RICH_SCHEMA's metadata.
@@ -725,7 +725,7 @@ def build_get_schema_object_by_metadata_request(
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
-    rs_type = c_int32(rs_type)
+    rs_type = encode_str(rs_type)
     rs_name = encode_str(rs_name)
     rs_version = encode_str(rs_version)
     )

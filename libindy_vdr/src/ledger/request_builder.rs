@@ -695,17 +695,17 @@ impl RequestBuilder {
     pub fn build_rich_schema_request(
         &self,
         identifier: &DidValue,
-        rs_schema: RichSchema,
+        rich_schema: RichSchema,
     ) -> VdrResult<PreparedRequest> {
-        let rs_schema: RichSchema = RichSchema::new(
-            rs_schema.id,
-            rs_schema.content,
-            rs_schema.rs_name,
-            rs_schema.rs_version,
-            rs_schema.rs_type,
-            rs_schema.ver,
+        let rich_schema: RichSchema = RichSchema::new(
+            rich_schema.id,
+            rich_schema.content,
+            rich_schema.rs_name,
+            rich_schema.rs_version,
+            rich_schema.rs_type,
+            rich_schema.ver,
         );
-        self.build(RichSchemaOperation::new(rs_schema), Some(identifier))
+        self.build(RichSchemaOperation::new(rich_schema), Some(identifier))
     }
     pub fn build_get_rich_schema_by_id(
         &self,
@@ -721,7 +721,7 @@ impl RequestBuilder {
     pub fn build_get_rich_schema_by_metadata(
         &self,
         identifier: &DidValue,
-        rs_type: i32,
+        rs_type: String,
         rs_name: String,
         rs_version: String,
     ) -> VdrResult<PreparedRequest> {
