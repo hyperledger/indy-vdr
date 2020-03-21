@@ -1,17 +1,10 @@
-use crate::common::error::{VdrResult, input_err};
+use crate::common::error::{input_err, VdrResult};
 use crate::utils::hash::{digest, Sha256};
 
 use super::constants::{GET_NYM, NYM};
 use super::did::ShortDidValue;
 use super::{ProtocolVersion, RequestType};
-use crate::ledger::constants::{
-    ROLE_REMOVE,
-    STEWARD,
-    TRUSTEE,
-    ENDORSER,
-    NETWORK_MONITOR,
-    ROLES
-};
+use crate::ledger::constants::{ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE};
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {
@@ -82,13 +75,13 @@ pub fn role_to_code(role: Option<String>) -> VdrResult<Option<serde_json::Value>
             serde_json::Value::Null
         } else {
             json!(match r.as_str() {
-                    "STEWARD" => STEWARD,
-                    "TRUSTEE" => TRUSTEE,
-                    "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
-                    "NETWORK_MONITOR" => NETWORK_MONITOR,
-                    role if ROLES.contains(&role) => role,
-                    role => return Err(input_err(format!("Invalid role: {}", role))),
-                })
+                "STEWARD" => STEWARD,
+                "TRUSTEE" => TRUSTEE,
+                "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
+                "NETWORK_MONITOR" => NETWORK_MONITOR,
+                role if ROLES.contains(&role) => role,
+                role => return Err(input_err(format!("Invalid role: {}", role))),
+            })
         }))
     } else {
         Ok(None)

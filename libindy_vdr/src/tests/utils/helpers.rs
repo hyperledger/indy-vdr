@@ -27,13 +27,16 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
     let new_identity = Identity::new(None);
 
     // Send NYM
-    let mut nym_request =
-        pool.request_builder()
-            .build_nym_request(&trustee.did,
-                               &new_identity.did,
-                               Some(new_identity.verkey.to_string()),
-                               None,
-                               role).unwrap();
+    let mut nym_request = pool
+        .request_builder()
+        .build_nym_request(
+            &trustee.did,
+            &new_identity.did,
+            Some(new_identity.verkey.to_string()),
+            None,
+            role,
+        )
+        .unwrap();
 
     trustee.sign_request(&mut nym_request);
 
