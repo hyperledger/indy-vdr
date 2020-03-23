@@ -9,18 +9,6 @@ pub const MAX_ATTRIBUTES_COUNT: usize = 125;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RSContent(pub String);
 
-// impl RSContent {
-//     // ToDo: Should it be json-ld validated object or something like that? For now, String object using is enough
-//     pub fn new(jsld_string: String) -> Self {
-//         Self { jsld_string }
-//     }
-//
-//     pub fn loads(jsld: String) -> Self {
-//         // ToDo: Add JSON-LD object creation from string
-//         Self { jsld_string: jsld }
-//     }
-// }
-
 impl Validatable for RSContent {
     fn validate(&self) -> Result<(), ValidationError> {
         // ToDo: Add JSON-LD validation if needed
@@ -74,16 +62,14 @@ impl Validatable for RichSchema {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RichSchemaOperation {
     #[serde(rename = "type")]
     pub _type: String,
     pub id: RichSchemaId,
     pub content: RSContent,
-    #[serde(rename = "rsName")]
     pub rs_name: String,
-    #[serde(rename = "rsVersion")]
     pub rs_version: String,
-    #[serde(rename = "rsType")]
     pub rs_type: String,
     pub ver: String,
 }

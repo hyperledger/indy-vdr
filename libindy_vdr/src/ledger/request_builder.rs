@@ -695,14 +695,6 @@ impl RequestBuilder {
         identifier: &DidValue,
         rich_schema: RichSchema,
     ) -> VdrResult<PreparedRequest> {
-        let rich_schema: RichSchema = RichSchema::new(
-            rich_schema.id,
-            rich_schema.content,
-            rich_schema.rs_name,
-            rich_schema.rs_version,
-            rich_schema.rs_type,
-            rich_schema.ver,
-        );
         self.build(RichSchemaOperation::new(rich_schema), Some(identifier))
     }
     pub fn build_get_rich_schema_by_id(
