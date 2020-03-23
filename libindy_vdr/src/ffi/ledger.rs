@@ -468,7 +468,15 @@ pub extern "C" fn indy_vdr_build_rich_schema_request(
         let identifier = DidValue::from_str(submitter_did.as_str())?;
         let rich_schema = serde_json::from_str::<RichSchema>(rich_schema.as_str())
             .with_input_err("Error deserializing RichSchema")?;
-        let req = builder.build_rich_schema_request(&identifier, rich_schema)?;
+        let req = builder.build_rich_schema_request(
+        &identifier,
+        rich_schema.id,
+        rich_schema.content,
+        rich_schema.rs_name,
+        rich_schema.rs_version,
+        rich_schema.rs_type,
+        rich_schema.ver
+        )?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;

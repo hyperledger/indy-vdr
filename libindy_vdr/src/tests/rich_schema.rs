@@ -61,7 +61,15 @@ mod builder {
         let pool = TestPool::new();
         return pool
             .request_builder()
-            .build_rich_schema_request(&identity, rich_schema)
+            .build_rich_schema_request(
+                &identity,
+                rich_schema.id,
+                rich_schema.content,
+                rich_schema.rs_name,
+                rich_schema.rs_version,
+                rich_schema.rs_type,
+                rich_schema.ver,
+            )
             .unwrap();
     }
 

@@ -42,7 +42,7 @@ use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAccepta
 use super::constants::{txn_name_to_code, READ_REQUESTS};
 use crate::ledger::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
-    GetRichSchemaByMetadataOperation, RichSchema, RichSchemaOperation,
+    GetRichSchemaByMetadataOperation, RSContent, RichSchema, RichSchemaOperation,
 };
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
@@ -693,8 +693,14 @@ impl RequestBuilder {
     pub fn build_rich_schema_request(
         &self,
         identifier: &DidValue,
-        rich_schema: RichSchema,
+        id: RichSchemaId,
+        content: RSContent,
+        rs_name: String,
+        rs_version: String,
+        rs_type: String,
+        ver: String,
     ) -> VdrResult<PreparedRequest> {
+        let rich_schema = RichSchema::new(id, content, rs_name, rs_version, rs_type, ver);
         self.build(RichSchemaOperation::new(rich_schema), Some(identifier))
     }
     pub fn build_get_rich_schema_by_id(
