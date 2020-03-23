@@ -103,15 +103,22 @@ mod sender {
     use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
     use crate::tests::utils::crypto::Identity;
     use builder;
+    use rstest::*;
 
-    fn _test_pool() -> TestPool {
-        return TestPool::new();
+    #[fixture]
+    fn test_pool() -> TestPool {
+        let t = TestPool::new();
+        t
     }
 
-    #[test]
-    fn test_rs_request_send_to_ledger_general() {
-        let pool = _test_pool();
-        let trustee = Identity::trustee();
+    #[fixture]
+    fn trustee() -> Identity {
+        let t = Identity::trustee();
+        t
+    }
+
+    #[rstest]
+    fn test_rs_request_send_to_ledger_general(trustee: Identity, test_pool: TestPool) {
         let rich_schema = builder::_rich_schema();
         let rs_id = rich_schema.clone();
         let rs_meta = rich_schema.clone();
@@ -119,7 +126,7 @@ mod sender {
             builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
         trustee.sign_request(&mut rs_req);
 
-        let rs_response = pool.send_request(&rs_req).unwrap();
+        let rs_response = test_pool.send_request(&rs_req).unwrap();
         let expected_result = json!({
             "id": rich_schema.id,
             "content": builder::_rs_content(rich_schema.id),
@@ -131,15 +138,15 @@ mod sender {
             "endorser": serde_json::Value::Null,
         });
 
-        let get_rs_by_id = pool
+        let get_rs_by_id = test_pool
             .request_builder()
             .build_get_rich_schema_by_id(&DidValue(String::from(TRUSTEE_DID)), &rs_id.id)
             .unwrap();
-        let response_by_id = pool
+        let response_by_id = test_pool
             .send_request_with_retries(&get_rs_by_id, &rs_response)
             .unwrap();
 
-        let get_rs_by_metadata = pool
+        let get_rs_by_metadata = test_pool
             .request_builder()
             .build_get_rich_schema_by_metadata(
                 &DidValue(String::from(TRUSTEE_DID)),
@@ -148,7 +155,7 @@ mod sender {
                 rs_meta.rs_version,
             )
             .unwrap();
-        let response_by_metadata = pool
+        let response_by_metadata = test_pool
             .send_request_with_retries(&get_rs_by_metadata, &rs_response)
             .unwrap();
 
@@ -162,15 +169,16 @@ mod sender {
         );
     }
 
-    #[test]
-    fn test_rs_request_send_to_ledger_with_already_exist_id() {
-        let pool = _test_pool();
-        let trustee = Identity::trustee();
+    #[rstest]
+    fn test_rs_request_send_to_ledger_with_already_exist_id(
+        trustee: Identity,
+        test_pool: TestPool,
+    ) {
         let rich_schema = builder::_rich_schema();
         let mut rs_req_1 =
             builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
         trustee.sign_request(&mut rs_req_1);
-        pool.send_request(&rs_req_1).unwrap();
+        test_pool.send_request(&rs_req_1).unwrap();
 
         // Send the same RichSchema object.
         // Expected behaviour for now:
@@ -181,20 +189,18 @@ mod sender {
             builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
         trustee.sign_request(&mut rs_req_2);
 
-        let err = pool.send_request(&rs_req_2).unwrap_err();
+        let err = test_pool.send_request(&rs_req_2).unwrap_err();
         helpers::check_response_type(&err, "REJECT");
         helpers::match_response_error(&err, "The action is forbidden");
     }
 
-    #[test]
-    fn test_rs_already_exist_with_the_same_metadata() {
-        let pool = _test_pool();
-        let trustee = Identity::trustee();
+    #[rstest]
+    fn test_rs_already_exist_with_the_same_metadata(trustee: Identity, test_pool: TestPool) {
         let rich_schema = builder::_rich_schema();
         let mut rs_req_1 =
             builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
         trustee.sign_request(&mut rs_req_1);
-        pool.send_request(&rs_req_1).unwrap();
+        test_pool.send_request(&rs_req_1).unwrap();
 
         // Send another RichSchema request with the same rsName, rsType and rsVersion
         // but with different id and content.
@@ -214,85 +220,28 @@ mod sender {
             builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema_2);
         trustee.sign_request(&mut rs_req_2);
 
-        let err = pool.send_request(&rs_req_2).unwrap_err();
+        let err = test_pool.send_request(&rs_req_2).unwrap_err();
         helpers::check_response_type(&err, "REJECT");
         helpers::match_response_error(&err, "already exists");
     }
 
-    #[test]
-    fn test_rs_request_wrong_json() {
-        let pool = _test_pool();
-        let trustee = Identity::trustee();
-        let mut rich_schema = builder::_rich_schema();
-
-        // Put a non-valid JSON string
-        rich_schema.content = RSContent("{not: valid; json: string}".to_string());
-
-        let mut rs_req = builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema);
-        trustee.sign_request(&mut rs_req);
-
-        let err = pool.send_request(&rs_req).unwrap_err();
-        helpers::check_response_type(&err, "REQNACK");
-        helpers::match_response_error(&err, "must be a JSON serialized string");
-    }
-
-    #[test]
-    fn test_rs_request_wrong_json_without_id() {
-        let pool = _test_pool();
-        let trustee = Identity::trustee();
-        let mut rich_schema = builder::_rich_schema();
-
-        // Put a JSON-LD string without @id field
-        rich_schema.content =
-            RSContent(r#"{"@type": "sch", "some": "other", "valid": "fields"}"#.to_string());
-
-        let mut rs_req = builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema);
-        trustee.sign_request(&mut rs_req);
-
-        let err = pool.send_request(&rs_req).unwrap_err();
-        helpers::check_response_type(&err, "REQNACK");
-        helpers::match_response_error(
-            &err,
-            "must be a valid JSON-LD and have non-empty '@id' field",
-        );
-    }
-
-    #[test]
-    fn test_rs_request_wrong_json_without_type() {
-        let pool = _test_pool();
-        let trustee = Identity::trustee();
-        let mut rich_schema = builder::_rich_schema();
-
-        // Put a JSON-LD string without @type field
-        rich_schema.content = RSContent(
-            r#"{"@id": "there:is:id:field", "some": "other", "valid": "fields"}"#.to_string(),
-        );
-
-        let mut rs_req = builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema);
-        trustee.sign_request(&mut rs_req);
-
-        let err = pool.send_request(&rs_req).unwrap_err();
-        helpers::check_response_type(&err, "REQNACK");
-        helpers::match_response_error(
-            &err,
-            "must be a valid JSON-LD and have non-empty '@type' field",
-        );
-    }
-
-    #[test]
-    fn test_rs_request_wrong_json_with_different_ids() {
-        let pool = _test_pool();
-        let trustee = Identity::trustee();
+    #[rstest(
+        rs_content,
+        case(builder::_rs_content(builder::_rs_id())),
+        case(RSContent(r#"{"@id": "there:is:id:field", "some": "other", "valid": "fields"}"#.to_string())),
+        case(RSContent(r#"{"@type": "sch", "some": "other", "valid": "fields"}"#.to_string())),
+        case(RSContent("{not: valid; json: string}".to_string()))
+    )]
+    fn test_rs_request_wrong_json(rs_content: RSContent, trustee: Identity, test_pool: TestPool) {
         let mut rich_schema = builder::_rich_schema();
 
         // Put a JSON-LD string with different id in content and at the top of data
-        rich_schema.content = builder::_rs_content(builder::_rs_id());
+        rich_schema.content = rs_content;
 
         let mut rs_req = builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema);
         trustee.sign_request(&mut rs_req);
 
-        let err = pool.send_request(&rs_req).unwrap_err();
+        let err = test_pool.send_request(&rs_req).unwrap_err();
         helpers::check_response_type(&err, "REQNACK");
-        helpers::match_response_error(&err, "@id must be equal to");
     }
 }
