@@ -1,6 +1,9 @@
-use super::constants::RICH_SCHEMA;
 use super::RequestType;
-use crate::ledger::constants::{GET_RICH_SCHEMA_BY_ID, GET_RICH_SCHEMA_BY_METADATA};
+use crate::ledger::constants::{
+    GET_RICH_SCHEMA_BY_ID, GET_RICH_SCHEMA_BY_METADATA, RS_POSSIBLE_TYPES,
+    RICH_SCHEMA_ENCODING, RICH_SCHEMA_MAPPING, RICH_SCHEMA_CTX,
+    RICH_SCHEMA_CRED_DEF, RICH_SCHEMA_PRES_DEF, RICH_SCHEMA
+};
 use crate::ledger::identifiers::rich_schema::RichSchemaId;
 use crate::utils::validation::{Validatable, ValidationError};
 
@@ -49,15 +52,10 @@ impl RichSchema {
 impl Validatable for RichSchema {
     fn validate(&self) -> Result<(), ValidationError> {
         // ToDo: add specific validation
+        if ! RS_POSSIBLE_TYPES.contains(&self.rs_type.as_str()) {
+            return Err(ValidationError::from(format!("Should be one of {:?}", RS_POSSIBLE_TYPES)));
+        }
         return self.id.validate();
-        //     Ok(()) => {
-        //         match self.content.validate(){
-        //             Ok(()) => return Ok(()),
-        //             Err(_) => return Err(_),
-        //         };
-        //     },
-        //     Err(_) => return Err(_),
-        // }
     }
 }
 
@@ -77,7 +75,7 @@ pub struct RichSchemaOperation {
 impl RichSchemaOperation {
     pub fn new(rs_schema: RichSchema) -> RichSchemaOperation {
         RichSchemaOperation {
-            _type: Self::get_txn_type().to_string(),
+            _type:Self::get_txn_type().to_string(),
             id: rs_schema.id,
             content: rs_schema.content,
             rs_name: rs_schema.rs_name,
@@ -92,6 +90,72 @@ impl RequestType for RichSchemaOperation {
     fn get_txn_type<'a>() -> &'a str {
         RICH_SCHEMA
     }
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RSEncodingOperation(pub RichSchemaOperation);
+
+impl RequestType for RSEncodingOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        RICH_SCHEMA_ENCODING
+    }
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RSMappingOperation(pub RichSchemaOperation);
+
+impl RequestType for RSMappingOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        RICH_SCHEMA_MAPPING
+    }
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RSContextOperation(pub RichSchemaOperation);
+
+impl RequestType for RSContextOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        RICH_SCHEMA_CTX
+    }
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RSCredDefOperation(pub RichSchemaOperation);
+
+impl RequestType for RSCredDefOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        RICH_SCHEMA_CRED_DEF
+    }
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RSPresDefOperation(pub RichSchemaOperation);
+
+impl RequestType for RSPresDefOperation {
+    fn get_txn_type<'a>() -> &'a str {
+        RICH_SCHEMA_PRES_DEF
+    }
+}
+
+#[derive(Serialize, Debug, Deserialize, Clone)]
+pub enum RSType {
+    #[serde(rename="sch")]
+    Sch,
+    #[serde(rename="map")]
+    Map,
+    #[serde(rename="ctx")]
+    Ctx,
+    #[serde(rename="enc")]
+    Enc,
+    #[serde(rename="cdf")]
+    Cdf,
+    #[serde(rename="pdf")]
+    Pdf,
 }
 
 // Get RichSchema object from ledger using RichSchema's ID.
@@ -231,17 +295,8 @@ mod tests {
         )
     }
 
-    fn _rs_operation() -> RichSchemaOperation {
-        RichSchemaOperation::new(_rs_schema())
-    }
-
     fn _get_rs_op_by_id() -> GetRichSchemaByIdOperation {
         GetRichSchemaByIdOperation::new(_get_rs_by_id())
-    }
-
-    #[test]
-    fn test_check_type_rs_op() {
-        assert_eq!(_rs_operation()._type, RICH_SCHEMA)
     }
 
     #[test]
@@ -251,5 +306,13 @@ mod tests {
     #[test]
     fn test_check_type_get_rs_by_metadata_op() {
         assert_eq!(_get_rs_by_metadata_op()._type, GET_RICH_SCHEMA_BY_METADATA)
+    }
+
+    #[test]
+    fn test_fail_on_wrong_rs_type() {
+        let mut rs_schema = _rs_schema();
+        rs_schema.rs_type = "SomeOtherType".to_string();
+        let err = rs_schema.validate().unwrap_err();
+        assert!(err.to_string().contains("Should be one of"));
     }
 }

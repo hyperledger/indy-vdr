@@ -13,6 +13,7 @@ mod builder {
     use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
     use crate::ledger::PreparedRequest;
     use crate::utils::test::get_rand_string;
+    use rstest::*;
 
     fn _rs_id_str() -> String {
         let mut id = "did:sov:".to_string();
@@ -73,6 +74,34 @@ mod builder {
             .unwrap();
     }
 
+    pub fn rs_cdf_content(rs_id: RichSchemaId) -> RSContent {
+        let rs_as_json = json!({
+        "signatureType": "CL",
+        "mapping": "did:sov:8a9F8ZmxuvDqRiqqY29x6dx9oU4qwFTkPbDpWtwGbdUsrCD",
+        "schema": rs_id,
+        });
+        return RSContent(rs_as_json.to_string())
+    }
+
+    #[test]
+    fn test_rs_with_wrong_rs_type() {
+        let mut rich_schema = _rich_schema();
+        rich_schema.rs_type = "SomeOtherType".to_string();
+        let pool = TestPool::new();
+        let err = pool
+            .request_builder()
+            .build_rich_schema_request(
+                &DidValue(String::from(TRUSTEE_DID)),
+                rich_schema.id,
+                rich_schema.content,
+                rich_schema.rs_name,
+                rich_schema.rs_version,
+                rich_schema.rs_type,
+                rich_schema.ver,
+            ).unwrap_err();
+        assert!(err.to_string().contains("unknown variant `SomeOtherType`"));
+    }
+
     #[test]
     fn test_rs_request_general() {
         let rich_schema = _rich_schema();
@@ -89,17 +118,27 @@ mod builder {
         helpers::check_request_operation(&rs_req, expected_result);
     }
 
-    #[test]
-    fn test_rs_request_works_for_fully_qualified_did() {
-        let rich_schema = _rich_schema();
+    #[rstest(
+    rs_type => [
+    "sch".to_string(),
+    "ctx".to_string(),
+    "map".to_string(),
+    "enc".to_string(),
+    "cdf".to_string(),
+    "pdf".to_string(),
+    ]
+    )]
+    fn test_rs_request_works_for_fully_qualified_did(rs_type: String) {
+        let mut rich_schema = _rich_schema();
+        rich_schema.rs_type = rs_type.clone();
         let rs_req = _build_rs_req(DidValue(String::from(TRUSTEE_DID_FQ)), rich_schema.clone());
         let expected_result = json!({
-            "type": constants::RICH_SCHEMA,
+            "type": constants::RS_TYPE_TO_OP.get(&rich_schema.rs_type.as_str()).unwrap().to_string(),
             "id": rich_schema.id,
             "content": _rs_content(rich_schema.id),
             "rsName": "test_rich_schema".to_string(),
             "rsVersion": rich_schema.rs_version,
-            "rsType": constants::RS_SCHEMA_TYPE_VALUE.to_string(),
+            "rsType": rs_type,
             "ver": "1".to_string()
         });
         helpers::check_request_operation(&rs_req, expected_result);
@@ -177,12 +216,23 @@ mod sender {
         );
     }
 
-    #[rstest]
+    #[rstest(
+        rs_type => [
+            "sch".to_string(),
+            "ctx".to_string(),
+            "map".to_string(),
+            "enc".to_string(),
+            "cdf".to_string(),
+            "pdf".to_string(),
+    ]
+    )]
     fn test_rs_request_send_to_ledger_with_already_exist_id(
         trustee: Identity,
         test_pool: TestPool,
+        rs_type: String,
     ) {
-        let rich_schema = builder::_rich_schema();
+        let mut rich_schema = builder::_rich_schema();
+        rich_schema.rs_type = rs_type;
         let mut rs_req_1 =
             builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
         trustee.sign_request(&mut rs_req_1);
@@ -202,9 +252,19 @@ mod sender {
         helpers::match_response_error(&err, "The action is forbidden");
     }
 
-    #[rstest]
-    fn test_rs_already_exist_with_the_same_metadata(trustee: Identity, test_pool: TestPool) {
-        let rich_schema = builder::_rich_schema();
+    #[rstest(
+        rs_type => [
+            "sch".to_string(),
+            "ctx".to_string(),
+            // "map".to_string(),
+            // "enc".to_string(),
+            // "cdf".to_string(),
+            // "pdf".to_string(),
+        ]
+    )]
+    fn test_rs_already_exist_with_the_same_metadata(trustee: Identity, test_pool: TestPool, rs_type: String) {
+        let mut rich_schema = builder::_rich_schema();
+        rich_schema.rs_type = rs_type;
         let mut rs_req_1 =
             builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
         trustee.sign_request(&mut rs_req_1);
@@ -234,14 +294,24 @@ mod sender {
     }
 
     #[rstest(
-        rs_content,
-        case(builder::_rs_content(builder::_rs_id())),
-        case(RSContent(r#"{"@id": "there:is:id:field", "some": "other", "valid": "fields"}"#.to_string())),
-        case(RSContent(r#"{"@type": "sch", "some": "other", "valid": "fields"}"#.to_string())),
-        case(RSContent("{not: valid; json: string}".to_string()))
+        rs_type => [
+        "sch".to_string(),
+        "ctx".to_string(),
+        "map".to_string(),
+        "enc".to_string(),
+        "cdf".to_string(),
+        "pdf".to_string(),
+        ],
+        rs_content => [
+        builder::_rs_content(builder::_rs_id()),
+        RSContent(r#"{"@id": "there:is:id:field", "some": "other", "valid": "fields"}"#.to_string()),
+        RSContent(r#"{"@type": "sch", "some": "other", "valid": "fields"}"#.to_string()),
+        RSContent("{not: valid; json: string}".to_string()),
+        ],
     )]
-    fn test_rs_request_wrong_json(rs_content: RSContent, trustee: Identity, test_pool: TestPool) {
+    fn test_rs_request_wrong_json(rs_content: RSContent, trustee: Identity, test_pool: TestPool, rs_type: String) {
         let mut rich_schema = builder::_rich_schema();
+        rich_schema.rs_type = rs_type;
 
         // Put a JSON-LD string with different id in content and at the top of data
         rich_schema.content = rs_content;

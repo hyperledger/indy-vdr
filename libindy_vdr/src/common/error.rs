@@ -105,6 +105,12 @@ impl From<zmq::Error> for VdrError {
     }
 }
 
+impl From<serde_json::Error> for VdrError {
+    fn from(err: serde_json::Error) -> VdrError {
+        VdrError::new(VdrErrorKind::Unexpected, Some(err.to_string()), None)
+    }
+}
+
 impl<M> From<(VdrErrorKind, M)> for VdrError
 where
     M: fmt::Display + Send + Sync + 'static,
