@@ -307,20 +307,20 @@ fn _decode_transaction(
     match gen_txn {
         NodeTransaction::NodeTransactionV0(txn) => {
             if protocol_version != 1 {
-                Err(input_err(
-                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                            Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
-                            protocol_version, NodeTransactionV0::VERSION)))
+                Err(err_msg(VdrErrorKind::Incompatible,
+                            format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                                           Call indy_set_protocol_version(1) to set correct PROTOCOL_VERSION",
+                                    protocol_version, NodeTransactionV0::VERSION)))
             } else {
                 Ok(NodeTransactionV1::from(txn))
             }
         }
         NodeTransaction::NodeTransactionV1(txn) => {
             if protocol_version != 2 {
-                Err(input_err(
-                    format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
-                                Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
-                            protocol_version, NodeTransactionV1::VERSION)))
+                Err(err_msg(VdrErrorKind::Incompatible,
+                            format!("Libindy PROTOCOL_VERSION is {} but Pool Genesis Transactions are of version {}.\
+                                           Call indy_set_protocol_version(2) to set correct PROTOCOL_VERSION",
+                                    protocol_version, NodeTransactionV1::VERSION)))
             } else {
                 Ok(txn)
             }
