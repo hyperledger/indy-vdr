@@ -80,7 +80,7 @@ mod builder {
         "mapping": "did:sov:8a9F8ZmxuvDqRiqqY29x6dx9oU4qwFTkPbDpWtwGbdUsrCD",
         "schema": rs_id,
         });
-        return RSContent(rs_as_json.to_string())
+        return RSContent(rs_as_json.to_string());
     }
 
     #[test]
@@ -98,7 +98,8 @@ mod builder {
                 rich_schema.rs_version,
                 rich_schema.rs_type,
                 rich_schema.ver,
-            ).unwrap_err();
+            )
+            .unwrap_err();
         assert!(err.to_string().contains("unknown variant `SomeOtherType`"));
     }
 
@@ -232,7 +233,12 @@ mod sender {
         RSContent("{not: valid; json: string}".to_string()),
         ],
     )]
-    fn test_rs_request_wrong_json(rs_content: RSContent, trustee: Identity, test_pool: TestPool, rs_type: String) {
+    fn test_rs_request_wrong_json(
+        rs_content: RSContent,
+        trustee: Identity,
+        test_pool: TestPool,
+        rs_type: String,
+    ) {
         let mut rich_schema = builder::rich_schema();
         rich_schema.rs_type = rs_type;
 
@@ -249,14 +255,15 @@ mod sender {
 
 mod rs_chain {
     use super::*;
+    use crate::ledger::constants::{
+        RS_CONTEXT_TYPE_VALUE, RS_CRED_DEF_TYPE_VALUE, RS_ENCODING_TYPE_VALUE,
+        RS_MAPPING_TYPE_VALUE, RS_PRES_DEF_TYPE_VALUE, RS_SCHEMA_TYPE_VALUE,
+    };
     use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
+    use crate::ledger::PreparedRequest;
     use crate::tests::utils::crypto::Identity;
     use builder;
     use rstest::*;
-    use crate::ledger::constants::{
-        RS_SCHEMA_TYPE_VALUE, RS_CONTEXT_TYPE_VALUE, RS_ENCODING_TYPE_VALUE,
-        RS_CRED_DEF_TYPE_VALUE, RS_PRES_DEF_TYPE_VALUE, RS_MAPPING_TYPE_VALUE};
-    use crate::ledger::PreparedRequest;
 
     pub struct RSChain {
         pub rs_sch_id: RichSchemaId,
@@ -275,7 +282,7 @@ mod rs_chain {
             let mut rs_enc_id = builder::rs_id();
             let mut rs_cdf_id = builder::rs_id();
             let mut rs_pdf_id = builder::rs_id();
-            RSChain{
+            RSChain {
                 rs_sch_id,
                 rs_map_id,
                 rs_ctx_id,
@@ -321,7 +328,7 @@ mod rs_chain {
                 },
                 "administrativeNumber": "Text"
             });
-            return RSContent(json_c.to_string())
+            return RSContent(json_c.to_string());
         }
 
         pub fn make_rs_ctx(&self) -> RichSchema {
@@ -349,7 +356,7 @@ mod rs_chain {
                 }
             ]
             });
-            return RSContent(json_c.to_string())
+            return RSContent(json_c.to_string());
         }
 
         pub fn make_rs_map(&self) -> RichSchema {
@@ -359,7 +366,7 @@ mod rs_chain {
                 "test_rich_schema_map".to_string(),
                 builder::rs_version(),
                 RS_MAPPING_TYPE_VALUE.to_string(),
-                "1.0.0".to_string()
+                "1.0.0".to_string(),
             )
         }
 
@@ -408,7 +415,7 @@ mod rs_chain {
                     }]
                 }
             });
-            return RSContent(json_c.to_string())
+            return RSContent(json_c.to_string());
         }
 
         pub fn make_rs_enc(&self) -> RichSchema {
@@ -418,7 +425,7 @@ mod rs_chain {
                 "test_rich_schema_enc".to_string(),
                 builder::rs_version(),
                 RS_ENCODING_TYPE_VALUE.to_string(),
-                "1.0.0".to_string()
+                "1.0.0".to_string(),
             )
         }
 
@@ -439,7 +446,7 @@ mod rs_chain {
                 },
                 "testVectors": "https://github.com/hyperledger/indy-hipe/commit/3a39665fd384254f08316eef6230c2f411b8f766"
             });
-            return RSContent(json_c.to_string())
+            return RSContent(json_c.to_string());
         }
 
         pub fn make_rs_cdf(&self) -> RichSchema {
@@ -449,7 +456,7 @@ mod rs_chain {
                 "test_rich_schema_cdf".to_string(),
                 builder::rs_version(),
                 RS_CRED_DEF_TYPE_VALUE.to_string(),
-                "1.0.0".to_string()
+                "1.0.0".to_string(),
             )
         }
 
@@ -463,9 +470,8 @@ mod rs_chain {
                     "revocation": "...",
                 }
             });
-            return RSContent(json_c.to_string())
+            return RSContent(json_c.to_string());
         }
-
 
         pub fn make_rs_pdf(&self) -> RichSchema {
             RichSchema::new(
@@ -474,7 +480,7 @@ mod rs_chain {
                 "test_rich_schema_pdf".to_string(),
                 builder::rs_version(),
                 RS_PRES_DEF_TYPE_VALUE.to_string(),
-                "1.0.0".to_string()
+                "1.0.0".to_string(),
             )
         }
 
@@ -486,12 +492,11 @@ mod rs_chain {
                 "attr1": "",
                 "attr2": ""
             });
-            return RSContent(json_c.to_string())
+            return RSContent(json_c.to_string());
         }
-
     }
 
-    fn send_rs_obj(rs_obj: RichSchema) -> Result<String, String>{
+    fn send_rs_obj(rs_obj: RichSchema) -> Result<String, String> {
         let pool = TestPool::new();
         let mut rs_req = make_signed_req_from_rs_obj(rs_obj);
         Ok(pool.send_request(&rs_req).unwrap())
@@ -500,37 +505,41 @@ mod rs_chain {
     fn make_signed_req_from_rs_obj(rs_obj: RichSchema) -> PreparedRequest {
         let pool = TestPool::new();
         let trustee = Identity::trustee();
-        let mut rs_req = pool.request_builder().build_rich_schema_request(
-            &DidValue(String::from(TRUSTEE_DID)),
-            rs_obj.id,
-            rs_obj.content,
-            rs_obj.rs_name,
-            rs_obj.rs_version,
-            rs_obj.rs_type,
-            rs_obj.ver
-        ).unwrap();
+        let mut rs_req = pool
+            .request_builder()
+            .build_rich_schema_request(
+                &DidValue(String::from(TRUSTEE_DID)),
+                rs_obj.id,
+                rs_obj.content,
+                rs_obj.rs_name,
+                rs_obj.rs_version,
+                rs_obj.rs_type,
+                rs_obj.ver,
+            )
+            .unwrap();
         trustee.sign_request(&mut rs_req);
-        return rs_req
+        return rs_req;
     }
 
     fn make_get_req_by_id_from_rs_obj(rs_obj: RichSchema) -> PreparedRequest {
         let pool = TestPool::new();
         let trustee = Identity::trustee();
-        pool.request_builder().build_get_rich_schema_by_id(
-            &DidValue(String::from(TRUSTEE_DID)),
-            &rs_obj.id
-        ).unwrap()
+        pool.request_builder()
+            .build_get_rich_schema_by_id(&DidValue(String::from(TRUSTEE_DID)), &rs_obj.id)
+            .unwrap()
     }
 
     fn make_get_req_by_metadata_from_rs_obj(rs_obj: RichSchema) -> PreparedRequest {
         let pool = TestPool::new();
         let trustee = Identity::trustee();
-        pool.request_builder().build_get_rich_schema_by_metadata(
-            &DidValue(String::from(TRUSTEE_DID)),
-            rs_obj.rs_type,
-            rs_obj.rs_name,
-            rs_obj.rs_version
-        ).unwrap()
+        pool.request_builder()
+            .build_get_rich_schema_by_metadata(
+                &DidValue(String::from(TRUSTEE_DID)),
+                rs_obj.rs_type,
+                rs_obj.rs_name,
+                rs_obj.rs_version,
+            )
+            .unwrap()
     }
 
     #[test]
@@ -551,7 +560,7 @@ mod rs_chain {
             send_rs_obj(rs_obj);
         }
         // Check, that all of objects are written to ledger
-        for rs_obj in  rs_objects.clone() {
+        for rs_obj in rs_objects.clone() {
             let mut get_req_req_by_ib = make_get_req_by_id_from_rs_obj(rs_obj.clone());
             let mut get_req_req_by_meta = make_get_req_by_metadata_from_rs_obj(rs_obj);
             trustee.sign_request(&mut get_req_req_by_ib);
