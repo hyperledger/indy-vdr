@@ -16,6 +16,9 @@ pub fn trustee_did() -> DidValue { DidValue(String::from(TRUSTEE_DID)) }
 pub fn fq_trustee_did() -> DidValue { DidValue(String::from(TRUSTEE_DID_FQ)) }
 
 #[fixture]
+pub fn steward_did() -> DidValue { DidValue(String::from(STEWARD_DID)) }
+
+#[fixture]
 pub fn my_did() -> DidValue { DidValue(String::from(MY1_DID)) }
 
 #[fixture]

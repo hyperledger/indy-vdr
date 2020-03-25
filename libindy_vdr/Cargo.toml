@@ -47,3 +47,4 @@ features = ["bls_bn254", "cl_native", "ed25519", "sha2", "sha3", "serde", "x2551
 
 [dev-dependencies]
 rstest = "0.6"
+chrono = "0.4"

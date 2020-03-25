@@ -42,3 +42,8 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
 
     new_identity
 }
+
+pub fn sign_and_send_request(identity: &Identity, pool: &TestPool, mut request: &mut PreparedRequest) -> Result<String, String> {
+    identity.sign_request(&mut request);
+    pool.send_request(&request)
+}
