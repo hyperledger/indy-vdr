@@ -74,15 +74,6 @@ mod builder {
             .unwrap();
     }
 
-    pub fn rs_cdf_content(rs_id: RichSchemaId) -> RSContent {
-        let rs_as_json = json!({
-        "signatureType": "CL",
-        "mapping": "did:sov:8a9F8ZmxuvDqRiqqY29x6dx9oU4qwFTkPbDpWtwGbdUsrCD",
-        "schema": rs_id,
-        });
-        return RSContent(rs_as_json.to_string());
-    }
-
     #[test]
     fn test_rs_with_wrong_rs_type() {
         let mut rich_schema = rich_schema();
@@ -148,7 +139,7 @@ mod builder {
 
 mod sender {
     use super::*;
-    use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
+    use crate::ledger::requests::rich_schema::RSContent;
     use crate::tests::utils::crypto::Identity;
     use builder;
     use rstest::*;
@@ -263,7 +254,6 @@ mod rs_chain {
     use crate::ledger::PreparedRequest;
     use crate::tests::utils::crypto::Identity;
     use builder;
-    use rstest::*;
 
     pub struct RSChain {
         pub rs_sch_id: RichSchemaId,
@@ -276,12 +266,12 @@ mod rs_chain {
 
     impl RSChain {
         pub fn new() -> RSChain {
-            let mut rs_sch_id = builder::rs_id();
-            let mut rs_map_id = builder::rs_id();
-            let mut rs_ctx_id = builder::rs_id();
-            let mut rs_enc_id = builder::rs_id();
-            let mut rs_cdf_id = builder::rs_id();
-            let mut rs_pdf_id = builder::rs_id();
+            let rs_sch_id = builder::rs_id();
+            let rs_map_id = builder::rs_id();
+            let rs_ctx_id = builder::rs_id();
+            let rs_enc_id = builder::rs_id();
+            let rs_cdf_id = builder::rs_id();
+            let rs_pdf_id = builder::rs_id();
             RSChain {
                 rs_sch_id,
                 rs_map_id,
@@ -498,7 +488,7 @@ mod rs_chain {
 
     fn send_rs_obj(rs_obj: RichSchema) -> Result<String, String> {
         let pool = TestPool::new();
-        let mut rs_req = make_signed_req_from_rs_obj(rs_obj);
+        let rs_req = make_signed_req_from_rs_obj(rs_obj);
         Ok(pool.send_request(&rs_req).unwrap())
     }
 
@@ -523,7 +513,6 @@ mod rs_chain {
 
     fn make_get_req_by_id_from_rs_obj(rs_obj: RichSchema) -> PreparedRequest {
         let pool = TestPool::new();
-        let trustee = Identity::trustee();
         pool.request_builder()
             .build_get_rich_schema_by_id(&DidValue(String::from(TRUSTEE_DID)), &rs_obj.id)
             .unwrap()
@@ -531,7 +520,6 @@ mod rs_chain {
 
     fn make_get_req_by_metadata_from_rs_obj(rs_obj: RichSchema) -> PreparedRequest {
         let pool = TestPool::new();
-        let trustee = Identity::trustee();
         pool.request_builder()
             .build_get_rich_schema_by_metadata(
                 &DidValue(String::from(TRUSTEE_DID)),
