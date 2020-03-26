@@ -36,6 +36,8 @@ pub enum VdrErrorKind {
     Unavailable,
     #[error("Unexpected error")]
     Unexpected,
+    #[error("Incompatible error")]
+    Incompatible,
     // Transaction errors
     #[error("No consensus from verifiers")]
     PoolNoConsensus,
