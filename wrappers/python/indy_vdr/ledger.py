@@ -698,7 +698,7 @@ def build_rich_schema_request(
     return Request(handle)
 
 
-def build_get_schema_object_by_id_request(
+def build_get_rich_schema_object_by_id_request(
     submitter_did: str, rs_id: Union[bytes, str, dict]
 ) -> Request:
     """
@@ -714,11 +714,11 @@ def build_get_schema_object_by_id_request(
     rs_id = (
         encode_str(rs_id) if isinstance(rs_id, (str, bytes)) else encode_json(rs_id)
     )
-    do_call("indy_vdr_build_get_schema_object_by_id_request", did_p, rs_id, byref(handle))
+    do_call("indy_vdr_build_get_rich_schema_object_by_id_request", did_p, rs_id, byref(handle))
     return Request(handle)
 
 
-def build_get_schema_object_by_metadata_request(
+def build_get_rich_schema_object_by_metadata_request(
     submitter_did: str, rs_type: Union[bytes, str], rs_name: Union[bytes, str], rs_version: Union[bytes, str]
 ) -> Request:
     """
@@ -737,5 +737,5 @@ def build_get_schema_object_by_metadata_request(
     rs_name = encode_str(rs_name)
     rs_version = encode_str(rs_version)
     )
-    do_call("indy_vdr_build_get_schema_object_by_metadata_request", did_p, rs_type, rs_name, rs_version, byref(handle))
+    do_call("indy_vdr_build_get_rich_schema_object_by_metadata_request", did_p, rs_type, rs_name, rs_version, byref(handle))
     return Request(handle)

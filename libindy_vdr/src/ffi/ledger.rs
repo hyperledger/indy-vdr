@@ -462,7 +462,7 @@ pub extern "C" fn indy_vdr_build_rich_schema_request(
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        trace!("Build SCHEMA request");
+        trace!("Build RICH_SCHEMA request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
@@ -486,13 +486,13 @@ pub extern "C" fn indy_vdr_build_rich_schema_request(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_build_get_schema_object_by_id_request(
+pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_id_request(
     submitter_did: FfiStr,
     rs_id: FfiStr,
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        trace!("Build SCHEMA request");
+        trace!("Build GET_RICH_SCHEMA_BY_ID request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
@@ -507,7 +507,7 @@ pub extern "C" fn indy_vdr_build_get_schema_object_by_id_request(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_build_get_schema_object_by_metadata_request(
+pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_metadata_request(
     submitter_did: FfiStr,
     rs_type: FfiStr,
     rs_name: FfiStr,
@@ -515,7 +515,7 @@ pub extern "C" fn indy_vdr_build_get_schema_object_by_metadata_request(
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        trace!("Build SCHEMA request");
+        trace!("Build GET_RICH_SCHEMA_BY_METADATA request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
