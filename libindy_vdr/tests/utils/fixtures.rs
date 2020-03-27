@@ -5,6 +5,7 @@ use indy_vdr::ledger::RequestBuilder;
 use indy_vdr::common::did::DidValue;
 
 use rstest::*;
+use indy_vdr::ledger::requests::ProtocolVersion;
 
 #[fixture]
 pub fn trustee() -> Identity { Identity::new(Some(TRUSTEE_SEED)) }
@@ -34,4 +35,7 @@ pub fn identity() -> Identity { Identity::new(None) }
 pub fn pool() -> TestPool { TestPool::new() }
 
 #[fixture]
-pub fn request_builder(pool: TestPool) -> RequestBuilder { pool.request_builder() }
+pub fn request_builder() -> RequestBuilder { RequestBuilder::new(ProtocolVersion::Node1_4) }
+
+#[fixture]
+pub fn timestamp() -> u64 { 12345 }

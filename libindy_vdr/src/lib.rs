@@ -24,3 +24,7 @@ mod ffi;
 pub mod ledger;
 pub mod pool;
 pub mod state_proof;
+
+#[cfg(test)]
+#[macro_use]
+extern crate rstest;

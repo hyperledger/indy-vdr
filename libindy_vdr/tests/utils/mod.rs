@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_macros)]
+//#![allow(dead_code, unused_macros)]
 pub mod pool;
 pub mod crypto;
 pub mod constants;
@@ -9,9 +9,6 @@ macro_rules! inject_dependencies {
     () => {
         extern crate indy_vdr;
         extern crate ursa;
-        #[allow(unused_imports)]
-        #[macro_use]
-        extern crate lazy_static;
         #[allow(unused_imports)]
         #[macro_use]
         extern crate serde_json;

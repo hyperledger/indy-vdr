@@ -53,7 +53,7 @@ mod send_get_validator_info {
 
         trustee.sign_request(&mut request);
 
-        let _replies = pool.send_full_request(&request, None, None).unwrap();
-        println!("{:?}", _replies);
+        let replies = pool.send_full_request(&request, None, None).unwrap();
+        assert_eq!(replies.len(), 4);
     }
 }

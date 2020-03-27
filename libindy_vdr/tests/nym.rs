@@ -15,6 +15,11 @@ use crate::utils::crypto::*;
 const ALIAS: &str = "alias";
 const ROLE: &str = "TRUSTEE";
 
+#[test]
+fn empty() {
+    // Empty test to run module
+}
+
 #[cfg(test)]
 mod builder {
     use super::*;
@@ -34,7 +39,7 @@ mod builder {
                                        None,
                                        None,
                                        None).unwrap();
-
+            println!("{:?}", nym_request.req_json.to_string());
             let expected_result = json!({
                 "type": constants::NYM,
                 "dest": my_did,

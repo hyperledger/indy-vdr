@@ -11,16 +11,16 @@ use crate::utils::fixtures::*;
 use crate::utils::pool::*;
 use crate::utils::crypto::*;
 
-lazy_static! {
-    static ref ATTRIB_RAW_DATA: serde_json::Value = json!({"endpoint":{"ha":"127.0.0.1:5555"}});
+const ATTRIB_RAW_DATA_FIELD: &'static str = r#"endpoint"#;
+const ATTRIB_HASH_DATA: &'static str = r#"83d907821df1c87db829e96569a11f6fc2e7880acba5e43d07ab786959e13bd3"#;
+const ATTRIB_ENC_DATA: &'static str = r#"aa3f41f619aa7e5e6b6d0de555e05331787f9bf9aa672b94b57ab65b9b66c3ea960b18a98e3834b1fc6cebf49f463b81fd6e3181"#;
+
+fn attrib_raw_data() -> serde_json::Value {
+    json!({ "endpoint": { "ha": "127.0.0.1:5555" } })
 }
 
-pub const ATTRIB_RAW_DATA_FIELD: &'static str = r#"endpoint"#;
-pub const ATTRIB_HASH_DATA: &'static str = r#"83d907821df1c87db829e96569a11f6fc2e7880acba5e43d07ab786959e13bd3"#;
-pub const ATTRIB_ENC_DATA: &'static str = r#"aa3f41f619aa7e5e6b6d0de555e05331787f9bf9aa672b94b57ab65b9b66c3ea960b18a98e3834b1fc6cebf49f463b81fd6e3181"#;
-
 #[test]
-fn empty(){
+fn empty() {
     // Empty test to run module
 }
 
@@ -41,13 +41,13 @@ mod builder {
                     .build_attrib_request(&trustee_did,
                                           &my_did,
                                           None,
-                                          Some(&ATTRIB_RAW_DATA),
+                                          Some(&attrib_raw_data()),
                                           None).unwrap();
 
             let expected_result = json!({
                 "type": constants::ATTRIB,
                 "dest": my_did,
-                "raw": ATTRIB_RAW_DATA.to_string()
+                "raw": attrib_raw_data().to_string()
             });
 
             helpers::check_request_operation(&attrib_request, expected_result);
@@ -104,13 +104,13 @@ mod builder {
                     .build_attrib_request(&trustee_did,
                                           &my_did,
                                           None,
-                                          Some(&ATTRIB_RAW_DATA),
+                                          Some(&attrib_raw_data()),
                                           None).unwrap();
 
             let expected_result = json!({
                 "type": constants::ATTRIB,
                 "dest": my_did,
-                "raw": ATTRIB_RAW_DATA.to_string()
+                "raw": attrib_raw_data().to_string()
             });
 
             helpers::check_request_operation(&attrib_request, expected_result);
@@ -217,12 +217,10 @@ mod send_attrib {
                 .build_attrib_request(&identity.did,
                                       &identity.did,
                                       None,
-                                      Some(&ATTRIB_RAW_DATA),
+                                      Some(&attrib_raw_data()),
                                       None).unwrap();
 
-        identity.sign_request(&mut attrib_request);
-
-        let attrib_response = pool.send_request(&attrib_request).unwrap();
+        let attrib_response = helpers::sign_and_send_request(&identity, &pool, &mut attrib_request).unwrap();
 
         // Get Attrib
         let get_attrib_request =
@@ -235,7 +233,7 @@ mod send_attrib {
 
         let response = pool.send_request_with_retries(&get_attrib_request, &attrib_response).unwrap();
 
-        assert_eq!(ATTRIB_RAW_DATA.to_string(), helpers::get_response_data(&response).unwrap());
+        assert_eq!(attrib_raw_data().to_string(), helpers::get_response_data(&response).unwrap());
     }
 
     #[rstest]
@@ -251,9 +249,7 @@ mod send_attrib {
                                       None,
                                       None).unwrap();
 
-        identity.sign_request(&mut attrib_request);
-
-        let attrib_response = pool.send_request(&attrib_request).unwrap();
+        let attrib_response = helpers::sign_and_send_request(&identity, &pool, &mut attrib_request).unwrap();
 
         // Get Attrib
         let get_attrib_request =
@@ -282,9 +278,7 @@ mod send_attrib {
                                       None,
                                       Some(ATTRIB_ENC_DATA.to_string())).unwrap();
 
-        identity.sign_request(&mut attrib_request);
-
-        let attrib_response = pool.send_request(&attrib_request).unwrap();
+        let attrib_response = helpers::sign_and_send_request(&identity, &pool, &mut attrib_request).unwrap();
 
         // Get Attrib
         let get_attrib_request =
@@ -328,9 +322,7 @@ mod send_attrib {
                                       None,
                                       None).unwrap();
 
-        trustee.sign_request(&mut attrib_request);
-
-        let err = pool.send_request(&attrib_request).unwrap_err();
+        let err = helpers::sign_and_send_request(&trustee, &pool, &mut attrib_request).unwrap_err();
         helpers::check_response_type(&err, "REJECT");
     }
 
@@ -346,29 +338,7 @@ mod send_attrib {
                                       None,
                                       None).unwrap();
 
-        identity.sign_request(&mut attrib_request);
-
-        let err = pool.send_request(&attrib_request).unwrap_err();
+        let err = helpers::sign_and_send_request(&identity, &pool, &mut attrib_request).unwrap_err();
         helpers::check_response_type(&err, "REQNACK");
-    }
-
-    #[rstest]
-    fn test_pool_send_attrib_request_for_touching_other_identity(pool: TestPool,
-                                                                 trustee: Identity) {
-        let identity = helpers::new_ledger_identity(&pool, None);
-
-        // Send Attrib
-        let mut attrib_request =
-            pool.request_builder()
-                .build_attrib_request(&trustee.did,
-                                      &identity.did,
-                                      Some(ATTRIB_HASH_DATA.to_string()),
-                                      None,
-                                      None).unwrap();
-
-        trustee.sign_request(&mut attrib_request);
-
-        let err = pool.send_request(&attrib_request).unwrap_err();
-        helpers::check_response_type(&err, "REJECT");
     }
 }

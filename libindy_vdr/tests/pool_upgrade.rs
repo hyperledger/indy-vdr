@@ -12,28 +12,11 @@ use chrono::prelude::*;
 use crate::utils::fixtures::*;
 use crate::utils::pool::TestPool;
 use crate::utils::crypto::Identity;
+use crate::utils::helpers;
+
 use indy_vdr::ledger::requests::pool::Schedule;
 
-#[test]
-fn empty() {
-    // Empty test to run module
-}
-
 fn _empty_schedule() -> Schedule { Schedule::new() }
-
-fn _name() -> &'static str { "test-upgrade-libindy" }
-
-fn _version() -> &'static str { "2.0.0" }
-
-fn _sha256() -> &'static str { "f284bdc3c1c9e24a494e285cb387c69510f28de51c15bb93179d9c7f28705398" }
-
-fn _start() -> &'static str { "start" }
-
-fn _cancel() -> &'static str { "cancel" }
-
-fn _package() -> &'static str { "some_package" }
-
-fn _justification() -> &'static str { "Upgrade is not required" }
 
 fn _schedule() -> Schedule {
     let next_year = Utc::now().year() + 1;
@@ -47,6 +30,19 @@ fn _schedule() -> Schedule {
     schedule
 }
 
+const NAME: &'static str = "test-upgrade-libindy";
+const VERSION: &'static str = "2.0.0";
+const SHA256: &'static str = "f284bdc3c1c9e24a494e285cb387c69510f28de51c15bb93179d9c7f28705398";
+const START: &'static str = "start";
+const CANCEL: &'static str = "cancel";
+const PACKAGE: &'static str = "some_package";
+const JUSTIFICATION: &'static str = "Upgrade is not required";
+
+#[test]
+fn empty() {
+    // Empty test to run module
+}
+
 #[cfg(test)]
 mod builder {
     use super::*;
@@ -54,7 +50,6 @@ mod builder {
 
     mod pool_config {
         use super::*;
-        use crate::utils::helpers::check_request_operation;
 
         #[rstest]
         fn test_build_pool_upgrade_requests_for_start_action(request_builder: RequestBuilder,
@@ -62,10 +57,10 @@ mod builder {
             let request =
                 request_builder
                     .build_pool_upgrade(&trustee_did,
-                                        _name(),
-                                        _version(),
-                                        _start(),
-                                        _sha256(),
+                                        NAME,
+                                        VERSION,
+                                        START,
+                                        SHA256,
                                         None,
                                         Some(_empty_schedule()),
                                         None,
@@ -75,15 +70,15 @@ mod builder {
 
             let expected_operation = json!({
                 "type": constants::POOL_UPGRADE,
-                "name": _name(),
-                "version": _version(),
-                "action": _start(),
-                "sha256": _sha256(),
+                "name": NAME,
+                "version": VERSION,
+                "action": START,
+                "sha256": SHA256,
                 "schedule": {},
                 "reinstall": false,
                 "force": false
             });
-            check_request_operation(&request, expected_operation);
+            helpers::check_request_operation(&request, expected_operation);
         }
 
         #[rstest]
@@ -92,28 +87,28 @@ mod builder {
             let request =
                 request_builder
                     .build_pool_upgrade(&trustee_did,
-                                        _name(),
-                                        _version(),
-                                        _cancel(),
-                                        _sha256(),
+                                        NAME,
+                                        VERSION,
+                                        CANCEL,
+                                        SHA256,
                                         None,
                                         None,
-                                        Some(_justification()),
+                                        Some(JUSTIFICATION),
                                         false,
                                         false,
                                         None).unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_UPGRADE,
-                "name": _name(),
-                "version": _version(),
-                "action": _cancel(),
-                "sha256": _sha256(),
-                "justification": _justification(),
+                "name": NAME,
+                "version": VERSION,
+                "action": CANCEL,
+                "sha256": SHA256,
+                "justification": JUSTIFICATION,
                 "reinstall": false,
                 "force": false
             });
-            check_request_operation(&request, expected_operation);
+            helpers::check_request_operation(&request, expected_operation);
         }
 
         #[rstest]
@@ -122,29 +117,29 @@ mod builder {
             let request =
                 request_builder
                     .build_pool_upgrade(&trustee_did,
-                                        _name(),
-                                        _version(),
-                                        _start(),
-                                        _sha256(),
+                                        NAME,
+                                        VERSION,
+                                        START,
+                                        SHA256,
                                         None,
                                         Some(_empty_schedule()),
                                         None,
                                         false,
                                         false,
-                                        Some(_package())).unwrap();
+                                        Some(PACKAGE)).unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_UPGRADE,
-                "name": _name(),
-                "version": _version(),
-                "action": _start(),
-                "sha256": _sha256(),
+                "name": NAME,
+                "version": VERSION,
+                "action": START,
+                "sha256": SHA256,
                 "schedule": {},
                 "reinstall": false,
                 "force": false,
-                "package": _package()
+                "package": PACKAGE
             });
-            check_request_operation(&request, expected_operation);
+            helpers::check_request_operation(&request, expected_operation);
         }
     }
 }
@@ -152,7 +147,6 @@ mod builder {
 #[cfg(test)]
 mod send_pool_upgrade {
     use super::*;
-    use crate::utils::helpers;
 
     #[rstest]
     fn test_pool_send_pool_upgrade_request(pool: TestPool, trustee: Identity) {
@@ -160,10 +154,10 @@ mod send_pool_upgrade {
         let mut request =
             pool.request_builder()
                 .build_pool_upgrade(&trustee.did,
-                                    _name(),
-                                    _version(),
-                                    _start(),
-                                    _sha256(),
+                                    NAME,
+                                    VERSION,
+                                    START,
+                                    SHA256,
                                     None,
                                     Some(_schedule()),
                                     None,
@@ -171,23 +165,27 @@ mod send_pool_upgrade {
                                     false,
                                     None).unwrap();
 
-        let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();
+        trustee.sign_request(&mut request);
+
+        let _response = pool.send_full_request(&request, None, None).unwrap();
 
         // Cancel Pool Upgrade
         let mut request =
             pool.request_builder()
                 .build_pool_upgrade(&trustee.did,
-                                    _name(),
-                                    _version(),
-                                    _cancel(),
-                                    _sha256(),
+                                    NAME,
+                                    VERSION,
+                                    CANCEL,
+                                    SHA256,
                                     None,
                                     None,
-                                    Some(_justification()),
+                                    Some(JUSTIFICATION),
                                     false,
                                     false,
                                     None).unwrap();
 
-        let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();
+        trustee.sign_request(&mut request);
+
+        let _response = pool.send_full_request(&request, None, None).unwrap();
     }
 }

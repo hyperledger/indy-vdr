@@ -17,9 +17,8 @@ fn _did() -> DidValue {
     DidValue("NcYxiDXkpYi6ov5FcYDi1e".to_string())
 }
 
-fn _name() -> String { String::from("gvt") }
-
-fn _version() -> String { String::from("1.0") }
+const NAME: &'static str = "gvt";
+const VERSION: &'static str = "1.0";
 
 fn _attributes() -> AttributeNames {
     let mut attributes = HashSet::new();
@@ -42,8 +41,8 @@ fn _build_schema_id(did: &DidValue, name: &str, version: &str) -> SchemaId {
 fn _schema() -> Schema {
     Schema::SchemaV1(SchemaV1 {
         id: _schema_id(),
-        name: _name(),
-        version: _version(),
+        name: NAME.to_string(),
+        version: VERSION.to_string(),
         attr_names: _attributes(),
         seq_no: None,
     })
@@ -73,8 +72,8 @@ mod builder {
             let expected_operation = json!({
                 "type": constants::SCHEMA,
                 "data": {
-                    "name": _name(),
-                    "version": _version(),
+                    "name": NAME,
+                    "version": VERSION,
                     "attr_names": _attributes()
                 },
             });
@@ -93,8 +92,8 @@ mod builder {
             let expected_operation = json!({
                 "type": constants::SCHEMA,
                 "data": {
-                    "name": _name(),
-                    "version": _version(),
+                    "name": NAME,
+                    "version": VERSION,
                     "attr_names": _attributes()
                 },
             });
@@ -117,8 +116,8 @@ mod builder {
                 "type": constants::GET_SCHEMA,
                 "dest": _did(),
                 "data": {
-                    "name": _name(),
-                    "version": _version(),
+                    "name": NAME,
+                    "version": VERSION,
                 },
             });
 
@@ -136,8 +135,8 @@ mod builder {
                 "type": constants::GET_SCHEMA,
                 "dest": _did(),
                 "data": {
-                    "name": _name(),
-                    "version": _version(),
+                    "name": NAME,
+                    "version": VERSION,
                 },
             });
 
@@ -162,7 +161,7 @@ mod send_schema {
 
         let schema_response = helpers::sign_and_send_request(&identity, &pool, &mut schema_request).unwrap();
 
-        let schema_id = _build_schema_id(&identity.did, &_name(), &_version());
+        let schema_id = _build_schema_id(&identity.did, &NAME, &VERSION);
 
         // Get Schema
         let get_schema_request =
@@ -174,8 +173,8 @@ mod send_schema {
 
         let expected_data = json!({
             "attr_names":  _attributes(),
-            "name": _name(),
-            "version": _version()
+            "name": NAME,
+            "version": VERSION
         });
 
         assert_eq!(expected_data, helpers::get_response_data(&response).unwrap());
