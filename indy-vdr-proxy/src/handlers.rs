@@ -1,6 +1,7 @@
 extern crate percent_encoding;
 
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::rc::Rc;
 use std::time::UNIX_EPOCH;
 
@@ -15,7 +16,7 @@ use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
 use indy_vdr::ledger::identifiers::schema::SchemaId;
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
 use indy_vdr::pool::requests::{RequestResult, TimingResult};
-use indy_vdr::pool::Pool;
+use indy_vdr::pool::{LedgerType, Pool};
 use indy_vdr::utils::qualifier::Qualifiable;
 
 #[derive(PartialEq, Eq)]
@@ -370,15 +371,17 @@ async fn get_auth_rule<T: Pool>(
     Ok(result.into())
 }
 
-async fn get_txn<T: Pool>(pool: &T, ledger: i32, seq_no: i32) -> VdrResult<ResponseType> {
-    let result = perform_get_txn(pool, ledger, seq_no).await?;
+async fn get_txn<T: Pool>(pool: &T, ledger: LedgerType, seq_no: i32) -> VdrResult<ResponseType> {
+    let result = perform_get_txn(pool, ledger.to_id(), seq_no).await?;
     Ok(result.into())
 }
 
 async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> VdrResult<ResponseType> {
-    let (request, target) =
-        pool.get_request_builder()
-            .build_custom_request(&message, None, (None, None))?;
+    let (request, target) = pool.get_request_builder().build_custom_request_from_slice(
+        message.as_slice(),
+        None,
+        (None, None),
+    )?;
     let result = perform_ledger_request(pool, request, target).await?;
     Ok(result.into())
 }
@@ -519,7 +522,9 @@ pub async fn handle_request<T: Pool>(
         }
         (&Method::GET, "txn") => {
             if let (Some(ledger), Some(txn)) = (parts.next(), parts.next()) {
-                if let (Ok(ledger), Ok(txn)) = (ledger.parse::<i32>(), txn.parse::<i32>()) {
+                if let (Ok(ledger), Ok(txn)) =
+                    (LedgerType::try_from(ledger.as_str()), txn.parse::<i32>())
+                {
                     get_txn(pool, ledger, txn).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)

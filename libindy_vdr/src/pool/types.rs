@@ -11,6 +11,7 @@ use crate::common::verkey::build_full_verkey;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
 
+/// The Indy Node communication protocol version
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
 pub enum ProtocolVersion {
     Node1_3 = 1,
@@ -71,6 +72,7 @@ impl std::fmt::Display for ProtocolVersion {
     }
 }
 
+/// An Indy Node subledger identifier
 #[derive(Clone, Copy, Deserialize, Debug, PartialEq)]
 pub enum LedgerType {
     POOL = 0,
@@ -78,7 +80,6 @@ pub enum LedgerType {
     CONFIG = 2,
 }
 
-#[allow(dead_code)]
 impl LedgerType {
     pub fn to_id(&self) -> i32 {
         *self as i32
@@ -109,6 +110,25 @@ impl TryFrom<i32> for LedgerType {
     }
 }
 
+impl TryFrom<&str> for LedgerType {
+    type Error = VdrError;
+
+    fn try_from(value: &str) -> VdrResult<Self> {
+        match value.to_ascii_uppercase().as_str() {
+            "POOL" => Ok(LedgerType::POOL),
+            "DOMAIN" => Ok(LedgerType::DOMAIN),
+            "CONFIG" => Ok(LedgerType::CONFIG),
+            _ => {
+                let ival = value
+                    .parse::<i32>()
+                    .map_input_err(|| format!("Unknown ledger type: {}", value))?;
+                Self::try_from(ival)
+            }
+        }
+    }
+}
+
+/// A collection of verifier node BLS keys
 pub type NodeKeys = HashMap<String, Option<BlsVerKey>>;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
