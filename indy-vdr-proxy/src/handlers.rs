@@ -246,7 +246,7 @@ async fn get_pool_genesis<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
 fn get_pool_status(state: Rc<RefCell<AppState>>) -> VdrResult<ResponseType> {
     let opt_pool = &state.borrow().pool;
     let (status, mt_root, mt_size, nodes) = if let Some(pool) = opt_pool {
-        let (mt_root, mt_size) = pool.get_merkle_tree_root();
+        let (mt_root, mt_size) = pool.get_merkle_tree_info();
         let nodes = pool.get_node_aliases();
         ("active", Some(mt_root), Some(mt_size), Some(nodes))
     } else {

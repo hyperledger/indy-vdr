@@ -90,10 +90,7 @@ impl LedgerType {
     }
 
     pub fn from_str(value: &str) -> VdrResult<Self> {
-        let value = value
-            .parse::<i32>()
-            .map_err(|_| input_err(format!("Invalid ledger type: {}", value)))?;
-        Self::from_id(value)
+        value.try_into()
     }
 }
 
@@ -585,6 +582,7 @@ impl std::ops::Deref for Verifiers {
     }
 }
 
+/// Setup parameters for `PoolImpl`, shared with cloned instances and derived pool requests
 pub struct PoolSetup {
     pub config: PoolConfig,
     pub merkle_tree: MerkleTree,
