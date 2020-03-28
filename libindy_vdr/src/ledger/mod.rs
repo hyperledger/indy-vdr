@@ -6,6 +6,7 @@ pub mod identifiers;
 #[macro_use]
 pub mod requests;
 
+/// Helpers for constructing ledger requests
 mod request_builder;
 
 pub use request_builder::{PreparedRequest, RequestBuilder};

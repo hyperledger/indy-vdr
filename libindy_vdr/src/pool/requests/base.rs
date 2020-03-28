@@ -18,6 +18,7 @@ use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming, TimingRe
 
 new_handle_type!(RequestHandle, RQ_COUNTER);
 
+/// Base trait for pool request implementations
 #[must_use = "requests do nothing unless polled"]
 pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
     fn clean_timeout(&self, node_alias: String) -> VdrResult<()>;
@@ -33,6 +34,7 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> VdrResult<Vec<String>>;
 }
 
+/// Default `PoolRequestImpl` used by `PoolImpl`
 pub struct PoolRequestImpl<S: AsRef<PoolSetup>, T: Networker> {
     handle: RequestHandle,
     events: Option<UnboundedReceiver<RequestExtEvent>>,

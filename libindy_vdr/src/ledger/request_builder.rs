@@ -231,6 +231,7 @@ impl Default for RequestBuilder {
 }
 
 impl RequestBuilder {
+    /// Create a new `RequestBuilder` for a specific protocol version
     pub fn new(protocol_version: ProtocolVersion) -> Self {
         Self { protocol_version }
     }
@@ -265,6 +266,7 @@ impl RequestBuilder {
         ))
     }
 
+    /// Build a `NYM` transaction request
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
@@ -278,6 +280,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_NYM` transaction request
     pub fn build_get_nym_request(
         &self,
         identifier: Option<&DidValue>,
@@ -288,6 +291,7 @@ impl RequestBuilder {
         self.build(operation, identifier)
     }
 
+    /// Build an `ATTRIB` transaction request
     pub fn build_attrib_request(
         &self,
         identifier: &DidValue,
@@ -301,6 +305,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_ATTRIB` transaction request
     pub fn build_get_attrib_request(
         &self,
         identifier: Option<&DidValue>,
@@ -313,6 +318,7 @@ impl RequestBuilder {
         self.build(operation, identifier)
     }
 
+    /// Build a `NODE` transaction request
     pub fn build_node_request(
         &self,
         identifier: &DidValue,
@@ -323,6 +329,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_VALIDATOR_INFO` transaction request
     pub fn build_get_validator_info_request(
         &self,
         identifier: &DidValue,
@@ -330,6 +337,7 @@ impl RequestBuilder {
         self.build(GetValidatorInfoOperation::new(), Some(identifier))
     }
 
+    /// Build a `GET_TXN` transaction request
     pub fn build_get_txn_request(
         &self,
         identifier: Option<&DidValue>,
@@ -342,6 +350,7 @@ impl RequestBuilder {
         self.build(GetTxnOperation::new(seq_no, ledger_type), identifier)
     }
 
+    /// Build a `POOL_CONFIG` transaction request
     pub fn build_pool_config(
         &self,
         identifier: &DidValue,
@@ -351,6 +360,7 @@ impl RequestBuilder {
         self.build(PoolConfigOperation::new(writes, force), Some(identifier))
     }
 
+    /// Build a `POOL_RESTART` transaction request
     pub fn build_pool_restart(
         &self,
         identifier: &DidValue,
@@ -363,6 +373,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `POOL_UPGRADE` transaction request
     pub fn build_pool_upgrade(
         &self,
         identifier: &DidValue,
@@ -392,6 +403,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build an `AUTH_RULE` transaction request
     pub fn build_auth_rule_request(
         &self,
         submitter_did: &DidValue,
@@ -414,6 +426,7 @@ impl RequestBuilder {
         self.build(operation, Some(submitter_did))
     }
 
+    /// Build an `AUTH_RULES` transaction request
     pub fn build_auth_rules_request(
         &self,
         submitter_did: &DidValue,
@@ -422,6 +435,7 @@ impl RequestBuilder {
         self.build(AuthRulesOperation::new(rules), Some(submitter_did))
     }
 
+    /// Build a `GET_AUTH_RULE` transaction request
     pub fn build_get_auth_rule_request(
         &self,
         submitter_did: Option<&DidValue>,
@@ -457,6 +471,7 @@ impl RequestBuilder {
         self.build(operation, submitter_did)
     }
 
+    /// Build a `TXN_AUTHR_AGRMT` transacation request
     pub fn build_txn_author_agreement_request(
         &self,
         identifier: &DidValue,
@@ -471,6 +486,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `GET_TXN_AUTHR_AGRMT` transaction request
     pub fn build_get_txn_author_agreement_request(
         &self,
         identifier: Option<&DidValue>,
@@ -479,6 +495,7 @@ impl RequestBuilder {
         self.build(GetTxnAuthorAgreementOperation::new(data), identifier)
     }
 
+    /// Build a `DISABLE_ALL_TXN_AUTHR_AGRMTS` transaction request
     pub fn build_disable_all_txn_author_agreements_request(
         &self,
         identifier: &DidValue,
@@ -489,6 +506,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `TXN_AUTHR_AGRMT_AML` transaction request
     pub fn build_acceptance_mechanisms_request(
         &self,
         identifier: &DidValue,
@@ -504,6 +522,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_TXN_AUTHR_AGRMT_AML` transaction request
     pub fn build_get_acceptance_mechanisms_request(
         &self,
         identifier: Option<&DidValue>,
@@ -521,6 +540,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `SCHEMA` transaction request
     pub fn build_schema_request(
         &self,
         identifier: &DidValue,
@@ -534,6 +554,7 @@ impl RequestBuilder {
         self.build(SchemaOperation::new(schema_data), Some(identifier))
     }
 
+    /// Build a `GET_SCHEMA` transaction request
     pub fn build_get_schema_request(
         &self,
         identifier: Option<&DidValue>,
@@ -548,6 +569,7 @@ impl RequestBuilder {
         self.build(GetSchemaOperation::new(dest.to_short(), data), identifier)
     }
 
+    /// Build a `CRED_DEF` transaction request
     pub fn build_cred_def_request(
         &self,
         identifier: &DidValue,
@@ -559,6 +581,7 @@ impl RequestBuilder {
         self.build(CredDefOperation::new(cred_def), Some(identifier))
     }
 
+    /// Build a `GET_CRED_DEF` transaction request
     pub fn build_get_cred_def_request(
         &self,
         identifier: Option<&DidValue>,
@@ -577,6 +600,7 @@ impl RequestBuilder {
         self.build(operation, identifier)
     }
 
+    /// Build a `GET_REVOC_REG_DEF` transaction request
     pub fn build_get_revoc_reg_def_request(
         &self,
         identifier: Option<&DidValue>,
@@ -586,6 +610,7 @@ impl RequestBuilder {
         self.build(GetRevRegDefOperation::new(&id), identifier)
     }
 
+    /// Build a `GET_REVOC_REG` transaction request
     pub fn build_get_revoc_reg_request(
         &self,
         identifier: Option<&DidValue>,
@@ -599,6 +624,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `GET_REVOC_REG_DELTA` transaction request
     pub fn build_get_revoc_reg_delta_request(
         &self,
         identifier: Option<&DidValue>,
@@ -613,6 +639,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `REVOC_REG_DEF` transaction request
     pub fn build_revoc_reg_def_request(
         &self,
         identifier: &DidValue,
@@ -624,6 +651,7 @@ impl RequestBuilder {
         self.build(RevRegDefOperation::new(revoc_reg), Some(identifier))
     }
 
+    /// Build a `REVOC_REG_ENTRY` transaction request
     pub fn build_revoc_reg_entry_request(
         &self,
         identifier: &DidValue,
@@ -641,6 +669,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Prepare transaction author agreement acceptance data
     pub fn prepare_txn_author_agreement_acceptance_data(
         &self,
         text: Option<&str>,
@@ -673,6 +702,7 @@ impl RequestBuilder {
         Ok(acceptance_data)
     }
 
+    /// Build a custom ledger transaction request from a byte array
     pub fn build_custom_request_from_slice(
         &self,
         message: &[u8],
@@ -683,6 +713,7 @@ impl RequestBuilder {
         self.build_custom_request(message, sp_key, sp_timestamps)
     }
 
+    /// Build a custom ledger transaction request from a string
     pub fn build_custom_request_from_str(
         &self,
         message: &str,
@@ -693,6 +724,7 @@ impl RequestBuilder {
         self.build_custom_request(message, sp_key, sp_timestamps)
     }
 
+    /// Build a custom ledger transaction request from a JSON value
     pub fn build_custom_request(
         &self,
         mut req_json: SJsonValue,
@@ -760,6 +792,7 @@ impl RequestBuilder {
         ))
     }
 
+    /// Build a `RICH_SCHEMA` transaction request
     pub fn build_rich_schema_request(
         &self,
         identifier: &DidValue,
@@ -783,6 +816,8 @@ impl RequestBuilder {
             RSType::Pdf => build_rs_operation!(self, RSPresDefOperation, identifier, rich_schema),
         }
     }
+
+    /// Build a `GET_RICH_SCHEMA_BY_ID` transaction request
     pub fn build_get_rich_schema_by_id(
         &self,
         identifier: &DidValue,
@@ -794,6 +829,8 @@ impl RequestBuilder {
             Some(identifier),
         )
     }
+
+    /// Build a `GET_RICH_SCHEMA_BY_METADATA` transaction request
     pub fn build_get_rich_schema_by_metadata(
         &self,
         identifier: &DidValue,

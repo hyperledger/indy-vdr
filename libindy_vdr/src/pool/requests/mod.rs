@@ -10,6 +10,7 @@ pub use base::{PoolRequest, PoolRequestImpl, RequestHandle};
 
 use crate::common::error::prelude::*;
 
+/// Events received by `Request` instances as pending dispatches are resolved
 #[derive(Debug)]
 pub enum RequestEvent {
     Received(
@@ -22,6 +23,7 @@ pub enum RequestEvent {
     ),
 }
 
+/// Extended request events produced by a `Networker` and processed by the event stream producer
 #[derive(Debug)]
 pub enum RequestExtEvent {
     Init,
@@ -40,6 +42,7 @@ pub enum RequestExtEvent {
     ),
 }
 
+/// A common result type returned by request handlers
 #[derive(Debug)]
 pub enum RequestResult<T> {
     Reply(T),
@@ -58,6 +61,7 @@ impl<T> RequestResult<T> {
     }
 }
 
+/// Basic state enum for ledger transaction requests
 #[derive(Debug, PartialEq, Eq)]
 pub enum RequestState {
     NotStarted,
@@ -76,8 +80,10 @@ impl std::fmt::Display for RequestState {
     }
 }
 
+/// Type representing timing information collected for ledger transaction request
 pub type TimingResult = HashMap<String, f32>;
 
+/// Enum distinguishing between different ledger request handling methods
 #[derive(Debug)]
 pub enum RequestTarget {
     Default,
@@ -88,7 +94,7 @@ pub enum RequestTarget {
 }
 
 #[derive(Debug)]
-pub struct RequestTiming {
+pub(crate) struct RequestTiming {
     replies: HashMap<String, (SystemTime, f32)>,
 }
 

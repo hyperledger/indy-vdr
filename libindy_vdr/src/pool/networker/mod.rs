@@ -12,6 +12,7 @@ use super::types::{self, Verifiers};
 mod zmq;
 pub use self::zmq::{ZMQNetworker, ZMQNetworkerFactory};
 
+/// Events used to drive a `Networker` instance
 #[derive(Debug)]
 pub enum NetworkerEvent {
     FinishRequest(RequestHandle),
@@ -37,17 +38,21 @@ pub enum NetworkerEvent {
     ),
 }
 
+/// A simple trait implemented by all networker types
 pub trait Networker {
     fn send(&self, event: NetworkerEvent) -> VdrResult<()>;
 }
 
+/// A factory for `Networker` instances
 pub trait NetworkerFactory {
     type Output: Networker;
     fn make_networker(&self, config: PoolConfig, verifiers: &Verifiers) -> VdrResult<Self::Output>;
 }
 
+/// A `Networker` instance which can be cloned and used within one thread
 pub type LocalNetworker = Rc<dyn Networker + 'static>;
 
+/// A derived `NetworkerFactory` producing thread-local cloneable instances
 pub struct MakeLocal<T: NetworkerFactory>(pub T);
 
 impl<T> NetworkerFactory for MakeLocal<T>
@@ -70,8 +75,10 @@ where
     }
 }
 
+/// A `Networker` instance which can be cloned and used across multiple threads
 pub type SharedNetworker = Arc<Mutex<dyn Networker + Send + 'static>>;
 
+/// A derived `NetworkerFactory` producing shareable instances
 pub struct MakeShared<T: NetworkerFactory>(pub T);
 
 impl<T> NetworkerFactory for MakeShared<T>

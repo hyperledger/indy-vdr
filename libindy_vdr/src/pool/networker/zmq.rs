@@ -23,6 +23,7 @@ new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 
 new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 
+/// ZeroMQ `NetworkerFactory` implementation
 pub struct ZMQNetworkerFactory;
 
 impl ZMQNetworkerFactory {
@@ -55,6 +56,7 @@ impl NetworkerFactory for ZMQNetworkerFactory {
     }
 }
 
+/// ZeroMQ `Networker` implementation
 pub struct ZMQNetworker {
     cmd_send: zmq::Socket,
     evt_send: mpsc::Sender<NetworkerEvent>,
