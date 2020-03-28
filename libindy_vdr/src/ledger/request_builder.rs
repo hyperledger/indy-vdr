@@ -18,8 +18,14 @@ use super::identifiers::rev_reg::RevocationRegistryId;
 use super::identifiers::rich_schema::RichSchemaId;
 use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
-use super::requests::auth_rule::*;
-use super::requests::author_agreement::*;
+use super::requests::auth_rule::{
+    AuthAction, AuthRuleOperation, AuthRules, AuthRulesOperation, Constraint, GetAuthRuleOperation,
+};
+use super::requests::author_agreement::{
+    AcceptanceMechanisms, DisableAllTxnAuthorAgreementsOperation, GetAcceptanceMechanismOperation,
+    GetTxnAuthorAgreementData, GetTxnAuthorAgreementOperation, SetAcceptanceMechanismOperation,
+    TxnAuthorAgreementOperation, TxnAuthrAgrmtAcceptanceData,
+};
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
@@ -37,7 +43,7 @@ use super::requests::schema::{
 };
 use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
-use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
+use super::requests::{get_request_id, Request, RequestType};
 
 use super::constants::{txn_name_to_code, READ_REQUESTS};
 

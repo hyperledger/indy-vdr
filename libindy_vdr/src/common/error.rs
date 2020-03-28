@@ -4,12 +4,12 @@ use serde_json;
 
 use thiserror::Error;
 
-// use failure::{Backtrace, Context, Fail};
-
+/// Common set of error module exports
 pub mod prelude {
     pub use super::{err_msg, input_err, VdrError, VdrErrorKind, VdrResult, VdrResultExt};
 }
 
+/// Library error type
 #[derive(Debug, Error)]
 pub struct VdrError {
     kind: VdrErrorKind,
@@ -19,6 +19,7 @@ pub struct VdrError {
     // backtrace (when supported)
 }
 
+/// Supported error kinds for `VdrError`
 #[derive(Debug, Error)]
 pub enum VdrErrorKind {
     // General errors
@@ -116,6 +117,7 @@ where
     }
 }
 
+/// Construct a `VdrError` from an error kind and message
 pub fn err_msg<M>(kind: VdrErrorKind, msg: M) -> VdrError
 where
     M: fmt::Display + Send + Sync + 'static,
@@ -123,6 +125,7 @@ where
     (kind, msg.to_string()).into()
 }
 
+/// Construct a `VdrError` input error from an error message
 pub fn input_err<M>(msg: M) -> VdrError
 where
     M: fmt::Display + Send + Sync + 'static,
@@ -130,8 +133,10 @@ where
     (VdrErrorKind::Input, msg.to_string()).into()
 }
 
+/// Library result type
 pub type VdrResult<T> = Result<T, VdrError>;
 
+/// Trait providing utility methods for handling other result types
 pub trait VdrResultExt<T, E> {
     fn map_err_string(self) -> Result<T, String>;
     fn map_input_err<F, M>(self, mapfn: F) -> VdrResult<T>

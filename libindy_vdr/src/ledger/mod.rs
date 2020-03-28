@@ -9,4 +9,4 @@ pub mod requests;
 mod request_builder;
 
 pub use request_builder::{PreparedRequest, RequestBuilder};
-pub(crate) use requests::TxnAuthrAgrmtAcceptanceData;
+pub(crate) use requests::author_agreement::TxnAuthrAgrmtAcceptanceData;

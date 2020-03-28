@@ -1,5 +1,6 @@
 use std::error::Error;
 
+/// Error type for failures of `Validatable::validate`
 #[derive(Clone, Debug)]
 pub struct ValidationError(pub Option<String>);
 
@@ -43,6 +44,7 @@ macro_rules! invalid {
     };
 }
 
+/// Trait for data types which need validation after being loaded from external sources
 pub trait Validatable {
     fn validate(&self) -> Result<(), ValidationError> {
         Ok(())

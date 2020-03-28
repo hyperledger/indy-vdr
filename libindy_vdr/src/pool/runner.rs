@@ -183,7 +183,7 @@ impl PoolThread {
                             callback(Ok(status));
                         }
                         Some(PoolEvent::GetTransactions(callback)) => {
-                            let txns = self.pool.get_transactions();
+                            let txns = self.pool.get_json_transactions();
                             callback(txns);
                         }
                         Some(PoolEvent::Refresh(callback)) => {

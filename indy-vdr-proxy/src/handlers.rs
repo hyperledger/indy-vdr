@@ -239,7 +239,7 @@ fn http_status_msg<T: std::fmt::Display>(code: StatusCode, msg: T) -> VdrResult<
 }
 
 async fn get_pool_genesis<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
-    let txns = pool.get_transactions()?;
+    let txns = pool.get_json_transactions()?;
     Ok(ResponseType::Genesis(txns.join("\n")))
 }
 
