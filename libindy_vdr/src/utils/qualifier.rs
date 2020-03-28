@@ -99,21 +99,26 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
     }
 }
 
-macro_rules! qualifiable_type (($newtype:ident) => (
+macro_rules! qualifiable_type {
+    ($newtype:ident, $doc:expr) => {
+        #[doc=$doc]
+        #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+        pub struct $newtype(pub String);
 
-    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-    pub struct $newtype(pub String);
-
-    impl From<String> for $newtype {
-        fn from(val: String) -> Self {
-            Self(val)
+        impl From<String> for $newtype {
+            fn from(val: String) -> Self {
+                Self(val)
+            }
         }
-    }
 
-    impl std::ops::Deref for $newtype {
-        type Target = String;
-        fn deref(&self) -> &String {
-            &self.0
+        impl std::ops::Deref for $newtype {
+            type Target = String;
+            fn deref(&self) -> &String {
+                &self.0
+            }
         }
-    }
-));
+    };
+    ($newtype:ident) => {
+        qualifiable_type!($newtype, "");
+    };
+}

@@ -4,7 +4,7 @@ use crate::utils::validation::{Validatable, ValidationError};
 
 use super::DELIMITER;
 
-qualifiable_type!(SchemaId);
+qualifiable_type!(SchemaId, "A V1 schema identifier");
 
 impl SchemaId {
     pub const PREFIX: &'static str = "schema";

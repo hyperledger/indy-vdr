@@ -71,6 +71,7 @@ fn compare_hash(text: &str, version: &str, hash: &str) -> VdrResult<()> {
     Ok(())
 }
 
+/// A ledger transaction request which has been prepared for dispatch
 #[derive(Debug)]
 pub struct PreparedRequest {
     pub protocol_version: ProtocolVersion,
@@ -83,6 +84,7 @@ pub struct PreparedRequest {
 }
 
 impl PreparedRequest {
+    /// Create a new `PreparedRequest`
     pub fn new(
         protocol_version: ProtocolVersion,
         txn_type: String,
@@ -103,20 +105,24 @@ impl PreparedRequest {
         }
     }
 
+    /// Generate the normalized representation of a transaction for signing the request
     pub fn get_signature_input(&self) -> VdrResult<String> {
         Ok(serialize_signature(&self.req_json)?)
     }
 
+    /// Assign the endorser property of the prepared request
     pub fn set_endorser(&mut self, endorser: &DidValue) -> VdrResult<()> {
         self.req_json["endorser"] = SJsonValue::String(endorser.to_short().to_string());
         Ok(())
     }
 
+    /// Assign the signature property of the prepared request
     pub fn set_signature(&mut self, signature: &[u8]) -> VdrResult<()> {
         self.req_json["signature"] = SJsonValue::String(signature.to_base58());
         Ok(())
     }
 
+    /// Add a signature to the prepared request
     pub fn set_multi_signature(
         &mut self,
         identifier: &DidValue,
@@ -151,6 +157,7 @@ impl PreparedRequest {
         Ok(())
     }
 
+    /// Decorate the prepared request with the transaction author agreement acceptance
     pub fn set_txn_author_agreement_acceptance(
         &mut self,
         acceptance: &TxnAuthrAgrmtAcceptanceData,

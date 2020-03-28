@@ -4,10 +4,12 @@ use crate::utils::base58::FromBase58;
 use crate::utils::qualifier::Qualifiable;
 use crate::utils::validation::{Validatable, ValidationError};
 
+/// A wrapper providing validation for DID methods
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DidMethod(pub String);
 
 lazy_static! {
+    /// The default origin DID used when submitting ledger read requests
     pub static ref DEFAULT_LIBINDY_DID: DidValue = DidValue::new("LibindyDid111111111111", None);
 }
 
@@ -26,7 +28,7 @@ impl Validatable for DidMethod {
     }
 }
 
-qualifiable_type!(DidValue);
+qualifiable_type!(DidValue, "A qualifiable DID type");
 
 impl Qualifiable for DidValue {
     fn prefix() -> &'static str {
@@ -69,15 +71,25 @@ impl Validatable for DidValue {
     }
 }
 
-qualifiable_type!(ShortDidValue);
+/// A short DID with no prefix or method
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ShortDidValue(pub String);
 
-impl Qualifiable for ShortDidValue {
-    fn prefix() -> &'static str {
-        "did"
+impl From<String> for ShortDidValue {
+    fn from(val: String) -> Self {
+        Self(val)
+    }
+}
+
+impl std::ops::Deref for ShortDidValue {
+    type Target = String;
+    fn deref(&self) -> &String {
+        &self.0
     }
 }
 
 impl ShortDidValue {
+    /// Convert a short DID value to a qualified DID
     pub fn qualify(&self, method: Option<String>) -> DidValue {
         DidValue::combine(method.as_ref().map(String::as_str), self.as_str())
     }
