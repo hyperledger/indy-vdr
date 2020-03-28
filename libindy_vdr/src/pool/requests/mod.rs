@@ -24,7 +24,7 @@ pub enum RequestEvent {
 
 #[derive(Debug)]
 pub enum RequestExtEvent {
-    Init(),
+    Init,
     Sent(
         String,     // node alias
         SystemTime, // send time
@@ -80,7 +80,7 @@ pub type TimingResult = HashMap<String, f32>;
 
 #[derive(Debug)]
 pub enum RequestTarget {
-    Default(),
+    Default,
     Full(
         Option<Vec<String>>, // nodes to send
         Option<i64>,         // timeout
@@ -114,7 +114,7 @@ impl RequestTiming {
         });
     }
 
-    pub fn get_result(&self) -> Option<TimingResult> {
+    pub fn result(&self) -> Option<TimingResult> {
         Some(HashMap::from_iter(
             self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
         ))

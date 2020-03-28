@@ -12,8 +12,8 @@ use super::{
 
 pub type CatchupTarget = (Vec<u8>, usize);
 
-pub async fn handle_status_request<Request: PoolRequest>(
-    mut request: Request,
+pub async fn handle_status_request<R: PoolRequest>(
+    request: &mut R,
     merkle_tree: MerkleTree,
 ) -> VdrResult<(RequestResult<Option<CatchupTarget>>, Option<TimingResult>)> {
     trace!("status request");

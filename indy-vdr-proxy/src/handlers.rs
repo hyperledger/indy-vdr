@@ -14,7 +14,8 @@ use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
 use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
 use indy_vdr::ledger::identifiers::schema::SchemaId;
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
-use indy_vdr::pool::{Pool, RequestResult, TimingResult};
+use indy_vdr::pool::requests::{RequestResult, TimingResult};
+use indy_vdr::pool::Pool;
 use indy_vdr::utils::qualifier::Qualifiable;
 
 #[derive(PartialEq, Eq)]

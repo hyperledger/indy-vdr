@@ -3,7 +3,7 @@ use regex::Regex;
 use super::validation::{Validatable, ValidationError};
 
 lazy_static! {
-    pub static ref REGEX: Regex = Regex::new("^([a-z0-9]+):([a-z0-9]+):(.*)$").unwrap();
+    pub(crate) static ref REGEX: Regex = Regex::new("^([a-z0-9]+):([a-z0-9]+):(.*)$").unwrap();
 }
 
 pub fn combine(prefix: &str, method: Option<&str>, entity: &str) -> String {

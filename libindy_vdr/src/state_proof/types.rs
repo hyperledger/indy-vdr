@@ -1,14 +1,10 @@
-/**
- Single item to verification:
- - SP Trie with RootHash
- - BLS MS
- - set of key-value to verify
-*/
+/// A single result from a state proof verification.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ParsedSP {
     /// encoded SP Trie transferred from Node to Client
     pub proof_nodes: String,
-    /// RootHash of the Trie, start point for verification. Should be same with appropriate filed in BLS MS data
+    /// Root hash of the Trie, start point for verification.
+    /// Should be same with appropriate filed in BLS MS data
     pub root_hash: String,
     /// entities to verification against current SP Trie
     pub kvs_to_verify: KeyValuesInSP,
@@ -16,16 +12,13 @@ pub struct ParsedSP {
     pub multi_signature: serde_json::Value,
 }
 
-/**
- Variants of representation for items to verify against SP Trie
- Right now 2 options are specified:
- - simple array of key-value pair
- - whole subtrie
-*/
+/// Variants of representation for items to verify against SP Trie
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum KeyValuesInSP {
+    /// Simple array of key-value pairs
     Simple(KeyValueSimpleData),
+    /// Whole subtrie
     SubTrie(KeyValuesSubTrieData),
 }
 

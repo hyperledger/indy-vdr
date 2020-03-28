@@ -23,8 +23,8 @@ pub async fn perform_pool_status_request<T: Pool>(
     let (mt_root, mt_size) = (merkle_tree.root_hash(), merkle_tree.count());
     let message = build_pool_status_request(mt_root, mt_size, pool.get_config().protocol_version)?;
     let req_json = message.serialize()?.to_string();
-    let request = pool.create_request("".to_string(), req_json).await?;
-    handle_status_request(request, merkle_tree).await
+    let mut request = pool.create_request("".to_string(), req_json).await?;
+    handle_status_request(&mut request, merkle_tree).await
 }
 
 pub async fn perform_pool_catchup_request<T: Pool>(
@@ -35,8 +35,8 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 ) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, Option<TimingResult>)> {
     let message = build_pool_catchup_request(merkle_tree.count(), target_mt_size)?;
     let req_json = message.serialize()?.to_string();
-    let request = pool.create_request("".to_string(), req_json).await?;
-    handle_catchup_request(request, merkle_tree, target_mt_root, target_mt_size).await
+    let mut request = pool.create_request("".to_string(), req_json).await?;
+    handle_catchup_request(&mut request, merkle_tree, target_mt_root, target_mt_size).await
 }
 
 pub async fn perform_refresh<T: Pool>(
@@ -84,7 +84,7 @@ pub async fn perform_catchup<T: Pool>(
             info!("Catchup completed {:?}", timing);
             let new_txns = PoolTransactions::from_transactions(txns);
             let json_txns = new_txns.encode_json()?;
-            let reload_txns = PoolTransactions::from_transactions_json(&json_txns)?;
+            let reload_txns = PoolTransactions::from_json_transactions(&json_txns)?;
             if new_txns != reload_txns {
                 return Err(err_msg(
                     VdrErrorKind::Unexpected,
@@ -115,17 +115,17 @@ pub async fn perform_ledger_request<T: Pool>(
     prepared: PreparedRequest,
     target: Option<RequestTarget>,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
-    let request = pool
+    let mut request = pool
         .create_request(prepared.req_id, prepared.req_json.to_string())
         .await?;
     match target {
         Some(RequestTarget::Full(node_aliases, timeout)) => {
-            let (result, timing) = handle_full_request(request, node_aliases, timeout).await?;
+            let (result, timing) = handle_full_request(&mut request, node_aliases, timeout).await?;
             Ok((result.map_result(format_full_reply)?, timing))
         }
         _ => {
             handle_consensus_request(
-                request,
+                &mut request,
                 prepared.sp_key,
                 prepared.sp_timestamps,
                 prepared.is_read_request,

@@ -8,7 +8,7 @@ use ursa::bls::Generator;
 
 use crate::common::error::prelude::*;
 use crate::config::constants::DEFAULT_GENERATOR;
-use crate::state_proof::{check_state_proof, result_without_state_proof};
+use crate::state_proof::{check_state_proof, result_without_state_proof, StateProofParser};
 use crate::utils::base58::FromBase58;
 
 use super::types::Message;
@@ -16,14 +16,13 @@ use super::{
     min_consensus, ConsensusState, HashableValue, PoolRequest, ReplyState, RequestEvent,
     RequestResult, TimingResult,
 };
-use crate::state_proof::types::ParsedSP;
 
-pub async fn handle_consensus_request<Request: PoolRequest>(
-    mut request: Request,
+pub async fn handle_consensus_request<R: PoolRequest>(
+    request: &mut R,
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
     as_read_request: bool,
-    custom_state_proof_parser: Option<Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>>>,
+    custom_state_proof_parser: Option<Box<dyn StateProofParser>>,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("consensus request");
     let config = request.pool_config();
@@ -51,7 +50,6 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
         total_nodes_count
     };
     request.send_to_any(init_send, config.ack_timeout)?;
-    let custom_state_proof_parser = custom_state_proof_parser.as_ref();
     loop {
         let resend = match request.next().await {
             Some(RequestEvent::Received(node_alias, raw_msg, parsed)) => match parsed {
@@ -95,7 +93,7 @@ pub async fn handle_consensus_request<Request: PoolRequest>(
                                     state_proof_timestamps,
                                     last_write_time,
                                     config.freshness_threshold,
-                                    custom_state_proof_parser,
+                                    custom_state_proof_parser.as_ref(),
                                 ))
                         {
                             return Ok((

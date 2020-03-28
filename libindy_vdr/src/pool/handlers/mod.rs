@@ -41,12 +41,12 @@ impl<T: ToString> ToString for SingleReply<T> {
 pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;
 
 #[derive(Debug)]
-pub struct ReplyState<T> {
+struct ReplyState<T> {
     pub inner: HashMap<String, SingleReply<T>>,
 }
 
 #[derive(Default)]
-pub struct ReplyCounts {
+struct ReplyCounts {
     pub replies: usize,
     pub failed: usize,
     pub timeout: usize,
@@ -93,6 +93,7 @@ impl<T> ReplyState<T> {
         counts
     }
 
+    #[allow(unused)]
     pub fn failed_len(&self) -> usize {
         self.inner
             .values()
@@ -161,7 +162,7 @@ impl<K: Eq + Hash, T: Eq + Hash> ConsensusState<K, T> {
 }
 
 #[derive(Debug)]
-pub struct HashableValue {
+pub(crate) struct HashableValue {
     pub inner: SJsonValue,
 }
 

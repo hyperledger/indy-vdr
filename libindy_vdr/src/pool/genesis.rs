@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::fs::File;
 use std::io::BufReader;
 use std::iter::IntoIterator;
-use std::path::PathBuf;
+use std::path::Path;
 
 use serde_json::{self, Deserializer, Value as SJsonValue};
 
@@ -18,22 +18,35 @@ use crate::utils::crypto;
 
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
 
+/// A collection of pool genesis transactions.
 #[derive(Clone, PartialEq, Eq)]
 pub struct PoolTransactions {
     inner: Vec<Vec<u8>>, // stored in msgpack format
 }
 
 impl PoolTransactions {
+    /// Create a new blank set of transactions.
     fn new(inner: Vec<Vec<u8>>) -> Self {
         Self { inner }
     }
 
-    pub fn from_file(file_name: &str) -> VdrResult<Self> {
-        Self::from_file_path(&PathBuf::from(file_name))
+    /// Load JSON pool transactions from a string.
+    pub fn from_json(txns: &str) -> VdrResult<Self> {
+        let stream = Deserializer::from_str(txns).into_iter::<SJsonValue>();
+        let txns = _json_iter_to_msgpack(stream)?;
+        if txns.is_empty() {
+            Err(input_err("No genesis transactions found"))
+        } else {
+            Ok(Self::new(txns))
+        }
     }
 
-    pub fn from_file_path(file_name: &PathBuf) -> VdrResult<Self> {
-        let f = File::open(file_name).map_err(|err| {
+    /// Load JSON pool transactions from a file.
+    pub fn from_json_file<P>(file_name: P) -> VdrResult<Self>
+    where
+        P: AsRef<Path> + std::fmt::Debug,
+    {
+        let f = File::open(&file_name).map_err(|err| {
             err_msg(
                 VdrErrorKind::FileSystem(err),
                 format!("Can't open genesis transactions file: {:?}", file_name),
@@ -49,25 +62,8 @@ impl PoolTransactions {
         }
     }
 
-    pub fn from_transactions<T>(txns: T) -> Self
-    where
-        T: IntoIterator,
-        T::Item: AsRef<[u8]>,
-    {
-        Self::new(txns.into_iter().map(|t| t.as_ref().to_vec()).collect())
-    }
-
-    pub fn from_json(txns: &str) -> VdrResult<Self> {
-        let stream = Deserializer::from_str(txns).into_iter::<SJsonValue>();
-        let txns = _json_iter_to_msgpack(stream)?;
-        if txns.is_empty() {
-            Err(input_err("No genesis transactions found"))
-        } else {
-            Ok(Self::new(txns))
-        }
-    }
-
-    pub fn from_transactions_json<T>(txns: T) -> VdrResult<Self>
+    /// Load pool transactions from a sequence of JSON strings.
+    pub fn from_json_transactions<T>(txns: T) -> VdrResult<Self>
     where
         T: IntoIterator,
         T::Item: AsRef<str>,
@@ -77,6 +73,16 @@ impl PoolTransactions {
         Ok(pt)
     }
 
+    /// Load pool transactions from a sequence of msgpack-encoded byte strings.
+    pub fn from_transactions<T>(txns: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: AsRef<[u8]>,
+    {
+        Self::new(txns.into_iter().map(|t| t.as_ref().to_vec()).collect())
+    }
+
+    /// Extend the pool transactions with a set of msgpack-encoded byte strings.
     pub fn extend<T>(&mut self, txns: T)
     where
         T: IntoIterator<Item = Vec<u8>>,
@@ -84,6 +90,7 @@ impl PoolTransactions {
         self.inner.extend(txns)
     }
 
+    /// Extend the pool transactions with a set of JSON strings.
     pub fn extend_from_json<'a, T>(&mut self, txns: T) -> VdrResult<()>
     where
         T: IntoIterator,
@@ -97,18 +104,22 @@ impl PoolTransactions {
         Ok(())
     }
 
+    /// Derive a `MerkleTree` instance from the set of pool transactions.
     pub fn merkle_tree(&self) -> VdrResult<MerkleTree> {
         Ok(MerkleTree::from_vec(self.inner.clone())?)
     }
 
+    /// Convert the set of pool transactions into a `MerkleTree` instance.
     pub fn into_merkle_tree(self) -> VdrResult<MerkleTree> {
         Ok(MerkleTree::from_vec(self.inner)?)
     }
 
+    /// Iterate the set of transactions as a sequence of msgpack-encoded byte strings.
     pub fn iter(&self) -> impl Iterator<Item = &Vec<u8>> {
         self.inner.iter()
     }
 
+    /// Get a sequence of JSON strings representing the pool transactions.
     pub fn encode_json(&self) -> VdrResult<Vec<String>> {
         Ok(self
             .json_values()?
@@ -117,6 +128,7 @@ impl PoolTransactions {
             .collect())
     }
 
+    /// Get a sequence of `serde_json::Value` instances representing the pool transactions.
     pub fn json_values(&self) -> VdrResult<Vec<SJsonValue>> {
         self.inner.iter().try_fold(vec![], |mut vec, txn| {
             let value = rmp_serde::decode::from_slice(txn)
@@ -126,6 +138,7 @@ impl PoolTransactions {
         })
     }
 
+    /// Get the number of pool transactions.
     pub fn len(&self) -> usize {
         self.inner.len()
     }
@@ -161,7 +174,7 @@ impl TryFrom<&[String]> for PoolTransactions {
     type Error = VdrError;
 
     fn try_from(txns: &[String]) -> VdrResult<Self> {
-        PoolTransactions::from_transactions_json(txns)
+        PoolTransactions::from_json_transactions(txns)
     }
 }
 

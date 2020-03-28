@@ -1,9 +1,9 @@
 extern crate base64;
 extern crate rlp;
 
-pub mod constants;
+pub(crate) mod constants;
 mod node;
-pub mod types;
+pub(crate) mod types;
 
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -24,7 +24,44 @@ use self::constants::{
 use self::node::{Node, TrieDB};
 use self::types::*;
 
-pub fn check_state_proof(
+pub use types::ParsedSP;
+
+/// Construct a `StateProofParser` from a simple callback function.
+pub fn state_proof_parser_fn<F>(cb: F) -> impl StateProofParser
+where
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>>,
+{
+    StateProofParserFn(cb)
+}
+
+/// Custom state proof parser implementation.
+pub trait StateProofParser {
+    /// Construct a `Box<dyn StateProofParser>` from this instance.
+    fn boxed(self) -> Box<dyn StateProofParser>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self)
+    }
+
+    /// Parse a node message into a sequence of `ParsedSP` instances.
+    fn parse(&self, txn_type: &str, raw_msg: &str) -> Option<Vec<ParsedSP>>;
+}
+
+struct StateProofParserFn<F>(F)
+where
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>>;
+
+impl<F> StateProofParser for StateProofParserFn<F>
+where
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>>,
+{
+    fn parse(&self, txn_type: &str, raw_msg: &str) -> Option<Vec<ParsedSP>> {
+        self.0(txn_type, raw_msg)
+    }
+}
+
+pub(crate) fn check_state_proof(
     msg_result: &SJsonValue,
     f: usize,
     gen: &Generator,
@@ -34,7 +71,7 @@ pub fn check_state_proof(
     requested_timestamps: (Option<u64>, Option<u64>),
     last_write_time: u64,
     threshold: u64,
-    custom_state_proof_parser: Option<&Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>>>,
+    custom_state_proof_parser: Option<&Box<dyn StateProofParser>>,
 ) -> bool {
     trace!("process_reply: Try to verify proof and signature >>");
 
@@ -71,7 +108,7 @@ pub fn check_state_proof(
     res
 }
 
-pub fn check_freshness(
+pub(crate) fn check_freshness(
     msg_result: &SJsonValue,
     requested_timestamps: (Option<u64>, Option<u64>),
     last_write_time: u64,
@@ -144,7 +181,7 @@ pub fn check_freshness(
     res
 }
 
-pub fn get_cur_time() -> u64 {
+pub(crate) fn get_cur_time() -> u64 {
     let since_epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Time has gone backwards");
@@ -165,7 +202,7 @@ fn extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
     }
 }
 
-pub fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
+pub(crate) fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
     let mut result_without_proof = result.clone();
     result_without_proof
         .as_object_mut()
@@ -192,11 +229,11 @@ pub fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
     result_without_proof
 }
 
-pub fn parse_generic_reply_for_proof_checking(
+pub(crate) fn parse_generic_reply_for_proof_checking(
     json_msg: &SJsonValue,
     raw_msg: &str,
     sp_key: Option<&[u8]>,
-    custom_state_proof_parser: Option<&Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>>>,
+    custom_state_proof_parser: Option<&Box<dyn StateProofParser>>,
 ) -> Option<Vec<ParsedSP>> {
     let type_ = if let Some(type_) = json_msg["type"].as_str() {
         trace!("type_: {:?}", type_);
@@ -214,14 +251,14 @@ pub fn parse_generic_reply_for_proof_checking(
             None
         }
     } else if let Some(custom_state_proof_parser_) = custom_state_proof_parser {
-        custom_state_proof_parser_(type_, raw_msg)
+        custom_state_proof_parser_.parse(type_, raw_msg)
     } else {
         trace!("parse_generic_reply_for_proof_checking: <<< type not supported");
         None
     }
 }
 
-pub fn verify_parsed_sp(
+pub(crate) fn verify_parsed_sp(
     parsed_sps: Vec<ParsedSP>,
     nodes: &NodeKeys,
     f: usize,
@@ -318,7 +355,7 @@ pub fn verify_parsed_sp(
     true
 }
 
-pub fn parse_key_from_request_for_builtin_sp(
+pub(crate) fn parse_key_from_request_for_builtin_sp(
     json_msg: &SJsonValue,
     protocol_version: ProtocolVersion,
 ) -> Option<Vec<u8>> {
@@ -543,7 +580,7 @@ pub fn parse_key_from_request_for_builtin_sp(
     Some(key)
 }
 
-pub fn parse_timestamp_from_req_for_builtin_sp(
+pub(crate) fn parse_timestamp_from_req_for_builtin_sp(
     req: &SJsonValue,
     op: &str,
 ) -> (Option<u64>, Option<u64>) {
@@ -2133,21 +2170,18 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(
-            _txn_type: &str,
-            reply_from_node: &str,
-        ) -> Option<Vec<ParsedSP>> {
-            Some(serde_json::from_str(reply_from_node).unwrap())
+        struct CustomSPParser {}
+        impl StateProofParser for CustomSPParser {
+            fn parse(&self, _txn_type: &str, reply_from_node: &str) -> Option<Vec<ParsedSP>> {
+                Some(serde_json::from_str(reply_from_node).unwrap())
+            }
         }
-
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
-            Box::new(custom_state_proofs_parser);
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
             parsed_sp.to_string().as_str(),
             None,
-            Some(&custom_state_proofs_parser_),
+            Some(CustomSPParser {}.boxed()).as_ref(),
         )
         .unwrap();
 
@@ -2183,21 +2217,16 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(
-            _txn_type: &str,
-            reply_from_node: &str,
-        ) -> Option<Vec<ParsedSP>> {
-            Some(serde_json::from_str(reply_from_node).unwrap())
-        }
-
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
-            Box::new(custom_state_proofs_parser);
+        let custom_state_proofs_parser =
+            state_proof_parser_fn(|_txn_type: &str, reply_from_node: &str| {
+                Some(serde_json::from_str(reply_from_node).unwrap())
+            });
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
             parsed_sp.to_string().as_str(),
             None,
-            Some(&custom_state_proofs_parser_),
+            Some(&custom_state_proofs_parser.boxed()),
         )
         .unwrap();
 
@@ -2240,21 +2269,16 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(
-            _txn_type: &str,
-            reply_from_node: &str,
-        ) -> Option<Vec<ParsedSP>> {
-            Some(serde_json::from_str(reply_from_node).unwrap())
-        }
-
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
-            Box::new(custom_state_proofs_parser);
+        let custom_state_proofs_parser =
+            state_proof_parser_fn(|_txn_type: &str, reply_from_node: &str| {
+                Some(serde_json::from_str(reply_from_node).unwrap())
+            });
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
             parsed_sp.to_string().as_str(),
             None,
-            Some(&custom_state_proofs_parser_),
+            Some(&custom_state_proofs_parser.boxed()),
         )
         .unwrap();
 

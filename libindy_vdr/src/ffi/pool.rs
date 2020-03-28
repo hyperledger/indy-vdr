@@ -41,7 +41,7 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> 
             PoolTransactions::from_json(txns.as_str())?
         }
         else if let Some(path) = params.transactions_path {
-            PoolTransactions::from_file(path.as_str())?
+            PoolTransactions::from_json_file(path.as_str())?
         }
         else {
             return Err(input_err(
@@ -50,7 +50,7 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> 
         };
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            PoolBuilder::from_config(*gcfg).transactions(txns)?.node_weights(params.node_weights)
+            PoolBuilder::from(*gcfg).transactions(txns)?.node_weights(params.node_weights)
         };
         let pool = builder.into_runner()?;
         let handle = PoolHandle::next();
@@ -70,11 +70,11 @@ fn handle_pool_refresh(
 ) -> ErrorCode {
     catch_err! {
         debug!("Adding {} new pool transactions", new_txns.len());
-        let mut txns = PoolTransactions::from_transactions_json(old_txns)?;
+        let mut txns = PoolTransactions::from_json_transactions(old_txns)?;
         txns.extend_from_json(&new_txns)?;
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            PoolBuilder::from_config(*gcfg)
+            PoolBuilder::from(*gcfg)
         };
         let pool = builder.transactions(txns)?.into_runner()?;
         let mut pools = write_lock!(POOLS)?;

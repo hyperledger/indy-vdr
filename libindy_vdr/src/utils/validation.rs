@@ -36,7 +36,6 @@ impl std::fmt::Display for ValidationError {
     }
 }
 
-#[macro_export]
 macro_rules! invalid {
     () => { ValidationError::from(None) };
     ($($arg:tt)+) => {

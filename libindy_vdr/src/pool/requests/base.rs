@@ -51,7 +51,7 @@ where
 {
     unsafe_pinned!(events: Option<UnboundedReceiver<RequestExtEvent>>);
 
-    pub fn new(
+    pub(crate) fn new(
         handle: RequestHandle,
         events: UnboundedReceiver<RequestExtEvent>,
         pool_setup: S,
@@ -100,7 +100,7 @@ where
     }
 
     fn get_timing(&self) -> Option<TimingResult> {
-        self.timing.get_result()
+        self.timing.result()
     }
 
     fn is_active(&self) -> bool {
@@ -218,7 +218,7 @@ where
                     if let Some(events) = self.as_mut().events().as_pin_mut() {
                         match events.poll_next(cx) {
                             Poll::Ready(val) => {
-                                if let Some(RequestExtEvent::Init()) = val {
+                                if let Some(RequestExtEvent::Init) = val {
                                     trace!("Request active {}", self.handle);
                                     self.state = RequestState::Active
                                 } else {

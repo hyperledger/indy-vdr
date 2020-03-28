@@ -1,9 +1,9 @@
-pub mod merkletree;
-pub mod proof;
-pub mod tree;
+mod merkletree;
+mod proof;
+mod tree;
 
-pub use self::merkletree::*;
-pub use self::tree::*;
+pub use self::merkletree::MerkleTree;
+use self::tree::{Tree, TreeLeafData};
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 use crate::utils::validation::ValidationError;
 

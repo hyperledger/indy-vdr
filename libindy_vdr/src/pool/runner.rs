@@ -17,12 +17,16 @@ use crate::config::PoolConfig;
 use crate::ledger::PreparedRequest;
 use crate::utils::base58::ToBase58;
 
+/// The `PoolRunner` instance creates a separate thread for handling pool events,
+/// allowing the use of callbacks instead of async functions for interacting
+/// with the pool as well as simplifying validator pool refreshes.
 pub struct PoolRunner {
     sender: Option<UnboundedSender<PoolEvent>>,
     worker: Option<thread::JoinHandle<()>>,
 }
 
 impl PoolRunner {
+    /// Create a new `PoolRunner` instance and run the associated worker thread.
     pub fn new<F>(
         config: PoolConfig,
         merkle_tree: MerkleTree,
@@ -47,18 +51,23 @@ impl PoolRunner {
         }
     }
 
+    /// Fetch the status of the pool instance.
     pub fn get_status(&self, callback: GetStatusCallback) -> VdrResult<()> {
         self.send_event(PoolEvent::GetStatus(callback))
     }
 
+    /// Fetch the current set of pool transactions.
     pub fn get_transactions(&self, callback: GetTxnsCallback) -> VdrResult<()> {
         self.send_event(PoolEvent::GetTransactions(callback))
     }
 
+    /// Fetch the latest pool transactions and switch to the new validator
+    /// pool if necessary.
     pub fn refresh(&self, callback: RefreshCallback) -> VdrResult<()> {
         self.send_event(PoolEvent::Refresh(callback))
     }
 
+    /// Submit a request to the validator pool.
     pub fn send_request(
         &self,
         request: PreparedRequest,
@@ -68,6 +77,7 @@ impl PoolRunner {
         self.send_event(PoolEvent::SendRequest(request, target, callback))
     }
 
+    /// Send an event to the worker thread.
     fn send_event(&self, event: PoolEvent) -> VdrResult<()> {
         // FIXME error should indicate that the thread exited, so indicate such in result
         if let Some(sender) = &self.sender {
@@ -75,11 +85,11 @@ impl PoolRunner {
                 .unbounded_send(event)
                 .map_err(|_| err_msg(VdrErrorKind::Unexpected, "Error sending to pool thread"))
         } else {
-            // FIXME error kind
             Err(err_msg(VdrErrorKind::Unexpected, "Pool is closed"))
         }
     }
 
+    /// Shut down the associated worker thread and release any pool resources.
     pub fn close(&mut self) -> bool {
         if self.sender.is_none() {
             return false;
@@ -102,7 +112,7 @@ impl Drop for PoolRunner {
 
 type GetStatusCallback = Box<dyn (FnOnce(GetStatusResponse) -> ()) + Send>;
 
-type GetStatusResponse = VdrResult<PoolStatus>;
+type GetStatusResponse = VdrResult<PoolRunnerStatus>;
 
 type GetTxnsCallback = Box<dyn (FnOnce(GetTxnsResponse) -> ()) + Send>;
 
@@ -123,14 +133,18 @@ enum PoolEvent {
     SendRequest(PreparedRequest, Option<RequestTarget>, SendReqCallback),
 }
 
+/// The current status of a validator pool.
 #[derive(Serialize)]
-pub struct PoolStatus {
+pub struct PoolRunnerStatus {
+    /// The root hash of the merkle tree
     pub mt_root: String,
+    /// The number of transactions
     pub mt_size: usize,
+    /// The aliases of the validator nodes
     pub nodes: Vec<String>,
 }
 
-impl PoolStatus {
+impl PoolRunnerStatus {
     pub fn serialize(&self) -> VdrResult<String> {
         Ok(serde_json::to_value(self)
             .with_err_msg(VdrErrorKind::Unexpected, "Error serializing pool status")?
@@ -161,7 +175,7 @@ impl PoolThread {
                     match recv_evt {
                         Some(PoolEvent::GetStatus(callback)) => {
                             let tree = self.pool.get_merkle_tree();
-                            let status = PoolStatus {
+                            let status = PoolRunnerStatus {
                                 mt_root: tree.root_hash().to_base58(),
                                 mt_size: tree.count(),
                                 nodes: self.pool.get_node_aliases(),

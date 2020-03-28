@@ -10,7 +10,7 @@ mod types;
 
 pub use self::builder::PoolBuilder;
 pub use self::genesis::PoolTransactions;
-pub use self::pool::{LocalPool, Pool, PoolImpl, SharedPool};
-pub use self::requests::{RequestResult, RequestTarget, TimingResult};
-pub use self::runner::PoolRunner;
-pub use self::types::{LedgerType, NodeKeys, ProtocolVersion, Verifiers};
+pub use self::pool::{LocalPool, Pool, SharedPool};
+pub(crate) use self::requests::{RequestResult, RequestTarget, TimingResult};
+pub use self::runner::{PoolRunner, PoolRunnerStatus};
+pub use self::types::{NodeKeys, ProtocolVersion};

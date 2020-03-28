@@ -1,6 +1,5 @@
 use crate::common::error::prelude::*;
-use crate::common::LIB_VERSION;
-use crate::config::PoolConfig;
+use crate::config::{PoolConfig, LIB_VERSION};
 use crate::pool::ProtocolVersion;
 use crate::utils::validation::Validatable;
 

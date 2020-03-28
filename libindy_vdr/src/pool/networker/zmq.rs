@@ -25,6 +25,12 @@ new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 
 pub struct ZMQNetworkerFactory;
 
+impl ZMQNetworkerFactory {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl NetworkerFactory for ZMQNetworkerFactory {
     type Output = ZMQNetworker;
     fn make_networker(&self, config: PoolConfig, verifiers: &Verifiers) -> VdrResult<ZMQNetworker> {
@@ -249,7 +255,7 @@ impl ZMQThread {
                 // FIXME set a timer to cancel the request if no messages are sent
                 trace!("New request {}", handle);
                 let pending = self.add_request(handle, sub_id, body, sender).unwrap();
-                if !pending.send_event(RequestExtEvent::Init()) {
+                if !pending.send_event(RequestExtEvent::Init) {
                     trace!("Removing, sender dropped before Init {}", handle);
                     self.remove_request(handle);
                 }

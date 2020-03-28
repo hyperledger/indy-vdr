@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use futures::channel::mpsc::UnboundedSender;
 
 use crate::common::error::prelude::*;
-pub use crate::config::PoolConfig;
+use crate::config::types::PoolConfig;
 
 use super::requests::{RequestExtEvent, RequestHandle};
 use super::types::{self, Verifiers};

@@ -13,20 +13,17 @@ pub mod schema;
 pub mod txn;
 pub mod validator_info;
 
-pub use super::constants;
-pub use super::identifiers;
-pub use crate::common::did;
-pub use crate::common::verkey;
-pub use crate::pool::ProtocolVersion;
-
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde;
 use serde_json;
 
+use super::constants;
+use super::identifiers;
+use crate::common::did::{self, DidValue, ShortDidValue};
 use crate::common::error::prelude::*;
-use did::{DidValue, ShortDidValue};
+use crate::pool::ProtocolVersion;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]

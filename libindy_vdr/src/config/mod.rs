@@ -1,4 +1,6 @@
 pub mod constants;
 pub mod types;
 
-pub use types::{PoolConfig, ProtocolVersion};
+pub(crate) use types::PoolConfig;
+
+pub static LIB_VERSION: &str = env!("CARGO_PKG_VERSION");

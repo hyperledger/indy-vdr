@@ -5,17 +5,16 @@ pub mod qualifier;
 #[macro_use]
 pub mod validation;
 
-pub mod base58;
-pub mod crypto;
-pub mod environment;
-pub mod hash;
+pub(crate) mod base58;
+pub(crate) mod crypto;
+pub(crate) mod environment;
+pub(crate) mod hash;
 pub mod signature;
 
 #[macro_use]
 #[allow(unused_macros)]
-pub mod test;
+pub(crate) mod test;
 
-#[macro_export]
 macro_rules! new_handle_type (($newtype:ident, $counter:ident) => (
 
     lazy_static! {

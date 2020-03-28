@@ -1,5 +1,4 @@
-pub use crate::pool::ProtocolVersion;
-
+use crate::pool::ProtocolVersion;
 use crate::utils::validation::{Validatable, ValidationError};
 
 use super::constants;

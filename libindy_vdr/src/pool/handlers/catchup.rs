@@ -6,8 +6,8 @@ use crate::common::merkle_tree::MerkleTree;
 use super::types::Message;
 use super::{check_cons_proofs, PoolRequest, RequestEvent, RequestResult, TimingResult};
 
-pub async fn handle_catchup_request<Request: PoolRequest>(
-    mut request: Request,
+pub async fn handle_catchup_request<R: PoolRequest>(
+    request: &mut R,
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,

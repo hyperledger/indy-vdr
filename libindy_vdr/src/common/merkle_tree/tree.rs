@@ -1,6 +1,5 @@
 use std::cmp;
 
-pub use super::proof::{Lemma, Positioned, Proof};
 use crate::utils::hash::{DefaultHash as Hash, TreeHash};
 use crate::utils::validation::ValidationError;
 

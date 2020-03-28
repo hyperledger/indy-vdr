@@ -7,7 +7,6 @@ use std::{env, fs};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 
-#[macro_export]
 macro_rules! assert_match {
     ($pattern:pat, $var:expr) => {
         assert!(match $var {
@@ -29,21 +28,10 @@ macro_rules! assert_match {
     };
 }
 
-#[macro_export]
 macro_rules! assert_kind {
     ($kind:expr, $var:expr) => {
         match $var {
             Err(e) => assert_eq!($kind, e.kind()),
-            _ => assert!(false, "Result expected to be error"),
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! assert_code {
-    ($code:expr, $var:expr) => {
-        match $var {
-            Err(e) => assert_eq!($code, e.error_code),
             _ => assert!(false, "Result expected to be error"),
         }
     };
