@@ -74,12 +74,19 @@ fn compare_hash(text: &str, version: &str, hash: &str) -> VdrResult<()> {
 /// A ledger transaction request which has been prepared for dispatch
 #[derive(Debug)]
 pub struct PreparedRequest {
+    /// The protocol version used in pool communication
     pub protocol_version: ProtocolVersion,
+    /// The numeric transaction type
     pub txn_type: String,
+    /// The numeric transaction request ID
     pub req_id: String,
+    /// The request body as a `serde_json::Value` instance
     pub req_json: SJsonValue,
+    /// An optional state proof key
     pub sp_key: Option<Vec<u8>>,
+    /// Optional state proof timestamps
     pub sp_timestamps: (Option<u64>, Option<u64>),
+    /// Mark the request as a read request, which can reduce the number of sockets opened
     pub is_read_request: bool,
 }
 
@@ -167,6 +174,7 @@ impl PreparedRequest {
         Ok(())
     }
 
+    /// Construct a prepared request from user-provided JSON
     pub fn from_request_json(message: &str) -> VdrResult<PreparedRequest> {
         let req_json: SJsonValue =
             serde_json::from_str(message).with_input_err("Invalid request JSON")?;
@@ -205,6 +213,7 @@ impl PreparedRequest {
     }
 }
 
+/// A utility class for constructing ledger transaction requests
 pub struct RequestBuilder {
     pub protocol_version: ProtocolVersion,
 }
@@ -220,6 +229,7 @@ impl RequestBuilder {
         Self { protocol_version }
     }
 
+    /// Build a generic prepared request
     pub fn build<T: RequestType>(
         &self,
         operation: T,
@@ -657,14 +667,14 @@ impl RequestBuilder {
         Ok(acceptance_data)
     }
 
-    pub fn build_custom_request(
+    pub fn build_custom_request_from_slice(
         &self,
         message: &[u8],
         sp_key: Option<Vec<u8>>,
         sp_timestamps: (Option<u64>, Option<u64>),
     ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
-        let message = std::str::from_utf8(message).with_input_err("Invalid UTF-8")?;
-        self.build_custom_request_from_str(message, sp_key, sp_timestamps)
+        let message = serde_json::from_slice(message).with_input_err("Invalid request JSON")?;
+        self.build_custom_request(message, sp_key, sp_timestamps)
     }
 
     pub fn build_custom_request_from_str(
@@ -673,9 +683,16 @@ impl RequestBuilder {
         sp_key: Option<Vec<u8>>,
         sp_timestamps: (Option<u64>, Option<u64>),
     ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
-        let mut req_json: SJsonValue =
-            serde_json::from_str(message).with_input_err("Invalid request JSON")?;
+        let message = serde_json::from_str(message).with_input_err("Invalid request JSON")?;
+        self.build_custom_request(message, sp_key, sp_timestamps)
+    }
 
+    pub fn build_custom_request(
+        &self,
+        mut req_json: SJsonValue,
+        sp_key: Option<Vec<u8>>,
+        sp_timestamps: (Option<u64>, Option<u64>),
+    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
         let protocol_version = req_json["protocolVersion"].as_u64();
         let protocol_version = if protocol_version.is_none() {
             req_json["protocolVersion"] = SJsonValue::from(self.protocol_version as usize);
@@ -720,7 +737,9 @@ impl RequestBuilder {
                 parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
             )
         };
+
         let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
+
         Ok((
             PreparedRequest::new(
                 protocol_version,
@@ -734,6 +753,7 @@ impl RequestBuilder {
             target,
         ))
     }
+
     pub fn build_rich_schema_request(
         &self,
         identifier: &DidValue,

@@ -9,7 +9,7 @@ use crate::utils::validation::{Validatable, ValidationError};
 pub struct DidMethod(pub String);
 
 lazy_static! {
-    /// The default origin DID used when submitting ledger read requests
+    /// The default identifier DID used when submitting ledger read requests
     pub static ref DEFAULT_LIBINDY_DID: DidValue = DidValue::new("LibindyDid111111111111", None);
 }
 

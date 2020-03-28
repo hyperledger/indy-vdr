@@ -4,6 +4,7 @@ use super::hash::{digest, Sha256};
 use super::validation::ValidationError;
 use crate::ledger::constants::{ATTRIB, GET_ATTR};
 
+/// Generate the normalized form of a ledger transaction request for signing
 pub fn serialize_signature(v: &SJsonValue) -> Result<String, ValidationError> {
     let _type = v["operation"]["type"].clone();
     _serialize_signature(v, true, _type.as_str())

@@ -213,7 +213,7 @@ fn check_cons_proofs(
     Ok(())
 }
 
-pub fn build_pool_status_request(
+pub(crate) fn build_pool_status_request(
     merkle_root: &[u8],
     merkle_tree_size: usize,
     protocol_version: ProtocolVersion,
@@ -229,7 +229,7 @@ pub fn build_pool_status_request(
     Ok(Message::LedgerStatus(lr))
 }
 
-pub fn build_pool_catchup_request(
+pub(crate) fn build_pool_catchup_request(
     from_mt_size: usize,
     target_mt_size: usize,
 ) -> VdrResult<Message> {

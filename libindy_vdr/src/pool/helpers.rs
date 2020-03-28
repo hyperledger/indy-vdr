@@ -16,6 +16,7 @@ use crate::common::merkle_tree::MerkleTree;
 use crate::ledger::PreparedRequest;
 use crate::utils::base58::ToBase58;
 
+/// Perform a pool ledger status request to see if catchup is required
 pub async fn perform_pool_status_request<T: Pool>(
     pool: &T,
     merkle_tree: MerkleTree,
@@ -27,6 +28,7 @@ pub async fn perform_pool_status_request<T: Pool>(
     handle_status_request(&mut request, merkle_tree).await
 }
 
+/// Perform a pool ledger catchup request to fetch the latest verifier pool transactions
 pub async fn perform_pool_catchup_request<T: Pool>(
     pool: &T,
     merkle_tree: MerkleTree,
@@ -39,6 +41,7 @@ pub async fn perform_pool_catchup_request<T: Pool>(
     handle_catchup_request(&mut request, merkle_tree, target_mt_root, target_mt_size).await
 }
 
+/// Perform a pool ledger status request followed by a catchup request if necessary
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
 ) -> VdrResult<(Option<Vec<String>>, Option<TimingResult>)> {
@@ -70,7 +73,7 @@ pub async fn perform_refresh<T: Pool>(
     }
 }
 
-pub async fn perform_catchup<T: Pool>(
+pub(crate) async fn perform_catchup<T: Pool>(
     pool: &T,
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
@@ -100,6 +103,7 @@ pub async fn perform_catchup<T: Pool>(
     }
 }
 
+/// Fetch a ledger transaction
 pub async fn perform_get_txn<T: Pool>(
     pool: &T,
     ledger_type: i32,
@@ -110,6 +114,7 @@ pub async fn perform_get_txn<T: Pool>(
     perform_ledger_request(pool, prepared, None).await
 }
 
+/// Dispatch a prepared ledger request to the appropriate handler
 pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
     prepared: PreparedRequest,
@@ -136,7 +141,8 @@ pub async fn perform_ledger_request<T: Pool>(
     }
 }
 
-pub fn format_full_reply(replies: NodeReplies<String>) -> VdrResult<String> {
+/// Format a collection of node replies in the expected response format
+pub(crate) fn format_full_reply(replies: NodeReplies<String>) -> VdrResult<String> {
     serde_json::to_string(&serde_json::Map::from_iter(replies.iter().map(
         |(node_alias, reply)| {
             (

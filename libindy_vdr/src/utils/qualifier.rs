@@ -6,6 +6,7 @@ lazy_static! {
     pub(crate) static ref REGEX: Regex = Regex::new("^([a-z0-9]+):([a-z0-9]+):(.*)$").unwrap();
 }
 
+/// Combine a prefix, method, and value into a qualified identifier
 pub fn combine(prefix: &str, method: Option<&str>, entity: &str) -> String {
     match method {
         Some(method) => format!("{}:{}:{}", prefix, method, entity),
@@ -13,6 +14,7 @@ pub fn combine(prefix: &str, method: Option<&str>, entity: &str) -> String {
     }
 }
 
+/// Split a qualifiable identifier into its method and value components
 pub fn split<'a>(prefix: &str, val: &'a str) -> (Option<&'a str>, &'a str) {
     match REGEX.captures(&val) {
         None => (None, val),
@@ -29,10 +31,12 @@ pub fn split<'a>(prefix: &str, val: &'a str) -> (Option<&'a str>, &'a str) {
     }
 }
 
+/// Check if an identifier is qualified by a prefix and method
 pub fn is_fully_qualified(entity: &str) -> bool {
     REGEX.captures(entity).is_some()
 }
 
+/// An identifier which can be qualified with a prefix and method
 pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validatable {
     fn prefix() -> &'static str;
 

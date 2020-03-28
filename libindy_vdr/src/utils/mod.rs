@@ -1,7 +1,9 @@
 #[macro_use]
 mod macros;
+/// Trait for qualifiable identifier types, having an optional prefix and method
 #[macro_use]
 pub mod qualifier;
+/// Trait and error definition for validatable data types
 #[macro_use]
 pub mod validation;
 
@@ -9,6 +11,7 @@ pub(crate) mod base58;
 pub(crate) mod crypto;
 pub(crate) mod environment;
 pub(crate) mod hash;
+/// Signature input serialization for ledger transaction requests
 pub mod signature;
 
 #[macro_use]
