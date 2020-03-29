@@ -2,11 +2,13 @@ use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
 use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
 use crate::ledger::identifiers::rev_reg::RevocationRegistryId;
+use crate::ledger::identifiers::rich_schema::RichSchemaId;
 use crate::ledger::identifiers::schema::SchemaId;
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
+use crate::ledger::requests::rich_schema::RichSchema;
 use crate::ledger::requests::schema::Schema;
 use crate::utils::qualifier::Qualifiable;
 
@@ -445,6 +447,73 @@ pub extern "C" fn indy_vdr_build_txn_author_agreement_request(
         let req = builder.build_txn_author_agreement_request(
             &identifier, text, version, ratification_ts, retirement_ts
         )?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_rich_schema_request(
+    submitter_did: FfiStr,
+    rich_schema: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build SCHEMA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let rich_schema = serde_json::from_str::<RichSchema>(rich_schema.as_str())
+            .with_input_err("Error deserializing RichSchema")?;
+        let req = builder.build_rich_schema_request(&identifier, rich_schema)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_schema_object_by_id_request(
+    submitter_did: FfiStr,
+    rs_id: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build SCHEMA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let rs_id = RichSchemaId::from_str(rs_id.as_str())?;
+        let req = builder.build_get_rich_schema_by_id(&identifier, &rs_id)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_schema_object_by_metadata_request(
+    submitter_did: FfiStr,
+    rs_type: i32,
+    rs_name: FfiStr,
+    rs_version: FfiStr,
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build SCHEMA request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let rs_name = rs_name.into_string();
+        let rs_version = rs_version.into_string();
+        let req = builder.build_get_rich_schema_by_metadata(&identifier, rs_type, rs_name, rs_version)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;

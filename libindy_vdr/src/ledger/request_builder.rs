@@ -15,6 +15,7 @@ use crate::utils::signature::serialize_signature;
 
 use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::rev_reg::RevocationRegistryId;
+use super::identifiers::rich_schema::RichSchemaId;
 use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
 use super::requests::auth_rule::*;
@@ -39,6 +40,10 @@ use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
 use super::constants::{txn_name_to_code, READ_REQUESTS};
+use crate::ledger::requests::rich_schema::{
+    GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
+    GetRichSchemaByMetadataOperation, RichSchema, RichSchemaOperation,
+};
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
     const SEC_IN_DAY: u64 = 86400;
@@ -684,6 +689,46 @@ impl RequestBuilder {
             ),
             target,
         ))
+    }
+    pub fn build_rich_schema_request(
+        &self,
+        identifier: &DidValue,
+        rs_schema: RichSchema,
+    ) -> VdrResult<PreparedRequest> {
+        let rs_schema: RichSchema = RichSchema::new(
+            rs_schema.id,
+            rs_schema.content,
+            rs_schema.rs_name,
+            rs_schema.rs_version,
+            rs_schema.rs_type,
+            rs_schema.ver,
+        );
+        self.build(RichSchemaOperation::new(rs_schema), Some(identifier))
+    }
+    pub fn build_get_rich_schema_by_id(
+        &self,
+        identifier: &DidValue,
+        rs_id: &RichSchemaId,
+    ) -> VdrResult<PreparedRequest> {
+        let get_rs_by_id: GetRichSchemaById = GetRichSchemaById::new(rs_id.to_unqualified());
+        self.build(
+            GetRichSchemaByIdOperation::new(get_rs_by_id),
+            Some(identifier),
+        )
+    }
+    pub fn build_get_rich_schema_by_metadata(
+        &self,
+        identifier: &DidValue,
+        rs_type: i32,
+        rs_name: String,
+        rs_version: String,
+    ) -> VdrResult<PreparedRequest> {
+        let get_rs_by_meta: GetRichSchemaByMetadata =
+            GetRichSchemaByMetadata::new(rs_type, rs_name, rs_version);
+        self.build(
+            GetRichSchemaByMetadataOperation::new(get_rs_by_meta),
+            Some(identifier),
+        )
     }
 }
 
