@@ -1,10 +1,10 @@
-use indy_vdr::utils::base58::ToBase58;
-use indy_vdr::ledger::PreparedRequest;
 use indy_vdr::common::did::DidValue;
+use indy_vdr::ledger::PreparedRequest;
+use indy_vdr::utils::base58::ToBase58;
 
 use crate::utils::constants::*;
 
-use ursa::keys::{PrivateKey, KeyGenOption, PublicKey};
+use ursa::keys::{KeyGenOption, PrivateKey, PublicKey};
 use ursa::signatures::ed25519::Ed25519Sha512;
 use ursa::signatures::SignatureScheme;
 
@@ -16,7 +16,9 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn trustee() -> Identity { Identity::new(Some(TRUSTEE_SEED)) }
+    pub fn trustee() -> Identity {
+        Identity::new(Some(TRUSTEE_SEED))
+    }
 
     pub fn new(seed: Option<[u8; 64]>) -> Identity {
         let ed25519 = Ed25519Sha512::new();
@@ -40,7 +42,9 @@ impl Identity {
         let signature_input = request.get_signature_input().unwrap();
 
         let ed25519 = Ed25519Sha512::new();
-        let signature = ed25519.sign(signature_input.as_bytes(), &self.private_key).unwrap();
+        let signature = ed25519
+            .sign(signature_input.as_bytes(), &self.private_key)
+            .unwrap();
         request.set_signature(signature.as_slice()).unwrap();
     }
 }

@@ -6,9 +6,9 @@ inject_dependencies!();
 use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
 
+use crate::utils::crypto::Identity;
 use crate::utils::fixtures::*;
 use crate::utils::pool::TestPool;
-use crate::utils::crypto::Identity;
 
 #[test]
 fn empty() {
@@ -25,11 +25,10 @@ mod builder {
         use crate::utils::helpers::check_request_operation;
 
         #[rstest]
-        fn test_get_validator_info_request(request_builder: RequestBuilder,
-                                           trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_get_validator_info_request(&trustee_did).unwrap();
+        fn test_get_validator_info_request(request_builder: RequestBuilder, trustee_did: DidValue) {
+            let request = request_builder
+                .build_get_validator_info_request(&trustee_did)
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::GET_VALIDATOR_INFO,
@@ -47,13 +46,28 @@ mod send_get_validator_info {
     #[rstest]
     fn test_pool_get_validator_info_request(pool: TestPool, trustee: Identity) {
         // Send Get Validator Info
-        let mut request =
-            pool.request_builder()
-                .build_get_validator_info_request(&trustee.did).unwrap();
+        let mut request = pool
+            .request_builder()
+            .build_get_validator_info_request(&trustee.did)
+            .unwrap();
 
         trustee.sign_request(&mut request);
 
         let replies = pool.send_full_request(&request, None, None).unwrap();
         assert_eq!(replies.len(), 4);
+    }
+
+    #[rstest]
+    fn test_pool_get_validator_info_request_as_single_request(pool: TestPool, trustee: Identity) {
+        // Send Get Validator Info
+        let mut request = pool
+            .request_builder()
+            .build_get_validator_info_request(&trustee.did)
+            .unwrap();
+
+        trustee.sign_request(&mut request);
+
+        let _err = pool.send_request(&request).unwrap_err();
+        println!("{}", _err);
     }
 }

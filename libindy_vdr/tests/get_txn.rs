@@ -5,9 +5,9 @@ inject_dependencies!();
 
 use indy_vdr::ledger::constants;
 
+use crate::utils::crypto::Identity;
 use crate::utils::fixtures::*;
 use crate::utils::pool::TestPool;
-use crate::utils::crypto::Identity;
 
 #[test]
 fn empty() {
@@ -28,9 +28,9 @@ mod builder {
 
         #[rstest]
         fn test_build_get_txn_request(request_builder: RequestBuilder) {
-            let request =
-                request_builder
-                    .build_get_txn_request(None, LEDGER_ID, SEQ_NO).unwrap();
+            let request = request_builder
+                .build_get_txn_request(None, LEDGER_ID, SEQ_NO)
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::GET_TXN,
@@ -51,29 +51,37 @@ mod get_txn {
     #[rstest]
     fn test_pool_get_txn(pool: TestPool, trustee: Identity, identity: Identity) {
         // Send NYM
-        let mut nym_request =
-            pool.request_builder()
-                .build_nym_request(&trustee.did,
-                                   &identity.did,
-                                   Some(identity.verkey.to_string()),
-                                   None,
-                                   None).unwrap();
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(
+                &trustee.did,
+                &identity.did,
+                Some(identity.verkey.to_string()),
+                None,
+                None,
+            )
+            .unwrap();
 
-        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         let seq_no = TestPool::extract_seq_no_from_reply(&nym_response).unwrap();
 
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         // Get NYM txn by seq_no
-        let get_txn_request =
-            pool.request_builder()
-                .build_get_txn_request(None, LEDGER_ID, seq_no as i32).unwrap();
+        let get_txn_request = pool
+            .request_builder()
+            .build_get_txn_request(None, LEDGER_ID, seq_no as i32)
+            .unwrap();
 
         let response = pool.send_request(&get_txn_request).unwrap();
 
         let nym_response = serde_json::from_str::<serde_json::Value>(&nym_response).unwrap();
 
-        assert_eq!(nym_response["result"]["txn"], helpers::get_response_data(&response).unwrap()["txn"])
+        assert_eq!(
+            nym_response["result"]["txn"],
+            helpers::get_response_data(&response).unwrap()["txn"]
+        )
     }
 }

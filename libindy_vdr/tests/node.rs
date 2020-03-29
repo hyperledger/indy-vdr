@@ -5,9 +5,9 @@ inject_dependencies!();
 
 use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
+use indy_vdr::ledger::requests::node::{NodeOperationData, Services};
 
 use crate::utils::fixtures::*;
-use indy_vdr::ledger::requests::node::{NodeOperationData, Services};
 
 fn _dest() -> DidValue {
     DidValue("FYmoFw55GeQH7SRFa37dkx1d2dZ3zUF8ckg7wmL7ofN4".to_string())
@@ -41,13 +41,10 @@ mod builder {
         use crate::utils::helpers::check_request_operation;
 
         #[rstest]
-        fn test_build_node_request(request_builder: RequestBuilder,
-                                   steward_did: DidValue) {
-            let request =
-                request_builder
-                    .build_node_request(&steward_did,
-                                        &_dest(),
-                                        _node_data()).unwrap();
+        fn test_build_node_request(request_builder: RequestBuilder, steward_did: DidValue) {
+            let request = request_builder
+                .build_node_request(&steward_did, &_dest(), _node_data())
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::NODE,

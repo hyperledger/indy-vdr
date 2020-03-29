@@ -3,29 +3,43 @@ mod utils;
 
 extern crate chrono;
 
+use chrono::prelude::*;
+
 inject_dependencies!();
 
 use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
-use chrono::prelude::*;
-
-use crate::utils::fixtures::*;
-use crate::utils::pool::TestPool;
-use crate::utils::crypto::Identity;
-use crate::utils::helpers;
-
 use indy_vdr::ledger::requests::pool::Schedule;
 
-fn _empty_schedule() -> Schedule { Schedule::new() }
+use crate::utils::crypto::Identity;
+use crate::utils::fixtures::*;
+use crate::utils::helpers;
+use crate::utils::pool::TestPool;
+
+fn _empty_schedule() -> Schedule {
+    Schedule::new()
+}
 
 fn _schedule() -> Schedule {
     let next_year = Utc::now().year() + 1;
 
     let mut schedule = Schedule::new();
-    schedule.insert(String::from("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"), format!("{}-01-25T12:49:05.258870+00:00", next_year));
-    schedule.insert(String::from("8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"), format!("{}-01-25T13:49:05.258870+00:00", next_year));
-    schedule.insert(String::from("DKVxG2fXXTU8yT5N7hGEbXB3dfdAnYv1JczDUHpmDxya"), format!("{}-01-25T14:49:05.258870+00:00", next_year));
-    schedule.insert(String::from("4PS3EDQ3dW1tci1Bp6543CfuuebjFrg36kLAUcskGfaA"), format!("{}-01-25T15:49:05.258870+00:00", next_year));
+    schedule.insert(
+        String::from("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"),
+        format!("{}-01-25T12:49:05.258870+00:00", next_year),
+    );
+    schedule.insert(
+        String::from("8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"),
+        format!("{}-01-25T13:49:05.258870+00:00", next_year),
+    );
+    schedule.insert(
+        String::from("DKVxG2fXXTU8yT5N7hGEbXB3dfdAnYv1JczDUHpmDxya"),
+        format!("{}-01-25T14:49:05.258870+00:00", next_year),
+    );
+    schedule.insert(
+        String::from("4PS3EDQ3dW1tci1Bp6543CfuuebjFrg36kLAUcskGfaA"),
+        format!("{}-01-25T15:49:05.258870+00:00", next_year),
+    );
 
     schedule
 }
@@ -52,21 +66,25 @@ mod builder {
         use super::*;
 
         #[rstest]
-        fn test_build_pool_upgrade_requests_for_start_action(request_builder: RequestBuilder,
-                                                             trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_pool_upgrade(&trustee_did,
-                                        NAME,
-                                        VERSION,
-                                        START,
-                                        SHA256,
-                                        None,
-                                        Some(_empty_schedule()),
-                                        None,
-                                        false,
-                                        false,
-                                        None).unwrap();
+        fn test_build_pool_upgrade_requests_for_start_action(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_pool_upgrade(
+                    &trustee_did,
+                    NAME,
+                    VERSION,
+                    START,
+                    SHA256,
+                    None,
+                    Some(_empty_schedule()),
+                    None,
+                    false,
+                    false,
+                    None,
+                )
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_UPGRADE,
@@ -82,21 +100,25 @@ mod builder {
         }
 
         #[rstest]
-        fn test_build_pool_upgrade_requests_for_cancel_action(request_builder: RequestBuilder,
-                                                              trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_pool_upgrade(&trustee_did,
-                                        NAME,
-                                        VERSION,
-                                        CANCEL,
-                                        SHA256,
-                                        None,
-                                        None,
-                                        Some(JUSTIFICATION),
-                                        false,
-                                        false,
-                                        None).unwrap();
+        fn test_build_pool_upgrade_requests_for_cancel_action(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_pool_upgrade(
+                    &trustee_did,
+                    NAME,
+                    VERSION,
+                    CANCEL,
+                    SHA256,
+                    None,
+                    None,
+                    Some(JUSTIFICATION),
+                    false,
+                    false,
+                    None,
+                )
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_UPGRADE,
@@ -112,21 +134,25 @@ mod builder {
         }
 
         #[rstest]
-        fn test_build_pool_upgrade_requests_for_package(request_builder: RequestBuilder,
-                                                        trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_pool_upgrade(&trustee_did,
-                                        NAME,
-                                        VERSION,
-                                        START,
-                                        SHA256,
-                                        None,
-                                        Some(_empty_schedule()),
-                                        None,
-                                        false,
-                                        false,
-                                        Some(PACKAGE)).unwrap();
+        fn test_build_pool_upgrade_requests_for_package(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_pool_upgrade(
+                    &trustee_did,
+                    NAME,
+                    VERSION,
+                    START,
+                    SHA256,
+                    None,
+                    Some(_empty_schedule()),
+                    None,
+                    false,
+                    false,
+                    Some(PACKAGE),
+                )
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_UPGRADE,
@@ -151,38 +177,44 @@ mod send_pool_upgrade {
     #[rstest]
     fn test_pool_send_pool_upgrade_request(pool: TestPool, trustee: Identity) {
         // Schedule Pool Upgrade
-        let mut request =
-            pool.request_builder()
-                .build_pool_upgrade(&trustee.did,
-                                    NAME,
-                                    VERSION,
-                                    START,
-                                    SHA256,
-                                    None,
-                                    Some(_schedule()),
-                                    None,
-                                    false,
-                                    false,
-                                    None).unwrap();
+        let mut request = pool
+            .request_builder()
+            .build_pool_upgrade(
+                &trustee.did,
+                NAME,
+                VERSION,
+                START,
+                SHA256,
+                None,
+                Some(_schedule()),
+                None,
+                false,
+                false,
+                None,
+            )
+            .unwrap();
 
         trustee.sign_request(&mut request);
 
         let _response = pool.send_full_request(&request, None, None).unwrap();
 
         // Cancel Pool Upgrade
-        let mut request =
-            pool.request_builder()
-                .build_pool_upgrade(&trustee.did,
-                                    NAME,
-                                    VERSION,
-                                    CANCEL,
-                                    SHA256,
-                                    None,
-                                    None,
-                                    Some(JUSTIFICATION),
-                                    false,
-                                    false,
-                                    None).unwrap();
+        let mut request = pool
+            .request_builder()
+            .build_pool_upgrade(
+                &trustee.did,
+                NAME,
+                VERSION,
+                CANCEL,
+                SHA256,
+                None,
+                None,
+                Some(JUSTIFICATION),
+                false,
+                false,
+                None,
+            )
+            .unwrap();
 
         trustee.sign_request(&mut request);
 

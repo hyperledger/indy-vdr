@@ -28,15 +28,19 @@ mod builder {
         use crate::utils::helpers::check_request_operation;
 
         #[rstest]
-        fn test_txn_author_agreement_request(request_builder: RequestBuilder,
-                                             trustee_did: DidValue,) {
-            let request =
-                request_builder
-                    .build_txn_author_agreement_request(&trustee_did,
-                                                        Some(TEXT.to_string()),
-                                                        VERSION.to_string(),
-                                                        Some(RATIFICATION_TS),
-                                                        None).unwrap();
+        fn test_txn_author_agreement_request(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_txn_author_agreement_request(
+                    &trustee_did,
+                    Some(TEXT.to_string()),
+                    VERSION.to_string(),
+                    Some(RATIFICATION_TS),
+                    None,
+                )
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::TXN_AUTHR_AGRMT,
@@ -49,15 +53,19 @@ mod builder {
         }
 
         #[rstest]
-        fn test_txn_author_agreement_request_for_update_ratification_ts(request_builder: RequestBuilder,
-                                                                        trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_txn_author_agreement_request(&trustee_did,
-                                                        None,
-                                                        VERSION.to_string(),
-                                                        Some(RATIFICATION_TS),
-                                                        None).unwrap();
+        fn test_txn_author_agreement_request_for_update_ratification_ts(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_txn_author_agreement_request(
+                    &trustee_did,
+                    None,
+                    VERSION.to_string(),
+                    Some(RATIFICATION_TS),
+                    None,
+                )
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::TXN_AUTHR_AGRMT,
@@ -69,15 +77,19 @@ mod builder {
         }
 
         #[rstest]
-        fn test_txn_author_agreement_request_for_make_taa_retired(request_builder: RequestBuilder,
-                                                                  trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_txn_author_agreement_request(&trustee_did,
-                                                        None,
-                                                        VERSION.to_string(),
-                                                        None,
-                                                        Some(54321)).unwrap();
+        fn test_txn_author_agreement_request_for_make_taa_retired(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_txn_author_agreement_request(
+                    &trustee_did,
+                    None,
+                    VERSION.to_string(),
+                    None,
+                    Some(54321),
+                )
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::TXN_AUTHR_AGRMT,
@@ -96,9 +108,9 @@ mod builder {
 
         #[rstest]
         fn test_get_txn_author_agreement_request(request_builder: RequestBuilder) {
-            let request =
-                request_builder
-                    .build_get_txn_author_agreement_request(None, None).unwrap();
+            let request = request_builder
+                .build_get_txn_author_agreement_request(None, None)
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::GET_TXN_AUTHR_AGRMT,
@@ -112,12 +124,12 @@ mod builder {
             let data = GetTxnAuthorAgreementData {
                 digest: Some(DIGEST.to_string()),
                 version: None,
-                timestamp: None
+                timestamp: None,
             };
 
-            let request =
-                request_builder
-                    .build_get_txn_author_agreement_request(None, Some(&data)).unwrap();
+            let request = request_builder
+                .build_get_txn_author_agreement_request(None, Some(&data))
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::GET_TXN_AUTHR_AGRMT,
@@ -132,12 +144,12 @@ mod builder {
             let data = GetTxnAuthorAgreementData {
                 digest: None,
                 version: Some(VERSION.to_string()),
-                timestamp: None
+                timestamp: None,
             };
 
-            let request =
-                request_builder
-                    .build_get_txn_author_agreement_request(None, Some(&data)).unwrap();
+            let request = request_builder
+                .build_get_txn_author_agreement_request(None, Some(&data))
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::GET_TXN_AUTHR_AGRMT,
@@ -154,12 +166,12 @@ mod builder {
             let data = GetTxnAuthorAgreementData {
                 digest: None,
                 version: None,
-                timestamp: Some(timestamp)
+                timestamp: Some(timestamp),
             };
 
-            let request =
-                request_builder
-                    .build_get_txn_author_agreement_request(None, Some(&data)).unwrap();
+            let request = request_builder
+                .build_get_txn_author_agreement_request(None, Some(&data))
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::GET_TXN_AUTHR_AGRMT,

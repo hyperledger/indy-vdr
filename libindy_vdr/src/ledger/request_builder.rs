@@ -21,7 +21,7 @@ use super::requests::auth_rule::*;
 use super::requests::author_agreement::*;
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
-use super::requests::nym::{GetNymOperation, NymOperation, role_to_code};
+use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
@@ -38,9 +38,7 @@ use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
-use super::constants::{
-    txn_name_to_code, READ_REQUESTS,
-};
+use super::constants::{txn_name_to_code, READ_REQUESTS};
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
     const SEC_IN_DAY: u64 = 86400;
@@ -652,7 +650,7 @@ impl RequestBuilder {
         } else {
             req_id.unwrap() // FIXME validate?
         }
-            .to_string();
+        .to_string();
 
         let txn_type = req_json["operation"]["type"]
             .as_str()
@@ -689,7 +687,6 @@ impl RequestBuilder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -698,11 +695,17 @@ mod tests {
     const REQ_ID: u64 = 1585221529670242337;
     const TYPE: &'static str = constants::NYM;
 
-    fn _identifier() -> DidValue { DidValue(String::from("V4SGRU86Z58d6TV7PBUe6f")) }
+    fn _identifier() -> DidValue {
+        DidValue(String::from("V4SGRU86Z58d6TV7PBUe6f"))
+    }
 
-    fn _dest() -> DidValue { DidValue(String::from("VsKV7grR1BUE29mG2Fm2kX")) }
+    fn _dest() -> DidValue {
+        DidValue(String::from("VsKV7grR1BUE29mG2Fm2kX"))
+    }
 
-    fn _protocol_version() -> usize { ProtocolVersion::Node1_4.to_id() }
+    fn _protocol_version() -> usize {
+        ProtocolVersion::Node1_4.to_id()
+    }
 
     #[fixture]
     fn request() -> serde_json::Value {
@@ -756,25 +759,22 @@ mod tests {
             let _err = PreparedRequest::from_request_json("request").unwrap_err();
         }
 
-        #[rstest(field,
-        case("protocolVersion"),
-        case("reqId"),
-        case("operation")
-        )]
-        fn test_prepared_request_from_request_json_for_missed_field(field: &str, mut request: serde_json::Value) {
+        #[rstest(field, case("protocolVersion"), case("reqId"), case("operation"))]
+        fn test_prepared_request_from_request_json_for_missed_field(
+            field: &str,
+            mut request: serde_json::Value,
+        ) {
             request[field] = serde_json::Value::Null;
             let _err = PreparedRequest::from_request_json(&request.to_string()).unwrap_err();
         }
 
         #[rstest]
-        fn test_prepared_request_from_request_json_for_write_request(request_builder: RequestBuilder) {
-            let request =
-                request_builder
-                    .build_nym_request(&_identifier(),
-                                       &_dest(),
-                                       None,
-                                       None,
-                                       None).unwrap();
+        fn test_prepared_request_from_request_json_for_write_request(
+            request_builder: RequestBuilder,
+        ) {
+            let request = request_builder
+                .build_nym_request(&_identifier(), &_dest(), None, None, None)
+                .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
             assert_eq!(request.sp_key, None);
@@ -783,20 +783,29 @@ mod tests {
         }
 
         #[rstest]
-        fn test_prepared_request_from_request_json_for_get_request(request_builder: RequestBuilder) {
-            let request =
-                request_builder
-                    .build_get_nym_request(None,
-                                           &_dest()).unwrap();
+        fn test_prepared_request_from_request_json_for_get_request(
+            request_builder: RequestBuilder,
+        ) {
+            let request = request_builder
+                .build_get_nym_request(None, &_dest())
+                .unwrap();
 
             assert_eq!(request.txn_type, constants::GET_NYM);
-            assert_eq!(request.sp_key, Some(vec![227, 51, 254, 11, 192, 83, 219, 131, 59, 204, 0, 126, 41, 96, 118, 238, 152, 250, 160, 191, 198, 247, 4, 130, 44, 199, 140, 143, 18, 182, 93, 229]));
+            assert_eq!(
+                request.sp_key,
+                Some(vec![
+                    227, 51, 254, 11, 192, 83, 219, 131, 59, 204, 0, 126, 41, 96, 118, 238, 152,
+                    250, 160, 191, 198, 247, 4, 130, 44, 199, 140, 143, 18, 182, 93, 229
+                ])
+            );
             assert_eq!(request.sp_timestamps, (None, None));
             assert_eq!(request.is_read_request, true);
         }
 
         #[rstest]
-        fn test_prepared_request_from_request_json_for_get_request_with_single_timestamp(request_builder: RequestBuilder) {
+        fn test_prepared_request_from_request_json_for_get_request_with_single_timestamp(
+            request_builder: RequestBuilder,
+        ) {
             let timestamp = 123456789;
 
             let data = GetTxnAuthorAgreementData {
@@ -805,32 +814,43 @@ mod tests {
                 timestamp: Some(timestamp),
             };
 
-            let request =
-                request_builder
-                    .build_get_txn_author_agreement_request(None,
-                                                            Some(&data)).unwrap();
+            let request = request_builder
+                .build_get_txn_author_agreement_request(None, Some(&data))
+                .unwrap();
 
             assert_eq!(request.txn_type, constants::GET_TXN_AUTHR_AGRMT);
-            assert_eq!(request.sp_key, Some(vec![50, 58, 108, 97, 116, 101, 115, 116]));
+            assert_eq!(
+                request.sp_key,
+                Some(vec![50, 58, 108, 97, 116, 101, 115, 116])
+            );
             assert_eq!(request.sp_timestamps, (None, Some(123456789)));
             assert_eq!(request.is_read_request, true);
         }
 
         #[rstest]
-        fn test_prepared_request_from_request_json_for_get_request_with_two_timestamps(request_builder: RequestBuilder) {
+        fn test_prepared_request_from_request_json_for_get_request_with_two_timestamps(
+            request_builder: RequestBuilder,
+        ) {
             let rev_reg_id = RevocationRegistryId("NcYxiDXkpYi6ov5FcYDi1e:4:NcYxiDXkpYi6ov5FcYDi1e:3:CL:NcYxiDXkpYi6ov5FcYDi1e:2:gvt:1.0:tag:CL_ACCUM:TAG_1".to_string());
             let from = 123456789;
             let to = 987654321;
 
-            let request =
-                request_builder
-                    .build_get_revoc_reg_delta_request(None,
-                                                       &rev_reg_id,
-                                                       Some(from),
-                                                       to).unwrap();
+            let request = request_builder
+                .build_get_revoc_reg_delta_request(None, &rev_reg_id, Some(from), to)
+                .unwrap();
 
             assert_eq!(request.txn_type, constants::GET_REVOC_REG_DELTA);
-            assert_eq!(request.sp_key, Some(vec![54, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 52, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 51, 58, 67, 76, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 50, 58, 103, 118, 116, 58, 49, 46, 48, 58, 116, 97, 103, 58, 67, 76, 95, 65, 67, 67, 85, 77, 58, 84, 65, 71, 95, 49]));
+            assert_eq!(
+                request.sp_key,
+                Some(vec![
+                    54, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70,
+                    99, 89, 68, 105, 49, 101, 58, 52, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112,
+                    89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 51, 58, 67, 76,
+                    58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70, 99,
+                    89, 68, 105, 49, 101, 58, 50, 58, 103, 118, 116, 58, 49, 46, 48, 58, 116, 97,
+                    103, 58, 67, 76, 95, 65, 67, 67, 85, 77, 58, 84, 65, 71, 95, 49
+                ])
+            );
             assert_eq!(request.sp_timestamps, (Some(from as u64), Some(to as u64)));
             assert_eq!(request.is_read_request, true);
         }
@@ -853,7 +873,10 @@ mod tests {
     fn test_prepared_request_set_signature(mut prepared_request: PreparedRequest) {
         let signature = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
         prepared_request.set_signature(&signature).unwrap();
-        assert_eq!(json!(signature.to_base58()), prepared_request.req_json["signature"]);
+        assert_eq!(
+            json!(signature.to_base58()),
+            prepared_request.req_json["signature"]
+        );
     }
 
     #[rstest]
@@ -863,47 +886,46 @@ mod tests {
             taa_digest: "afsrw".to_string(),
             time: 123456789,
         };
-        prepared_request.set_txn_author_agreement_acceptance(&taa).unwrap();
+        prepared_request
+            .set_txn_author_agreement_acceptance(&taa)
+            .unwrap();
         assert_eq!(json!(taa), prepared_request.req_json["taaAcceptance"]);
     }
 
-    #[rstest(protocol_version,
-    case(ProtocolVersion::Node1_3),
-    case(ProtocolVersion::Node1_4),
+    #[rstest(
+        protocol_version,
+        case(ProtocolVersion::Node1_3),
+        case(ProtocolVersion::Node1_4)
     )]
     fn test_prepare_request_for_different_protocol_versions(protocol_version: ProtocolVersion) {
-        let request =
-            RequestBuilder::new(protocol_version.clone())
-                .build_get_nym_request(None,
-                                       &_dest()).unwrap();
+        let request = RequestBuilder::new(protocol_version.clone())
+            .build_get_nym_request(None, &_dest())
+            .unwrap();
 
         assert_eq!(request.protocol_version, protocol_version.clone());
-        assert_eq!(request.req_json["protocolVersion"], json!(protocol_version.to_id()));
+        assert_eq!(
+            request.req_json["protocolVersion"],
+            json!(protocol_version.to_id())
+        );
     }
 
     #[test]
     fn test_datetime_to_date() {
         assert_eq!(0, datetime_to_date_timestamp(0));
         assert_eq!(0, datetime_to_date_timestamp(20));
-        assert_eq!(
-            1562284800,
-            datetime_to_date_timestamp(1562367600)
-        );
-        assert_eq!(
-            1562284800,
-            datetime_to_date_timestamp(1562319963)
-        );
-        assert_eq!(
-            1562284800,
-            datetime_to_date_timestamp(1562284800)
-        );
+        assert_eq!(1562284800, datetime_to_date_timestamp(1562367600));
+        assert_eq!(1562284800, datetime_to_date_timestamp(1562319963));
+        assert_eq!(1562284800, datetime_to_date_timestamp(1562284800));
     }
 
     const TEXT: &str = "text";
     const VERSION: &str = "1.0";
 
     fn _hash() -> Vec<u8> {
-        vec![57, 43, 28, 219, 43, 14, 87, 200, 231, 138, 158, 55, 154, 250, 216, 45, 207, 31, 131, 184, 182, 90, 226, 96, 73, 111, 40, 238, 105, 118, 190, 43]
+        vec![
+            57, 43, 28, 219, 43, 14, 87, 200, 231, 138, 158, 55, 154, 250, 216, 45, 207, 31, 131,
+            184, 182, 90, 226, 96, 73, 111, 40, 238, 105, 118, 190, 43,
+        ]
     }
 
     #[test]

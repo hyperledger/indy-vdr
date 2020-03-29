@@ -3,15 +3,16 @@ mod utils;
 
 extern crate chrono;
 
+use chrono::prelude::*;
+
 inject_dependencies!();
 
 use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
-use chrono::prelude::*;
 
+use crate::utils::crypto::Identity;
 use crate::utils::fixtures::*;
 use crate::utils::pool::TestPool;
-use crate::utils::crypto::Identity;
 
 #[test]
 fn empty() {
@@ -32,11 +33,10 @@ mod builder {
         use crate::utils::helpers::check_request_operation;
 
         #[rstest]
-        fn test_build_pool_restart_request(request_builder: RequestBuilder,
-                                     trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_pool_restart(&trustee_did, "start", None).unwrap();
+        fn test_build_pool_restart_request(request_builder: RequestBuilder, trustee_did: DidValue) {
+            let request = request_builder
+                .build_pool_restart(&trustee_did, "start", None)
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_RESTART,
@@ -46,11 +46,13 @@ mod builder {
         }
 
         #[rstest]
-        fn test_build_pool_restart_request_for_cancel(request_builder: RequestBuilder,
-                                                trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_pool_restart(&trustee_did, "cancel", None).unwrap();
+        fn test_build_pool_restart_request_for_cancel(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_pool_restart(&trustee_did, "cancel", None)
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_RESTART,
@@ -60,11 +62,13 @@ mod builder {
         }
 
         #[rstest]
-        fn test_build_pool_restart_request_for_datetime(request_builder: RequestBuilder,
-                                                  trustee_did: DidValue) {
-            let request =
-                request_builder
-                    .build_pool_restart(&trustee_did, "start", Some(&_datetime())).unwrap();
+        fn test_build_pool_restart_request_for_datetime(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+        ) {
+            let request = request_builder
+                .build_pool_restart(&trustee_did, "start", Some(&_datetime()))
+                .unwrap();
 
             let expected_operation = json!({
                 "type": constants::POOL_RESTART,
@@ -84,16 +88,18 @@ mod send_pool_restart {
     #[rstest]
     fn test_pool_send_pool_restart_request(pool: TestPool, trustee: Identity) {
         // Start Pool Restart
-        let mut request =
-            pool.request_builder()
-                .build_pool_restart(&trustee.did, "start", Some(&_datetime())).unwrap();
+        let mut request = pool
+            .request_builder()
+            .build_pool_restart(&trustee.did, "start", Some(&_datetime()))
+            .unwrap();
 
         let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();
 
         // Cancel Pool Restart
-        let mut request =
-            pool.request_builder()
-                .build_pool_restart(&trustee.did, "cancel", None).unwrap();
+        let mut request = pool
+            .request_builder()
+            .build_pool_restart(&trustee.did, "cancel", None)
+            .unwrap();
 
         let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();
     }

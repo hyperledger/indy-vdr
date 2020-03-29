@@ -1,9 +1,9 @@
-//#![allow(dead_code, unused_macros)]
-pub mod pool;
-pub mod crypto;
+#![allow(dead_code, unused_macros)]
 pub mod constants;
-pub mod helpers;
+pub mod crypto;
 pub mod fixtures;
+pub mod helpers;
+pub mod pool;
 
 macro_rules! inject_dependencies {
     () => {
@@ -14,5 +14,5 @@ macro_rules! inject_dependencies {
         extern crate serde_json;
         #[macro_use]
         extern crate rstest;
-    }
+    };
 }
