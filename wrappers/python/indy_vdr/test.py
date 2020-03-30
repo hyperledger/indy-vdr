@@ -15,6 +15,8 @@ from .ledger import (
     build_get_revoc_reg_delta_request,
     build_get_schema_request,
     build_rich_schema_request,
+    build_get_schema_object_by_id_request,
+    build_get_schema_object_by_metadata_request,
     prepare_txn_author_agreement_acceptance,
     LedgerType,
 )
@@ -97,9 +99,14 @@ async def basic_test(transactions_path):
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
 
-    rs_str = '{"id": "did:sov:some_hash", "content": "{\"some\": 1}", "rsName": "test", "rsVersion": "version", "rsType": 42, "ver": 1}'
-    req = build_rich_schema_request(None, rs_str)
+    req = build_rich_schema_request(None, "did:sov:some_hash", "{\"some\": 1}", "test", "version", "sch", "1.0.0")
     log("Get rich schema request:", req.body)
+
+    req = build_get_schema_object_by_id_request(None, "did:sov:some_hash")
+    log("Get rich schema GET request by ID:", req.body)
+
+    req = build_get_schema_object_by_metadata_request(None, "sch", "test", "1.0.0")
+    log("Get rich schema GET request by Metadata:", req.body)
 
 
 if __name__ == "__main__":

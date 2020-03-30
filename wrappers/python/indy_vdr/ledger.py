@@ -674,14 +674,12 @@ def build_rich_schema_request(
     Builds a RICH_SCHEMA request to add it to the ledger.
 
     Args:
-        submitter_did: Identifier (DID) of the transaction author as base58-encoded
-            string
-        rich_schema: Credential schema:
-                "id": "<identifier of rich schema>",
-                "content": "<JSON-LD string object>",
-                "rsName": "<rich schema name>",
-                "rsVersion": "<rich schema version>",
-                "rsType": <type constant as string, one of `ctx`, `sch`, `map`, `enc`, `cdf`, `pdf`>,
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded string
+                "rs_id": "<identifier of rich schema>",
+                "rs_content": "<JSON-LD string object>",
+                "rs_name": "<rich schema name>",
+                "rs_version": "<rich schema version>",
+                "rs_type": <type constant as string, one of `ctx`, `sch`, `map`, `enc`, `cdf`, `pdf`>,
                 "ver": <version as string>
     """
     handle = RequestHandle()
