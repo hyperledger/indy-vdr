@@ -7,50 +7,58 @@ pub struct Config {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub init_refresh: bool,
+    pub interval_refresh: u32,
 }
 
 pub fn load_config() -> Result<Config, String> {
     let matches = App::new("indy-vdr-proxy")
         .version("0.1.0")
-        // .author("Andrew Whitehead")
-        .about("Proxy requests to a Hyperledger Indy ledger")
+        .about("Proxy requests to a Hyperledger Indy-Node ledger")
         .arg(
             Arg::with_name("genesis")
                 .short("g")
                 .long("genesis")
+                .takes_value(true)
                 .value_name("GENESIS")
                 .help("Path to the ledger genesis transactions")
-                .takes_value(true),
         )
         .arg(
             Arg::with_name("host")
                 .short("h")
                 .long("host")
+                .takes_value(true)
                 .value_name("HOST")
                 .default_value("0.0.0.0")
                 .help("Set the local address to listen on")
-                .takes_value(true),
         )
         .arg(
             Arg::with_name("port")
                 .short("p")
                 .long("port")
+                .takes_value(true)
                 .value_name("PORT")
                 .help("Sets the local port to listen on")
-                .takes_value(true),
         )
         .arg(
             Arg::with_name("socket")
                 .short("s")
                 .long("socket")
+                .takes_value(true)
                 .value_name("SOCKET")
                 .help("Sets the UNIX socket path listen on")
-                .takes_value(true),
         )
         .arg(
             Arg::with_name("no-refresh")
                 .long("no-refresh")
                 .help("Disable initial validator node refresh"),
+        )
+        .arg(
+            Arg::with_name("refresh-interval")
+                .short("r")
+                .long("refresh-interval")
+                .takes_value(true)
+                .value_name("INTERVAL")
+                .help("Set the interval in minutes between validator node refresh attempts (0 to disable refresh, default 120)"),
         )
         .get_matches();
 
@@ -77,6 +85,11 @@ pub fn load_config() -> Result<Config, String> {
         None
     };
     let init_refresh = !matches.is_present("no-refresh");
+    let interval_refresh = matches
+        .value_of("refresh-interval")
+        .map(|ival| ival.parse::<u32>().map_err(|_| "Invalid refresh interval"))
+        .transpose()?
+        .unwrap_or(120);
 
     Ok(Config {
         genesis,
@@ -84,5 +97,6 @@ pub fn load_config() -> Result<Config, String> {
         host,
         port,
         init_refresh,
+        interval_refresh,
     })
 }
