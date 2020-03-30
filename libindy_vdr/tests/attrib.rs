@@ -226,8 +226,8 @@ mod builder {
 #[cfg(feature = "local_nodes_pool")]
 mod send_attrib {
     use super::*;
-    use crate::utils::pool::TestPool;
     use crate::utils::crypto::Identity;
+    use crate::utils::pool::TestPool;
 
     #[rstest]
     fn test_pool_send_attrib_request_for_raw_value(pool: TestPool) {

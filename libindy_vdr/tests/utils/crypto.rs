@@ -38,13 +38,23 @@ impl Identity {
         }
     }
 
-    pub fn sign_request(&self, request: &mut PreparedRequest) {
+    fn _generate_signature(&self, request: &mut PreparedRequest) -> Vec<u8> {
         let signature_input = request.get_signature_input().unwrap();
-
         let ed25519 = Ed25519Sha512::new();
-        let signature = ed25519
+        ed25519
             .sign(signature_input.as_bytes(), &self.private_key)
-            .unwrap();
+            .unwrap()
+    }
+
+    pub fn sign_request(&self, request: &mut PreparedRequest) {
+        let signature = self._generate_signature(request);
         request.set_signature(signature.as_slice()).unwrap();
+    }
+
+    pub fn multi_sign_request(&self, request: &mut PreparedRequest) {
+        let signature = self._generate_signature(request);
+        request
+            .set_multi_signature(&self.did, signature.as_slice())
+            .unwrap();
     }
 }

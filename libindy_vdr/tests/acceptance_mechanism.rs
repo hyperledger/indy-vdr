@@ -144,3 +144,33 @@ mod builder {
         }
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "local_nodes_pool")]
+mod send_aml {
+    use super::*;
+    use crate::utils::crypto::Identity;
+    use crate::utils::helpers;
+    use crate::utils::pool::TestPool;
+
+    #[rstest]
+    fn test_pool_send_acceptance_mechanisms(pool: TestPool, trustee: Identity) {
+        // Set AML on the Ledger
+        let (response, aml, _aml_label, aml_version, aml_context) =
+            helpers::taa::set_aml(&pool, &trustee);
+
+        // Get AML set on the Ledger
+        let get_acceptance_mechanisms_request = pool
+            .request_builder()
+            .build_get_acceptance_mechanisms_request(None, None, None)
+            .unwrap();
+
+        let response = pool
+            .send_request_with_retries(&get_acceptance_mechanisms_request, &response)
+            .unwrap();
+
+        let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+        let expected_data = json!({"aml": aml, "version": aml_version, "amlContext": aml_context});
+        assert_eq!(response["result"]["data"], expected_data);
+    }
+}

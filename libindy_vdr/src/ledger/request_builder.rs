@@ -114,6 +114,40 @@ impl PreparedRequest {
         Ok(())
     }
 
+    pub fn set_multi_signature(
+        &mut self,
+        identifier: &DidValue,
+        signature: &[u8],
+    ) -> VdrResult<()> {
+        self.req_json.as_object_mut().map(|request| {
+            if !request.contains_key("signatures") {
+                request.insert(
+                    "signatures".to_string(),
+                    serde_json::Value::Object(serde_json::Map::new()),
+                );
+            }
+            request["signatures"]
+                .as_object_mut()
+                .unwrap()
+                .insert(identifier.0.to_owned(), json!(signature.to_base58()));
+
+            if let (Some(identifier), Some(signature)) = (
+                request
+                    .get("identifier")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+                request.remove("signature"),
+            ) {
+                request["signatures"]
+                    .as_object_mut()
+                    .unwrap()
+                    .insert(identifier, signature);
+            }
+        });
+
+        Ok(())
+    }
+
     pub fn set_txn_author_agreement_acceptance(
         &mut self,
         acceptance: &TxnAuthrAgrmtAcceptanceData,
@@ -391,7 +425,7 @@ impl RequestBuilder {
             _ => {
                 return Err(input_err(
                     "Either none or all transaction related parameters must be specified.",
-                ))
+                ));
             }
         };
         self.build(operation, submitter_did)
@@ -914,13 +948,107 @@ mod tests {
         assert_eq!(json!(endorser), prepared_request.req_json["endorser"]);
     }
 
+    fn _signature_1() -> Vec<u8> {
+        vec![1, 2, 3, 4, 5, 6, 7, 8, 9]
+    }
+
+    fn _signature_1_base58() -> String {
+        String::from("kA3B2yGe2z4")
+    }
+
+    fn _signature_2() -> Vec<u8> {
+        vec![9, 8, 7, 6, 5, 4, 3, 2, 1]
+    }
+
+    fn _signature_2_base58() -> String {
+        String::from("7fiZcYFQEKEG")
+    }
+
     #[rstest]
     fn test_prepared_request_set_signature(mut prepared_request: PreparedRequest) {
-        let signature = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-        prepared_request.set_signature(&signature).unwrap();
+        prepared_request.set_signature(&_signature_1()).unwrap();
         assert_eq!(
-            json!(signature.to_base58()),
+            json!(_signature_1_base58()),
             prepared_request.req_json["signature"]
+        );
+    }
+
+    #[rstest]
+    fn test_prepared_request_set_multi_signature(mut prepared_request: PreparedRequest) {
+        prepared_request
+            .set_multi_signature(&_identifier(), &_signature_1())
+            .unwrap();
+        prepared_request
+            .set_multi_signature(&_dest(), &_signature_2())
+            .unwrap();
+
+        assert_eq!(
+            prepared_request.req_json["signatures"]
+                .as_object()
+                .unwrap()
+                .len(),
+            2
+        );
+
+        assert_eq!(
+            json!(_signature_1_base58()),
+            prepared_request.req_json["signatures"][_identifier().0]
+        );
+
+        assert_eq!(
+            json!(_signature_2_base58()),
+            prepared_request.req_json["signatures"][_dest().0]
+        );
+    }
+
+    #[rstest]
+    fn test_prepared_request_set_multi_signature_for_replace_signature(
+        mut prepared_request: PreparedRequest,
+    ) {
+        prepared_request.set_signature(&_signature_1()).unwrap();
+        prepared_request
+            .set_multi_signature(&_dest(), &_signature_2())
+            .unwrap();
+
+        assert_eq!(
+            prepared_request.req_json["signatures"]
+                .as_object()
+                .unwrap()
+                .len(),
+            2
+        );
+
+        assert_eq!(
+            json!(_signature_1_base58()),
+            prepared_request.req_json["signatures"][_identifier().0]
+        );
+
+        assert_eq!(
+            json!(_signature_2_base58()),
+            prepared_request.req_json["signatures"][_dest().0]
+        );
+    }
+
+    #[rstest]
+    fn test_prepared_request_set_multi_signature_twice(mut prepared_request: PreparedRequest) {
+        prepared_request
+            .set_multi_signature(&_identifier(), &_signature_1())
+            .unwrap();
+        prepared_request
+            .set_multi_signature(&_identifier(), &_signature_1())
+            .unwrap();
+
+        assert_eq!(
+            prepared_request.req_json["signatures"]
+                .as_object()
+                .unwrap()
+                .len(),
+            1
+        );
+
+        assert_eq!(
+            json!(_signature_1_base58()),
+            prepared_request.req_json["signatures"][_identifier().0]
         );
     }
 

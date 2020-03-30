@@ -174,7 +174,7 @@ mod builder {
 
 #[cfg(test)]
 #[cfg(feature = "local_nodes_pool")]
-mod send_nym {
+mod send {
     use super::*;
     use crate::utils::pool::TestPool;
     use indy_vdr::ledger::constants::ROLE_REMOVE;
@@ -193,9 +193,7 @@ mod send_nym {
             )
             .unwrap();
 
-        trustee.sign_request(&mut nym_request);
-
-        let nym_response = pool.send_request(&nym_request).unwrap();
+        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM
         let get_nym_request = pool
@@ -233,9 +231,7 @@ mod send_nym {
             )
             .unwrap();
 
-        trustee.sign_request(&mut nym_request);
-
-        let nym_response = pool.send_request(&nym_request).unwrap();
+        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM
         let get_nym_request = pool
@@ -256,12 +252,12 @@ mod send_nym {
     }
 
     #[rstest(
-        role,
-        case("STEWARD"),
-        case("TRUSTEE"),
-        case("TRUST_ANCHOR"),
-        case("ENDORSER"),
-        case("NETWORK_MONITOR")
+    role,
+    case("STEWARD"),
+    case("TRUSTEE"),
+    case("TRUST_ANCHOR"),
+    case("ENDORSER"),
+    case("NETWORK_MONITOR")
     )]
     fn test_pool_send_nym_request_for_different_roles(
         pool: TestPool,
@@ -282,9 +278,7 @@ mod send_nym {
             )
             .unwrap();
 
-        trustee.sign_request(&mut nym_request);
-
-        let nym_response = pool.send_request(&nym_request).unwrap();
+        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM
         let get_nym_request = pool
@@ -322,9 +316,7 @@ mod send_nym {
             )
             .unwrap();
 
-        trustee.sign_request(&mut nym_request);
-
-        let nym_response = pool.send_request(&nym_request).unwrap();
+        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM to ensure role is TRUSTEE
         let get_nym_request = pool
@@ -355,9 +347,7 @@ mod send_nym {
             )
             .unwrap();
 
-        trustee.sign_request(&mut nym_request);
-
-        let nym_response = pool.send_request(&nym_request).unwrap();
+        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM to ensure role was reset
         let get_nym_request = pool
@@ -411,6 +401,21 @@ mod send_nym {
 
         let err = pool.send_request(&nym_request).unwrap_err();
         helpers::check_response_type(&err, "REQNACK");
+    }
+
+    #[rstest]
+    fn test_pool_send_nym_request_for_wrong_signer_role(pool: TestPool) {
+        let identity = helpers::new_ledger_identity(&pool, None);
+        let new_identity = Identity::new(None);
+
+        // Send NYM
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(&identity.did, &new_identity.did, Some(new_identity.verkey), None, None)
+            .unwrap();
+
+        let err = helpers::sign_and_send_request(&identity, &pool, &mut nym_request).unwrap_err();
+        helpers::check_response_type(&err, "REJECT");
     }
 
     #[rstest]

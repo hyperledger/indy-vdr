@@ -82,9 +82,9 @@ mod builder {
 #[cfg(feature = "local_nodes_pool")]
 mod send_pool_restart {
     use super::*;
+    use crate::utils::crypto::Identity;
     use crate::utils::helpers;
     use crate::utils::pool::TestPool;
-    use crate::utils::crypto::Identity;
 
     #[rstest]
     fn test_pool_send_pool_restart_request(pool: TestPool, trustee: Identity) {

@@ -521,3 +521,69 @@ mod builder {
         }
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "local_nodes_pool")]
+mod send_get_auth_rules {
+    use super::*;
+    use crate::utils::helpers;
+    use crate::utils::pool::TestPool;
+
+    #[rstest]
+    fn test_get_auth_rule_request_for_single(pool: TestPool) {
+        // Get single Auth Rule set on the ledger
+        let request = pool
+            .request_builder()
+            .build_get_auth_rule_request(
+                None,
+                Some(TXN_TYPE.to_string()),
+                Some(ADD_ACTION.to_string()),
+                Some(FIELD.to_string()),
+                None,
+                Some(VALUE.to_string()),
+            )
+            .unwrap();
+
+        let get_auth_rules_response = pool.send_request(&request).unwrap();
+
+        let data = helpers::get_response_data(&get_auth_rules_response).unwrap();
+
+        let auth_rules = data.as_array().unwrap();
+        assert_eq!(auth_rules.len(), 1);
+    }
+
+    #[rstest]
+    fn test_get_auth_rule_request_for_getting_all(pool: TestPool) {
+        // Get All Auth Rules set on the ledger
+        let request = pool
+            .request_builder()
+            .build_get_auth_rule_request(None, None, None, None, None, None)
+            .unwrap();
+
+        let get_auth_rules_response = pool.send_request(&request).unwrap();
+
+        let data = helpers::get_response_data(&get_auth_rules_response).unwrap();
+
+        let constraints = data.as_array().unwrap();
+        assert!(constraints.len() > 1);
+    }
+
+    #[rstest]
+    fn test_get_auth_rule_request_for_no_rule(pool: TestPool) {
+        // Get All Auth Rules set on the ledger
+        let request = pool
+            .request_builder()
+            .build_get_auth_rule_request(
+                None,
+                Some(constants::NYM.to_string()),
+                Some(ADD_ACTION.to_string()),
+                Some("wrong_filed".to_string()),
+                None,
+                Some("wrong_new_value".to_string()),
+            )
+            .unwrap();
+
+        let err = pool.send_request(&request).unwrap_err();
+        helpers::check_response_type(&err, "REQNACK");
+    }
+}

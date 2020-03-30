@@ -177,8 +177,8 @@ mod builder {
 mod send_revoc_reg {
     use super::*;
 
-    use crate::utils::pool::TestPool;
     use crate::helpers::revoc_reg::*;
+    use crate::utils::pool::TestPool;
 
     #[rstest]
     fn test_pool_send_revoc_reg_def_def_requests(pool: TestPool) {
@@ -234,7 +234,7 @@ mod send_revoc_reg {
             helpers::sign_and_send_request(&identity, &pool, &mut revoc_reg_delta_request).unwrap();
 
         // Send Get Revocation Registry
-        let timestamp: i64 = chrono::Local::now().timestamp() as i64 + 1000;
+        let timestamp: i64 = helpers::current_timestamp() as i64 + 1000;
 
         let get_revoc_reg = pool
             .request_builder()

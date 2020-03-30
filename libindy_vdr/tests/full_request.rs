@@ -11,10 +11,10 @@ fn empty() {
 #[cfg(test)]
 #[cfg(feature = "local_nodes_pool")]
 mod send_full_request {
+    use crate::utils::crypto::Identity;
     use crate::utils::fixtures::*;
     use crate::utils::helpers;
     use crate::utils::pool::TestPool;
-    use crate::utils::crypto::Identity;
 
     #[rstest]
     fn test_pool_send_full_request_works(pool: TestPool, trustee: Identity) {
@@ -35,7 +35,7 @@ mod send_full_request {
             Some(vec![String::from("Node1"), String::from("Node2")]),
             None,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(replies.len(), 2);
         assert!(replies.contains_key("Node1"));
@@ -44,7 +44,8 @@ mod send_full_request {
 
     #[rstest]
     fn test_pool_send_full_request_works_for_timeout(pool: TestPool, trustee: Identity) {
-        let replies = helpers::sign_and_send_full_request(&pool, &trustee, None, Some(100)).unwrap();
+        let replies =
+            helpers::sign_and_send_full_request(&pool, &trustee, None, Some(100)).unwrap();
 
         assert_eq!(replies.len(), pool.transactions().len());
         assert!(replies.contains_key("Node1"));
@@ -55,8 +56,12 @@ mod send_full_request {
 
     #[rstest]
     fn test_pool_send_full_request_works_for_unknown_node(pool: TestPool, trustee: Identity) {
-        let _err =
-            helpers::sign_and_send_full_request(&pool, &trustee, Some(vec![String::from("UNKNOWN")]), None)
-                .unwrap_err();
+        let _err = helpers::sign_and_send_full_request(
+            &pool,
+            &trustee,
+            Some(vec![String::from("UNKNOWN")]),
+            None,
+        )
+        .unwrap_err();
     }
 }

@@ -6,6 +6,10 @@ use crate::utils::pool::TestPool;
 use indy_vdr::common::error::VdrResult;
 use indy_vdr::pool::handlers::NodeReplies;
 
+pub fn current_timestamp() -> u64 {
+    chrono::Local::now().timestamp() as u64
+}
+
 pub fn check_request_operation(request: &PreparedRequest, expected_operation: serde_json::Value) {
     assert_eq!(request.req_json["operation"], expected_operation);
 }
@@ -42,9 +46,7 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
         )
         .unwrap();
 
-    trustee.sign_request(&mut nym_request);
-
-    pool.send_request(&nym_request).unwrap();
+    sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
     new_identity
 }
@@ -291,5 +293,137 @@ pub mod revoc_reg {
             sign_and_send_request(&identity, &pool, &mut revoc_reg_def_request).unwrap();
 
         revoc_reg_def_id
+    }
+}
+
+pub mod taa {
+    use super::*;
+    use indy_vdr::ledger::requests::author_agreement::{
+        AcceptanceMechanisms, GetTxnAuthorAgreementData,
+    };
+    use rand::distributions::Alphanumeric;
+    use rand::Rng;
+
+    fn _rand_string() -> String {
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(30)
+            .collect()
+    }
+
+    fn _rand_version() -> String {
+        let version: u32 = rand::thread_rng().gen();
+        version.to_string()
+    }
+
+    pub fn gen_aml_data() -> (AcceptanceMechanisms, String, String, String) {
+        let aml_label = _rand_string();
+
+        let mut aml: AcceptanceMechanisms = AcceptanceMechanisms::new();
+        aml.0.insert(aml_label.clone(), json!(_rand_string()));
+
+        let version: String = _rand_version();
+        let aml_context: String = _rand_string();
+        (aml, aml_label, version, aml_context)
+    }
+
+    pub fn gen_taa_data() -> (String, String, u64) {
+        let text: String = _rand_string();
+        let version: String = _rand_version();
+        let ratification_ts = current_timestamp();
+        (text, version, ratification_ts)
+    }
+
+    fn send_taa(
+        pool: &TestPool,
+        trustee: &Identity,
+        taa_text: &str,
+        taa_version: &str,
+        ratification_ts: u64,
+    ) -> String {
+        let mut request = pool
+            .request_builder()
+            .build_txn_author_agreement_request(
+                &trustee.did,
+                Some(taa_text.to_string()),
+                taa_version.to_string(),
+                Some(ratification_ts),
+                None,
+            )
+            .unwrap();
+
+        sign_and_send_request(&trustee, &pool, &mut request).unwrap()
+    }
+
+    pub fn set_taa(pool: &TestPool, trustee: &Identity) -> (String, String, String, u64) {
+        let (taa_text, taa_version, ratification_ts) = gen_taa_data();
+        let response = send_taa(pool, trustee, &taa_text, &taa_version, ratification_ts);
+        (response, taa_text, taa_version, ratification_ts)
+    }
+
+    pub fn disable_taa(pool: &TestPool, trustee: &Identity) {
+        let mut request = pool
+            .request_builder()
+            .build_disable_all_txn_author_agreements_request(&trustee.did)
+            .unwrap();
+        let _response = sign_and_send_request(&trustee, &pool, &mut request).unwrap();
+    }
+
+    pub fn set_aml(
+        pool: &TestPool,
+        trustee: &Identity,
+    ) -> (String, AcceptanceMechanisms, String, String, String) {
+        let (aml, aml_label, aml_version, aml_context) = gen_aml_data();
+
+        let mut request = pool
+            .request_builder()
+            .build_acceptance_mechanisms_request(
+                &trustee.did,
+                aml.clone(),
+                aml_version.to_string(),
+                Some(aml_context.clone()),
+            )
+            .unwrap();
+        let response = sign_and_send_request(&trustee, &pool, &mut request).unwrap();
+
+        (response, aml, aml_label, aml_version, aml_context)
+    }
+
+    pub fn get_taa(pool: &TestPool, txn_author_agreement_response: &str, version: &str) -> String {
+        let data = GetTxnAuthorAgreementData {
+            digest: None,
+            version: Some(version.to_string()),
+            timestamp: None,
+        };
+
+        let request = pool
+            .request_builder()
+            .build_get_txn_author_agreement_request(None, Some(&data))
+            .unwrap();
+
+        pool.send_request_with_retries(&request, txn_author_agreement_response)
+            .unwrap()
+    }
+
+    pub fn check_taa(
+        pool: &TestPool,
+        txn_author_agreement_response: &str,
+        version: &str,
+        expected_data: serde_json::Value,
+    ) {
+        let get_txn_author_agreement_response =
+            get_taa(pool, txn_author_agreement_response, version);
+
+        let response: serde_json::Value =
+            serde_json::from_str(&get_txn_author_agreement_response).unwrap();
+        assert_eq!(response["result"]["data"]["text"], expected_data["text"]);
+        assert_eq!(
+            response["result"]["data"]["version"],
+            expected_data["version"]
+        );
+        assert_eq!(
+            response["result"]["data"]["ratification_ts"],
+            expected_data["ratification_ts"]
+        );
     }
 }

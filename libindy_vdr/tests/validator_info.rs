@@ -41,8 +41,8 @@ mod builder {
 #[cfg(feature = "local_nodes_pool")]
 mod send_get_validator_info {
     use super::*;
-    use crate::utils::pool::TestPool;
     use crate::utils::crypto::Identity;
+    use crate::utils::pool::TestPool;
 
     #[rstest]
     fn test_pool_get_validator_info_request(pool: TestPool, trustee: Identity) {
@@ -69,6 +69,5 @@ mod send_get_validator_info {
         trustee.sign_request(&mut request);
 
         let _err = pool.send_request(&request).unwrap_err();
-        println!("{}", _err);
     }
 }

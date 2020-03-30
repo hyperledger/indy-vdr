@@ -45,8 +45,8 @@ mod builder {
 #[cfg(feature = "local_nodes_pool")]
 mod get_txn {
     use super::*;
-    use crate::utils::helpers;
     use crate::utils::crypto::Identity;
+    use crate::utils::helpers;
     use crate::utils::pool::TestPool;
 
     #[rstest]
@@ -84,5 +84,17 @@ mod get_txn {
             nym_response["result"]["txn"],
             helpers::get_response_data(&response).unwrap()["txn"]
         )
+    }
+
+    #[rstest]
+    fn test_pool_get_txn_for_unknown_transaction(pool: TestPool) {
+        // Get txn by invalid seq_no
+        let get_txn_request = pool
+            .request_builder()
+            .build_get_txn_request(None, LEDGER_ID, i32::max_value())
+            .unwrap();
+
+        let response = pool.send_request(&get_txn_request).unwrap();
+        helpers::get_response_data(&response).unwrap_err();
     }
 }
