@@ -7,7 +7,15 @@ use crate::ledger::constants::{
 use crate::ledger::identifiers::rich_schema::RichSchemaId;
 use crate::utils::validation::{Validatable, ValidationError};
 
-pub const MAX_ATTRIBUTES_COUNT: usize = 125;
+#[macro_export]
+macro_rules! build_rs_operation {
+    ($self:ident, $operation:ident, $identifier:expr, $rich_schema:expr) => ({
+         $self.build(
+            $operation(RichSchemaBaseOperation::new($rich_schema, $operation::get_txn_type().to_string())),
+            Some($identifier)
+        )
+    });
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RSContent(pub String);
@@ -64,30 +72,34 @@ impl Validatable for RichSchema {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RichSchemaOperation {
+pub struct RichSchemaBaseOperation {
     #[serde(rename = "type")]
     pub _type: String,
     pub id: RichSchemaId,
     pub content: RSContent,
     pub rs_name: String,
     pub rs_version: String,
-    pub rs_type: String,
+    pub rs_type: RSType,
     pub ver: String,
 }
 
-impl RichSchemaOperation {
-    pub fn new(rs_schema: RichSchema) -> RichSchemaOperation {
-        RichSchemaOperation {
-            _type: Self::get_txn_type().to_string(),
+impl RichSchemaBaseOperation {
+    pub fn new(rs_schema: RichSchema, txn_type: String) -> RichSchemaBaseOperation {
+        RichSchemaBaseOperation {
+            _type: txn_type,
             id: rs_schema.id,
             content: rs_schema.content,
             rs_name: rs_schema.rs_name,
             rs_version: rs_schema.rs_version,
-            rs_type: rs_schema.rs_type,
+            rs_type: serde_json::from_value(serde_json::value::Value::String(rs_schema.rs_type)).unwrap(),
             ver: rs_schema.ver,
         }
     }
 }
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RichSchemaOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RichSchemaOperation {
     fn get_txn_type<'a>() -> &'a str {
@@ -97,7 +109,7 @@ impl RequestType for RichSchemaOperation {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RSEncodingOperation(pub RichSchemaOperation);
+pub struct RSEncodingOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSEncodingOperation {
     fn get_txn_type<'a>() -> &'a str {
@@ -107,7 +119,7 @@ impl RequestType for RSEncodingOperation {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RSMappingOperation(pub RichSchemaOperation);
+pub struct RSMappingOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSMappingOperation {
     fn get_txn_type<'a>() -> &'a str {
@@ -117,7 +129,7 @@ impl RequestType for RSMappingOperation {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RSContextOperation(pub RichSchemaOperation);
+pub struct RSContextOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSContextOperation {
     fn get_txn_type<'a>() -> &'a str {
@@ -127,7 +139,7 @@ impl RequestType for RSContextOperation {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RSCredDefOperation(pub RichSchemaOperation);
+pub struct RSCredDefOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSCredDefOperation {
     fn get_txn_type<'a>() -> &'a str {
@@ -137,7 +149,7 @@ impl RequestType for RSCredDefOperation {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RSPresDefOperation(pub RichSchemaOperation);
+pub struct RSPresDefOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSPresDefOperation {
     fn get_txn_type<'a>() -> &'a str {

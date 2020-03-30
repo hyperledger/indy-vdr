@@ -40,11 +40,12 @@ use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
 use super::constants::{txn_name_to_code, READ_REQUESTS};
-use crate::ledger::requests::rich_schema::{
+
+use super::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
     GetRichSchemaByMetadataOperation, RSContent, RSContextOperation, RSCredDefOperation,
     RSEncodingOperation, RSMappingOperation, RSPresDefOperation, RSType, RichSchema,
-    RichSchemaOperation,
+    RichSchemaOperation, RichSchemaBaseOperation
 };
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
@@ -703,30 +704,14 @@ impl RequestBuilder {
         ver: String,
     ) -> VdrResult<PreparedRequest> {
         let rich_schema = RichSchema::new(id, content, rs_name, rs_version, rs_type.clone(), ver);
-        // let rs_op_type: &RichSchemaOperation = RS_TYPE_TO_OP_STRUCT.get(rs_type.as_str())?;
-        let mut general_op = RichSchemaOperation::new(rich_schema);
-        match serde_json::from_value(serde_json::value::Value::String(rs_type))? {
-            RSType::Sch => self.build(general_op, Some(identifier)),
-            RSType::Map => {
-                general_op._type = RSMappingOperation::get_txn_type().to_string();
-                self.build(RSMappingOperation(general_op), Some(identifier))
-            }
-            RSType::Enc => {
-                general_op._type = RSEncodingOperation::get_txn_type().to_string();
-                self.build(RSEncodingOperation(general_op), Some(identifier))
-            }
-            RSType::Ctx => {
-                general_op._type = RSContextOperation::get_txn_type().to_string();
-                self.build(RSContextOperation(general_op), Some(identifier))
-            }
-            RSType::Cdf => {
-                general_op._type = RSCredDefOperation::get_txn_type().to_string();
-                self.build(RSCredDefOperation(general_op), Some(identifier))
-            }
-            RSType::Pdf => {
-                general_op._type = RSPresDefOperation::get_txn_type().to_string();
-                self.build(RSPresDefOperation(general_op), Some(identifier))
-            }
+        let rs_type: RSType = serde_json::from_value(serde_json::value::Value::String(rs_type))?;
+        match &rs_type {
+            RSType::Sch => build_rs_operation!(self, RichSchemaOperation, identifier, rich_schema),
+            RSType::Map => build_rs_operation!(self, RSMappingOperation, identifier, rich_schema),
+            RSType::Enc => build_rs_operation!(self, RSEncodingOperation, identifier, rich_schema),
+            RSType::Ctx => build_rs_operation!(self, RSContextOperation, identifier, rich_schema),
+            RSType::Cdf => build_rs_operation!(self, RSCredDefOperation, identifier, rich_schema),
+            RSType::Pdf => build_rs_operation!(self, RSPresDefOperation, identifier, rich_schema),
         }
     }
     pub fn build_get_rich_schema_by_id(
