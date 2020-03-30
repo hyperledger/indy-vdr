@@ -45,7 +45,7 @@ use super::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
     GetRichSchemaByMetadataOperation, RSContent, RSContextOperation, RSCredDefOperation,
     RSEncodingOperation, RSMappingOperation, RSPresDefOperation, RSType, RichSchema,
-    RichSchemaOperation, RichSchemaBaseOperation
+    RichSchemaBaseOperation, RichSchemaOperation,
 };
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {

@@ -9,12 +9,15 @@ use crate::utils::validation::{Validatable, ValidationError};
 
 #[macro_export]
 macro_rules! build_rs_operation {
-    ($self:ident, $operation:ident, $identifier:expr, $rich_schema:expr) => ({
-         $self.build(
-            $operation(RichSchemaBaseOperation::new($rich_schema, $operation::get_txn_type().to_string())),
-            Some($identifier)
+    ($self:ident, $operation:ident, $identifier:expr, $rich_schema:expr) => {{
+        $self.build(
+            $operation(RichSchemaBaseOperation::new(
+                $rich_schema,
+                $operation::get_txn_type().to_string(),
+            )),
+            Some($identifier),
         )
-    });
+    }};
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -91,7 +94,8 @@ impl RichSchemaBaseOperation {
             content: rs_schema.content,
             rs_name: rs_schema.rs_name,
             rs_version: rs_schema.rs_version,
-            rs_type: serde_json::from_value(serde_json::value::Value::String(rs_schema.rs_type)).unwrap(),
+            rs_type: serde_json::from_value(serde_json::value::Value::String(rs_schema.rs_type))
+                .unwrap(),
             ver: rs_schema.ver,
         }
     }
