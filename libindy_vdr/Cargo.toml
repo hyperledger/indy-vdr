@@ -19,6 +19,7 @@ logger = ["env_logger", "log"]
 zmq_dynamic = ["zmq"]
 zmq_vendored = ["zmq/vendored"]
 default = ["ffi", "log", "zmq_vendored"]
+local_nodes_pool = []
 
 [dependencies]
 base64 = "0.10.1"

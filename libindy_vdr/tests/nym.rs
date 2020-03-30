@@ -10,7 +10,6 @@ use indy_vdr::ledger::requests::nym::role_to_code;
 use crate::utils::crypto::Identity;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
-use crate::utils::pool::TestPool;
 
 const ALIAS: &str = "alias";
 const ROLE: &str = "TRUSTEE";
@@ -174,8 +173,10 @@ mod builder {
 }
 
 #[cfg(test)]
+#[cfg(feature = "local_nodes_pool")]
 mod send_nym {
     use super::*;
+    use crate::utils::pool::TestPool;
     use indy_vdr::ledger::constants::ROLE_REMOVE;
 
     #[rstest]

@@ -3,6 +3,8 @@ use indy_vdr::ledger::PreparedRequest;
 
 use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
+use indy_vdr::common::error::VdrResult;
+use indy_vdr::pool::handlers::NodeReplies;
 
 pub fn check_request_operation(request: &PreparedRequest, expected_operation: serde_json::Value) {
     assert_eq!(request.req_json["operation"], expected_operation);
@@ -54,6 +56,22 @@ pub fn sign_and_send_request(
 ) -> Result<String, String> {
     identity.sign_request(&mut request);
     pool.send_request(&request)
+}
+
+pub fn sign_and_send_full_request(
+    pool: &TestPool,
+    trustee: &Identity,
+    node_aliases: Option<Vec<String>>,
+    timeout: Option<i64>,
+) -> VdrResult<NodeReplies<String>> {
+    let mut request = pool
+        .request_builder()
+        .build_get_validator_info_request(&trustee.did)
+        .unwrap();
+
+    trustee.sign_request(&mut request);
+
+    pool.send_full_request(&request, node_aliases, timeout)
 }
 
 pub mod schema {

@@ -11,7 +11,6 @@ use indy_vdr::ledger::requests::rev_reg_def::RevocationRegistryDefinition;
 
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
-use crate::utils::pool::TestPool;
 
 #[test]
 fn empty() {
@@ -174,8 +173,11 @@ mod builder {
 }
 
 #[cfg(test)]
+#[cfg(feature = "local_nodes_pool")]
 mod send_revoc_reg {
     use super::*;
+
+    use crate::utils::pool::TestPool;
     use crate::helpers::revoc_reg::*;
 
     #[rstest]

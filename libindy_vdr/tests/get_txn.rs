@@ -5,9 +5,7 @@ inject_dependencies!();
 
 use indy_vdr::ledger::constants;
 
-use crate::utils::crypto::Identity;
 use crate::utils::fixtures::*;
-use crate::utils::pool::TestPool;
 
 #[test]
 fn empty() {
@@ -44,9 +42,12 @@ mod builder {
 }
 
 #[cfg(test)]
+#[cfg(feature = "local_nodes_pool")]
 mod get_txn {
     use super::*;
     use crate::utils::helpers;
+    use crate::utils::crypto::Identity;
+    use crate::utils::pool::TestPool;
 
     #[rstest]
     fn test_pool_get_txn(pool: TestPool, trustee: Identity, identity: Identity) {

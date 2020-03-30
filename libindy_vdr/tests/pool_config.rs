@@ -6,9 +6,7 @@ inject_dependencies!();
 use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
 
-use crate::utils::crypto::Identity;
 use crate::utils::fixtures::*;
-use crate::utils::pool::TestPool;
 
 #[test]
 fn empty() {
@@ -41,9 +39,12 @@ mod builder {
 }
 
 #[cfg(test)]
+#[cfg(feature = "local_nodes_pool")]
 mod send_pool_config {
     use super::*;
     use crate::utils::helpers;
+    use crate::utils::pool::TestPool;
+    use crate::utils::crypto::Identity;
 
     #[rstest]
     fn test_pool_send_pool_config_request(pool: TestPool, trustee: Identity) {

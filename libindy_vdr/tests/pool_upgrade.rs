@@ -11,10 +11,8 @@ use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
 use indy_vdr::ledger::requests::pool::Schedule;
 
-use crate::utils::crypto::Identity;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
-use crate::utils::pool::TestPool;
 
 fn _empty_schedule() -> Schedule {
     Schedule::new()
@@ -171,8 +169,11 @@ mod builder {
 }
 
 #[cfg(test)]
+#[cfg(feature = "local_nodes_pool")]
 mod send_pool_upgrade {
     use super::*;
+    use crate::utils::crypto::Identity;
+    use crate::utils::pool::TestPool;
 
     #[rstest]
     fn test_pool_send_pool_upgrade_request(pool: TestPool, trustee: Identity) {
