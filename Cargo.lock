@@ -643,7 +643,6 @@ name = "indy-vdr"
 version = "0.1.0"
 dependencies = [
  "base64",
- "bs58",
  "chrono",
  "env_logger",
  "etcommon-rlp",
@@ -662,6 +661,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "ursa",
+ "vdr-shared",
  "zmq",
 ]
 
@@ -1570,6 +1570,20 @@ name = "vcpkg"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fc439f2794e98976c88a2a2dafce96b930fe8010b0a256b3c2199a773933168"
+
+[[package]]
+name = "vdr-shared"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "bs58",
+ "hex",
+ "lazy_static",
+ "regex",
+ "serde_json",
+ "tempfile",
+ "ursa",
+]
 
 [[package]]
 name = "vec_map"

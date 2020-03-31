@@ -14,7 +14,7 @@ use zmq::Socket as ZSocket;
 
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
-use crate::utils::base58::ToBase58;
+use crate::utils::base58;
 
 use super::types::{Message, Verifiers};
 use super::{Networker, NetworkerEvent, NetworkerFactory, RequestExtEvent, RequestHandle};
@@ -736,7 +736,7 @@ impl RemoteNode {
 
 impl std::fmt::Debug for RemoteNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let pubkey = self.enc_key.to_base58();
+        let pubkey = base58::encode(&self.enc_key);
         write!(
             f,
             "RemoteNode {{ name: {}, public_key: {}, zaddr: {}, is_blacklisted: {:?} }}",

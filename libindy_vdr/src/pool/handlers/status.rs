@@ -2,7 +2,7 @@ use futures::stream::StreamExt;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58::{FromBase58, ToBase58};
+use crate::utils::base58;
 
 use super::types::Message;
 use super::{
@@ -129,7 +129,7 @@ fn try_to_catch_up(
 ) -> VdrResult<CatchupProgress> {
     let &(ref target_mt_root, target_mt_size, ref hashes) = ledger_status;
     let cur_mt_size = merkle_tree.count();
-    let cur_mt_hash = merkle_tree.root_hash().to_base58();
+    let cur_mt_hash = base58::encode(merkle_tree.root_hash());
 
     if target_mt_size == cur_mt_size {
         if cur_mt_hash.eq(target_mt_root) {
@@ -140,8 +140,7 @@ fn try_to_catch_up(
             ))
         }
     } else if target_mt_size > cur_mt_size {
-        let target_mt_root = target_mt_root
-            .from_base58()
+        let target_mt_root = base58::decode(target_mt_root)
             .with_input_err("Can't parse target MerkleTree hash from nodes responses")?;
 
         match *hashes {

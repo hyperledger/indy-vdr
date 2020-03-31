@@ -15,7 +15,7 @@ use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
 use crate::ledger::PreparedRequest;
-use crate::utils::base58::ToBase58;
+use crate::utils::base58;
 
 /// The `PoolRunner` instance creates a separate thread for handling pool events,
 /// allowing the use of callbacks instead of async functions for interacting
@@ -176,7 +176,7 @@ impl PoolThread {
                         Some(PoolEvent::GetStatus(callback)) => {
                             let tree = self.pool.get_merkle_tree();
                             let status = PoolRunnerStatus {
-                                mt_root: tree.root_hash().to_base58(),
+                                mt_root: base58::encode(tree.root_hash()),
                                 mt_size: tree.count(),
                                 nodes: self.pool.get_node_aliases(),
                             };

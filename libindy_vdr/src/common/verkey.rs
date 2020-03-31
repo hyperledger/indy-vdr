@@ -1,4 +1,4 @@
-use crate::utils::base58::{FromBase58, ToBase58};
+use crate::utils::base58;
 use crate::utils::crypto::DEFAULT_CRYPTO_TYPE;
 use crate::utils::validation::ValidationError;
 
@@ -58,10 +58,10 @@ impl VerKey {
         if key.starts_with('~') {
             let dest =
                 unwrap_opt_or_return!(dest, Err(invalid!("Destination required for short verkey")));
-            let mut result = dest.from_base58()?;
-            let mut end = key[1..].from_base58()?;
+            let mut result = base58::decode(dest)?;
+            let mut end = base58::decode(&key[1..])?;
             result.append(&mut end);
-            Ok(VerKey::new(result.to_base58().as_str(), alg, enc))
+            Ok(VerKey::new(&base58::encode(result), alg, enc))
         } else {
             Ok(VerKey::new(key, alg, enc))
         }
@@ -76,7 +76,7 @@ impl VerKey {
 
     pub fn key_bytes(&self) -> Result<Vec<u8>, ValidationError> {
         match self.enc.as_str() {
-            VERKEY_ENC_BASE58 => Ok(self.key.from_base58()?),
+            VERKEY_ENC_BASE58 => Ok(base58::decode(&self.key)?),
             _ => Err(invalid!("Unsupported verkey format")),
         }
     }

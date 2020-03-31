@@ -1,52 +1,13 @@
 #![allow(dead_code)]
 
-use crate::utils::environment;
+use super::environment;
+use std::io::Write;
 use std::path::PathBuf;
-use std::{env, fs};
-
-use rand::distributions::Alphanumeric;
-use rand::Rng;
-
-macro_rules! assert_match {
-    ($pattern:pat, $var:expr) => {
-        assert!(match $var {
-            $pattern => true,
-            _ => false,
-        })
-    };
-    ($pattern:pat, $var:expr, $val_in_pattern:ident, $exp_value:expr) => {
-        assert!(match $var {
-            $pattern => $val_in_pattern == $exp_value,
-            _ => false,
-        })
-    };
-    ($pattern:pat, $var:expr, $val_in_pattern1:ident, $exp_value1:expr, $val_in_pattern2:ident, $exp_value2:expr) => {
-        assert!(match $var {
-            $pattern => $val_in_pattern1 == $exp_value1 && $val_in_pattern2 == $exp_value2,
-            _ => false,
-        })
-    };
-}
-
-macro_rules! assert_kind {
-    ($kind:expr, $var:expr) => {
-        match $var {
-            Err(e) => assert_eq!($kind, e.kind()),
-            _ => assert!(false, "Result expected to be error"),
-        }
-    };
-}
-
-pub fn get_rand_string(len: usize) -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(len)
-        .collect()
-}
+use tempfile::NamedTempFile;
 
 pub struct GenesisTransactions {
     pub transactions: Vec<String>,
-    pub file: Option<TempFile>,
+    pub file: Option<NamedTempFile>,
 }
 
 impl GenesisTransactions {
@@ -82,36 +43,23 @@ impl GenesisTransactions {
         }
     }
 
+    pub fn from_transactions<T>(transactions: T) -> GenesisTransactions
+    where
+        T: IntoIterator,
+        T::Item: ToString,
+    {
+        GenesisTransactions {
+            transactions: transactions.into_iter().map(|v| v.to_string()).collect(),
+            file: None,
+        }
+    }
+
     pub fn store_to_file(&mut self) -> PathBuf {
         let data = self.transactions.join("\n");
-        let file = TempFile::create(&data);
-        let path = file.path.clone();
+        let mut file = NamedTempFile::new().unwrap();
+        let path = file.path().to_owned();
+        file.as_file_mut().write_all(data.as_bytes()).unwrap();
         self.file = Some(file);
         path
-    }
-}
-
-impl Drop for GenesisTransactions {
-    fn drop(&mut self) {}
-}
-
-pub struct TempFile {
-    pub path: PathBuf,
-}
-
-impl TempFile {
-    pub fn create(data: &str) -> TempFile {
-        let mut path = env::temp_dir();
-        path.push(get_rand_string(10));
-
-        fs::write(&path, data).unwrap();
-
-        TempFile { path }
-    }
-}
-
-impl Drop for TempFile {
-    fn drop(&mut self) {
-        fs::remove_file(&self.path).unwrap()
     }
 }

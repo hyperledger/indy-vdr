@@ -37,10 +37,11 @@ impl std::fmt::Display for ValidationError {
     }
 }
 
+#[macro_export]
 macro_rules! invalid {
-    () => { ValidationError::from(None) };
+    () => { $crate::validation::ValidationError::from(None) };
     ($($arg:tt)+) => {
-        ValidationError::from(format!($($arg)+))
+        $crate::validation::ValidationError::from(format!($($arg)+))
     };
 }
 

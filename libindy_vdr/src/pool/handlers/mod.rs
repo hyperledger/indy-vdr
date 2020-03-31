@@ -5,7 +5,7 @@ use serde_json::{self, Value as SJsonValue};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58::{FromBase58, ToBase58};
+use crate::utils::base58;
 use crate::utils::validation::ValidationError;
 
 use super::requests::{PoolRequest, RequestEvent, RequestResult, TimingResult};
@@ -210,8 +210,7 @@ fn check_cons_proofs(
         let cons_proof: &String = cons_proof;
 
         bytes_proofs.push(
-            cons_proof
-                .from_base58()
+            base58::decode(cons_proof)
                 .map_err(|_| invalid!("Can't decode node consistency proof"))?,
         );
     }
@@ -230,7 +229,7 @@ pub(crate) fn build_pool_status_request(
 ) -> VdrResult<Message> {
     let lr = LedgerStatus {
         txnSeqNo: merkle_tree_size,
-        merkleRoot: merkle_root.to_base58(),
+        merkleRoot: base58::encode(merkle_root),
         ledgerId: LedgerType::POOL as u8,
         ppSeqNo: None,
         viewNo: None,

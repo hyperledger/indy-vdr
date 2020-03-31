@@ -9,7 +9,7 @@ use ursa::bls::Generator;
 use crate::common::error::prelude::*;
 use crate::config::constants::DEFAULT_GENERATOR;
 use crate::state_proof::{check_state_proof, result_without_state_proof, StateProofParser};
-use crate::utils::base58::FromBase58;
+use crate::utils::base58;
 
 use super::types::Message;
 use super::{
@@ -33,7 +33,7 @@ pub async fn handle_consensus_request<R: PoolRequest>(
     let mut consensus = ConsensusState::new();
     let mut fail_consensus = ConsensusState::new();
     let generator: Generator =
-        Generator::from_bytes(&DEFAULT_GENERATOR.from_base58()?).map_err(|err| {
+        Generator::from_bytes(&base58::decode(DEFAULT_GENERATOR)?).map_err(|err| {
             err_msg(
                 VdrErrorKind::Resource,
                 format!("Error loading generator: {}", err.to_string()),

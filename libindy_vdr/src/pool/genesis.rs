@@ -13,7 +13,7 @@ use super::types::{
 };
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58::FromBase58;
+use crate::utils::base58;
 use crate::utils::crypto;
 
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
@@ -248,7 +248,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 )));
             }
 
-            let verkey_bin = public_key.from_base58().map_input_err(|| {
+            let verkey_bin = base58::decode(&public_key).map_input_err(|| {
                 format!(
                     "Node '{}' has invalid field 'dest': failed parsing base58",
                     node_alias
@@ -276,7 +276,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
 
             let bls_key: Option<BlsVerKey> = match txn.txn.data.data.blskey {
                 Some(ref blskey) => {
-                    let key = blskey.as_str().from_base58().map_input_err(|| {
+                    let key = base58::decode(blskey.as_str()).map_input_err(|| {
                         format!("Node '{}': invalid base58 in field blskey", node_alias)
                     })?;
 
@@ -400,8 +400,8 @@ mod tests {
 
         #[test]
         fn test_pool_transactions_from_file_for_invalid_transactions() {
-            let file = TempFile::create(r#"{invalid}"#);
-            let _err = PoolTransactions::from_json_file(&file.path).unwrap_err();
+            let mut txns = GenesisTransactions::from_transactions(&[r#"{invalid}"#]);
+            let _err = PoolTransactions::from_json_file(txns.store_to_file()).unwrap_err();
         }
 
         #[test]

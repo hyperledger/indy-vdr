@@ -14,7 +14,7 @@ use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
 use crate::common::error::prelude::*;
 use crate::pool::{NodeKeys, ProtocolVersion};
-use crate::utils::base58::{FromBase58, ToBase58};
+use crate::utils::base58;
 use crate::utils::hash::{digest, Sha256, TreeHash};
 
 use self::constants::{
@@ -294,7 +294,7 @@ pub(crate) fn verify_parsed_sp(
             debug!("Error decoding proof nodes from state proof");
             false
         });
-        let root_hash = unwrap_or_return!(parsed_sp.root_hash.from_base58(), {
+        let root_hash = unwrap_or_return!(base58::decode(parsed_sp.root_hash), {
             debug!("Error decoding root hash from state proof");
             false
         });
@@ -951,10 +951,10 @@ fn _verify_merkle_tree(
         return false;
     });
 
-    trace!("Hashed leaf in b58: {}", hash.to_base58());
+    trace!("Hashed leaf in b58: {}", base58::encode(&hash));
 
     for (next_hash, turn_right) in hashes_with_turns {
-        let _next_hash = unwrap_or_return!(next_hash.from_base58(), {
+        let _next_hash = unwrap_or_return!(base58::decode(next_hash), {
             debug!("Error decoding next hash as base58");
             false
         });
@@ -973,11 +973,11 @@ fn _verify_merkle_tree(
     if !result {
         debug!(
             "Merkle tree hash mismatch: {} != {}",
-            hash.to_base58(),
-            root_hash.to_base58()
+            base58::encode(hash),
+            base58::encode(root_hash)
         );
     } else {
-        trace!("Matched root hash: {}", root_hash.to_base58())
+        trace!("Matched root hash: {}", base58::encode(root_hash))
     }
 
     result
@@ -1125,7 +1125,7 @@ fn _verify_proof_signature(
         return Ok(false);
     }
 
-    let signature = if let Ok(signature) = signature.from_base58() {
+    let signature = if let Ok(signature) = base58::decode(signature) {
         signature
     } else {
         return Ok(false);
@@ -1325,9 +1325,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1346,9 +1344,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1367,9 +1363,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "G9QooEDKSmEtLGNyTwafQiPfGHMqw3A3Fjcj2eLRG4G1"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("G9QooEDKSmEtLGNyTwafQiPfGHMqw3A3Fjcj2eLRG4G1").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1388,9 +1382,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1409,9 +1401,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"4":"4"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1430,9 +1420,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("4"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1530,9 +1518,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1559,9 +1545,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1584,9 +1568,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         // no "abcdefgh11" value in kvs
         assert!(!_verify_proof_range(
             proofs.as_slice(),
@@ -1613,9 +1595,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         // no "abcdefgh11" value in kvs
         assert!(!_verify_proof_range(
             proofs.as_slice(),
@@ -1644,9 +1624,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1673,9 +1651,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1702,9 +1678,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1734,9 +1708,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1766,9 +1738,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1799,9 +1769,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1830,9 +1798,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1861,9 +1827,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1892,9 +1856,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1924,9 +1886,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1954,9 +1914,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),

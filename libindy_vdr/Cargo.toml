@@ -23,7 +23,6 @@ local_nodes_pool = []
 
 [dependencies]
 base64 = "0.10.1"
-bs58 = "0.3.0"
 env_logger = { version = "0.7.1", optional = true }
 etcommon-rlp = "0.2.4"
 ffi-support = { version = "0.4.0", optional = true }
@@ -40,11 +39,12 @@ serde_derive = "1.0.99"
 serde_json = "1.0.40"
 thiserror = "1.0.9"
 zmq = { version = "0.9.2", optional = true }
+vdr-shared = { path = "../vdr-shared" }
 
 [dependencies.ursa]
 version = "0.3.2"
 default-features = false
-features = ["bls_bn254", "cl_native", "ed25519", "sha2", "sha3", "serde", "x25519"]
+features = ["bls_bn254", "cl_native", "sha3", "serde"]
 
 [dev-dependencies]
 rstest = "0.6"

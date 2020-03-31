@@ -202,7 +202,7 @@ impl MerkleTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::base58::FromBase58;
+    use crate::utils::base58;
 
     #[test]
     fn append_works() {
@@ -391,7 +391,7 @@ mod tests {
         ];
         let proofs_for_5: Vec<Vec<u8>> = proofs_for_5
             .into_iter()
-            .map(|x| x.from_base58().unwrap())
+            .map(|x| base58::decode(x).unwrap())
             .collect();
         //add 5th node
         mt.append(all_values[5 - 1].clone()).unwrap();
@@ -407,7 +407,7 @@ mod tests {
         ];
         let proofs_for_6: Vec<Vec<u8>> = proofs_for_6
             .into_iter()
-            .map(|x| x.from_base58().unwrap())
+            .map(|x| base58::decode(x).unwrap())
             .collect();
         //add 6th node
         mt.append(all_values[6 - 1].clone()).unwrap();
@@ -424,7 +424,7 @@ mod tests {
         ];
         let proofs_for_7: Vec<Vec<u8>> = proofs_for_7
             .into_iter()
-            .map(|x| x.from_base58().unwrap())
+            .map(|x| base58::decode(x).unwrap())
             .collect();
         //add 7th node
         mt.append(all_values[7 - 1].clone()).unwrap();

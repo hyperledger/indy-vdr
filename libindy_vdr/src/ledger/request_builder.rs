@@ -8,7 +8,7 @@ use crate::state_proof::{
     constants::REQUEST_FOR_FULL, parse_key_from_request_for_builtin_sp,
     parse_timestamp_from_req_for_builtin_sp,
 };
-use crate::utils::base58::ToBase58;
+use crate::utils::base58;
 use crate::utils::hash::{digest, Sha256};
 use crate::utils::qualifier::Qualifiable;
 use crate::utils::signature::serialize_signature;
@@ -131,7 +131,7 @@ impl PreparedRequest {
 
     /// Assign the signature property of the prepared request
     pub fn set_signature(&mut self, signature: &[u8]) -> VdrResult<()> {
-        self.req_json["signature"] = SJsonValue::String(signature.to_base58());
+        self.req_json["signature"] = SJsonValue::String(base58::encode(signature));
         Ok(())
     }
 
@@ -151,7 +151,7 @@ impl PreparedRequest {
             request["signatures"]
                 .as_object_mut()
                 .unwrap()
-                .insert(identifier.0.to_owned(), json!(signature.to_base58()));
+                .insert(identifier.0.to_owned(), json!(base58::encode(signature)));
 
             if let (Some(identifier), Some(signature)) = (
                 request

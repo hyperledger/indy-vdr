@@ -37,7 +37,7 @@ pub fn is_fully_qualified(entity: &str) -> bool {
 }
 
 /// An identifier which can be qualified with a prefix and method
-pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validatable {
+pub trait Qualifiable: From<String> + std::ops::Deref<Target = str> + Validatable {
     fn prefix() -> &'static str;
 
     fn combine(method: Option<&str>, entity: &str) -> Self {
@@ -45,7 +45,7 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
     }
 
     fn split<'a>(&'a self) -> (Option<&'a str>, &'a str) {
-        split(Self::prefix(), self.as_str())
+        split(Self::prefix(), self.deref())
     }
 
     fn get_method<'a>(&'a self) -> Option<&'a str> {
@@ -56,7 +56,7 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
     fn default_method(&self, method: Option<&str>) -> Self {
         let (prev_method, rest) = self.split();
         match prev_method {
-            Some(_) => Self::from((*self).clone()),
+            Some(_) => Self::from(self.to_string()),
             None => Self::combine(method, rest),
         }
     }
@@ -71,7 +71,7 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
         if prev_method == Some(method) {
             Self::combine(None, rest)
         } else {
-            Self::from((*self).clone())
+            Self::from(self.to_string())
         }
     }
 
@@ -103,6 +103,7 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
     }
 }
 
+#[macro_export]
 macro_rules! qualifiable_type {
     ($newtype:ident, $doc:expr) => {
         #[doc=$doc]
@@ -116,8 +117,8 @@ macro_rules! qualifiable_type {
         }
 
         impl std::ops::Deref for $newtype {
-            type Target = String;
-            fn deref(&self) -> &String {
+            type Target = str;
+            fn deref(&self) -> &str {
                 &self.0
             }
         }

@@ -14,7 +14,10 @@ extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
 
-/// Utility functions, traits and macros
+#[macro_use]
+extern crate vdr_shared;
+
+/// Utility functions and macros
 #[macro_use]
 pub mod utils;
 

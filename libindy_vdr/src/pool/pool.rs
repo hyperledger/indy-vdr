@@ -20,7 +20,7 @@ use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
 use crate::ledger::RequestBuilder;
-use crate::utils::base58::ToBase58;
+use crate::utils::base58;
 
 /// A generic verifier pool with support for creating pool transaction requests
 pub trait Pool: Clone {
@@ -45,7 +45,7 @@ pub trait Pool: Clone {
     /// Get the size and root of the pool transactions merkle tree
     fn get_merkle_tree_info(&self) -> (String, usize) {
         let tree = self.get_merkle_tree();
-        (tree.root_hash().to_base58(), tree.count())
+        (base58::encode(tree.root_hash()), tree.count())
     }
 
     /// Get a request builder corresponding to this verifier pool

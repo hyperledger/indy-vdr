@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::utils::base58::FromBase58;
+use crate::utils::base58;
 use crate::utils::qualifier::Qualifiable;
 use crate::utils::validation::{Validatable, ValidationError};
 
@@ -59,7 +59,7 @@ impl Validatable for DidValue {
         if self.is_fully_qualified() {
             // pass
         } else {
-            let did = self.from_base58()?;
+            let did = base58::decode(&self.0)?;
             if did.len() != 16 && did.len() != 32 {
                 return Err(invalid!(
                     "Trying to use DID with unexpected length: {}. \
@@ -82,8 +82,8 @@ impl From<String> for ShortDidValue {
 }
 
 impl std::ops::Deref for ShortDidValue {
-    type Target = String;
-    fn deref(&self) -> &String {
+    type Target = str;
+    fn deref(&self) -> &str {
         &self.0
     }
 }
@@ -91,13 +91,13 @@ impl std::ops::Deref for ShortDidValue {
 impl ShortDidValue {
     /// Convert a short DID value to a qualified DID
     pub fn qualify(&self, method: Option<String>) -> DidValue {
-        DidValue::combine(method.as_ref().map(String::as_str), self.as_str())
+        DidValue::combine(method.as_ref().map(String::as_str), &self)
     }
 }
 
 impl Validatable for ShortDidValue {
     fn validate(&self) -> Result<(), ValidationError> {
-        let did = self.from_base58()?;
+        let did = base58::decode(&self.0)?;
         if did.len() != 16 && did.len() != 32 {
             return Err(invalid!(
                 "Trying to use DID with unexpected length: {}. \

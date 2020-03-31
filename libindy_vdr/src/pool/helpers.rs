@@ -14,7 +14,7 @@ use super::requests::{RequestResult, RequestTarget, TimingResult};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::ledger::PreparedRequest;
-use crate::utils::base58::ToBase58;
+use crate::utils::base58;
 
 /// Perform a pool ledger status request to see if catchup is required
 pub async fn perform_pool_status_request<T: Pool>(
@@ -53,7 +53,7 @@ pub async fn perform_refresh<T: Pool>(
             Some((target_mt_root, target_mt_size)) => {
                 debug!(
                     "Catchup target found {} {} {:?}",
-                    target_mt_root.to_base58(),
+                    base58::encode(&target_mt_root),
                     target_mt_size,
                     timing
                 );

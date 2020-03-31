@@ -2,5 +2,6 @@
 
 members = [
     "libindy_vdr",
-    "indy-vdr-proxy"
+    "indy-vdr-proxy",
+    "vdr-shared"
 ]
