@@ -38,6 +38,16 @@ impl<T: ToString> ToString for SingleReply<T> {
     }
 }
 
+impl<T: Into<String>> Into<String> for SingleReply<T> {
+    fn into(self) -> String {
+        match self {
+            Self::Reply(msg) => msg.into(),
+            Self::Failed(msg) => msg,
+            Self::Timeout() => "timeout".to_owned(),
+        }
+    }
+}
+
 pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;
 
 #[derive(Debug)]

@@ -6,7 +6,7 @@ use super::genesis::PoolTransactions;
 use super::handlers::{
     build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
     handle_consensus_request, handle_full_request, handle_status_request, CatchupTarget,
-    NodeReplies,
+    NodeReplies, SingleReply,
 };
 use super::pool::Pool;
 use super::requests::{RequestResult, RequestTarget, TimingResult};
@@ -111,27 +111,42 @@ pub async fn perform_get_txn<T: Pool>(
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     let builder = pool.get_request_builder();
     let prepared = builder.build_get_txn_request(None, ledger_type, seq_no)?;
-    perform_ledger_request(pool, prepared, None).await
+    perform_ledger_request(pool, &prepared, None).await
+}
+
+/// Dispatch a request to a specific set of nodes and collect the results
+pub async fn perform_ledger_action<T: Pool>(
+    pool: &T,
+    prepared: &PreparedRequest,
+    node_aliases: Option<Vec<String>>,
+    timeout: Option<i64>,
+) -> VdrResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
+    let mut request = pool
+        .create_request(prepared.req_id.clone(), prepared.req_json.to_string())
+        .await?;
+    handle_full_request(&mut request, node_aliases, timeout).await
 }
 
 /// Dispatch a prepared ledger request to the appropriate handler
 pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
-    prepared: PreparedRequest,
+    prepared: &PreparedRequest,
     target: Option<RequestTarget>,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
-    let mut request = pool
-        .create_request(prepared.req_id, prepared.req_json.to_string())
-        .await?;
     match target {
         Some(RequestTarget::Full(node_aliases, timeout)) => {
-            let (result, timing) = handle_full_request(&mut request, node_aliases, timeout).await?;
+            let (result, timing) =
+                perform_ledger_action(pool, prepared, node_aliases, timeout).await?;
             Ok((result.map_result(format_full_reply)?, timing))
         }
         _ => {
+            let mut request = pool
+                .create_request(prepared.req_id.clone(), prepared.req_json.to_string())
+                .await?;
+
             handle_consensus_request(
                 &mut request,
-                prepared.sp_key,
+                prepared.sp_key.clone(),
                 prepared.sp_timestamps,
                 prepared.is_read_request,
                 None,
@@ -142,12 +157,15 @@ pub async fn perform_ledger_request<T: Pool>(
 }
 
 /// Format a collection of node replies in the expected response format
-pub(crate) fn format_full_reply(replies: NodeReplies<String>) -> VdrResult<String> {
-    serde_json::to_string(&serde_json::Map::from_iter(replies.iter().map(
+pub(crate) fn format_full_reply<T>(replies: NodeReplies<T>) -> VdrResult<String>
+where
+    T: Into<String>,
+{
+    serde_json::to_string(&serde_json::Map::from_iter(replies.into_iter().map(
         |(node_alias, reply)| {
             (
-                node_alias.clone(),
-                serde_json::Value::from(reply.to_string()),
+                node_alias,
+                serde_json::Value::from(<SingleReply<T> as Into<String>>::into(reply)),
             )
         },
     )))

@@ -1,6 +1,7 @@
 use indy_vdr::common::error::VdrResult;
 use indy_vdr::ledger::{PreparedRequest, RequestBuilder};
-use indy_vdr::pool::handlers::{handle_consensus_request, handle_full_request, NodeReplies};
+use indy_vdr::pool::{NodeReplies};
+use indy_vdr::pool::helpers::{perform_ledger_action, perform_ledger_request};
 use indy_vdr::pool::{Pool, PoolBuilder, PoolTransactions, RequestResult, SharedPool};
 use indy_vdr::utils::test::GenesisTransactions;
 
@@ -13,7 +14,7 @@ pub struct TestPool {
 impl TestPool {
     pub fn new() -> TestPool {
         let pool_transactions =
-            PoolTransactions::from_transactions_json(GenesisTransactions::default_transactions())
+            PoolTransactions::from_json_transactions(GenesisTransactions::default_transactions())
                 .unwrap();
 
         let pool = PoolBuilder::default()
@@ -26,7 +27,7 @@ impl TestPool {
     }
 
     pub fn transactions(&self) -> Vec<String> {
-        self.pool.get_transactions().unwrap()
+        self.pool.get_json_transactions().unwrap()
     }
 
     pub fn request_builder(&self) -> RequestBuilder {
@@ -35,20 +36,9 @@ impl TestPool {
 
     pub fn send_request(&self, prepared_request: &PreparedRequest) -> Result<String, String> {
         block_on(async {
-            let request = self
-                .pool
-                .create_request(
-                    prepared_request.req_id.to_string(),
-                    prepared_request.req_json.to_string(),
-                )
-                .await
-                .unwrap();
-
-            let (request_result, _timing) = handle_consensus_request(
-                request,
-                prepared_request.sp_key.clone(),
-                prepared_request.sp_timestamps,
-                prepared_request.is_read_request,
+            let (request_result, _timing) = perform_ledger_request(
+                &self.pool,
+                prepared_request,
                 None,
             )
             .await
@@ -68,16 +58,7 @@ impl TestPool {
         timeout: Option<i64>,
     ) -> VdrResult<NodeReplies<String>> {
         block_on(async {
-            let request = self
-                .pool
-                .create_request(
-                    prepared_request.req_id.to_string(),
-                    prepared_request.req_json.to_string(),
-                )
-                .await
-                .unwrap();
-
-            let (request_result, _timing) = handle_full_request(request, node_aliases, timeout)
+            let (request_result, _timing) = perform_ledger_action(&self.pool, prepared_request, node_aliases, timeout)
                 .await
                 .unwrap();
             match request_result {

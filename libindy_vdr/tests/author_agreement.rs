@@ -205,7 +205,7 @@ mod builder {
 
     mod prepare_txn_author_agreement_acceptance_data {
         use super::*;
-        use indy_vdr::ledger::TxnAuthrAgrmtAcceptanceData;
+        use indy_vdr::ledger::requests::author_agreement::TxnAuthrAgrmtAcceptanceData;
 
         const TEXT: &str = "some agreement text";
         const VERSION: &str = "1.0.0";

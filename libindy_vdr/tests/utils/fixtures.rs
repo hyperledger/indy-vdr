@@ -3,8 +3,7 @@ use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
 use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::RequestBuilder;
-
-use indy_vdr::ledger::requests::ProtocolVersion;
+use indy_vdr::pool::ProtocolVersion;
 use rstest::*;
 
 #[fixture]

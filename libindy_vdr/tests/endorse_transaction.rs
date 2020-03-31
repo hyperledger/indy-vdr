@@ -3,9 +3,6 @@ mod utils;
 
 inject_dependencies!();
 
-use crate::utils::fixtures::*;
-use crate::utils::helpers;
-
 #[test]
 fn empty() {
     // Empty test to run module

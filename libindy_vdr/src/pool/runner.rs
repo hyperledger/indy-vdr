@@ -228,6 +228,6 @@ async fn _perform_ledger_request(
     target: Option<RequestTarget>,
     callback: SendReqCallback,
 ) {
-    let result = perform_ledger_request(pool, request, target).await;
+    let result = perform_ledger_request(pool, &request, target).await;
     callback(result);
 }

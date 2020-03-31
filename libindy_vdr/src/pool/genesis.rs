@@ -354,7 +354,7 @@ mod tests {
         }
 
         pub fn _merkle_tree() -> MerkleTree {
-            PoolTransactions::from_transactions_json(&_transactions())
+            PoolTransactions::from_json_transactions(&_transactions())
                 .unwrap()
                 .merkle_tree()
                 .unwrap()
@@ -365,7 +365,7 @@ mod tests {
             let transaction = GenesisTransactions::new(None);
 
             let transactions: PoolTransactions =
-                PoolTransactions::from_transactions_json(&transaction.transactions).unwrap();
+                PoolTransactions::from_json_transactions(&transaction.transactions).unwrap();
 
             assert_eq!(
                 transactions.encode_json().unwrap(),
@@ -378,7 +378,7 @@ mod tests {
             let mut transaction = GenesisTransactions::new(None);
             let file = transaction.store_to_file();
 
-            let transactions: PoolTransactions = PoolTransactions::from_file_path(&file).unwrap();
+            let transactions: PoolTransactions = PoolTransactions::from_json_file(&file).unwrap();
 
             assert_eq!(
                 transactions.encode_json().unwrap(),
@@ -395,13 +395,13 @@ mod tests {
                 file.clone()
             };
 
-            let _err = PoolTransactions::from_file_path(&file).unwrap_err();
+            let _err = PoolTransactions::from_json_file(&file).unwrap_err();
         }
 
         #[test]
         fn test_pool_transactions_from_file_for_invalid_transactions() {
             let file = TempFile::create(r#"{invalid}"#);
-            let _err = PoolTransactions::from_file_path(&file.path).unwrap_err();
+            let _err = PoolTransactions::from_json_file(&file.path).unwrap_err();
         }
 
         #[test]
@@ -454,7 +454,7 @@ mod tests {
 
         #[test]
         fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_3() {
-            let merkle_tree = PoolTransactions::from_transactions_json(vec![NODE1_OLD, NODE2_OLD])
+            let merkle_tree = PoolTransactions::from_json_transactions(vec![NODE1_OLD, NODE2_OLD])
                 .unwrap()
                 .merkle_tree()
                 .unwrap();
@@ -485,7 +485,7 @@ mod tests {
 
         #[test]
         fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_4() {
-            let merkle_tree = PoolTransactions::from_transactions_json(vec![NODE1_OLD, NODE2_OLD])
+            let merkle_tree = PoolTransactions::from_json_transactions(vec![NODE1_OLD, NODE2_OLD])
                 .unwrap()
                 .merkle_tree()
                 .unwrap();

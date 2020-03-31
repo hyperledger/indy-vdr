@@ -13,7 +13,8 @@ mod types;
 
 pub use self::builder::PoolBuilder;
 pub use self::genesis::PoolTransactions;
+pub use self::handlers::{NodeReplies, SingleReply};
 pub use self::pool::{LocalPool, Pool, PoolImpl, SharedPool};
-pub(crate) use self::requests::{RequestResult, RequestTarget, TimingResult};
+pub use self::requests::{RequestResult, RequestTarget, TimingResult};
 pub use self::runner::{PoolRunner, PoolRunnerStatus};
 pub use self::types::{LedgerType, NodeKeys, PoolSetup, ProtocolVersion};

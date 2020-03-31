@@ -270,7 +270,7 @@ async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str) -> VdrResult<Respo
         None,
         None,
     )?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -279,7 +279,7 @@ async fn get_nym<T: Pool>(pool: &T, nym: &str) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_nym_request(None, &nym)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -288,7 +288,7 @@ async fn get_schema<T: Pool>(pool: &T, schema_id: &str) -> VdrResult<ResponseTyp
     let request = pool
         .get_request_builder()
         .build_get_schema_request(None, &schema_id)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -297,7 +297,7 @@ async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str) -> VdrResult<Respons
     let request = pool
         .get_request_builder()
         .build_get_cred_def_request(None, &cred_def_id)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -306,7 +306,7 @@ async fn get_revoc_reg_def<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrResu
     let request = pool
         .get_request_builder()
         .build_get_revoc_reg_def_request(None, &revoc_reg_def_id)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -317,7 +317,7 @@ async fn get_revoc_reg<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrResult<R
         &revoc_reg_def_id,
         timestamp_now(),
     )?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -326,7 +326,7 @@ async fn get_revoc_reg_delta<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrRe
     let request = pool
         .get_request_builder()
         .build_get_revoc_reg_delta_request(None, &revoc_reg_def_id, None, timestamp_now())?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -341,7 +341,7 @@ async fn get_taa<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_txn_author_agreement_request(None, None)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -349,7 +349,7 @@ async fn get_aml<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_acceptance_mechanisms_request(None, None, None)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -367,7 +367,7 @@ async fn get_auth_rule<T: Pool>(
         None,
         None,
     )?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
@@ -382,7 +382,7 @@ async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> VdrResult<Respon
         None,
         (None, None),
     )?;
-    let result = perform_ledger_request(pool, request, target).await?;
+    let result = perform_ledger_request(pool, &request, target).await?;
     Ok(result.into())
 }
 

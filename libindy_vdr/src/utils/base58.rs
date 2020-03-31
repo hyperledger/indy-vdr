@@ -14,6 +14,10 @@ impl FromBase58 for str {
     }
 }
 
+pub fn decode<T: FromBase58>(val: &T) -> Result<Vec<u8>, ValidationError> {
+    val.from_base58()
+}
+
 pub trait ToBase58 {
     fn to_base58(&self) -> String;
 }
@@ -22,4 +26,8 @@ impl ToBase58 for [u8] {
     fn to_base58(&self) -> String {
         bs58::encode(self).into_string()
     }
+}
+
+pub fn encode<T: ToBase58>(val: &T) -> String {
+    val.to_base58()
 }
