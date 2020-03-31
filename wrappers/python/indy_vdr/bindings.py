@@ -147,13 +147,13 @@ def do_call_async(fn_name, *args, return_type=None, post_process=None):
         cf_args.append(return_type)
     cb_type = CFUNCTYPE(*cf_args)  # could be cached
     res = _create_callback(cb_type, fut, post_process)
+    # keep a reference to the callback function to avoid it being freed
+    CALLBACKS[fut] = (loop, res)
     result = lib_fn(*args, res)
     if result:
         # callback will not be executed
+        del CALLBACKS[fut]
         fut.set_exception(get_current_error())
-    else:
-        # keep a reference to the callback function to avoid it being freed
-        CALLBACKS[fut] = (loop, res)
     return fut
 
 
