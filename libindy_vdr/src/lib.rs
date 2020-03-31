@@ -26,11 +26,5 @@ pub mod pool;
 pub mod state_proof;
 
 #[cfg(test)]
-mod tests {
-    //use super::*;
-
-    #[test]
-    fn dummy() {
-        assert!(true, "Dummy check!");
-    }
-}
+#[macro_use]
+extern crate rstest;

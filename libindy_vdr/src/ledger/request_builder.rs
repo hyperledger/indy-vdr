@@ -22,7 +22,7 @@ use super::requests::auth_rule::*;
 use super::requests::author_agreement::*;
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
-use super::requests::nym::{GetNymOperation, NymOperation};
+use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
@@ -39,10 +39,7 @@ use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
-use super::constants::{
-    txn_name_to_code, ENDORSER, NETWORK_MONITOR, READ_REQUESTS, ROLES, ROLE_REMOVE, STEWARD,
-    TRUSTEE,
-};
+use super::constants::{txn_name_to_code, READ_REQUESTS};
 use crate::ledger::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
     GetRichSchemaByMetadataOperation, RichSchema, RichSchemaOperation,
@@ -114,6 +111,40 @@ impl PreparedRequest {
 
     pub fn set_signature(&mut self, signature: &[u8]) -> VdrResult<()> {
         self.req_json["signature"] = SJsonValue::String(signature.to_base58());
+        Ok(())
+    }
+
+    pub fn set_multi_signature(
+        &mut self,
+        identifier: &DidValue,
+        signature: &[u8],
+    ) -> VdrResult<()> {
+        self.req_json.as_object_mut().map(|request| {
+            if !request.contains_key("signatures") {
+                request.insert(
+                    "signatures".to_string(),
+                    serde_json::Value::Object(serde_json::Map::new()),
+                );
+            }
+            request["signatures"]
+                .as_object_mut()
+                .unwrap()
+                .insert(identifier.0.to_owned(), json!(signature.to_base58()));
+
+            if let (Some(identifier), Some(signature)) = (
+                request
+                    .get("identifier")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+                request.remove("signature"),
+            ) {
+                request["signatures"]
+                    .as_object_mut()
+                    .unwrap()
+                    .insert(identifier, signature);
+            }
+        });
+
         Ok(())
     }
 
@@ -216,22 +247,7 @@ impl RequestBuilder {
         alias: Option<String>,
         role: Option<String>,
     ) -> VdrResult<PreparedRequest> {
-        let role = if let Some(r) = role {
-            Some(if r == ROLE_REMOVE {
-                SJsonValue::Null
-            } else {
-                json!(match r.as_str() {
-                    "STEWARD" => STEWARD,
-                    "TRUSTEE" => TRUSTEE,
-                    "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
-                    "NETWORK_MONITOR" => NETWORK_MONITOR,
-                    role if ROLES.contains(&role) => role,
-                    role => return Err(input_err(format!("Invalid role: {}", role))),
-                })
-            })
-        } else {
-            None
-        };
+        let role = role_to_code(role)?;
         let operation = NymOperation::new(dest.to_short(), verkey, alias, role);
         self.build(operation, Some(identifier))
     }
@@ -409,7 +425,7 @@ impl RequestBuilder {
             _ => {
                 return Err(input_err(
                     "Either none or all transaction related parameters must be specified.",
-                ))
+                ));
             }
         };
         self.build(operation, submitter_did)
@@ -750,739 +766,360 @@ impl RequestBuilder {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
-    use self::domain::node::Services;
+    use super::*;
+    use crate::ledger::constants;
 
-    const IDENTIFIER: &str = "NcYxiDXkpYi6ov5FcYDi1e";
-    const DEST: &str = "VsKV7grR1BUE29mG2Fm2kX";
-    const VERKEY: &str = "CnEDk9HrMnmiHXEV1WFgbVCRteYnPqsJwrTdcZaNhFVW";
+    const REQ_ID: u64 = 1585221529670242337;
+    const TYPE: &'static str = constants::NYM;
 
-    fn identifier() -> DidValue {
-        DidValue(IDENTIFIER.to_string())
+    fn _identifier() -> DidValue {
+        DidValue(String::from("V4SGRU86Z58d6TV7PBUe6f"))
     }
 
-    fn dest() -> DidValue {
-        DidValue(DEST.to_string())
+    fn _dest() -> DidValue {
+        DidValue(String::from("VsKV7grR1BUE29mG2Fm2kX"))
     }
 
-    #[test]
-    fn build_nym_request_works_for_only_required_fields() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": NYM,
-            "dest": DEST
-        });
-
-        let request = ledger_service
-            .build_nym_request(&identifier(), &dest(), None, None, None)
-            .unwrap();
-        check_request(&request, expected_result);
+    fn _protocol_version() -> usize {
+        ProtocolVersion::Node1_4.to_id()
     }
 
-    #[test]
-    fn build_nym_request_works_for_empty_role() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": NYM,
-            "dest": DEST,
-            "role": SJsonValue::Null,
-        });
-
-        let request = ledger_service
-            .build_nym_request(&identifier(), &dest(), None, None, Some(""))
-            .unwrap();
-        check_request(&request, expected_result);
+    #[fixture]
+    fn request() -> serde_json::Value {
+        json!({
+            "identifier": _identifier(),
+            "operation":{
+                "dest": _dest(),
+                "type": TYPE
+            },
+            "protocolVersion": _protocol_version(),
+            "reqId": REQ_ID
+        })
     }
 
-    #[test]
-    fn build_nym_request_works_for_optional_fields() {
-        let ledger_service = LedgerService::new();
+    #[fixture]
+    fn request_json(request: serde_json::Value) -> String {
+        request.to_string()
+    }
 
-        let expected_result = json!({
-            "type": NYM,
-            "dest": DEST,
-            "role": SJsonValue::Null,
-            "alias": "some_alias",
-            "verkey": VERKEY,
-        });
+    #[fixture]
+    fn prepared_request(request_json: String) -> PreparedRequest {
+        PreparedRequest::from_request_json(&request_json).unwrap()
+    }
 
-        let request = ledger_service
-            .build_nym_request(
-                &identifier(),
-                &dest(),
-                Some(VERKEY),
-                Some("some_alias"),
-                Some(""),
-            )
-            .unwrap();
-        check_request(&request, expected_result);
+    #[fixture]
+    fn request_builder() -> RequestBuilder {
+        RequestBuilder::new(ProtocolVersion::Node1_4)
     }
 
     #[test]
-    fn build_get_nym_request_works() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_NYM,
-            "dest": DEST
-        });
-
-        let request = ledger_service
-            .build_get_nym_request(Some(&identifier()), &dest())
-            .unwrap();
-        check_request(&request, expected_result);
+    fn empty() {
+        // Empty test to run module
     }
 
-    #[test]
-    fn build_get_ddo_request_works() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_DDO,
-            "dest": DEST
-        });
-
-        let request = ledger_service
-            .build_get_ddo_request(Some(&identifier()), &dest())
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_attrib_request_works_for_hash_field() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": ATTRIB,
-            "dest": DEST,
-            "hash": "hash"
-        });
-
-        let request = ledger_service
-            .build_attrib_request(&identifier(), &dest(), Some("hash"), None, None)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_attrib_request_works_for_raw_value() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_ATTR,
-            "dest": DEST,
-            "raw": "raw"
-        });
-
-        let request = ledger_service
-            .build_get_attrib_request(Some(&identifier()), &dest(), Some("raw"), None, None)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_attrib_request_works_for_hash_value() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_ATTR,
-            "dest": DEST,
-            "hash": "hash"
-        });
-
-        let request = ledger_service
-            .build_get_attrib_request(Some(&identifier()), &dest(), None, Some("hash"), None)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_attrib_request_works_for_enc_value() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_ATTR,
-            "dest": DEST,
-            "enc": "enc"
-        });
-
-        let request = ledger_service
-            .build_get_attrib_request(Some(&identifier()), &dest(), None, None, Some("enc"))
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_node_request_works() {
-        let ledger_service = LedgerService::new();
-
-        let data = NodeOperationData {
-            node_ip: Some("ip".to_string()),
-            node_port: Some(1),
-            client_ip: Some("ip".to_string()),
-            client_port: Some(1),
-            alias: "some".to_string(),
-            services: Some(vec![Services::VALIDATOR]),
-            blskey: Some("blskey".to_string()),
-            blskey_pop: Some("pop".to_string()),
-        };
-
-        let expected_result = json!({
-            "type": NODE,
-            "dest": DEST,
-            "data": {
-                "node_ip": "ip",
-                "node_port": 1,
-                "client_ip": "ip",
-                "client_port": 1,
-                "alias": "some",
-                "services": ["VALIDATOR"],
-                "blskey": "blskey",
-                "blskey_pop": "pop"
-            }
-        });
-
-        let request = ledger_service
-            .build_node_request(&identifier(), &dest(), data)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_txn_request_works() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_TXN,
-            "data": 1,
-            "ledgerId": 1
-        });
-
-        let request = ledger_service
-            .build_get_txn_request(Some(&identifier()), None, 1)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_txn_request_works_for_ledger_type_as_predefined_string_constant() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_TXN,
-            "data": 1,
-            "ledgerId": 0
-        });
-
-        let request = ledger_service
-            .build_get_txn_request(Some(&identifier()), Some("POOL"), 1)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_txn_request_works_for_ledger_type_as_number() {
-        let ledger_service = LedgerService::new();
-
-        let expected_result = json!({
-            "type": GET_TXN,
-            "data": 1,
-            "ledgerId": 10
-        });
-
-        let request = ledger_service
-            .build_get_txn_request(Some(&identifier()), Some("10"), 1)
-            .unwrap();
-        check_request(&request, expected_result);
-    }
-
-    #[test]
-    fn build_get_txn_request_works_for_invalid_type() {
-        let ledger_service = LedgerService::new();
-
-        let res = ledger_service.build_get_txn_request(Some(&identifier()), Some("type"), 1);
-        assert_kind!(VdrErrorKind::InvalidStructure, res);
-    }
-
-    #[test]
-    fn validate_action_works_for_pool_restart() {
-        let ledger_service = LedgerService::new();
-        let request = ledger_service
-            .build_pool_restart(&identifier(), "start", None)
-            .unwrap();
-        ledger_service.validate_action(&request).unwrap();
-    }
-
-    #[test]
-    fn validate_action_works_for_get_validator_info() {
-        let ledger_service = LedgerService::new();
-        let request = ledger_service
-            .build_get_validator_info_request(&identifier())
-            .unwrap();
-        ledger_service.validate_action(&request).unwrap();
-    }
-
-    mod auth_rule {
+    mod prepared_request_from_request_json {
         use super::*;
 
-        const ADD_AUTH_ACTION: &str = "ADD";
-        const EDIT_AUTH_ACTION: &str = "EDIT";
-        const FIELD: &str = "role";
-        const OLD_VALUE: &str = "0";
-        const NEW_VALUE: &str = "101";
-
-        fn _role_constraint() -> Constraint {
-            Constraint::RoleConstraint(RoleConstraint {
-                sig_count: 0,
-                metadata: None,
-                role: Some(String::new()),
-                need_to_be_owner: false,
-                off_ledger_signature: false,
-            })
+        #[rstest]
+        fn test_prepared_request_from_request_json(request_json: String) {
+            let request = PreparedRequest::from_request_json(&request_json).unwrap();
+            assert_eq!(request.protocol_version, _protocol_version());
+            assert_eq!(request.txn_type, TYPE);
+            assert_eq!(request.req_id, REQ_ID.to_string());
+            assert_eq!(request.sp_key, None);
+            assert_eq!(request.sp_timestamps, (None, None));
+            assert_eq!(request.is_read_request, false);
         }
 
-        fn _role_constraint_json() -> String {
-            serde_json::to_string(&_role_constraint()).unwrap()
+        #[rstest]
+        fn test_prepared_request_from_request_json_for_not_json() {
+            let _err = PreparedRequest::from_request_json("request").unwrap_err();
         }
 
-        #[test]
-        fn build_auth_rule_request_works_for_role_constraint() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({
-                "type": AUTH_RULE,
-                "auth_type": NYM,
-                "field": FIELD,
-                "new_value": NEW_VALUE,
-                "auth_action": AuthAction::ADD,
-                "constraint": _role_constraint(),
-            });
-
-            let request = ledger_service
-                .build_auth_rule_request(
-                    &identifier(),
-                    NYM,
-                    ADD_AUTH_ACTION,
-                    FIELD,
-                    None,
-                    Some(NEW_VALUE),
-                    _role_constraint(),
-                )
-                .unwrap();
-            check_request(&request, expected_result);
+        #[rstest(field, case("protocolVersion"), case("reqId"), case("operation"))]
+        fn test_prepared_request_from_request_json_for_missed_field(
+            field: &str,
+            mut request: serde_json::Value,
+        ) {
+            request[field] = serde_json::Value::Null;
+            let _err = PreparedRequest::from_request_json(&request.to_string()).unwrap_err();
         }
 
-        #[test]
-        fn build_auth_rule_request_works_for_combination_constraints() {
-            let ledger_service = LedgerService::new();
-
-            let constraint = Constraint::AndConstraint(CombinationConstraint {
-                auth_constraints: vec![
-                    _role_constraint(),
-                    Constraint::OrConstraint(CombinationConstraint {
-                        auth_constraints: vec![_role_constraint(), _role_constraint()],
-                    }),
-                ],
-            });
-
-            let expected_result = json!({
-                "type": AUTH_RULE,
-                "auth_type": NYM,
-                "field": FIELD,
-                "new_value": NEW_VALUE,
-                "auth_action": AuthAction::ADD,
-                "constraint": constraint,
-            });
-
-            let request = ledger_service
-                .build_auth_rule_request(
-                    &identifier(),
-                    NYM,
-                    ADD_AUTH_ACTION,
-                    FIELD,
-                    None,
-                    Some(NEW_VALUE),
-                    constraint,
-                )
+        #[rstest]
+        fn test_prepared_request_from_request_json_for_write_request(
+            request_builder: RequestBuilder,
+        ) {
+            let request = request_builder
+                .build_nym_request(&_identifier(), &_dest(), None, None, None)
                 .unwrap();
 
-            check_request(&request, expected_result);
+            assert_eq!(request.txn_type, constants::NYM);
+            assert_eq!(request.sp_key, None);
+            assert_eq!(request.sp_timestamps, (None, None));
+            assert_eq!(request.is_read_request, false);
         }
 
-        #[test]
-        fn build_auth_rule_request_works_for_edit_auth_action() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({
-                "type": AUTH_RULE,
-                "auth_type": NYM,
-                "field": FIELD,
-                "old_value": OLD_VALUE,
-                "new_value": NEW_VALUE,
-                "auth_action": AuthAction::EDIT,
-                "constraint": _role_constraint(),
-            });
-
-            let request = ledger_service
-                .build_auth_rule_request(
-                    &identifier(),
-                    NYM,
-                    EDIT_AUTH_ACTION,
-                    FIELD,
-                    Some(OLD_VALUE),
-                    Some(NEW_VALUE),
-                    _role_constraint(),
-                )
+        #[rstest]
+        fn test_prepared_request_from_request_json_for_get_request(
+            request_builder: RequestBuilder,
+        ) {
+            let request = request_builder
+                .build_get_nym_request(None, &_dest())
                 .unwrap();
-            check_request(&request, expected_result);
-        }
 
-        #[test]
-        fn build_auth_rule_request_works_for_invalid_auth_action() {
-            let ledger_service = LedgerService::new();
-
-            let res = ledger_service.build_auth_rule_request(
-                &identifier(),
-                NYM,
-                "WRONG",
-                FIELD,
-                None,
-                Some(NEW_VALUE),
-                _role_constraint(),
+            assert_eq!(request.txn_type, constants::GET_NYM);
+            assert_eq!(
+                request.sp_key,
+                Some(vec![
+                    227, 51, 254, 11, 192, 83, 219, 131, 59, 204, 0, 126, 41, 96, 118, 238, 152,
+                    250, 160, 191, 198, 247, 4, 130, 44, 199, 140, 143, 18, 182, 93, 229
+                ])
             );
-            assert_kind!(VdrErrorKind::InvalidStructure, res);
+            assert_eq!(request.sp_timestamps, (None, None));
+            assert_eq!(request.is_read_request, true);
         }
 
-        #[test]
-        fn build_get_auth_rule_request_works_for_add_action() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({
-                "type": GET_AUTH_RULE,
-                "auth_type": NYM,
-                "field": FIELD,
-                "new_value": NEW_VALUE,
-                "auth_action": AuthAction::ADD,
-            });
-
-            let request = ledger_service
-                .build_get_auth_rule_request(
-                    Some(&identifier()),
-                    Some(NYM),
-                    Some(ADD_AUTH_ACTION),
-                    Some(FIELD),
-                    None,
-                    Some(NEW_VALUE),
-                )
-                .unwrap();
-            check_request(&request, expected_result);
-        }
-
-        #[test]
-        fn build_get_auth_rule_request_works_for_edit_action() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({
-                "type": GET_AUTH_RULE,
-                "auth_type": NYM,
-                "field": FIELD,
-                "old_value": OLD_VALUE,
-                "new_value": NEW_VALUE,
-                "auth_action": AuthAction::EDIT,
-            });
-
-            let request = ledger_service
-                .build_get_auth_rule_request(
-                    Some(&identifier()),
-                    Some(NYM),
-                    Some(EDIT_AUTH_ACTION),
-                    Some(FIELD),
-                    Some(OLD_VALUE),
-                    Some(NEW_VALUE),
-                )
-                .unwrap();
-            check_request(&request, expected_result);
-        }
-
-        #[test]
-        fn build_get_auth_rule_request_works_for_none_params() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({
-                "type": GET_AUTH_RULE,
-            });
-
-            let request = ledger_service
-                .build_get_auth_rule_request(Some(&identifier()), None, None, None, None, None)
-                .unwrap();
-            check_request(&request, expected_result);
-        }
-
-        #[test]
-        fn build_get_auth_rule_request_works_for_some_fields_are_specified() {
-            let ledger_service = LedgerService::new();
-
-            let res = ledger_service.build_get_auth_rule_request(
-                Some(&identifier()),
-                Some(NYM),
-                None,
-                Some(FIELD),
-                None,
-                None,
-            );
-            assert_kind!(VdrErrorKind::InvalidStructure, res);
-        }
-
-        #[test]
-        fn build_get_auth_rule_request_works_for_invalid_auth_action() {
-            let ledger_service = LedgerService::new();
-
-            let res = ledger_service.build_get_auth_rule_request(
-                Some(&identifier()),
-                None,
-                Some("WRONG"),
-                None,
-                None,
-                None,
-            );
-            assert_kind!(VdrErrorKind::InvalidStructure, res);
-        }
-
-        #[test]
-        fn build_get_auth_rule_request_works_for_invalid_auth_type() {
-            let ledger_service = LedgerService::new();
-
-            let res = ledger_service.build_get_auth_rule_request(
-                Some(&identifier()),
-                Some("WRONG"),
-                None,
-                None,
-                None,
-                None,
-            );
-            assert_kind!(VdrErrorKind::InvalidStructure, res);
-        }
-
-        #[test]
-        fn build_auth_rules_request_works() {
-            let ledger_service = LedgerService::new();
-
-            let mut data = AuthRules::new();
-            data.push(AuthRuleData::Add(AddAuthRuleData {
-                auth_type: NYM.to_string(),
-                field: FIELD.to_string(),
-                new_value: Some(NEW_VALUE.to_string()),
-                constraint: _role_constraint(),
-            }));
-
-            data.push(AuthRuleData::Edit(EditAuthRuleData {
-                auth_type: NYM.to_string(),
-                field: FIELD.to_string(),
-                old_value: Some(OLD_VALUE.to_string()),
-                new_value: Some(NEW_VALUE.to_string()),
-                constraint: _role_constraint(),
-            }));
-
-            let expected_result = json!({
-                "type": AUTH_RULES,
-                "rules": data.clone(),
-            });
-
-            let request = ledger_service
-                .build_auth_rules_request(&identifier(), data)
-                .unwrap();
-            check_request(&request, expected_result);
-        }
-    }
-
-    mod author_agreement {
-        use super::*;
-
-        const TEXT: &str = "indy agreement";
-        const VERSION: &str = "1.0.0";
-
-        #[test]
-        fn build_txn_author_agreement_request() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({
-                "type": TXN_AUTHR_AGRMT,
-                "text": TEXT,
-                "version": VERSION
-            });
-
-            let request = ledger_service
-                .build_txn_author_agreement_request(&identifier(), TEXT, VERSION)
-                .unwrap();
-            check_request(&request, expected_result);
-        }
-
-        #[test]
-        fn build_get_txn_author_agreement_request_works() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({ "type": GET_TXN_AUTHR_AGRMT });
-
-            let request = ledger_service
-                .build_get_txn_author_agreement_request(Some(&identifier()), None)
-                .unwrap();
-            check_request(&request, expected_result);
-        }
-
-        #[test]
-        fn build_get_txn_author_agreement_request_for_specific_version() {
-            let ledger_service = LedgerService::new();
-
-            let expected_result = json!({
-                "type": GET_TXN_AUTHR_AGRMT,
-                "version": VERSION
-            });
+        #[rstest]
+        fn test_prepared_request_from_request_json_for_get_request_with_single_timestamp(
+            request_builder: RequestBuilder,
+        ) {
+            let timestamp = 123456789;
 
             let data = GetTxnAuthorAgreementData {
                 digest: None,
-                version: Some(VERSION.to_string()),
-                timestamp: None,
+                version: None,
+                timestamp: Some(timestamp),
             };
 
-            let request = ledger_service
-                .build_get_txn_author_agreement_request(Some(&identifier()), Some(&data))
+            let request = request_builder
+                .build_get_txn_author_agreement_request(None, Some(&data))
                 .unwrap();
-            check_request(&request, expected_result);
+
+            assert_eq!(request.txn_type, constants::GET_TXN_AUTHR_AGRMT);
+            assert_eq!(
+                request.sp_key,
+                Some(vec![50, 58, 108, 97, 116, 101, 115, 116])
+            );
+            assert_eq!(request.sp_timestamps, (None, Some(123456789)));
+            assert_eq!(request.is_read_request, true);
+        }
+
+        #[rstest]
+        fn test_prepared_request_from_request_json_for_get_request_with_two_timestamps(
+            request_builder: RequestBuilder,
+        ) {
+            let rev_reg_id = RevocationRegistryId("NcYxiDXkpYi6ov5FcYDi1e:4:NcYxiDXkpYi6ov5FcYDi1e:3:CL:NcYxiDXkpYi6ov5FcYDi1e:2:gvt:1.0:tag:CL_ACCUM:TAG_1".to_string());
+            let from = 123456789;
+            let to = 987654321;
+
+            let request = request_builder
+                .build_get_revoc_reg_delta_request(None, &rev_reg_id, Some(from), to)
+                .unwrap();
+
+            assert_eq!(request.txn_type, constants::GET_REVOC_REG_DELTA);
+            assert_eq!(
+                request.sp_key,
+                Some(vec![
+                    54, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70,
+                    99, 89, 68, 105, 49, 101, 58, 52, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112,
+                    89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 51, 58, 67, 76,
+                    58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70, 99,
+                    89, 68, 105, 49, 101, 58, 50, 58, 103, 118, 116, 58, 49, 46, 48, 58, 116, 97,
+                    103, 58, 67, 76, 95, 65, 67, 67, 85, 77, 58, 84, 65, 71, 95, 49
+                ])
+            );
+            assert_eq!(request.sp_timestamps, (Some(from as u64), Some(to as u64)));
+            assert_eq!(request.is_read_request, true);
         }
     }
 
-    mod acceptance_mechanism {
-        use super::*;
+    #[rstest]
+    fn test_prepared_request_get_signature_input(prepared_request: PreparedRequest) {
+        let expected = String::from("identifier:V4SGRU86Z58d6TV7PBUe6f|operation:dest:VsKV7grR1BUE29mG2Fm2kX|type:1|protocolVersion:2|reqId:1585221529670242337");
+        assert_eq!(expected, prepared_request.get_signature_input().unwrap());
+    }
 
-        const LABEL: &str = "label";
-        const VERSION: &str = "1.0.0";
-        const CONTEXT: &str = "some context";
-        const TIMESTAMP: u64 = 123456789;
+    #[rstest]
+    fn test_prepared_request_set_endorser(mut prepared_request: PreparedRequest) {
+        let endorser = DidValue(String::from("2PRyVHmkXQnQzJQKxHxnXC"));
+        prepared_request.set_endorser(&endorser).unwrap();
+        assert_eq!(json!(endorser), prepared_request.req_json["endorser"]);
+    }
 
-        fn _aml() -> AcceptanceMechanisms {
-            let mut aml: AcceptanceMechanisms = AcceptanceMechanisms::new();
-            aml.0.insert(
-                LABEL.to_string(),
-                json!({"text": "This is description for acceptance mechanism"}),
-            );
-            aml
-        }
+    fn _signature_1() -> Vec<u8> {
+        vec![1, 2, 3, 4, 5, 6, 7, 8, 9]
+    }
 
-        #[test]
-        fn build_acceptance_mechanisms_request() {
-            let ledger_service = LedgerService::new();
+    fn _signature_1_base58() -> String {
+        String::from("kA3B2yGe2z4")
+    }
 
-            let expected_result = json!({
-                "type": TXN_AUTHR_AGRMT_AML,
-                "aml":  _aml(),
-                "version":  VERSION,
-            });
+    fn _signature_2() -> Vec<u8> {
+        vec![9, 8, 7, 6, 5, 4, 3, 2, 1]
+    }
 
-            let request = ledger_service
-                .build_acceptance_mechanisms_request(&identifier(), _aml(), VERSION, None)
-                .unwrap();
-            check_request(&request, expected_result);
-        }
+    fn _signature_2_base58() -> String {
+        String::from("7fiZcYFQEKEG")
+    }
 
-        #[test]
-        fn build_acceptance_mechanisms_request_with_context() {
-            let ledger_service = LedgerService::new();
+    #[rstest]
+    fn test_prepared_request_set_signature(mut prepared_request: PreparedRequest) {
+        prepared_request.set_signature(&_signature_1()).unwrap();
+        assert_eq!(
+            json!(_signature_1_base58()),
+            prepared_request.req_json["signature"]
+        );
+    }
 
-            let expected_result = json!({
-                "type": TXN_AUTHR_AGRMT_AML,
-                "aml":  _aml(),
-                "version":  VERSION,
-                "amlContext": CONTEXT.to_string(),
-            });
+    #[rstest]
+    fn test_prepared_request_set_multi_signature(mut prepared_request: PreparedRequest) {
+        prepared_request
+            .set_multi_signature(&_identifier(), &_signature_1())
+            .unwrap();
+        prepared_request
+            .set_multi_signature(&_dest(), &_signature_2())
+            .unwrap();
 
-            let request = ledger_service
-                .build_acceptance_mechanisms_request(&identifier(), _aml(), VERSION, Some(CONTEXT))
-                .unwrap();
-            check_request(&request, expected_result);
-        }
+        assert_eq!(
+            prepared_request.req_json["signatures"]
+                .as_object()
+                .unwrap()
+                .len(),
+            2
+        );
 
-        #[test]
-        fn build_get_acceptance_mechanisms_request() {
-            let ledger_service = LedgerService::new();
+        assert_eq!(
+            json!(_signature_1_base58()),
+            prepared_request.req_json["signatures"][_identifier().0]
+        );
 
-            let expected_result = json!({
-                "type": GET_TXN_AUTHR_AGRMT_AML,
-            });
+        assert_eq!(
+            json!(_signature_2_base58()),
+            prepared_request.req_json["signatures"][_dest().0]
+        );
+    }
 
-            let request = ledger_service
-                .build_get_acceptance_mechanisms_request(None, None, None)
-                .unwrap();
-            check_request(&request, expected_result);
-        }
+    #[rstest]
+    fn test_prepared_request_set_multi_signature_for_replace_signature(
+        mut prepared_request: PreparedRequest,
+    ) {
+        prepared_request.set_signature(&_signature_1()).unwrap();
+        prepared_request
+            .set_multi_signature(&_dest(), &_signature_2())
+            .unwrap();
 
-        #[test]
-        fn build_get_acceptance_mechanisms_request_for_timestamp() {
-            let ledger_service = LedgerService::new();
+        assert_eq!(
+            prepared_request.req_json["signatures"]
+                .as_object()
+                .unwrap()
+                .len(),
+            2
+        );
 
-            let expected_result = json!({
-                "type": GET_TXN_AUTHR_AGRMT_AML,
-                "timestamp": TIMESTAMP,
-            });
+        assert_eq!(
+            json!(_signature_1_base58()),
+            prepared_request.req_json["signatures"][_identifier().0]
+        );
 
-            let request = ledger_service
-                .build_get_acceptance_mechanisms_request(None, Some(TIMESTAMP), None)
-                .unwrap();
-            check_request(&request, expected_result);
-        }
+        assert_eq!(
+            json!(_signature_2_base58()),
+            prepared_request.req_json["signatures"][_dest().0]
+        );
+    }
 
-        #[test]
-        fn build_get_acceptance_mechanisms_request_for_version() {
-            let ledger_service = LedgerService::new();
+    #[rstest]
+    fn test_prepared_request_set_multi_signature_twice(mut prepared_request: PreparedRequest) {
+        prepared_request
+            .set_multi_signature(&_identifier(), &_signature_1())
+            .unwrap();
+        prepared_request
+            .set_multi_signature(&_identifier(), &_signature_1())
+            .unwrap();
 
-            let expected_result = json!({
-                "type": GET_TXN_AUTHR_AGRMT_AML,
-                "version": VERSION,
-            });
+        assert_eq!(
+            prepared_request.req_json["signatures"]
+                .as_object()
+                .unwrap()
+                .len(),
+            1
+        );
 
-            let request = ledger_service
-                .build_get_acceptance_mechanisms_request(None, None, Some(VERSION))
-                .unwrap();
-            check_request(&request, expected_result);
-        }
+        assert_eq!(
+            json!(_signature_1_base58()),
+            prepared_request.req_json["signatures"][_identifier().0]
+        );
+    }
 
-        #[test]
-        fn build_get_acceptance_mechanisms_request_for_timestamp_and_version() {
-            let ledger_service = LedgerService::new();
+    #[rstest]
+    fn test_prepared_request_set_taa(mut prepared_request: PreparedRequest) {
+        let taa = TxnAuthrAgrmtAcceptanceData {
+            mechanism: "on_click".to_string(),
+            taa_digest: "afsrw".to_string(),
+            time: 123456789,
+        };
+        prepared_request
+            .set_txn_author_agreement_acceptance(&taa)
+            .unwrap();
+        assert_eq!(json!(taa), prepared_request.req_json["taaAcceptance"]);
+    }
 
-            let res = ledger_service.build_get_acceptance_mechanisms_request(
-                None,
-                Some(TIMESTAMP),
-                Some(VERSION),
-            );
-            assert_kind!(VdrErrorKind::InvalidStructure, res);
-        }
+    #[rstest(
+        protocol_version,
+        case(ProtocolVersion::Node1_3),
+        case(ProtocolVersion::Node1_4)
+    )]
+    fn test_prepare_request_for_different_protocol_versions(protocol_version: ProtocolVersion) {
+        let request = RequestBuilder::new(protocol_version.clone())
+            .build_get_nym_request(None, &_dest())
+            .unwrap();
+
+        assert_eq!(request.protocol_version, protocol_version.clone());
+        assert_eq!(
+            request.req_json["protocolVersion"],
+            json!(protocol_version.to_id())
+        );
     }
 
     #[test]
-    fn datetime_to_date() {
-        assert_eq!(0, LedgerService::datetime_to_date_timestamp(0));
-        assert_eq!(0, LedgerService::datetime_to_date_timestamp(20));
-        assert_eq!(
-            1562284800,
-            LedgerService::datetime_to_date_timestamp(1562367600)
-        );
-        assert_eq!(
-            1562284800,
-            LedgerService::datetime_to_date_timestamp(1562319963)
-        );
-        assert_eq!(
-            1562284800,
-            LedgerService::datetime_to_date_timestamp(1562284800)
-        );
+    fn test_datetime_to_date() {
+        assert_eq!(0, datetime_to_date_timestamp(0));
+        assert_eq!(0, datetime_to_date_timestamp(20));
+        assert_eq!(1562284800, datetime_to_date_timestamp(1562367600));
+        assert_eq!(1562284800, datetime_to_date_timestamp(1562319963));
+        assert_eq!(1562284800, datetime_to_date_timestamp(1562284800));
     }
 
-    fn check_request(request: &str, expected_result: SJsonValue) {
-        let request: SJsonValue = serde_json::from_str(request).unwrap();
-        assert_eq!(request["operation"], expected_result);
+    const TEXT: &str = "text";
+    const VERSION: &str = "1.0";
+
+    fn _hash() -> Vec<u8> {
+        vec![
+            57, 43, 28, 219, 43, 14, 87, 200, 231, 138, 158, 55, 154, 250, 216, 45, 207, 31, 131,
+            184, 182, 90, 226, 96, 73, 111, 40, 238, 105, 118, 190, 43,
+        ]
+    }
+
+    #[test]
+    fn test_calculate_hash() {
+        assert_eq!(_hash(), calculate_hash(TEXT, VERSION).unwrap())
+    }
+
+    #[test]
+    fn test_compare_hash() {
+        let hash = hex::encode(_hash());
+        compare_hash(TEXT, VERSION, &hash).unwrap();
+    }
+
+    #[test]
+    fn test_compare_hash_for_different_hash() {
+        let hash = hex::encode(vec![1, 2, 3]);
+        compare_hash(TEXT, VERSION, &hash).unwrap_err();
+    }
+
+    #[test]
+    fn test_compare_hash_for_invalid_hash() {
+        compare_hash(TEXT, VERSION, "hash").unwrap_err();
     }
 }
-*/
