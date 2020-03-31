@@ -2,7 +2,6 @@ use super::RequestType;
 use crate::ledger::constants::{
     GET_RICH_SCHEMA_BY_ID, GET_RICH_SCHEMA_BY_METADATA, RICH_SCHEMA, RICH_SCHEMA_CRED_DEF,
     RICH_SCHEMA_CTX, RICH_SCHEMA_ENCODING, RICH_SCHEMA_MAPPING, RICH_SCHEMA_PRES_DEF,
-    RS_POSSIBLE_TYPES,
 };
 use crate::ledger::identifiers::rich_schema::RichSchemaId;
 use crate::utils::validation::{Validatable, ValidationError};
@@ -63,12 +62,6 @@ impl RichSchema {
 impl Validatable for RichSchema {
     fn validate(&self) -> Result<(), ValidationError> {
         // ToDo: add specific validation
-        if !RS_POSSIBLE_TYPES.contains(&self.rs_type.as_str()) {
-            return Err(ValidationError::from(format!(
-                "Should be one of {:?}",
-                RS_POSSIBLE_TYPES
-            )));
-        }
         return self.id.validate();
     }
 }

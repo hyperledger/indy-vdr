@@ -116,15 +116,6 @@ lazy_static! {
     .collect();
 }
 
-pub const RS_POSSIBLE_TYPES: [&'static str; 6] = [
-    RS_SCHEMA_TYPE_VALUE,
-    RS_ENCODING_TYPE_VALUE,
-    RS_CONTEXT_TYPE_VALUE,
-    RS_MAPPING_TYPE_VALUE,
-    RS_CRED_DEF_TYPE_VALUE,
-    RS_PRES_DEF_TYPE_VALUE,
-];
-
 pub fn txn_name_to_code(txn: &str) -> Option<&str> {
     if REQUESTS.contains(&txn) {
         return Some(txn);
