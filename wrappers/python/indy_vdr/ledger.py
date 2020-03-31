@@ -700,7 +700,9 @@ def build_get_rich_schema_object_by_id_request(
     submitter_did: str, rs_id: Union[bytes, str, dict]
 ) -> Request:
     """
-    Builds a GET_RICH_SCHEMA_BY_ID request to get RICH_SCHEMA from the ledger using RICH_SCHEMA_ID.
+    Builds a GET_RICH_SCHEMA_BY_ID request.
+
+    Used to fetch a RICH_SCHEMA from the ledger using RICH_SCHEMA_ID.
 
     Args:
         submitter_did: Identifier (DID) of the transaction author as base58-encoded
@@ -709,18 +711,24 @@ def build_get_rich_schema_object_by_id_request(
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
-    rs_id = (
-        encode_str(rs_id) if isinstance(rs_id, (str, bytes)) else encode_json(rs_id)
+    rs_id = encode_str(rs_id) if isinstance(rs_id, (str, bytes)) else encode_json(rs_id)
+    do_call(
+        "indy_vdr_build_get_schema_object_by_id_request", did_p, rs_id, byref(handle)
     )
     do_call("indy_vdr_build_get_rich_schema_object_by_id_request", did_p, rs_id, byref(handle))
     return Request(handle)
 
 
 def build_get_rich_schema_object_by_metadata_request(
-    submitter_did: str, rs_type: Union[bytes, str], rs_name: Union[bytes, str], rs_version: Union[bytes, str]
+    submitter_did: str,
+    rs_type: Union[bytes, str],
+    rs_name: Union[bytes, str],
+    rs_version: Union[bytes, str]
 ) -> Request:
     """
-    Builds a GET_RICH_SCHEMA_BY_METADATA request to get RICH_SCHEMA from the ledger using RICH_SCHEMA's metadata.
+    Builds a GET_RICH_SCHEMA_BY_METADATA request.
+
+    Used to fetch a RICH_SCHEMA from the ledger using the RICH_SCHEMA's metadata.
 
     Args:
         submitter_did: Identifier (DID) of the transaction author as base58-encoded
@@ -734,6 +742,13 @@ def build_get_rich_schema_object_by_metadata_request(
     rs_type = encode_str(rs_type)
     rs_name = encode_str(rs_name)
     rs_version = encode_str(rs_version)
+    do_call(
+        "indy_vdr_build_get_schema_object_by_metadata_request",
+        did_p,
+        rs_type,
+        rs_name,
+        rs_version,
+        byref(handle),
     )
     do_call("indy_vdr_build_get_rich_schema_object_by_metadata_request", did_p, rs_type, rs_name, rs_version, byref(handle))
     return Request(handle)
