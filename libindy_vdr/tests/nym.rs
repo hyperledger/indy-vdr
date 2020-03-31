@@ -193,7 +193,8 @@ mod send {
             )
             .unwrap();
 
-        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM
         let get_nym_request = pool
@@ -231,7 +232,8 @@ mod send {
             )
             .unwrap();
 
-        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM
         let get_nym_request = pool
@@ -252,12 +254,12 @@ mod send {
     }
 
     #[rstest(
-    role,
-    case("STEWARD"),
-    case("TRUSTEE"),
-    case("TRUST_ANCHOR"),
-    case("ENDORSER"),
-    case("NETWORK_MONITOR")
+        role,
+        case("STEWARD"),
+        case("TRUSTEE"),
+        case("TRUST_ANCHOR"),
+        case("ENDORSER"),
+        case("NETWORK_MONITOR")
     )]
     fn test_pool_send_nym_request_for_different_roles(
         pool: TestPool,
@@ -278,7 +280,8 @@ mod send {
             )
             .unwrap();
 
-        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM
         let get_nym_request = pool
@@ -316,7 +319,8 @@ mod send {
             )
             .unwrap();
 
-        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM to ensure role is TRUSTEE
         let get_nym_request = pool
@@ -347,7 +351,8 @@ mod send {
             )
             .unwrap();
 
-        let nym_response = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
         // Get NYM to ensure role was reset
         let get_nym_request = pool
@@ -411,7 +416,13 @@ mod send {
         // Send NYM
         let mut nym_request = pool
             .request_builder()
-            .build_nym_request(&identity.did, &new_identity.did, Some(new_identity.verkey), None, None)
+            .build_nym_request(
+                &identity.did,
+                &new_identity.did,
+                Some(new_identity.verkey),
+                None,
+                None,
+            )
             .unwrap();
 
         let err = helpers::sign_and_send_request(&identity, &pool, &mut nym_request).unwrap_err();

@@ -390,6 +390,22 @@ mod send_attrib {
 
         let err = helpers::sign_and_send_request(&trustee, &pool, &mut attrib_request).unwrap_err();
         helpers::check_response_type(&err, "REJECT");
+
+        // Send Get Attrib
+        let mut attrib_request = pool
+            .request_builder()
+            .build_get_attrib_request(
+                None,
+                &identity.did,
+                Some(ATTRIB_RAW_DATA_FIELD.to_string()),
+                None,
+                None,
+            )
+            .unwrap();
+
+        let response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut attrib_request).unwrap();
+        helpers::get_response_data(&response).unwrap_err();
     }
 
     #[rstest]

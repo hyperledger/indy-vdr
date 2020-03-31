@@ -92,7 +92,7 @@ mod send_cred_def {
     fn test_pool_send_cred_def_requests(pool: TestPool) {
         let identity = helpers::new_ledger_identity(&pool, Some(String::from("TRUSTEE")));
 
-        let schema = helpers::schema::build(&identity.did);
+        let schema = helpers::schema::default_schema(&identity.did);
         let (_schema_id, schema_seq_no) = helpers::schema::publish(&identity, &pool, &schema);
 
         let cred_def = helpers::cred_def::build(&identity.did, schema_seq_no);

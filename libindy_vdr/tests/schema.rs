@@ -35,7 +35,7 @@ mod builder {
     }
 
     fn schema() -> Schema {
-        Schema::SchemaV1(build(&_did()))
+        Schema::SchemaV1(default_schema(&_did()))
     }
 
     mod schema {
@@ -131,7 +131,7 @@ mod send_schema {
     #[rstest]
     fn test_pool_schema_requests(pool: TestPool) {
         let identity = helpers::new_ledger_identity(&pool, Some(String::from("TRUSTEE")));
-        let schema = helpers::schema::build(&identity.did);
+        let schema = helpers::schema::default_schema(&identity.did);
 
         // Send Schema
         let mut schema_request = pool

@@ -184,7 +184,7 @@ mod send_revoc_reg {
     fn test_pool_send_revoc_reg_def_def_requests(pool: TestPool) {
         let identity = helpers::new_ledger_identity(&pool, Some(String::from("TRUSTEE")));
 
-        let schema = helpers::schema::build(&identity.did);
+        let schema = helpers::schema::default_schema(&identity.did);
         let (_schema_id, schema_seq_no) = helpers::schema::publish(&identity, &pool, &schema);
 
         let cred_def = helpers::cred_def::build(&identity.did, schema_seq_no);
@@ -233,31 +233,152 @@ mod send_revoc_reg {
         let revoc_reg_entry_response =
             helpers::sign_and_send_request(&identity, &pool, &mut revoc_reg_delta_request).unwrap();
 
-        // Send Get Revocation Registry
-        let timestamp: i64 = helpers::current_timestamp() as i64 + 1000;
+        _get_revocation_registry_cases(&pool, &revoc_reg_id, &revoc_reg_entry_response);
+        _get_revocation_registry_delta_cases(&pool, &revoc_reg_id, &revoc_reg_entry_response);
+    }
 
+    fn _get_revocation_registry_cases(
+        pool: &TestPool,
+        revoc_reg_id: &RevocationRegistryId,
+        revoc_reg_entry_response: &str,
+    ) {
+        let txn_time = _extract_txn_time_from_reply(revoc_reg_entry_response) as i64;
+
+        // Send Get Revocation Registry for timestamp equal writing time
+        let response =
+            _get_revocation_registry(pool, revoc_reg_id, txn_time, revoc_reg_entry_response);
+        assert_eq!(
+            json!(revoc_reg_delta())["value"],
+            helpers::get_response_data(&response).unwrap()["value"]
+        );
+
+        // Send Get Revocation Registry for timestamp > txn_time
+        let response = _get_revocation_registry(
+            pool,
+            revoc_reg_id,
+            txn_time + 1000,
+            revoc_reg_entry_response,
+        );
+        assert_eq!(
+            json!(revoc_reg_delta())["value"],
+            helpers::get_response_data(&response).unwrap()["value"]
+        );
+
+        // Send Get Revocation Registry for timestamp < txn_time
+        let response = _get_revocation_registry(
+            pool,
+            revoc_reg_id,
+            txn_time - 1000,
+            revoc_reg_entry_response,
+        );
+        helpers::get_response_data(&response).unwrap_err();
+    }
+
+    fn _get_revocation_registry_delta_cases(
+        pool: &TestPool,
+        revoc_reg_id: &RevocationRegistryId,
+        revoc_reg_entry_response: &str,
+    ) {
+        let txn_time = _extract_txn_time_from_reply(revoc_reg_entry_response) as i64;
+
+        // Send Get Revocation Registry Delta for to==txn_time
+        let response = _get_revocation_registry_delta(
+            pool,
+            revoc_reg_id,
+            None,
+            txn_time,
+            revoc_reg_entry_response,
+        );
+        let _data = helpers::get_response_data(&response).unwrap();
+
+        // Send Get Revocation Registry Delta for to > txn_time
+        let response = _get_revocation_registry_delta(
+            pool,
+            revoc_reg_id,
+            None,
+            txn_time + 1000,
+            revoc_reg_entry_response,
+        );
+        let _data = helpers::get_response_data(&response).unwrap();
+
+        // Send Get Revocation Registry Delta for to < txn_time
+        let response = _get_revocation_registry_delta(
+            pool,
+            revoc_reg_id,
+            None,
+            txn_time - 1000,
+            revoc_reg_entry_response,
+        );
+        let _data = helpers::get_response_data(&response).unwrap_err();
+
+        // Send Get Revocation Registry Delta for from==to==txn_time
+        let response = _get_revocation_registry_delta(
+            pool,
+            revoc_reg_id,
+            Some(txn_time),
+            txn_time,
+            revoc_reg_entry_response,
+        );
+        let _data = helpers::get_response_data(&response).unwrap();
+
+        // Send Get Revocation Registry Delta for from<txn_time<to
+        let response = _get_revocation_registry_delta(
+            pool,
+            revoc_reg_id,
+            Some(txn_time - 1000),
+            txn_time + 1000,
+            revoc_reg_entry_response,
+        );
+        let _data = helpers::get_response_data(&response).unwrap();
+
+        // Send Get Revocation Registry Delta for txn_time<from<to
+        let response = _get_revocation_registry_delta(
+            pool,
+            revoc_reg_id,
+            Some(txn_time + 1000),
+            txn_time + 5000,
+            revoc_reg_entry_response,
+        );
+        let _data = helpers::get_response_data(&response).unwrap();
+    }
+
+    fn _get_revocation_registry(
+        pool: &TestPool,
+        revoc_reg_id: &RevocationRegistryId,
+        timestamp: i64,
+        revoc_reg_entry_response: &str,
+    ) -> String {
         let get_revoc_reg = pool
             .request_builder()
             .build_get_revoc_reg_request(None, &revoc_reg_id, timestamp)
             .unwrap();
 
         let response = pool
-            .send_request_with_retries(&get_revoc_reg, &revoc_reg_entry_response)
+            .send_request_with_retries(&get_revoc_reg, revoc_reg_entry_response)
             .unwrap();
-        assert_eq!(
-            json!(revoc_reg_delta())["value"],
-            helpers::get_response_data(&response).unwrap()["value"]
-        );
+        response
+    }
 
-        // Send Get Revocation Registry Delta
+    fn _get_revocation_registry_delta(
+        pool: &TestPool,
+        revoc_reg_id: &RevocationRegistryId,
+        from: Option<i64>,
+        to: i64,
+        revoc_reg_entry_response: &str,
+    ) -> String {
         let get_revoc_reg_delta = pool
             .request_builder()
-            .build_get_revoc_reg_delta_request(None, &revoc_reg_id, None, timestamp)
+            .build_get_revoc_reg_delta_request(None, &revoc_reg_id, from, to)
             .unwrap();
 
         let response = pool
-            .send_request_with_retries(&get_revoc_reg_delta, &revoc_reg_entry_response)
+            .send_request_with_retries(&get_revoc_reg_delta, revoc_reg_entry_response)
             .unwrap();
-        let _data = helpers::get_response_data(&response).unwrap();
+        response
+    }
+
+    fn _extract_txn_time_from_reply(reply: &str) -> u64 {
+        let reply: serde_json::Value = serde_json::from_str(reply).unwrap();
+        reply["result"]["txnMetadata"]["txnTime"].as_u64().unwrap()
     }
 }

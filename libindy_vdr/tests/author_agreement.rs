@@ -345,9 +345,7 @@ mod author_agreement {
             )
             .unwrap();
 
-        nym_request
-            .set_txn_author_agreement_acceptance(&data)
-            .unwrap();
+        request.set_txn_author_agreement_acceptance(&data).unwrap();
     }
 
     #[rstest]
@@ -409,7 +407,7 @@ mod author_agreement {
         aml_label: &str,
     ) {
         // Set TAA on the Ledger
-        let (response, taa_text, taa_version, _ratification_ts) =
+        let (_response, taa_text, taa_version, _ratification_ts) =
             helpers::taa::set_taa(&pool, &trustee);
 
         // Try to publish NYM with accepting different TAA text
@@ -464,19 +462,19 @@ mod author_agreement {
         let expected_data =
             json!({"text": taa_text, "version": taa_version, "ratification_ts": ratification_ts});
         helpers::taa::check_taa(
-            setup.pool_handle,
+            &pool,
             &txn_author_agreement_response,
             &taa_version,
             expected_data,
         );
 
         // Set TAA 2 on the Ledger to be able make the first one retired
-        let (txn_author_agreement_response_2, taa_text_2, taa_version_2, ratification_ts_2) =
+        let (_txn_author_agreement_response_2, taa_text_2, taa_version_2, ratification_ts_2) =
             helpers::taa::set_taa(&pool, &trustee);
 
         let expected_data = json!({"text": taa_text_2, "version": taa_version_2, "ratification_ts": ratification_ts_2});
         helpers::taa::check_taa(
-            setup.pool_handle,
+            &pool,
             &txn_author_agreement_response,
             &taa_version_2,
             expected_data,
@@ -495,7 +493,7 @@ mod author_agreement {
             &pool,
             &taa_text_2,
             &taa_version_2,
-            &aml_label_2,
+            &aml_label,
         );
         let _response =
             helpers::sign_and_send_request(&trustee, &pool, &mut nym_request_2).unwrap();
@@ -529,7 +527,7 @@ mod author_agreement {
             &pool,
             &taa_text_2,
             &taa_version_2,
-            &aml_label_2,
+            &aml_label,
         );
         let _response =
             helpers::sign_and_send_request(&trustee, &pool, &mut nym_request_2).unwrap();
@@ -561,7 +559,7 @@ mod author_agreement {
         aml_label: &str,
     ) {
         // Set TAA on the Ledger
-        let (txn_author_agreement_response, taa_text, taa_version, ratification_ts) =
+        let (_txn_author_agreement_response, taa_text, taa_version, ratification_ts) =
             helpers::taa::set_taa(&pool, &trustee);
 
         // Send NYM with using acceptance time that earlier ratification_ts
@@ -582,23 +580,14 @@ mod author_agreement {
             .set_txn_author_agreement_acceptance(&data)
             .unwrap();
 
-        let err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request_2).unwrap_err();
+        let err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap_err();
         helpers::check_response_type(&err, "REJECT");
 
         // Disable all TAA
         helpers::taa::disable_taa(&pool, &trustee);
-    }
 
-    #[rstest]
-    fn test_pool_transaction_author_agreement_for_missed_ratification_ts(
-        pool: TestPool,
-        trustee: Identity,
-    ) {
-        // Set AML on the Ledger
-        let (_response, _aml, aml_label, _aml_version, _aml_context) =
-            helpers::taa::set_aml(&pool, &trustee);
-
-        let (taa_text, taa_version, _, _) = helpers::taa::gen_taa_data();
+        // Setup TAA without ratification timestamp
+        let (taa_text, taa_version, _) = helpers::taa::gen_taa_data();
 
         let mut request = pool
             .request_builder()

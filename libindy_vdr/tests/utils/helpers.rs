@@ -5,6 +5,8 @@ use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
 use indy_vdr::common::error::VdrResult;
 use indy_vdr::pool::handlers::NodeReplies;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 
 pub fn current_timestamp() -> u64 {
     chrono::Local::now().timestamp() as u64
@@ -76,6 +78,18 @@ pub fn sign_and_send_full_request(
     pool.send_full_request(&request, node_aliases, timeout)
 }
 
+fn rand_string() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .collect()
+}
+
+fn rand_version() -> String {
+    let version: u32 = rand::thread_rng().gen();
+    version.to_string()
+}
+
 pub mod schema {
     use super::*;
     use indy_vdr::ledger::identifiers::schema::SchemaId;
@@ -91,7 +105,7 @@ pub mod schema {
         AttributeNames(attributes)
     }
 
-    pub fn build(did: &DidValue) -> SchemaV1 {
+    pub fn default_schema(did: &DidValue) -> SchemaV1 {
         SchemaV1 {
             id: build_schema_id(did, NAME, VERSION),
             name: NAME.to_string(),
@@ -101,8 +115,30 @@ pub mod schema {
         }
     }
 
+    pub fn new_schema(did: &DidValue) -> SchemaV1 {
+        SchemaV1 {
+            id: build_schema_id(did, NAME, VERSION),
+            name: rand_string(),
+            version: format!("{}.{}", rand_version(), rand_version()),
+            attr_names: attributes(),
+            seq_no: None,
+        }
+    }
+
     pub fn build_schema_id(did: &DidValue, name: &str, version: &str) -> SchemaId {
         SchemaId(format!("{}:2:{}:{}", did.0, name, version))
+    }
+
+    pub fn build_schema_request(
+        pool: &TestPool,
+        identity: &Identity,
+    ) -> (SchemaId, PreparedRequest) {
+        let schema = schema::new_schema(&identity.did);
+        let schema_request = pool
+            .request_builder()
+            .build_schema_request(&identity.did, Schema::SchemaV1(schema.clone()))
+            .unwrap();
+        (schema.id, schema_request)
     }
 
     pub fn publish(identity: &Identity, pool: &TestPool, schema: &SchemaV1) -> (SchemaId, u64) {
@@ -116,6 +152,17 @@ pub mod schema {
 
         let seq_no = TestPool::extract_seq_no_from_reply(&schema_response).unwrap();
         (schema.id.clone(), seq_no)
+    }
+
+    pub fn ensure_schema_is_written(pool: &TestPool, schema_response: &str, schema_id: &SchemaId) {
+        // Get Schema
+        let get_schema_request = pool
+            .request_builder()
+            .build_get_schema_request(None, &schema_id)
+            .unwrap();
+
+        pool.send_request_with_retries(&get_schema_request, &schema_response)
+            .unwrap();
     }
 }
 
@@ -301,35 +348,21 @@ pub mod taa {
     use indy_vdr::ledger::requests::author_agreement::{
         AcceptanceMechanisms, GetTxnAuthorAgreementData,
     };
-    use rand::distributions::Alphanumeric;
-    use rand::Rng;
-
-    fn _rand_string() -> String {
-        rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(30)
-            .collect()
-    }
-
-    fn _rand_version() -> String {
-        let version: u32 = rand::thread_rng().gen();
-        version.to_string()
-    }
 
     pub fn gen_aml_data() -> (AcceptanceMechanisms, String, String, String) {
-        let aml_label = _rand_string();
+        let aml_label = rand_string();
 
         let mut aml: AcceptanceMechanisms = AcceptanceMechanisms::new();
-        aml.0.insert(aml_label.clone(), json!(_rand_string()));
+        aml.0.insert(aml_label.clone(), json!(rand_string()));
 
-        let version: String = _rand_version();
-        let aml_context: String = _rand_string();
+        let version: String = rand_version();
+        let aml_context: String = rand_string();
         (aml, aml_label, version, aml_context)
     }
 
     pub fn gen_taa_data() -> (String, String, u64) {
-        let text: String = _rand_string();
-        let version: String = _rand_version();
+        let text: String = rand_string();
+        let version: String = rand_version();
         let ratification_ts = current_timestamp();
         (text, version, ratification_ts)
     }
