@@ -1,23 +1,26 @@
+#[macro_use]
+mod utils;
+
+inject_dependencies!();
+
 extern crate rand;
-use crate::common::did::DidValue;
-use crate::ledger::constants;
-use crate::ledger::identifiers::rich_schema::RichSchemaId;
 use crate::utils::constants::{TRUSTEE_DID, TRUSTEE_DID_FQ};
 use crate::utils::helpers;
 use crate::utils::pool::*;
+use indy_vdr::common::did::DidValue;
+use indy_vdr::ledger::constants;
+use indy_vdr::ledger::identifiers::rich_schema::RichSchemaId;
 use rand::Rng;
-use rstest::*;
 
 #[cfg(test)]
 pub mod builder {
     use super::*;
-    use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
-    use crate::ledger::PreparedRequest;
-    use crate::utils::helpers::get_rand_string;
+    use indy_vdr::ledger::requests::rich_schema::{RSContent, RichSchema};
+    use indy_vdr::ledger::PreparedRequest;
 
     fn rs_id_str() -> String {
         let mut id = "did:sov:".to_string();
-        id.push_str(&get_rand_string(32));
+        id.push_str(&helpers::get_rand_string(32));
         return id;
     }
 
@@ -138,10 +141,10 @@ pub mod builder {
 }
 
 mod sender {
-    use super::*;
-    use crate::ledger::requests::rich_schema::RSContent;
-    use crate::tests::utils::crypto::Identity;
     use super::builder;
+    use super::*;
+    use crate::utils::crypto::Identity;
+    use indy_vdr::ledger::requests::rich_schema::RSContent;
 
     #[fixture]
     fn test_pool() -> TestPool {
@@ -244,15 +247,15 @@ mod sender {
 }
 
 mod rs_chain {
+    use super::builder;
     use super::*;
-    use crate::ledger::constants::{
+    use crate::utils::crypto::Identity;
+    use indy_vdr::ledger::constants::{
         RS_CONTEXT_TYPE_VALUE, RS_CRED_DEF_TYPE_VALUE, RS_ENCODING_TYPE_VALUE,
         RS_MAPPING_TYPE_VALUE, RS_PRES_DEF_TYPE_VALUE, RS_SCHEMA_TYPE_VALUE,
     };
-    use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
-    use crate::ledger::PreparedRequest;
-    use crate::tests::utils::crypto::Identity;
-    use super::builder;
+    use indy_vdr::ledger::requests::rich_schema::{RSContent, RichSchema};
+    use indy_vdr::ledger::PreparedRequest;
 
     pub struct RSChain {
         pub rs_sch_id: RichSchemaId,

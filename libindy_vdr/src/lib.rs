@@ -28,4 +28,3 @@ pub mod state_proof;
 #[cfg(test)]
 #[macro_use]
 extern crate rstest;
-pub mod tests;
