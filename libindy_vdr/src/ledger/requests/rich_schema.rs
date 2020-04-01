@@ -61,7 +61,9 @@ impl RichSchema {
 
 impl Validatable for RichSchema {
     fn validate(&self) -> Result<(), ValidationError> {
-        // ToDo: add specific validation
+        let _rs_type: RSType =
+            serde_json::from_value(serde_json::value::Value::String(self.rs_type.clone()))
+                .map_err(|_err| _err.to_string())?;
         return self.id.validate();
     }
 }
@@ -75,7 +77,7 @@ pub struct RichSchemaBaseOperation {
     pub content: RSContent,
     pub rs_name: String,
     pub rs_version: String,
-    pub rs_type: RSType,
+    pub rs_type: String,
     pub ver: String,
 }
 
@@ -87,8 +89,7 @@ impl RichSchemaBaseOperation {
             content: rs_schema.content,
             rs_name: rs_schema.rs_name,
             rs_version: rs_schema.rs_version,
-            rs_type: serde_json::from_value(serde_json::value::Value::String(rs_schema.rs_type))
-                .unwrap(),
+            rs_type: rs_schema.rs_type,
             ver: rs_schema.ver,
         }
     }
@@ -320,6 +321,6 @@ mod tests {
         let mut rs_schema = _rs_schema();
         rs_schema.rs_type = "SomeOtherType".to_string();
         let err = rs_schema.validate().unwrap_err();
-        assert!(err.to_string().contains("Should be one of"));
+        assert!(err.to_string().contains("unknown variant `SomeOtherType`"));
     }
 }
