@@ -5,6 +5,7 @@ inject_dependencies!();
 
 extern crate rand;
 use crate::utils::constants::{TRUSTEE_DID, TRUSTEE_DID_FQ};
+use crate::utils::fixtures::*;
 use crate::utils::helpers;
 use crate::utils::pool::*;
 use indy_vdr::common::did::DidValue;
@@ -15,17 +16,15 @@ use rand::Rng;
 #[cfg(test)]
 pub mod builder {
     use super::*;
+    use crate::utils::constants as test_constants;
+    use crate::utils::crypto::Identity;
+    use indy_vdr::ledger::constants as ledger_constants;
     use indy_vdr::ledger::requests::rich_schema::{RSContent, RichSchema};
-    use indy_vdr::ledger::PreparedRequest;
-
-    fn rs_id_str() -> String {
-        let mut id = "did:sov:".to_string();
-        id.push_str(&helpers::get_rand_string(32));
-        return id;
-    }
+    use indy_vdr::ledger::{PreparedRequest, RequestBuilder};
 
     pub fn rs_id() -> RichSchemaId {
-        return RichSchemaId::new(rs_id_str());
+        let mut id = format!("did:sov:{}", &helpers::rand_string(32));
+        return RichSchemaId::new(id);
     }
 
     pub fn rs_version() -> String {
@@ -42,7 +41,7 @@ pub mod builder {
     pub fn rs_content(rs_id: RichSchemaId) -> RSContent {
         let rs_as_json = json!({
             "@id": rs_id,
-            "@type": constants::RS_SCHEMA_TYPE_VALUE.to_string(),
+            "@type": ledger_constants::RS_SCHEMA_TYPE_VALUE.to_string(),
             "some": "other".to_string(),
             "valid": "objects".to_string(),
         });
@@ -56,15 +55,17 @@ pub mod builder {
             rs_content(rs_id),
             "test_rich_schema".to_string(),
             rs_version(),
-            constants::RS_SCHEMA_TYPE_VALUE.to_string(),
+            ledger_constants::RS_SCHEMA_TYPE_VALUE.to_string(),
             "1".to_string(),
         )
     }
 
-    pub fn _build_rs_req(identity: DidValue, rich_schema: RichSchema) -> PreparedRequest {
-        let pool = TestPool::new();
-        return pool
-            .request_builder()
+    pub fn _build_rs_req(
+        identity: DidValue,
+        rich_schema: RichSchema,
+        request_builder: RequestBuilder,
+    ) -> PreparedRequest {
+        return request_builder
             .build_rich_schema_request(
                 &identity,
                 rich_schema.id,
@@ -77,15 +78,14 @@ pub mod builder {
             .unwrap();
     }
 
-    #[test]
-    fn test_rs_with_wrong_rs_type() {
+    #[rstest]
+    fn test_rs_with_wrong_rs_type(trustee_did: DidValue, pool: TestPool) {
         let mut rich_schema = rich_schema();
         rich_schema.rs_type = "SomeOtherType".to_string();
-        let pool = TestPool::new();
         let err = pool
             .request_builder()
             .build_rich_schema_request(
-                &DidValue(String::from(TRUSTEE_DID)),
+                &trustee_did,
                 rich_schema.id,
                 rich_schema.content,
                 rich_schema.rs_name,
@@ -97,17 +97,17 @@ pub mod builder {
         assert!(err.to_string().contains("unknown variant `SomeOtherType`"));
     }
 
-    #[test]
-    fn test_rs_request_general() {
+    #[rstest]
+    fn test_rs_request_general(request_builder: RequestBuilder, trustee_did: DidValue) {
         let rich_schema = rich_schema();
-        let rs_req = _build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
+        let rs_req = _build_rs_req(trustee_did, rich_schema.clone(), request_builder);
         let expected_result = json!({
             "type": constants::RICH_SCHEMA,
             "id": rich_schema.id,
             "content": rs_content(rich_schema.id),
             "rsName": "test_rich_schema".to_string(),
             "rsVersion": rich_schema.rs_version,
-            "rsType": constants::RS_SCHEMA_TYPE_VALUE.to_string(),
+            "rsType": ledger_constants::RS_SCHEMA_TYPE_VALUE.to_string(),
             "ver": "1".to_string()
         });
         helpers::check_request_operation(&rs_req, expected_result);
@@ -123,18 +123,22 @@ pub mod builder {
     "pdf".to_string(),
     ]
     )]
-    fn test_rs_request_works_for_fully_qualified_did(rs_type: String) {
+    fn test_rs_request_works_for_fully_qualified_did(
+        rs_type: String,
+        request_builder: RequestBuilder,
+        trustee_did: DidValue,
+    ) {
         let mut rich_schema = rich_schema();
         rich_schema.rs_type = rs_type.clone();
-        let rs_req = _build_rs_req(DidValue(String::from(TRUSTEE_DID_FQ)), rich_schema.clone());
+        let rs_req = _build_rs_req(trustee_did, rich_schema.clone(), request_builder);
         let expected_result = json!({
-            "type": constants::RS_TYPE_TO_OP.get(&rich_schema.rs_type.as_str()).unwrap().to_string(),
+            "type": test_constants::RS_TYPE_TO_OP.get(&rich_schema.rs_type.as_str()).unwrap(),
             "id": rich_schema.id,
             "content": rs_content(rich_schema.id),
-            "rsName": "test_rich_schema".to_string(),
+            "rsName": "test_rich_schema",
             "rsVersion": rich_schema.rs_version,
             "rsType": rs_type,
-            "ver": "1".to_string()
+            "ver": "1"
         });
         helpers::check_request_operation(&rs_req, expected_result);
     }
@@ -145,29 +149,23 @@ mod sender {
     use super::*;
     use crate::utils::crypto::Identity;
     use indy_vdr::ledger::requests::rich_schema::RSContent;
-
-    #[fixture]
-    fn test_pool() -> TestPool {
-        let t = TestPool::new();
-        t
-    }
-
-    #[fixture]
-    fn trustee() -> Identity {
-        let t = Identity::trustee();
-        t
-    }
+    use indy_vdr::ledger::RequestBuilder;
 
     #[rstest]
-    fn test_rs_request_send_to_ledger_general(trustee: Identity, test_pool: TestPool) {
+    fn test_rs_request_send_to_ledger_general(
+        trustee: Identity,
+        pool: TestPool,
+        request_builder: RequestBuilder,
+        trustee_did: DidValue,
+    ) {
         let rich_schema = builder::rich_schema();
         let rs_id = rich_schema.clone();
         let rs_meta = rich_schema.clone();
         let mut rs_req =
-            builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema.clone());
+            builder::_build_rs_req(trustee_did.clone(), rich_schema.clone(), request_builder);
         trustee.sign_request(&mut rs_req);
 
-        let rs_response = test_pool.send_request(&rs_req).unwrap();
+        let rs_response = pool.send_request(&rs_req).unwrap();
         let expected_result = json!({
             "id": rich_schema.id,
             "content": builder::rs_content(rich_schema.id),
@@ -179,24 +177,24 @@ mod sender {
             "endorser": serde_json::Value::Null,
         });
 
-        let get_rs_by_id = test_pool
+        let get_rs_by_id = pool
             .request_builder()
-            .build_get_rich_schema_by_id(&DidValue(String::from(TRUSTEE_DID)), &rs_id.id)
+            .build_get_rich_schema_by_id(&trustee_did.clone(), &rs_id.id)
             .unwrap();
-        let response_by_id = test_pool
+        let response_by_id = pool
             .send_request_with_retries(&get_rs_by_id, &rs_response)
             .unwrap();
 
-        let get_rs_by_metadata = test_pool
+        let get_rs_by_metadata = pool
             .request_builder()
             .build_get_rich_schema_by_metadata(
-                &DidValue(String::from(TRUSTEE_DID)),
+                &trustee_did,
                 rs_meta.rs_type,
                 rs_meta.rs_name,
                 rs_meta.rs_version,
             )
             .unwrap();
-        let response_by_metadata = test_pool
+        let response_by_metadata = pool
             .send_request_with_retries(&get_rs_by_metadata, &rs_response)
             .unwrap();
 
@@ -229,8 +227,10 @@ mod sender {
     fn test_rs_request_wrong_json(
         rs_content: RSContent,
         trustee: Identity,
-        test_pool: TestPool,
+        pool: TestPool,
         rs_type: String,
+        request_builder: RequestBuilder,
+        trustee_did: DidValue,
     ) {
         let mut rich_schema = builder::rich_schema();
         rich_schema.rs_type = rs_type;
@@ -238,10 +238,10 @@ mod sender {
         // Put a JSON-LD string with different id in content and at the top of data
         rich_schema.content = rs_content;
 
-        let mut rs_req = builder::_build_rs_req(DidValue(String::from(TRUSTEE_DID)), rich_schema);
+        let mut rs_req = builder::_build_rs_req(trustee_did, rich_schema, request_builder);
         trustee.sign_request(&mut rs_req);
 
-        let err = test_pool.send_request(&rs_req).unwrap_err();
+        let err = pool.send_request(&rs_req).unwrap_err();
         helpers::check_response_type(&err, "REQNACK");
     }
 }
@@ -532,11 +532,9 @@ mod rs_chain {
             .unwrap()
     }
 
-    #[test]
-    fn test_general_rs_chain() {
-        let pool = TestPool::new();
+    #[rstest]
+    fn test_general_rs_chain(pool: TestPool, trustee: Identity) {
         let rs_chain = RSChain::new();
-        let trustee = Identity::trustee();
         let rs_objects = vec![
             rs_chain.make_rs_sch(),
             rs_chain.make_rs_ctx(),

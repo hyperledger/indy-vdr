@@ -102,20 +102,6 @@ pub const RS_PRES_DEF_TYPE_VALUE: &str = "pdf";
 
 pub const ROLES: [&str; 4] = [TRUSTEE, STEWARD, ENDORSER, NETWORK_MONITOR];
 
-lazy_static! {
-    pub static ref RS_TYPE_TO_OP: HashMap<&'static str, &'static str> = [
-        (RS_SCHEMA_TYPE_VALUE, RICH_SCHEMA),
-        (RS_ENCODING_TYPE_VALUE, RICH_SCHEMA_ENCODING),
-        (RS_CONTEXT_TYPE_VALUE, RICH_SCHEMA_CTX),
-        (RS_MAPPING_TYPE_VALUE, RICH_SCHEMA_MAPPING),
-        (RS_CRED_DEF_TYPE_VALUE, RICH_SCHEMA_CRED_DEF),
-        (RS_PRES_DEF_TYPE_VALUE, RICH_SCHEMA_PRES_DEF),
-    ]
-    .iter()
-    .copied()
-    .collect();
-}
-
 pub fn txn_name_to_code(txn: &str) -> Option<&str> {
     if REQUESTS.contains(&txn) {
         return Some(txn);

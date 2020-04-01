@@ -95,7 +95,6 @@ impl RichSchemaBaseOperation {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct RichSchemaOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RichSchemaOperation {
@@ -105,7 +104,6 @@ impl RequestType for RichSchemaOperation {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct RSEncodingOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSEncodingOperation {
@@ -115,7 +113,6 @@ impl RequestType for RSEncodingOperation {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct RSMappingOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSMappingOperation {
@@ -125,7 +122,6 @@ impl RequestType for RSMappingOperation {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct RSContextOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSContextOperation {
@@ -135,7 +131,6 @@ impl RequestType for RSContextOperation {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct RSCredDefOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSCredDefOperation {
@@ -145,7 +140,6 @@ impl RequestType for RSCredDefOperation {
 }
 
 #[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct RSPresDefOperation(pub RichSchemaBaseOperation);
 
 impl RequestType for RSPresDefOperation {
@@ -243,6 +237,7 @@ impl GetRichSchemaByMetadata {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct GetRichSchemaByMetadataOperation {
     #[serde(rename = "type")]
     pub _type: String,

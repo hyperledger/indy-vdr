@@ -738,8 +738,10 @@ impl RequestBuilder {
         ver: String,
     ) -> VdrResult<PreparedRequest> {
         let rich_schema = RichSchema::new(id, content, rs_name, rs_version, rs_type.clone(), ver);
-        let rs_type: RSType = serde_json::from_value(serde_json::value::Value::String(rs_type))?;
-        match &rs_type {
+        let allowed_rs_type: RSType =
+            serde_json::from_value(serde_json::value::Value::String(rs_type))
+                .map_err(|err| input_err(err))?;
+        match &allowed_rs_type {
             RSType::Sch => build_rs_operation!(self, RichSchemaOperation, identifier, rich_schema),
             RSType::Map => build_rs_operation!(self, RSMappingOperation, identifier, rich_schema),
             RSType::Enc => build_rs_operation!(self, RSEncodingOperation, identifier, rich_schema),
