@@ -1,6 +1,6 @@
 use crate::utils::base58;
 use crate::utils::crypto::DEFAULT_CRYPTO_TYPE;
-use crate::utils::validation::ValidationError;
+use crate::utils::validation::{Validatable, ValidationError};
 
 pub const VERKEY_ENC_BASE58: &str = "base58";
 pub const DEFAULT_VERKEY_ENC: &str = VERKEY_ENC_BASE58;
@@ -88,6 +88,17 @@ impl Into<String> for VerKey {
             self.key
         } else {
             self.long_form()
+        }
+    }
+}
+
+impl Validatable for VerKey {
+    fn validate(&self) -> Result<(), ValidationError> {
+        let bytes = self.key_bytes()?;
+        if bytes.len() == 32 {
+            Ok(())
+        } else {
+            Err(invalid!("Invalid key length"))
         }
     }
 }

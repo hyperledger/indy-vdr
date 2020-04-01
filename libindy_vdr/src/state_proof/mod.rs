@@ -13,7 +13,7 @@ use serde_json::Value as SJsonValue;
 use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
 use crate::common::error::prelude::*;
-use crate::pool::{NodeKeys, ProtocolVersion};
+use crate::pool::{ProtocolVersion, VerifierKeys};
 use crate::utils::base58;
 use crate::utils::hash::{digest, Sha256, TreeHash};
 
@@ -65,7 +65,7 @@ pub(crate) fn check_state_proof(
     msg_result: &SJsonValue,
     f: usize,
     gen: &Generator,
-    bls_keys: &NodeKeys,
+    bls_keys: &VerifierKeys,
     raw_msg: &str,
     sp_key: Option<&[u8]>,
     requested_timestamps: (Option<u64>, Option<u64>),
@@ -260,7 +260,7 @@ pub(crate) fn parse_generic_reply_for_proof_checking(
 
 pub(crate) fn verify_parsed_sp(
     parsed_sps: Vec<ParsedSP>,
-    nodes: &NodeKeys,
+    nodes: &VerifierKeys,
     f: usize,
     gen: &Generator,
 ) -> bool {
@@ -856,15 +856,18 @@ fn _parse_reply_for_multi_sp(
 
 fn _parse_reply_for_proof_signature_checking(
     json_msg: &SJsonValue,
-) -> Option<(&str, Vec<&str>, Vec<u8>)> {
+) -> Option<(&str, Vec<String>, Vec<u8>)> {
     match (
         json_msg["signature"].as_str(),
         json_msg["participants"].as_array(),
         rmp_serde::to_vec_named(&json_msg["value"]),
     ) {
         (Some(signature), Some(participants), Ok(value)) => {
-            let participants_unwrap: Vec<&str> =
-                participants.iter().flat_map(SJsonValue::as_str).collect();
+            let participants_unwrap = participants
+                .iter()
+                .flat_map(SJsonValue::as_str)
+                .map(str::to_owned)
+                .collect::<Vec<String>>();
 
             if participants.len() == participants_unwrap.len() {
                 Some((signature, participants_unwrap, value))
@@ -1099,20 +1102,19 @@ fn _verify_proof_range(
 
 fn _verify_proof_signature(
     signature: &str,
-    participants: &[&str],
+    participants: &[String],
     value: &[u8],
-    nodes: &NodeKeys,
+    nodes: &VerifierKeys,
     f: usize,
     gen: &Generator,
 ) -> VdrResult<bool> {
     let mut ver_keys: Vec<&VerKey> = Vec::with_capacity(nodes.len());
 
-    for (name, verkey) in nodes {
-        if participants.contains(&name.as_str()) {
-            match *verkey {
-                Some(ref blskey) => ver_keys.push(blskey),
-                _ => return Err(input_err(format!("Blskey not found for node: {:?}", name))),
-            };
+    for name in participants {
+        if let Some(blskey) = nodes.get(name) {
+            ver_keys.push(&blskey.inner)
+        } else {
+            return Err(input_err(format!("BLS key not found for node: {:?}", name)));
         }
     }
 

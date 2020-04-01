@@ -12,11 +12,9 @@ use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
 
 use super::networker::{Networker, NetworkerEvent};
-use super::types::NodeKeys;
+use super::types::{RequestHandle, TimingResult, VerifierKeys};
 use super::PoolSetup;
-use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming, TimingResult};
-
-new_handle_type!(RequestHandle, RQ_COUNTER);
+use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming};
 
 /// Base trait for pool request implementations
 #[must_use = "requests do nothing unless polled"]
@@ -26,7 +24,7 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
     fn node_count(&self) -> usize;
-    fn node_keys(&self) -> NodeKeys;
+    fn node_keys(&self) -> VerifierKeys;
     fn node_order(&self) -> Vec<String>;
     fn pool_config(&self) -> PoolConfig;
     fn send_to_all(&mut self, timeout: i64) -> VdrResult<()>;
@@ -117,12 +115,16 @@ where
         self.node_order.len()
     }
 
-    fn node_keys(&self) -> NodeKeys {
+    fn node_keys(&self) -> VerifierKeys {
         let verifiers = &self.pool_setup.as_ref().verifiers;
         HashMap::from_iter(self.node_order.iter().flat_map(|alias| {
-            verifiers
-                .get(alias)
-                .map(|entry| (alias.clone(), entry.bls_key.clone()))
+            verifiers.get(alias).and_then(|entry| {
+                if let Some(bls_key) = entry.bls_key.as_ref() {
+                    Some((alias.clone(), bls_key.clone()))
+                } else {
+                    None
+                }
+            })
         }))
     }
 

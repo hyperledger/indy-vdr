@@ -8,8 +8,8 @@ use std::path::Path;
 use serde_json::{self, Deserializer, Value as SJsonValue};
 
 use super::types::{
-    BlsVerKey, NodeTransaction, NodeTransactionV0, NodeTransactionV1, ProtocolVersion,
-    VerifierInfo, Verifiers,
+    NodeTransaction, NodeTransactionV0, NodeTransactionV1, ProtocolVersion, VerifierInfo,
+    VerifierKey, Verifiers,
 };
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -274,18 +274,18 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 }
             };
 
-            let bls_key: Option<BlsVerKey> = match txn.txn.data.data.blskey {
-                Some(ref blskey) => {
-                    let key = base58::decode(blskey.as_str()).map_input_err(|| {
-                        format!("Node '{}': invalid base58 in field blskey", node_alias)
-                    })?;
-
-                    Some(BlsVerKey::from_bytes(&key).map_err(|_| {
-                        input_err(format!("Node '{}': invalid field blskey", node_alias))
-                    })?)
-                }
-                None => None,
-            };
+            let bls_key =
+                match txn.txn.data.data.blskey {
+                    Some(ref blskey) => {
+                        let key = base58::decode(blskey.as_str()).map_input_err(|| {
+                            format!("Node '{}': invalid base58 in field blskey", node_alias)
+                        })?;
+                        Some(VerifierKey::from_bytes(&key).map_input_err(|| {
+                            format!("Node '{}': invalid field blskey", node_alias)
+                        })?)
+                    }
+                    None => None,
+                };
 
             let info = VerifierInfo {
                 address,

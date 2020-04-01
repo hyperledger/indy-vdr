@@ -3,12 +3,10 @@ use std::iter::FromIterator;
 use std::time::{Duration, SystemTime};
 
 use super::networker;
-use super::types::{self, Message, PoolSetup};
+use super::types::{self, Message, PoolSetup, TimingResult};
 
 mod base;
-pub use base::{PoolRequest, PoolRequestImpl, RequestHandle};
-
-use crate::common::error::prelude::*;
+pub use base::{PoolRequest, PoolRequestImpl};
 
 /// Events received by `Request` instances as pending dispatches are resolved
 #[derive(Debug)]
@@ -42,28 +40,9 @@ pub enum RequestExtEvent {
     ),
 }
 
-/// A common result type returned by request handlers
-#[derive(Debug)]
-pub enum RequestResult<T> {
-    Reply(T),
-    Failed(VdrError),
-}
-
-impl<T> RequestResult<T> {
-    pub fn map_result<F, R>(self, f: F) -> VdrResult<RequestResult<R>>
-    where
-        F: FnOnce(T) -> VdrResult<R>,
-    {
-        match self {
-            Self::Reply(reply) => Ok(RequestResult::Reply(f(reply)?)),
-            Self::Failed(err) => Ok(RequestResult::Failed(err)),
-        }
-    }
-}
-
 /// Basic state enum for ledger transaction requests
 #[derive(Debug, PartialEq, Eq)]
-pub enum RequestState {
+enum RequestState {
     NotStarted,
     Active,
     Terminated,
@@ -78,19 +57,6 @@ impl std::fmt::Display for RequestState {
         };
         f.write_str(state)
     }
-}
-
-/// Type representing timing information collected for ledger transaction request
-pub type TimingResult = HashMap<String, f32>;
-
-/// Enum distinguishing between different ledger request handling methods
-#[derive(Debug)]
-pub enum RequestTarget {
-    Default,
-    Full(
-        Option<Vec<String>>, // nodes to send
-        Option<i64>,         // timeout
-    ),
 }
 
 #[derive(Debug)]

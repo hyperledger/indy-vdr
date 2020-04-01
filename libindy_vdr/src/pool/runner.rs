@@ -9,7 +9,7 @@ use futures::{select, FutureExt};
 
 use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
-use super::requests::{RequestResult, RequestTarget, TimingResult};
+use super::types::{RequestResult, RequestTarget, TimingResult};
 use super::{LocalPool, Pool};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;

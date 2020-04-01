@@ -1,8 +1,8 @@
 use indy_vdr::common::error::VdrResult;
 use indy_vdr::ledger::{PreparedRequest, RequestBuilder};
 use indy_vdr::pool::helpers::{perform_ledger_action, perform_ledger_request};
-use indy_vdr::pool::NodeReplies;
-use indy_vdr::pool::{Pool, PoolBuilder, PoolTransactions, RequestResult, SharedPool};
+use indy_vdr::pool::{NodeReplies, RequestResult};
+use indy_vdr::pool::{Pool, PoolBuilder, PoolTransactions, SharedPool};
 use vdr_shared::test::GenesisTransactions;
 
 use futures::executor::block_on;

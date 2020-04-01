@@ -8,8 +8,11 @@ use crate::common::merkle_tree::MerkleTree;
 use crate::utils::base58;
 use crate::utils::validation::ValidationError;
 
-use super::requests::{PoolRequest, RequestEvent, RequestResult, TimingResult};
-use super::types::{self, CatchupReq, LedgerStatus, LedgerType, Message, ProtocolVersion};
+use super::requests::{PoolRequest, RequestEvent};
+use super::types::{
+    self, CatchupReq, LedgerStatus, LedgerType, Message, NodeReplies, ProtocolVersion,
+    RequestResult, SingleReply, TimingResult,
+};
 
 mod catchup;
 mod consensus;
@@ -20,35 +23,6 @@ pub use catchup::handle_catchup_request;
 pub use consensus::handle_consensus_request;
 pub use full::handle_full_request;
 pub use status::{handle_status_request, CatchupTarget};
-
-#[derive(Debug)]
-pub enum SingleReply<T> {
-    Reply(T),
-    Failed(String),
-    Timeout(),
-}
-
-impl<T: ToString> ToString for SingleReply<T> {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Reply(msg) => msg.to_string(),
-            Self::Failed(msg) => msg.clone(),
-            Self::Timeout() => "timeout".to_owned(),
-        }
-    }
-}
-
-impl<T: Into<String>> Into<String> for SingleReply<T> {
-    fn into(self) -> String {
-        match self {
-            Self::Reply(msg) => msg.into(),
-            Self::Failed(msg) => msg,
-            Self::Timeout() => "timeout".to_owned(),
-        }
-    }
-}
-
-pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;
 
 #[derive(Debug)]
 struct ReplyState<T> {

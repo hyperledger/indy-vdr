@@ -6,8 +6,8 @@ use futures::channel::mpsc::UnboundedSender;
 use crate::common::error::prelude::*;
 use crate::config::types::PoolConfig;
 
-use super::requests::{RequestExtEvent, RequestHandle};
-use super::types::{self, Verifiers};
+use super::requests::RequestExtEvent;
+use super::types::{self, RequestHandle, Verifiers};
 
 mod zmq;
 pub use self::zmq::{ZMQNetworker, ZMQNetworkerFactory};

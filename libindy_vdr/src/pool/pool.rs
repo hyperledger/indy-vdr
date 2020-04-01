@@ -13,8 +13,8 @@ use super::genesis::{build_node_transaction_map, build_verifiers, PoolTransactio
 use super::networker::{
     LocalNetworker, Networker, NetworkerEvent, NetworkerFactory, SharedNetworker,
 };
-use super::requests::{PoolRequest, PoolRequestImpl, RequestHandle};
-use super::types::{PoolSetup, Verifiers};
+use super::requests::{PoolRequest, PoolRequestImpl};
+use super::types::{PoolSetup, RequestHandle, Verifiers};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
