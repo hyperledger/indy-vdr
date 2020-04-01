@@ -2,18 +2,18 @@ extern crate rand;
 use crate::common::did::DidValue;
 use crate::ledger::constants;
 use crate::ledger::identifiers::rich_schema::RichSchemaId;
-use crate::tests::utils::constants::{TRUSTEE_DID, TRUSTEE_DID_FQ};
-use crate::tests::utils::helpers;
-use crate::tests::utils::pool::*;
+use crate::utils::constants::{TRUSTEE_DID, TRUSTEE_DID_FQ};
+use crate::utils::helpers;
+use crate::utils::pool::*;
 use rand::Rng;
+use rstest::*;
 
 #[cfg(test)]
-mod builder {
+pub mod builder {
     use super::*;
     use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
     use crate::ledger::PreparedRequest;
-    use crate::utils::test::get_rand_string;
-    use rstest::*;
+    use crate::utils::helpers::get_rand_string;
 
     fn rs_id_str() -> String {
         let mut id = "did:sov:".to_string();
@@ -141,8 +141,7 @@ mod sender {
     use super::*;
     use crate::ledger::requests::rich_schema::RSContent;
     use crate::tests::utils::crypto::Identity;
-    use builder;
-    use rstest::*;
+    use super::builder;
 
     #[fixture]
     fn test_pool() -> TestPool {
@@ -253,7 +252,7 @@ mod rs_chain {
     use crate::ledger::requests::rich_schema::{RSContent, RichSchema};
     use crate::ledger::PreparedRequest;
     use crate::tests::utils::crypto::Identity;
-    use builder;
+    use super::builder;
 
     pub struct RSChain {
         pub rs_sch_id: RichSchemaId,
