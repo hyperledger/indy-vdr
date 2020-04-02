@@ -1,3 +1,39 @@
+//! A library for interacting with Hyperledger Indy Node ledger instances
+//!
+//! Indy-VDR provides classes for connecting to a ledger, preparing requests for
+//! the validator nodes, and collecting the results. For alternative use cases
+//! try the `indy-vdr-proxy` standalone webserver for a basic HTTP interface, the
+//! C API (FFI), or the Python wrapper.
+//!
+//! # Getting Started
+//!
+//! As a basic example, the code below demonstrates creating a [`pool::LocalPool`] instance
+//! and performing a transaction read request. There are additional helper functions
+//! in the [`pool::helpers`] module but in most cases you will use a [`ledger::RequestBuilder`]
+//! to construct a [`ledger::PreparedRequest`] and dispatch it.
+//!
+//! ```no_run
+//! use futures::executor::block_on;
+//! use indy_vdr::pool::{
+//!     helpers::perform_get_txn,
+//!     PoolBuilder,
+//!     PoolTransactions
+//! };
+//!
+//! // Load genesis transactions. The corresponding transactions for the ledger you
+//! // are connecting to should be saved to a local file.
+//! let txns = PoolTransactions::from_json_file("./genesis.txn").unwrap();
+//!
+//! // Create a PoolBuilder instance
+//! let pool_builder = PoolBuilder::default().transactions(txns).unwrap();
+//! // Convert into a thread-local Pool instance
+//! let pool = pool_builder.into_local().unwrap();
+//!
+//! // Create a new GET_TXN request and dispatch it
+//! let ledger_type = 1;  // 1 identifies the Domain ledger, see pool::LedgerType
+//! let seq_no = 1;       // Transaction sequence number
+//! let (result, _timing) = block_on(perform_get_txn(&pool, ledger_type, seq_no)).unwrap();
+
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
 #![recursion_limit = "1024"] // for select! macro usage
 

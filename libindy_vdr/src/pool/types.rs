@@ -75,8 +75,11 @@ impl std::fmt::Display for ProtocolVersion {
 /// An Indy Node subledger identifier
 #[derive(Clone, Copy, Deserialize, Debug, PartialEq)]
 pub enum LedgerType {
+    /// `0` - Used for validator node details
     POOL = 0,
+    /// `1` - Used for the majority ledger transactions
     DOMAIN = 1,
+    /// `2` - Used for ledger configuration, such as the transaction author agreement
     CONFIG = 2,
 }
 
