@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["constants","Ledger transaction type identifiers"],["identifiers","Identifiers for stored objects on the ledger"],["requests","Types for constructing ledger transactions"]],"struct":[["PreparedRequest","A ledger transaction request which has been prepared for dispatch"],["RequestBuilder","A utility class for constructing ledger transaction requests"]]});

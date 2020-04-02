@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["CL_SIGNATURE_TYPE",""]],"enum":[["CredentialDefinition",""],["SignatureType",""]],"struct":[["CredDefOperation",""],["CredentialDefinitionData",""],["CredentialDefinitionV1",""],["GetCredDefOperation",""]]});

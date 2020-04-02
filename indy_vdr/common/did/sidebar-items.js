@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["DEFAULT_LIBINDY_DID","The default identifier DID used when submitting ledger read requests"],["DidMethod","A wrapper providing validation for DID methods"],["DidValue","A qualifiable DID type"],["ShortDidValue","A short DID with no prefix or method"]]});

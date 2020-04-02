@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["DEFAULT_VERKEY_ENC",""],["VERKEY_ENC_BASE58",""]],"fn":[["build_full_verkey",""]],"struct":[["VerKey",""]]});

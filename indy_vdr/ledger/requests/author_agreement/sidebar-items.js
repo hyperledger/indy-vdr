@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AcceptanceMechanisms",""],["DisableAllTxnAuthorAgreementsOperation",""],["GetAcceptanceMechanismOperation",""],["GetTxnAuthorAgreementData",""],["GetTxnAuthorAgreementOperation",""],["SetAcceptanceMechanismOperation",""],["TxnAuthorAgreementOperation",""],["TxnAuthrAgrmtAcceptanceData",""]]});

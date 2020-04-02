@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["qualifier","Trait for qualifiable identifier types, having an optional prefix and method"],["signature","Signature input serialization for ledger transaction requests"],["validation","Trait and error definition for validatable data types"]]});

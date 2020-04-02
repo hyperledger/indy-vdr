@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["state_proof_parser_fn","Construct a `StateProofParser` from a simple callback function."]],"struct":[["ParsedSP","A single result from a state proof verification."]],"trait":[["StateProofParser","Custom state proof parser implementation."]]});

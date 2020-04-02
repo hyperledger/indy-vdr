@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["combine","Combine a prefix, method, and value into a qualified identifier"],["is_fully_qualified","Check if an identifier is qualified by a prefix and method"],["split","Split a qualifiable identifier into its method and value components"]],"trait":[["Qualifiable","An identifier which can be qualified with a prefix and method"]]});

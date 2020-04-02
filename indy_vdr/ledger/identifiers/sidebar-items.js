@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["DELIMITER","The standard delimiter used in identifier strings"]],"mod":[["cred_def","Credential definition identifiers"],["rev_reg","Revocation registry identifiers"],["rich_schema","Rich schema identifiers"],["schema","V1 schema identifiers"]]});

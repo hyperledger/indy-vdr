@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["RichSchemaId","A rich schema identifier"]]});

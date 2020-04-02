@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["MAX_ATTRIBUTES_COUNT",""]],"struct":[["GetRichSchemaById",""],["GetRichSchemaByIdOperation",""],["GetRichSchemaByMetadata",""],["GetRichSchemaByMetadataOperation",""],["RSContent",""],["RichSchema",""],["RichSchemaOperation",""]]});

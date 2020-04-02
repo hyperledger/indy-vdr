@@ -1,0 +1,1 @@
+initSidebarItems({"static":[["LIB_VERSION","Library package version"]],"struct":[["PoolConfig","Configuration settings for managing validator pool communication"]]});

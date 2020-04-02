@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["RevocationRegistry",""],["RevocationRegistryDelta",""]],"struct":[["GetRevRegDeltaOperation",""],["GetRevRegOperation",""],["RevRegEntryOperation",""],["RevocationRegistryDeltaV1",""],["RevocationRegistryV1",""]]});

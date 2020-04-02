@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["did","Types for handling decentralized identifiers"],["error","Library error types and traits"],["merkle_tree","Patricia Merkle tree support"],["verkey","Verification key (ED25519 public key) formatting"]]});

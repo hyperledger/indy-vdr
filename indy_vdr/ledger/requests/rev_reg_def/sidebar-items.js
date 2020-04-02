@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["CL_ACCUM",""]],"enum":[["IssuanceType",""],["RegistryType",""],["RevocationRegistryDefinition",""]],"struct":[["GetRevRegDefOperation",""],["RevRegDefOperation",""],["RevocationRegistryConfig",""],["RevocationRegistryDefinitionV1",""],["RevocationRegistryDefinitionValue",""],["RevocationRegistryDefinitionValuePublicKeys",""]]});

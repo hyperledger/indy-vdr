@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["RevocationRegistryId","A revocation registry identifier"]]});

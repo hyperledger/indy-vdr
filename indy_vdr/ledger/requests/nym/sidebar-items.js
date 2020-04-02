@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["role_to_code",""]],"struct":[["GetNymOperation",""],["NymOperation",""]]});

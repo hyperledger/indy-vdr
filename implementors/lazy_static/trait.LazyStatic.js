@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["indy_vdr"] = [{"text":"impl <a class=\"trait\" href=\"https://docs.rs/lazy_static/1.4.0/lazy_static/trait.LazyStatic.html\" title=\"trait lazy_static::LazyStatic\">LazyStatic</a> for <a class=\"struct\" href=\"indy_vdr/common/did/struct.DEFAULT_LIBINDY_DID.html\" title=\"struct indy_vdr::common::did::DEFAULT_LIBINDY_DID\">DEFAULT_LIBINDY_DID</a>","synthetic":false,"types":["indy_vdr::common::did::DEFAULT_LIBINDY_DID"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

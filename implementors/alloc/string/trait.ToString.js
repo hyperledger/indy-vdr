@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["indy_vdr"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/alloc/string/trait.ToString.html\" title=\"trait alloc::string::ToString\">ToString</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/alloc/string/trait.ToString.html\" title=\"trait alloc::string::ToString\">ToString</a> for <a class=\"enum\" href=\"indy_vdr/pool/enum.SingleReply.html\" title=\"enum indy_vdr::pool::SingleReply\">SingleReply</a>&lt;T&gt;","synthetic":false,"types":["indy_vdr::pool::types::SingleReply"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

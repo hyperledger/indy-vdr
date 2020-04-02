@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["MAX_ATTRIBUTES_COUNT",""]],"enum":[["Schema",""]],"struct":[["AttributeNames",""],["GetSchemaOperation",""],["GetSchemaOperationData",""],["SchemaOperation",""],["SchemaOperationData",""],["SchemaV1",""]]});
