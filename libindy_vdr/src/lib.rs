@@ -10,7 +10,7 @@
 //! As a basic example, the code below demonstrates creating a [`pool::LocalPool`] instance
 //! and performing a transaction read request. There are additional helper functions
 //! in the [`pool::helpers`] module but in most cases you will use a [`ledger::RequestBuilder`]
-//! to construct a [`ledger::PreparedRequest`] and dispatch it.
+//! to construct a [`pool::PreparedRequest`] and dispatch it.
 //!
 //! ```no_run
 //! use futures::executor::block_on;

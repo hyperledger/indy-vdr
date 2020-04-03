@@ -14,6 +14,7 @@ use crate::utils::base58;
 use crate::utils::signature::serialize_signature;
 use crate::utils::validation::Validatable;
 
+/// Determines the handler and state proof semantics used to process a request
 #[derive(PartialEq, Eq)]
 pub enum RequestMethod {
     Consensus,

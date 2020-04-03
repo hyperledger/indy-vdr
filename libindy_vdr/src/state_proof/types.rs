@@ -1,4 +1,4 @@
-/// A single result from a state proof verification.
+/// A single result from a state proof verification
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ParsedSP {
     /// encoded SP Trie transferred from Node to Client

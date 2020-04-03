@@ -26,6 +26,7 @@ use self::types::*;
 
 pub use types::ParsedSP;
 
+/// A `StateProofParser` appropriate for attaching to a `PreparedRequest`
 pub struct BoxedSPParser(Box<dyn StateProofParser + Send + Sync>);
 
 impl std::ops::Deref for BoxedSPParser {
@@ -42,7 +43,7 @@ impl PartialEq for BoxedSPParser {
 }
 impl Eq for BoxedSPParser {}
 
-/// Construct a `StateProofParser` from a simple callback function.
+/// Construct a `StateProofParser` from a simple callback function
 pub fn state_proof_parser_fn<F>(cb: F) -> impl StateProofParser
 where
     F: Fn(&str, &str) -> Option<Vec<ParsedSP>> + Send,
@@ -50,9 +51,9 @@ where
     StateProofParserFn(cb)
 }
 
-/// Custom state proof parser implementation.
+/// Custom state proof parser implementation
 pub trait StateProofParser {
-    /// Construct a `Box<dyn StateProofParser>` from this instance.
+    /// Construct a `BoxedSPParser` from this instance
     fn boxed(self) -> BoxedSPParser
     where
         Self: Send + Sync + Sized + 'static,
@@ -60,7 +61,7 @@ pub trait StateProofParser {
         BoxedSPParser(Box::new(self))
     }
 
-    /// Parse a node message into a sequence of `ParsedSP` instances.
+    /// Parse a node message into a sequence of `ParsedSP` instances
     fn parse(&self, txn_type: &str, raw_msg: &str) -> Option<Vec<ParsedSP>>;
 }
 
