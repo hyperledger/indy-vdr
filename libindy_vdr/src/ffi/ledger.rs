@@ -10,6 +10,7 @@ use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
 use crate::ledger::requests::rich_schema::RSContent;
 use crate::ledger::requests::schema::Schema;
+use crate::pool::PreparedRequest;
 use crate::utils::qualifier::Qualifiable;
 
 use ffi_support::FfiStr;
@@ -99,11 +100,8 @@ pub extern "C" fn indy_vdr_build_custom_request(
     catch_err! {
         trace!("Build custom pool request");
         check_useful_c_ptr!(handle_p);
-        let builder = get_request_builder()?;
-        let (req, _target) = builder.build_custom_request_from_str(
-            request_json.as_str(), None, (None, None)
-        )?;
-        let handle = add_request(req)?;
+        let request = PreparedRequest::from_request_json(request_json.as_str())?;
+        let handle = add_request(request)?;
         unsafe {
             *handle_p = *handle;
         }

@@ -1,15 +1,49 @@
 use serde_json::{self, Value as SJsonValue};
 
-use super::constants::READ_REQUESTS;
-use super::TxnAuthrAgrmtAcceptanceData;
-use crate::common::did::DidValue;
+use super::new_request_id;
+use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
+use crate::ledger::constants::READ_REQUESTS;
+use crate::ledger::TxnAuthrAgrmtAcceptanceData;
 use crate::pool::ProtocolVersion;
 use crate::state_proof::{
-    parse_key_from_request_for_builtin_sp, parse_timestamp_from_req_for_builtin_sp,
+    constants::REQUEST_FOR_FULL, parse_key_from_request_for_builtin_sp,
+    parse_timestamp_from_req_for_builtin_sp, BoxedSPParser,
 };
 use crate::utils::base58;
 use crate::utils::signature::serialize_signature;
+use crate::utils::validation::Validatable;
+
+#[derive(PartialEq, Eq)]
+pub enum RequestMethod {
+    Consensus,
+    ReadConsensus,
+    BuiltinStateProof {
+        sp_key: Vec<u8>,
+        sp_timestamps: (Option<u64>, Option<u64>),
+    },
+    CustomStateProof {
+        sp_parser: BoxedSPParser,
+        sp_timestamps: (Option<u64>, Option<u64>),
+    },
+    Full {
+        node_aliases: Option<Vec<String>>,
+        timeout: Option<i64>,
+    },
+}
+
+impl std::fmt::Debug for RequestMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let desc = match self {
+            Self::Consensus => "Consensus",
+            Self::ReadConsensus => "ReadConsensus",
+            Self::BuiltinStateProof { .. } => "BuiltinStateProof",
+            Self::CustomStateProof { .. } => "CustomStateProof",
+            Self::Full { .. } => "Full",
+        };
+        write!(f, "RequestMethod({})", desc)
+    }
+}
 
 /// A ledger transaction request which has been prepared for dispatch
 #[derive(Debug)]
@@ -22,12 +56,8 @@ pub struct PreparedRequest {
     pub req_id: String,
     /// The request body as a `serde_json::Value` instance
     pub req_json: SJsonValue,
-    /// An optional state proof key
-    pub sp_key: Option<Vec<u8>>,
-    /// Optional state proof timestamps
-    pub sp_timestamps: (Option<u64>, Option<u64>),
-    /// Mark the request as a read request, which can reduce the number of sockets opened
-    pub is_read_request: bool,
+    /// Determine the request handler to use
+    pub method: RequestMethod,
 }
 
 impl PreparedRequest {
@@ -37,18 +67,15 @@ impl PreparedRequest {
         txn_type: String,
         req_id: String,
         req_json: SJsonValue,
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-        is_read_request: bool,
+        method: Option<RequestMethod>,
     ) -> Self {
+        let method = method.unwrap_or_else(|| Self::default_method(txn_type.as_str()));
         Self {
             protocol_version,
             txn_type,
             req_id,
             req_json,
-            sp_key,
-            sp_timestamps,
-            is_read_request,
+            method,
         }
     }
 
@@ -115,40 +142,91 @@ impl PreparedRequest {
     }
 
     /// Construct a prepared request from user-provided JSON
-    pub fn from_request_json(message: &str) -> VdrResult<PreparedRequest> {
+    pub fn from_request_json<T: AsRef<[u8]>>(message: T) -> VdrResult<PreparedRequest> {
         let req_json: SJsonValue =
-            serde_json::from_str(message).with_input_err("Invalid request JSON")?;
+            serde_json::from_slice(message.as_ref()).with_input_err("Invalid request JSON")?;
+        Self::from_request_json_ext(req_json, false, None)
+    }
 
+    /// Construct a prepared request from user-provided JSON
+    pub fn from_request_json_ext(
+        mut req_json: SJsonValue,
+        auto_pop: bool,
+        method: Option<RequestMethod>,
+    ) -> VdrResult<PreparedRequest> {
         let protocol_version = req_json["protocolVersion"]
             .as_u64()
             .ok_or(input_err("Invalid request JSON: protocolVersion not found"))
             .and_then(ProtocolVersion::from_id)?;
 
-        let req_id = req_json["reqId"]
-            .as_u64()
-            .ok_or(input_err("Invalid request JSON: reqId not found"))?
-            .to_string();
+        let req_id = req_json["reqId"].as_u64();
+        let req_id = if req_id.is_none() {
+            if auto_pop {
+                let new_req_id = new_request_id();
+                req_json["reqId"] = SJsonValue::from(new_req_id);
+                new_req_id
+            } else {
+                return Err(input_err("Invalid request JSON: reqId not found"));
+            }
+        } else {
+            req_id.unwrap()
+        }
+        .to_string();
+
+        if let Some(ident) = req_json["identifier"].as_str() {
+            DidValue(ident.to_owned()).validate()?
+        } else {
+            if auto_pop {
+                req_json["identifier"] = SJsonValue::from(DEFAULT_LIBINDY_DID.to_string());
+            } else {
+                return Err(input_err("Invalid request JSON: missing identifier DID"));
+            }
+        }
 
         let txn_type = req_json["operation"]["type"]
             .as_str()
             .ok_or_else(|| input_err("No operation type in request"))?
             .to_string();
 
-        let (sp_key, sp_timestamps) = (
-            parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
-            parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
-        );
+        let method = if method.is_some() {
+            method
+        } else {
+            let (sp_key, sp_timestamps) = (
+                parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
+                parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
+            );
 
-        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
+            if sp_key.is_some() {
+                Some(RequestMethod::BuiltinStateProof {
+                    sp_key: sp_key.unwrap(),
+                    sp_timestamps,
+                })
+            } else {
+                None
+            }
+        };
 
-        Ok(PreparedRequest::new(
+        Ok(Self::new(
             protocol_version,
             txn_type,
             req_id,
             req_json,
-            sp_key,
-            sp_timestamps,
-            is_read_request,
+            method,
         ))
+    }
+
+    fn default_method(txn_type: &str) -> RequestMethod {
+        if REQUEST_FOR_FULL.contains(&txn_type) {
+            RequestMethod::Full {
+                node_aliases: None,
+                timeout: None,
+            }
+        } else {
+            if READ_REQUESTS.contains(&txn_type) {
+                RequestMethod::ReadConsensus
+            } else {
+                RequestMethod::Consensus
+            }
+        }
     }
 }

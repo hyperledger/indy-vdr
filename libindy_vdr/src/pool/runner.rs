@@ -9,12 +9,12 @@ use futures::{select, FutureExt};
 
 use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
-use super::types::{RequestResult, RequestTarget, TimingResult};
+use super::requests::PreparedRequest;
+use super::types::{RequestResult, TimingResult};
 use super::{LocalPool, Pool};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
-use crate::ledger::PreparedRequest;
 use crate::utils::base58;
 
 /// The `PoolRunner` instance creates a separate thread for handling pool events,
@@ -71,10 +71,9 @@ impl PoolRunner {
     pub fn send_request(
         &self,
         request: PreparedRequest,
-        target: Option<RequestTarget>,
         callback: SendReqCallback,
     ) -> VdrResult<()> {
-        self.send_event(PoolEvent::SendRequest(request, target, callback))
+        self.send_event(PoolEvent::SendRequest(request, callback))
     }
 
     /// Send an event to the worker thread.
@@ -130,7 +129,7 @@ enum PoolEvent {
     GetStatus(GetStatusCallback),
     GetTransactions(GetTxnsCallback),
     Refresh(RefreshCallback),
-    SendRequest(PreparedRequest, Option<RequestTarget>, SendReqCallback),
+    SendRequest(PreparedRequest, SendReqCallback),
 }
 
 /// The current status of a validator pool.
@@ -190,8 +189,8 @@ impl PoolThread {
                             let fut = _perform_refresh(&self.pool, callback);
                             futures.push(fut.boxed_local());
                         }
-                        Some(PoolEvent::SendRequest(request, target, callback)) => {
-                            let fut = _perform_ledger_request(&self.pool, request, target, callback);
+                        Some(PoolEvent::SendRequest(request, callback)) => {
+                            let fut = _perform_ledger_request(&self.pool, request, callback);
                             futures.push(fut.boxed_local());
                         }
                         None => { trace!("Pool runner sender dropped") }
@@ -225,9 +224,8 @@ async fn _perform_refresh(pool: &LocalPool, callback: RefreshCallback) {
 async fn _perform_ledger_request(
     pool: &LocalPool,
     request: PreparedRequest,
-    target: Option<RequestTarget>,
     callback: SendReqCallback,
 ) {
-    let result = perform_ledger_request(pool, &request, target).await;
+    let result = perform_ledger_request(pool, &request).await;
     callback(result);
 }

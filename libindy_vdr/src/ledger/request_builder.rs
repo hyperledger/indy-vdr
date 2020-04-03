@@ -3,11 +3,7 @@ use serde_json::{self, Value as SJsonValue};
 
 use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
-use crate::pool::{ProtocolVersion, RequestTarget};
-use crate::state_proof::{
-    constants::REQUEST_FOR_FULL, parse_key_from_request_for_builtin_sp,
-    parse_timestamp_from_req_for_builtin_sp,
-};
+use crate::pool::{new_request_id, PreparedRequest, ProtocolVersion, RequestMethod};
 use crate::utils::hash::{digest, Sha256};
 use crate::utils::qualifier::Qualifiable;
 
@@ -47,11 +43,9 @@ use super::requests::schema::{
 };
 use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
-use super::requests::{get_request_id, Request, RequestType};
+use super::requests::{Request, RequestType};
 
-use super::prepared_request::PreparedRequest;
-
-use super::constants::{txn_name_to_code, READ_REQUESTS};
+use super::constants::txn_name_to_code;
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
     const SEC_IN_DAY: u64 = 86400;
@@ -99,12 +93,18 @@ impl RequestBuilder {
         operation: T,
         identifier: Option<&DidValue>,
     ) -> VdrResult<PreparedRequest> {
-        let req_id = get_request_id();
+        let req_id = new_request_id();
         let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
         let txn_type = T::get_txn_type().to_string();
         let sp_key = operation.get_sp_key(self.protocol_version)?;
-        let sp_timestamps = operation.get_sp_timestamps()?;
-        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
+        let method = if sp_key.is_some() {
+            Some(RequestMethod::BuiltinStateProof {
+                sp_key: sp_key.unwrap(),
+                sp_timestamps: operation.get_sp_timestamps()?,
+            })
+        } else {
+            None
+        };
         let body = Request::build_request(
             req_id,
             operation,
@@ -117,9 +117,7 @@ impl RequestBuilder {
             txn_type,
             req_id.to_string(),
             body,
-            sp_key,
-            sp_timestamps,
-            is_read_request,
+            method,
         ))
     }
 
@@ -559,96 +557,6 @@ impl RequestBuilder {
         Ok(acceptance_data)
     }
 
-    /// Build a custom ledger transaction request from a byte array
-    pub fn build_custom_request_from_slice(
-        &self,
-        message: &[u8],
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
-        let message = serde_json::from_slice(message).with_input_err("Invalid request JSON")?;
-        self.build_custom_request(message, sp_key, sp_timestamps)
-    }
-
-    /// Build a custom ledger transaction request from a string
-    pub fn build_custom_request_from_str(
-        &self,
-        message: &str,
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
-        let message = serde_json::from_str(message).with_input_err("Invalid request JSON")?;
-        self.build_custom_request(message, sp_key, sp_timestamps)
-    }
-
-    /// Build a custom ledger transaction request from a JSON value
-    pub fn build_custom_request(
-        &self,
-        mut req_json: SJsonValue,
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
-        let protocol_version = req_json["protocolVersion"].as_u64();
-        let protocol_version = if protocol_version.is_none() {
-            req_json["protocolVersion"] = SJsonValue::from(self.protocol_version as usize);
-            self.protocol_version
-        } else {
-            ProtocolVersion::from_id(protocol_version.unwrap())?
-        };
-
-        let ident = req_json["identifier"].as_str();
-        if ident.is_none() {
-            req_json["identifier"] = SJsonValue::from(DEFAULT_LIBINDY_DID.to_string());
-        } else {
-            // FIXME validate identifier
-        }
-
-        let req_id = req_json["reqId"].as_u64();
-        let req_id = if req_id.is_none() {
-            let new_req_id = get_request_id();
-            req_json["reqId"] = SJsonValue::from(new_req_id);
-            new_req_id
-        } else {
-            req_id.unwrap() // FIXME validate?
-        }
-        .to_string();
-
-        let txn_type = req_json["operation"]["type"]
-            .as_str()
-            .ok_or_else(|| input_err("No operation type in request"))?
-            .to_string();
-
-        let target = if REQUEST_FOR_FULL.contains(&txn_type.as_str()) {
-            Some(RequestTarget::Full(None, None))
-        } else {
-            None
-        };
-
-        let (sp_key, sp_timestamps) = if sp_key.is_some() {
-            (sp_key, sp_timestamps)
-        } else {
-            (
-                parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
-                parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
-            )
-        };
-
-        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
-
-        Ok((
-            PreparedRequest::new(
-                protocol_version,
-                txn_type,
-                req_id,
-                req_json,
-                sp_key,
-                sp_timestamps,
-                is_read_request,
-            ),
-            target,
-        ))
-    }
-
     /// Build a `RICH_SCHEMA` transaction request
     pub fn build_rich_schema_request(
         &self,
@@ -766,9 +674,7 @@ mod tests {
             assert_eq!(request.protocol_version, _protocol_version());
             assert_eq!(request.txn_type, TYPE);
             assert_eq!(request.req_id, REQ_ID.to_string());
-            assert_eq!(request.sp_key, None);
-            assert_eq!(request.sp_timestamps, (None, None));
-            assert_eq!(request.is_read_request, false);
+            assert_eq!(request.method, RequestMethod::Consensus);
         }
 
         #[rstest]
@@ -794,9 +700,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
-            assert_eq!(request.sp_key, None);
-            assert_eq!(request.sp_timestamps, (None, None));
-            assert_eq!(request.is_read_request, false);
+            assert_eq!(request.method, RequestMethod::Consensus);
         }
 
         #[rstest]
@@ -809,14 +713,15 @@ mod tests {
 
             assert_eq!(request.txn_type, constants::GET_NYM);
             assert_eq!(
-                request.sp_key,
-                Some(vec![
-                    227, 51, 254, 11, 192, 83, 219, 131, 59, 204, 0, 126, 41, 96, 118, 238, 152,
-                    250, 160, 191, 198, 247, 4, 130, 44, 199, 140, 143, 18, 182, 93, 229
-                ])
+                request.method,
+                RequestMethod::BuiltinStateProof {
+                    sp_key: vec![
+                        227, 51, 254, 11, 192, 83, 219, 131, 59, 204, 0, 126, 41, 96, 118, 238,
+                        152, 250, 160, 191, 198, 247, 4, 130, 44, 199, 140, 143, 18, 182, 93, 229
+                    ],
+                    sp_timestamps: (None, None)
+                }
             );
-            assert_eq!(request.sp_timestamps, (None, None));
-            assert_eq!(request.is_read_request, true);
         }
 
         #[rstest]
@@ -837,11 +742,12 @@ mod tests {
 
             assert_eq!(request.txn_type, constants::GET_TXN_AUTHR_AGRMT);
             assert_eq!(
-                request.sp_key,
-                Some(vec![50, 58, 108, 97, 116, 101, 115, 116])
+                request.method,
+                RequestMethod::BuiltinStateProof {
+                    sp_key: vec![50, 58, 108, 97, 116, 101, 115, 116],
+                    sp_timestamps: (None, Some(123456789))
+                }
             );
-            assert_eq!(request.sp_timestamps, (None, Some(123456789)));
-            assert_eq!(request.is_read_request, true);
         }
 
         #[rstest]
@@ -858,18 +764,20 @@ mod tests {
 
             assert_eq!(request.txn_type, constants::GET_REVOC_REG_DELTA);
             assert_eq!(
-                request.sp_key,
-                Some(vec![
-                    54, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70,
-                    99, 89, 68, 105, 49, 101, 58, 52, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112,
-                    89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 51, 58, 67, 76,
-                    58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70, 99,
-                    89, 68, 105, 49, 101, 58, 50, 58, 103, 118, 116, 58, 49, 46, 48, 58, 116, 97,
-                    103, 58, 67, 76, 95, 65, 67, 67, 85, 77, 58, 84, 65, 71, 95, 49
-                ])
+                request.method,
+                RequestMethod::BuiltinStateProof {
+                    sp_key: vec![
+                        54, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53,
+                        70, 99, 89, 68, 105, 49, 101, 58, 52, 58, 78, 99, 89, 120, 105, 68, 88,
+                        107, 112, 89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 51,
+                        58, 67, 76, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111,
+                        118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 50, 58, 103, 118, 116, 58, 49,
+                        46, 48, 58, 116, 97, 103, 58, 67, 76, 95, 65, 67, 67, 85, 77, 58, 84, 65,
+                        71, 95, 49
+                    ],
+                    sp_timestamps: (Some(from as u64), Some(to as u64))
+                }
             );
-            assert_eq!(request.sp_timestamps, (Some(from as u64), Some(to as u64)));
-            assert_eq!(request.is_read_request, true);
         }
     }
 

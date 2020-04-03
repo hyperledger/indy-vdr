@@ -8,7 +8,7 @@ use ursa::bls::Generator;
 
 use crate::common::error::prelude::*;
 use crate::config::constants::DEFAULT_GENERATOR;
-use crate::state_proof::{check_state_proof, result_without_state_proof, StateProofParser};
+use crate::state_proof::{check_state_proof, result_without_state_proof, BoxedSPParser};
 use crate::utils::base58;
 
 use super::types::Message;
@@ -22,7 +22,7 @@ pub async fn handle_consensus_request<R: PoolRequest>(
     state_proof_key: Option<Vec<u8>>,
     state_proof_timestamps: (Option<u64>, Option<u64>),
     as_read_request: bool,
-    custom_state_proof_parser: Option<Box<dyn StateProofParser>>,
+    custom_state_proof_parser: Option<&BoxedSPParser>,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     trace!("consensus request");
     let config = request.pool_config();
@@ -93,7 +93,7 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                                     state_proof_timestamps,
                                     last_write_time,
                                     config.freshness_threshold,
-                                    custom_state_proof_parser.as_ref(),
+                                    custom_state_proof_parser,
                                 ))
                         {
                             return Ok((

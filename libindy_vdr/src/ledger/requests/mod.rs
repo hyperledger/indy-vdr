@@ -27,7 +27,6 @@ pub mod txn;
 pub mod validator_info;
 
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde;
 use serde_json;
@@ -117,12 +116,4 @@ pub fn get_sp_key_marker(code: u8, protocol_version: ProtocolVersion) -> char {
     } else {
         (code + 48) as char // digit as ascii
     }
-}
-
-/// Get a new unique request ID
-pub fn get_request_id() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time has gone backwards")
-        .as_nanos() as u64
 }

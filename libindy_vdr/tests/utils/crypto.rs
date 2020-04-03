@@ -1,5 +1,5 @@
 use indy_vdr::common::did::DidValue;
-use indy_vdr::ledger::PreparedRequest;
+use indy_vdr::pool::PreparedRequest;
 use vdr_shared::base58;
 
 use crate::utils::constants::*;

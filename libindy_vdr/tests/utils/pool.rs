@@ -1,8 +1,9 @@
 use indy_vdr::common::error::VdrResult;
-use indy_vdr::ledger::{PreparedRequest, RequestBuilder};
+use indy_vdr::ledger::RequestBuilder;
 use indy_vdr::pool::helpers::{perform_ledger_action, perform_ledger_request};
-use indy_vdr::pool::{NodeReplies, RequestResult};
-use indy_vdr::pool::{Pool, PoolBuilder, PoolTransactions, SharedPool};
+use indy_vdr::pool::{
+    NodeReplies, Pool, PoolBuilder, PoolTransactions, PreparedRequest, RequestResult, SharedPool,
+};
 use vdr_shared::test::GenesisTransactions;
 
 use futures::executor::block_on;
@@ -36,10 +37,9 @@ impl TestPool {
 
     pub fn send_request(&self, prepared_request: &PreparedRequest) -> Result<String, String> {
         block_on(async {
-            let (request_result, _timing) =
-                perform_ledger_request(&self.pool, prepared_request, None)
-                    .await
-                    .unwrap();
+            let (request_result, _timing) = perform_ledger_request(&self.pool, prepared_request)
+                .await
+                .unwrap();
 
             match request_result {
                 RequestResult::Reply(message) => Ok(message),
@@ -55,10 +55,15 @@ impl TestPool {
         timeout: Option<i64>,
     ) -> VdrResult<NodeReplies<String>> {
         block_on(async {
-            let (request_result, _timing) =
-                perform_ledger_action(&self.pool, prepared_request, node_aliases, timeout)
-                    .await
-                    .unwrap();
+            let (request_result, _timing) = perform_ledger_action(
+                &self.pool,
+                prepared_request.req_id.clone(),
+                prepared_request.req_json.to_string(),
+                node_aliases,
+                timeout,
+            )
+            .await
+            .unwrap();
             match request_result {
                 RequestResult::Reply(replies) => Ok(replies),
                 RequestResult::Failed(err) => Err(err),

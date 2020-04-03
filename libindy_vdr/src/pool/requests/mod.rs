@@ -1,12 +1,24 @@
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::networker;
 use super::types::{self, Message, PoolSetup, TimingResult};
 
 mod base;
 pub use base::{PoolRequest, PoolRequestImpl};
+
+/// Assembled ledger transaction request
+mod prepared_request;
+pub use prepared_request::{PreparedRequest, RequestMethod};
+
+/// Get a new unique request ID
+pub fn new_request_id() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time has gone backwards")
+        .as_nanos() as u64
+}
 
 /// Events received by `Request` instances as pending dispatches are resolved
 #[derive(Debug)]

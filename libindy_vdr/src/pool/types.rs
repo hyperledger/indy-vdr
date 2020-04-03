@@ -638,16 +638,6 @@ impl<T> RequestResult<T> {
 /// Type representing timing information collected for ledger transaction request
 pub type TimingResult = HashMap<String, f32>;
 
-/// Enum distinguishing between different ledger request handling methods
-#[derive(Debug)]
-pub enum RequestTarget {
-    Default,
-    Full(
-        Option<Vec<String>>, // nodes to send
-        Option<i64>,         // timeout
-    ),
-}
-
 /// The result of a request to a single validator node
 #[derive(Debug)]
 pub enum SingleReply<T> {

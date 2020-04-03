@@ -8,11 +8,11 @@ use super::handlers::{
     handle_consensus_request, handle_full_request, handle_status_request, CatchupTarget,
 };
 use super::pool::Pool;
-use super::types::{NodeReplies, RequestResult, RequestTarget, SingleReply, TimingResult};
+use super::requests::{PreparedRequest, RequestMethod};
+use super::types::{NodeReplies, RequestResult, SingleReply, TimingResult};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::ledger::PreparedRequest;
 use crate::utils::base58;
 
 /// Perform a pool ledger status request to see if catchup is required
@@ -110,19 +110,18 @@ pub async fn perform_get_txn<T: Pool>(
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     let builder = pool.get_request_builder();
     let prepared = builder.build_get_txn_request(None, ledger_type, seq_no)?;
-    perform_ledger_request(pool, &prepared, None).await
+    perform_ledger_request(pool, &prepared).await
 }
 
 /// Dispatch a request to a specific set of nodes and collect the results
 pub async fn perform_ledger_action<T: Pool>(
     pool: &T,
-    prepared: &PreparedRequest,
+    req_id: String,
+    req_json: String,
     node_aliases: Option<Vec<String>>,
     timeout: Option<i64>,
 ) -> VdrResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
-    let mut request = pool
-        .create_request(prepared.req_id.clone(), prepared.req_json.to_string())
-        .await?;
+    let mut request = pool.create_request(req_id, req_json).await?;
     handle_full_request(&mut request, node_aliases, timeout).await
 }
 
@@ -130,29 +129,33 @@ pub async fn perform_ledger_action<T: Pool>(
 pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
     prepared: &PreparedRequest,
-    target: Option<RequestTarget>,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
-    match target {
-        Some(RequestTarget::Full(node_aliases, timeout)) => {
-            let (result, timing) =
-                perform_ledger_action(pool, prepared, node_aliases, timeout).await?;
-            Ok((result.map_result(format_full_reply)?, timing))
-        }
-        _ => {
-            let mut request = pool
-                .create_request(prepared.req_id.clone(), prepared.req_json.to_string())
-                .await?;
+    let mut request = pool
+        .create_request(prepared.req_id.clone(), prepared.req_json.to_string())
+        .await?;
 
-            handle_consensus_request(
-                &mut request,
-                prepared.sp_key.clone(),
-                prepared.sp_timestamps,
-                prepared.is_read_request,
-                None,
-            )
-            .await
+    let (sp_key, sp_timestamps, is_read_req, sp_parser) = match &prepared.method {
+        RequestMethod::Full {
+            node_aliases,
+            timeout,
+        } => {
+            let (result, timing) =
+                handle_full_request(&mut request, node_aliases.clone(), timeout.clone()).await?;
+            return Ok((result.map_result(format_full_reply)?, timing));
         }
-    }
+        RequestMethod::BuiltinStateProof {
+            sp_key,
+            sp_timestamps,
+        } => (Some(sp_key.clone()), sp_timestamps.clone(), true, None),
+        RequestMethod::CustomStateProof {
+            sp_parser,
+            sp_timestamps,
+        } => (None, sp_timestamps.clone(), true, Some(sp_parser)),
+        RequestMethod::ReadConsensus => (None, (None, None), true, None),
+        RequestMethod::Consensus => (None, (None, None), false, None),
+    };
+
+    handle_consensus_request(&mut request, sp_key, sp_timestamps, is_read_req, sp_parser).await
 }
 
 /// Format a collection of node replies in the expected response format

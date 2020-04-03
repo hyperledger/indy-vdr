@@ -26,10 +26,26 @@ use self::types::*;
 
 pub use types::ParsedSP;
 
+pub struct BoxedSPParser(Box<dyn StateProofParser + Send + Sync>);
+
+impl std::ops::Deref for BoxedSPParser {
+    type Target = dyn StateProofParser;
+    fn deref(&self) -> &(dyn StateProofParser + 'static) {
+        &*self.0
+    }
+}
+
+impl PartialEq for BoxedSPParser {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+impl Eq for BoxedSPParser {}
+
 /// Construct a `StateProofParser` from a simple callback function.
 pub fn state_proof_parser_fn<F>(cb: F) -> impl StateProofParser
 where
-    F: Fn(&str, &str) -> Option<Vec<ParsedSP>>,
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>> + Send,
 {
     StateProofParserFn(cb)
 }
@@ -37,11 +53,11 @@ where
 /// Custom state proof parser implementation.
 pub trait StateProofParser {
     /// Construct a `Box<dyn StateProofParser>` from this instance.
-    fn boxed(self) -> Box<dyn StateProofParser>
+    fn boxed(self) -> BoxedSPParser
     where
-        Self: Sized + 'static,
+        Self: Send + Sync + Sized + 'static,
     {
-        Box::new(self)
+        BoxedSPParser(Box::new(self))
     }
 
     /// Parse a node message into a sequence of `ParsedSP` instances.
@@ -54,7 +70,7 @@ where
 
 impl<F> StateProofParser for StateProofParserFn<F>
 where
-    F: Fn(&str, &str) -> Option<Vec<ParsedSP>>,
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>> + Send,
 {
     fn parse(&self, txn_type: &str, raw_msg: &str) -> Option<Vec<ParsedSP>> {
         self.0(txn_type, raw_msg)
@@ -71,7 +87,7 @@ pub(crate) fn check_state_proof(
     requested_timestamps: (Option<u64>, Option<u64>),
     last_write_time: u64,
     threshold: u64,
-    custom_state_proof_parser: Option<&Box<dyn StateProofParser>>,
+    custom_state_proof_parser: Option<&BoxedSPParser>,
 ) -> bool {
     trace!("process_reply: Try to verify proof and signature >>");
 
@@ -233,7 +249,7 @@ pub(crate) fn parse_generic_reply_for_proof_checking(
     json_msg: &SJsonValue,
     raw_msg: &str,
     sp_key: Option<&[u8]>,
-    custom_state_proof_parser: Option<&Box<dyn StateProofParser>>,
+    custom_state_proof_parser: Option<&BoxedSPParser>,
 ) -> Option<Vec<ParsedSP>> {
     let type_ = if let Some(type_) = json_msg["type"].as_str() {
         trace!("type_: {:?}", type_);
