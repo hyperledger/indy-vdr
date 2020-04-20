@@ -4,6 +4,7 @@ mod utils;
 inject_dependencies!();
 
 extern crate rand;
+#[cfg(feature = "local_nodes_pool")]
 use crate::utils::constants::TRUSTEE_DID;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
@@ -13,7 +14,6 @@ use indy_vdr::ledger::constants;
 use indy_vdr::ledger::identifiers::rich_schema::RichSchemaId;
 use rand::Rng;
 
-#[cfg(test)]
 pub mod builder {
     use super::*;
     use crate::utils::constants as test_constants;
@@ -144,6 +144,7 @@ pub mod builder {
     }
 }
 
+#[cfg(feature = "local_nodes_pool")]
 mod sender {
     use super::builder;
     use super::*;
@@ -246,6 +247,7 @@ mod sender {
     }
 }
 
+#[cfg(feature = "local_nodes_pool")]
 mod rs_chain {
     use super::builder;
     use super::*;
