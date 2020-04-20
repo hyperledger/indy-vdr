@@ -78,10 +78,10 @@ pub fn sign_and_send_full_request(
     pool.send_full_request(&request, node_aliases, timeout)
 }
 
-fn rand_string() -> String {
+pub fn rand_string(len: usize) -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(30)
+        .take(len)
         .collect()
 }
 
@@ -118,7 +118,7 @@ pub mod schema {
     pub fn new_schema(did: &DidValue) -> SchemaV1 {
         SchemaV1 {
             id: build_schema_id(did, NAME, VERSION),
-            name: rand_string(),
+            name: rand_string(30),
             version: format!("{}.{}", rand_version(), rand_version()),
             attr_names: attributes(),
             seq_no: None,
@@ -350,18 +350,18 @@ pub mod taa {
     };
 
     pub fn gen_aml_data() -> (AcceptanceMechanisms, String, String, String) {
-        let aml_label = rand_string();
+        let aml_label = rand_string(30);
 
         let mut aml: AcceptanceMechanisms = AcceptanceMechanisms::new();
-        aml.0.insert(aml_label.clone(), json!(rand_string()));
+        aml.0.insert(aml_label.clone(), json!(rand_string(30)));
 
         let version: String = rand_version();
-        let aml_context: String = rand_string();
+        let aml_context: String = rand_string(30);
         (aml, aml_label, version, aml_context)
     }
 
     pub fn gen_taa_data() -> (String, String, u64) {
-        let text: String = rand_string();
+        let text: String = rand_string(30);
         let version: String = rand_version();
         let ratification_ts = current_timestamp();
         (text, version, ratification_ts)

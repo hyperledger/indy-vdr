@@ -1,7 +1,8 @@
 pub mod constants;
 pub mod identifiers;
-mod request_builder;
+#[macro_use]
 pub mod requests;
+mod request_builder;
 
 pub use request_builder::{PreparedRequest, RequestBuilder};
 pub use requests::TxnAuthrAgrmtAcceptanceData;

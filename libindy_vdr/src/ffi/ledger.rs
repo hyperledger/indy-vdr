@@ -8,7 +8,7 @@ use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuth
 use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
-use crate::ledger::requests::rich_schema::RichSchema;
+use crate::ledger::requests::rich_schema::RSContent;
 use crate::ledger::requests::schema::Schema;
 use crate::utils::qualifier::Qualifiable;
 
@@ -458,17 +458,34 @@ pub extern "C" fn indy_vdr_build_txn_author_agreement_request(
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_rich_schema_request(
     submitter_did: FfiStr,
-    rich_schema: FfiStr,
+    rs_id: FfiStr,
+    rs_content: FfiStr,
+    rs_name: FfiStr,
+    rs_version: FfiStr,
+    rs_type: FfiStr,
+    ver: FfiStr,
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        trace!("Build SCHEMA request");
+        trace!("Build RICH_SCHEMA request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
-        let rich_schema = serde_json::from_str::<RichSchema>(rich_schema.as_str())
-            .with_input_err("Error deserializing RichSchema")?;
-        let req = builder.build_rich_schema_request(&identifier, rich_schema)?;
+        let rs_id = RichSchemaId::from_str(rs_id.as_str())?;
+        let rs_content = rs_content.into_string();
+        let rs_name = rs_name.into_string();
+        let rs_version = rs_version.into_string();
+        let rs_type = rs_type.into_string();
+        let ver = ver.into_string();
+        let req = builder.build_rich_schema_request(
+            &identifier,
+            rs_id,
+            RSContent(rs_content),
+            rs_name,
+            rs_version,
+            rs_type,
+            ver
+        )?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;
@@ -478,13 +495,13 @@ pub extern "C" fn indy_vdr_build_rich_schema_request(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_build_get_schema_object_by_id_request(
+pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_id_request(
     submitter_did: FfiStr,
     rs_id: FfiStr,
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        trace!("Build SCHEMA request");
+        trace!("Build GET_RICH_SCHEMA_BY_ID request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
@@ -499,18 +516,19 @@ pub extern "C" fn indy_vdr_build_get_schema_object_by_id_request(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_build_get_schema_object_by_metadata_request(
+pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_metadata_request(
     submitter_did: FfiStr,
-    rs_type: i32,
+    rs_type: FfiStr,
     rs_name: FfiStr,
     rs_version: FfiStr,
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
-        trace!("Build SCHEMA request");
+        trace!("Build GET_RICH_SCHEMA_BY_METADATA request");
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let rs_type = rs_type.into_string();
         let rs_name = rs_name.into_string();
         let rs_version = rs_version.into_string();
         let req = builder.build_get_rich_schema_by_metadata(&identifier, rs_type, rs_name, rs_version)?;

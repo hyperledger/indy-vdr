@@ -662,37 +662,41 @@ def prepare_txn_author_agreement_acceptance(
 
 
 def build_rich_schema_request(
-    submitter_did: str, rich_schema: Union[bytes, str, dict]
+    submitter_did: str,
+    rs_id: Union[bytes, str],
+    rs_content: Union[bytes, str, dict],
+    rs_name: Union[bytes, str],
+    rs_version: Union[bytes, str],
+    rs_type: Union[bytes, str],
+    ver: Union[bytes, str],
 ) -> Request:
     """
     Builds a RICH_SCHEMA request to add it to the ledger.
 
     Args:
-        submitter_did: Identifier (DID) of the transaction author as base58-encoded
-            string
-        rich_schema: Credential schema:
-            ```jsonc
-            {
-                "id": "<identifier of rich schema>",
-                "content": "<JSON-LD string object>",
-                "rsName": "<rich schema name>",
-                "rsVersion": "<rich schema version>",
-                "rsType": <type constant as integer>,
-                "ver": <version as integer>
-            }```
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded string
+                "rs_id": "<identifier of rich schema>",
+                "rs_content": "<JSON-LD string object>",
+                "rs_name": "<rich schema name>",
+                "rs_version": "<rich schema version>",
+                "rs_type": <type constant as string, one of `ctx`, `sch`, `map`, `enc`, `cdf`, `pdf`>,
+                "ver": <version as string>
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
-    rich_schema = (
-        encode_str(rich_schema)
-        if isinstance(rich_schema, (str, bytes))
-        else encode_json(rich_schema)
+    rs_id = encode_str(rs_id)
+    rs_content = (
+        encode_str(rs_content) if isinstance(rs_content, (str, bytes)) else encode_json(rs_content)
     )
-    do_call("indy_vdr_build_rich_schema_request", did_p, rich_schema, byref(handle))
+    rs_name = encode_str(rs_name)
+    rs_version = encode_str(rs_version)
+    rs_type = encode_str(rs_type)
+    ver = encode_str(ver)
+    do_call("indy_vdr_build_rich_schema_request", did_p, rs_id, rs_content, rs_name, rs_version, rs_type, ver, byref(handle))
     return Request(handle)
 
 
-def build_get_schema_object_by_id_request(
+def build_get_rich_schema_object_by_id_request(
     submitter_did: str, rs_id: Union[bytes, str, dict]
 ) -> Request:
     """
@@ -711,14 +715,15 @@ def build_get_schema_object_by_id_request(
     do_call(
         "indy_vdr_build_get_schema_object_by_id_request", did_p, rs_id, byref(handle)
     )
+    do_call("indy_vdr_build_get_rich_schema_object_by_id_request", did_p, rs_id, byref(handle))
     return Request(handle)
 
 
-def build_get_schema_object_by_metadata_request(
+def build_get_rich_schema_object_by_metadata_request(
     submitter_did: str,
-    rs_type: Union[int, str],
+    rs_type: Union[bytes, str],
     rs_name: Union[bytes, str],
-    rs_version: Union[bytes, str],
+    rs_version: Union[bytes, str]
 ) -> Request:
     """
     Builds a GET_RICH_SCHEMA_BY_METADATA request.
@@ -734,7 +739,7 @@ def build_get_schema_object_by_metadata_request(
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
-    rs_type = c_int32(rs_type)
+    rs_type = encode_str(rs_type)
     rs_name = encode_str(rs_name)
     rs_version = encode_str(rs_version)
     do_call(
@@ -745,4 +750,5 @@ def build_get_schema_object_by_metadata_request(
         rs_version,
         byref(handle),
     )
+    do_call("indy_vdr_build_get_rich_schema_object_by_metadata_request", did_p, rs_type, rs_name, rs_version, byref(handle))
     return Request(handle)

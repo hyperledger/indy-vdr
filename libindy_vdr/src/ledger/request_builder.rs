@@ -40,9 +40,12 @@ use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
 
 use super::constants::{txn_name_to_code, READ_REQUESTS};
-use crate::ledger::requests::rich_schema::{
+
+use super::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
-    GetRichSchemaByMetadataOperation, RichSchema, RichSchemaOperation,
+    GetRichSchemaByMetadataOperation, RSContent, RSContextOperation, RSCredDefOperation,
+    RSEncodingOperation, RSMappingOperation, RSPresDefOperation, RSType, RichSchema,
+    RichSchemaBaseOperation, RichSchemaOperation,
 };
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
@@ -727,17 +730,25 @@ impl RequestBuilder {
     pub fn build_rich_schema_request(
         &self,
         identifier: &DidValue,
-        rs_schema: RichSchema,
+        id: RichSchemaId,
+        content: RSContent,
+        rs_name: String,
+        rs_version: String,
+        rs_type: String,
+        ver: String,
     ) -> VdrResult<PreparedRequest> {
-        let rs_schema: RichSchema = RichSchema::new(
-            rs_schema.id,
-            rs_schema.content,
-            rs_schema.rs_name,
-            rs_schema.rs_version,
-            rs_schema.rs_type,
-            rs_schema.ver,
-        );
-        self.build(RichSchemaOperation::new(rs_schema), Some(identifier))
+        let rich_schema = RichSchema::new(id, content, rs_name, rs_version, rs_type.clone(), ver);
+        let allowed_rs_type: RSType =
+            serde_json::from_value(serde_json::value::Value::String(rs_type))
+                .map_err(|err| input_err(err))?;
+        match &allowed_rs_type {
+            RSType::Sch => build_rs_operation!(self, RichSchemaOperation, identifier, rich_schema),
+            RSType::Map => build_rs_operation!(self, RSMappingOperation, identifier, rich_schema),
+            RSType::Enc => build_rs_operation!(self, RSEncodingOperation, identifier, rich_schema),
+            RSType::Ctx => build_rs_operation!(self, RSContextOperation, identifier, rich_schema),
+            RSType::Cdf => build_rs_operation!(self, RSCredDefOperation, identifier, rich_schema),
+            RSType::Pdf => build_rs_operation!(self, RSPresDefOperation, identifier, rich_schema),
+        }
     }
     pub fn build_get_rich_schema_by_id(
         &self,
@@ -753,7 +764,7 @@ impl RequestBuilder {
     pub fn build_get_rich_schema_by_metadata(
         &self,
         identifier: &DidValue,
-        rs_type: i32,
+        rs_type: String,
         rs_name: String,
         rs_version: String,
     ) -> VdrResult<PreparedRequest> {

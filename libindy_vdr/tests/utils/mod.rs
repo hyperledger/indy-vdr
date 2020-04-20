@@ -14,5 +14,7 @@ macro_rules! inject_dependencies {
         extern crate serde_json;
         #[macro_use]
         extern crate rstest;
+        #[macro_use]
+        extern crate lazy_static;
     };
 }
