@@ -4,7 +4,7 @@ mod utils;
 inject_dependencies!();
 
 extern crate rand;
-use crate::utils::constants::{TRUSTEE_DID, TRUSTEE_DID_FQ};
+use crate::utils::constants::TRUSTEE_DID;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
 use crate::utils::pool::*;
@@ -17,13 +17,13 @@ use rand::Rng;
 pub mod builder {
     use super::*;
     use crate::utils::constants as test_constants;
-    use crate::utils::crypto::Identity;
     use indy_vdr::ledger::constants as ledger_constants;
     use indy_vdr::ledger::requests::rich_schema::{RSContent, RichSchema};
-    use indy_vdr::ledger::{PreparedRequest, RequestBuilder};
+    use indy_vdr::ledger::RequestBuilder;
+    use indy_vdr::pool::PreparedRequest;
 
     pub fn rs_id() -> RichSchemaId {
-        let mut id = format!("did:sov:{}", &helpers::rand_string(32));
+        let id = format!("did:sov:{}", &helpers::rand_string(32));
         return RichSchemaId::new(id);
     }
 
@@ -255,7 +255,7 @@ mod rs_chain {
         RS_MAPPING_TYPE_VALUE, RS_PRES_DEF_TYPE_VALUE, RS_SCHEMA_TYPE_VALUE,
     };
     use indy_vdr::ledger::requests::rich_schema::{RSContent, RichSchema};
-    use indy_vdr::ledger::PreparedRequest;
+    use indy_vdr::pool::PreparedRequest;
 
     pub struct RSChain {
         pub rs_sch_id: RichSchemaId,
@@ -545,7 +545,7 @@ mod rs_chain {
         ];
         // Write all of the RichSchema objects to ledger
         for rs_obj in rs_objects.clone() {
-            send_rs_obj(rs_obj);
+            send_rs_obj(rs_obj).unwrap();
         }
         // Check, that all of objects are written to ledger
         for rs_obj in rs_objects.clone() {

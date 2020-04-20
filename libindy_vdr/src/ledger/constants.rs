@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 pub const NODE: &str = "0";
 pub const NYM: &str = "1";
 pub const GET_TXN: &str = "3";
