@@ -18,8 +18,9 @@ ffi = ["ffi-support", "logger"]
 logger = ["env_logger", "log"]
 zmq_dynamic = ["zmq"]
 zmq_vendored = ["zmq/vendored"]
-default = ["ffi", "log", "zmq_vendored"]
 local_nodes_pool = []
+rich_schema = []
+default = ["ffi", "log", "zmq_vendored"]
 
 [dependencies]
 base64 = "0.10.1"

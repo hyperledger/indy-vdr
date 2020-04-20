@@ -2,6 +2,7 @@
 pub mod cred_def;
 /// Revocation registry identifiers
 pub mod rev_reg;
+#[cfg(feature = "rich_schema")]
 /// Rich schema identifiers
 pub mod rich_schema;
 /// V1 schema identifiers

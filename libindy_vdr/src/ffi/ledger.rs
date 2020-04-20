@@ -2,12 +2,14 @@ use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
 use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
 use crate::ledger::identifiers::rev_reg::RevocationRegistryId;
+#[cfg(feature = "rich_schema")]
 use crate::ledger::identifiers::rich_schema::RichSchemaId;
 use crate::ledger::identifiers::schema::SchemaId;
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
+#[cfg(feature = "rich_schema")]
 use crate::ledger::requests::rich_schema::RSContent;
 use crate::ledger::requests::schema::Schema;
 use crate::pool::PreparedRequest;
@@ -453,6 +455,7 @@ pub extern "C" fn indy_vdr_build_txn_author_agreement_request(
     }
 }
 
+#[cfg(feature = "rich_schema")]
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_rich_schema_request(
     submitter_did: FfiStr,
@@ -492,6 +495,7 @@ pub extern "C" fn indy_vdr_build_rich_schema_request(
     }
 }
 
+#[cfg(feature = "rich_schema")]
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_id_request(
     submitter_did: FfiStr,
@@ -513,6 +517,7 @@ pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_id_request(
     }
 }
 
+#[cfg(feature = "rich_schema")]
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_metadata_request(
     submitter_did: FfiStr,

@@ -16,6 +16,7 @@ pub mod pool;
 pub mod rev_reg;
 /// Revocation registry definition operations
 pub mod rev_reg_def;
+#[cfg(feature = "rich_schema")]
 /// Rich schema operations
 #[macro_use]
 pub mod rich_schema;
