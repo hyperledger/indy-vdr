@@ -9,7 +9,7 @@ use crate::utils::qualifier::Qualifiable;
 
 use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::rev_reg::RevocationRegistryId;
-#[cfg(feature = "rich_schema")]
+#[cfg(any(feature = "rich_schema", test))]
 use super::identifiers::rich_schema::RichSchemaId;
 use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
@@ -33,7 +33,7 @@ use super::requests::rev_reg::{
 use super::requests::rev_reg_def::{
     GetRevRegDefOperation, RegistryType, RevRegDefOperation, RevocationRegistryDefinition,
 };
-#[cfg(feature = "rich_schema")]
+#[cfg(any(feature = "rich_schema", test))]
 use super::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
     GetRichSchemaByMetadataOperation, RSContent, RSContextOperation, RSCredDefOperation,
@@ -559,7 +559,7 @@ impl RequestBuilder {
         Ok(acceptance_data)
     }
 
-    #[cfg(feature = "rich_schema")]
+    #[cfg(any(feature = "rich_schema", test))]
     /// Build a `RICH_SCHEMA` transaction request
     pub fn build_rich_schema_request(
         &self,
@@ -585,7 +585,7 @@ impl RequestBuilder {
         }
     }
 
-    #[cfg(feature = "rich_schema")]
+    #[cfg(any(feature = "rich_schema", test))]
     /// Build a `GET_RICH_SCHEMA_BY_ID` transaction request
     pub fn build_get_rich_schema_by_id(
         &self,
@@ -599,7 +599,7 @@ impl RequestBuilder {
         )
     }
 
-    #[cfg(feature = "rich_schema")]
+    #[cfg(any(feature = "rich_schema", test))]
     /// Build a `GET_RICH_SCHEMA_BY_METADATA` transaction request
     pub fn build_get_rich_schema_by_metadata(
         &self,
