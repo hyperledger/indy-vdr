@@ -2,11 +2,11 @@ use futures::stream::StreamExt;
 
 use crate::common::error::prelude::*;
 
-use super::types::Message;
-use super::{NodeReplies, PoolRequest, ReplyState, RequestEvent, RequestResult, TimingResult};
+use super::types::{Message, NodeReplies, RequestResult, TimingResult};
+use super::{PoolRequest, ReplyState, RequestEvent};
 
-pub async fn handle_full_request<Request: PoolRequest>(
-    mut request: Request,
+pub async fn handle_full_request<R: PoolRequest>(
+    request: &mut R,
     nodes_to_send: Option<Vec<String>>,
     local_timeout: Option<i64>,
 ) -> VdrResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {

@@ -1,6 +1,7 @@
 use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
-use crate::ledger::{PreparedRequest, RequestBuilder, TxnAuthrAgrmtAcceptanceData};
+use crate::ledger::{RequestBuilder, TxnAuthrAgrmtAcceptanceData};
+use crate::pool::PreparedRequest;
 use crate::utils::qualifier::Qualifiable;
 
 use std::collections::BTreeMap;

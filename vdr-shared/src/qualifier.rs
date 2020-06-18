@@ -3,9 +3,10 @@ use regex::Regex;
 use super::validation::{Validatable, ValidationError};
 
 lazy_static! {
-    pub static ref REGEX: Regex = Regex::new("^([a-z0-9]+):([a-z0-9]+):(.*)$").unwrap();
+    pub(crate) static ref REGEX: Regex = Regex::new("^([a-z0-9]+):([a-z0-9]+):(.*)$").unwrap();
 }
 
+/// Combine a prefix, method, and value into a qualified identifier
 pub fn combine(prefix: &str, method: Option<&str>, entity: &str) -> String {
     match method {
         Some(method) => format!("{}:{}:{}", prefix, method, entity),
@@ -13,6 +14,7 @@ pub fn combine(prefix: &str, method: Option<&str>, entity: &str) -> String {
     }
 }
 
+/// Split a qualifiable identifier into its method and value components
 pub fn split<'a>(prefix: &str, val: &'a str) -> (Option<&'a str>, &'a str) {
     match REGEX.captures(&val) {
         None => (None, val),
@@ -29,11 +31,13 @@ pub fn split<'a>(prefix: &str, val: &'a str) -> (Option<&'a str>, &'a str) {
     }
 }
 
+/// Check if an identifier is qualified by a prefix and method
 pub fn is_fully_qualified(entity: &str) -> bool {
     REGEX.captures(entity).is_some()
 }
 
-pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validatable {
+/// An identifier which can be qualified with a prefix and method
+pub trait Qualifiable: From<String> + std::ops::Deref<Target = str> + Validatable {
     fn prefix() -> &'static str;
 
     fn combine(method: Option<&str>, entity: &str) -> Self {
@@ -41,7 +45,7 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
     }
 
     fn split<'a>(&'a self) -> (Option<&'a str>, &'a str) {
-        split(Self::prefix(), self.as_str())
+        split(Self::prefix(), self.deref())
     }
 
     fn get_method<'a>(&'a self) -> Option<&'a str> {
@@ -52,7 +56,7 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
     fn default_method(&self, method: Option<&str>) -> Self {
         let (prev_method, rest) = self.split();
         match prev_method {
-            Some(_) => Self::from((*self).clone()),
+            Some(_) => Self::from(self.to_string()),
             None => Self::combine(method, rest),
         }
     }
@@ -67,7 +71,7 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
         if prev_method == Some(method) {
             Self::combine(None, rest)
         } else {
-            Self::from((*self).clone())
+            Self::from(self.to_string())
         }
     }
 
@@ -99,21 +103,27 @@ pub trait Qualifiable: From<String> + std::ops::Deref<Target = String> + Validat
     }
 }
 
-macro_rules! qualifiable_type (($newtype:ident) => (
+#[macro_export]
+macro_rules! qualifiable_type {
+    ($newtype:ident, $doc:expr) => {
+        #[doc=$doc]
+        #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+        pub struct $newtype(pub String);
 
-    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-    pub struct $newtype(pub String);
-
-    impl From<String> for $newtype {
-        fn from(val: String) -> Self {
-            Self(val)
+        impl From<String> for $newtype {
+            fn from(val: String) -> Self {
+                Self(val)
+            }
         }
-    }
 
-    impl std::ops::Deref for $newtype {
-        type Target = String;
-        fn deref(&self) -> &String {
-            &self.0
+        impl std::ops::Deref for $newtype {
+            type Target = str;
+            fn deref(&self) -> &str {
+                &self.0
+            }
         }
-    }
-));
+    };
+    ($newtype:ident) => {
+        qualifiable_type!($newtype, "");
+    };
+}

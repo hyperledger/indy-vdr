@@ -230,3 +230,11 @@ impl RequestType for DisableAllTxnAuthorAgreementsOperation {
         DISABLE_ALL_TXN_AUTHR_AGRMTS
     }
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TxnAuthrAgrmtAcceptanceData {
+    pub mechanism: String,
+    pub taa_digest: String,
+    pub time: u64,
+}

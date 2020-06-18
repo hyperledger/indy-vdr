@@ -1,6 +1,3 @@
-extern crate env_logger;
-extern crate indy_vdr;
-extern crate log;
 #[macro_use]
 extern crate serde_json;
 
@@ -99,7 +96,7 @@ async fn init_app_state(genesis: String) -> VdrResult<AppState> {
     let transactions = if genesis.starts_with("http:") || genesis.starts_with("https:") {
         fetch_transactions(genesis).await?
     } else {
-        PoolTransactions::from_file(genesis.as_str())?
+        PoolTransactions::from_json_file(genesis.as_str())?
     };
     let state = AppState {
         pool: None,

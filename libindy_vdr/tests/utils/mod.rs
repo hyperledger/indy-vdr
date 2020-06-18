@@ -12,6 +12,7 @@ macro_rules! inject_dependencies {
         #[allow(unused_imports)]
         #[macro_use]
         extern crate serde_json;
+        #[allow(unused_imports)]
         #[macro_use]
         extern crate rstest;
         #[macro_use]

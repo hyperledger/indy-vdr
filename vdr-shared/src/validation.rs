@@ -1,5 +1,6 @@
 use std::error::Error;
 
+/// Error type for failures of `Validatable::validate`
 #[derive(Clone, Debug)]
 pub struct ValidationError(pub Option<String>);
 
@@ -38,12 +39,13 @@ impl std::fmt::Display for ValidationError {
 
 #[macro_export]
 macro_rules! invalid {
-    () => { ValidationError::from(None) };
+    () => { $crate::validation::ValidationError::from(None) };
     ($($arg:tt)+) => {
-        ValidationError::from(format!($($arg)+))
+        $crate::validation::ValidationError::from(format!($($arg)+))
     };
 }
 
+/// Trait for data types which need validation after being loaded from external sources
 pub trait Validatable {
     fn validate(&self) -> Result<(), ValidationError> {
         Ok(())

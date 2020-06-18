@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
 edition = "2018"
 
-description = "This is the official SDK for Hyperledger Indy (https://www.hyperledger.org/projects), which provides a distributed-ledger-based foundation for self-sovereign identity (https://sovrin.org). The major artifact of the SDK is a c-callable library."
+description = "A library for interacting with Hyperledger Indy Node, a distributed ledger for self-sovereign identity (https://www.hyperledger.org/use/hyperledger-indy)."
 license = "MIT/Apache-2.0"
 build = "build.rs"
 
@@ -18,12 +18,12 @@ ffi = ["ffi-support", "logger"]
 logger = ["env_logger", "log"]
 zmq_dynamic = ["zmq"]
 zmq_vendored = ["zmq/vendored"]
-default = ["ffi", "log", "zmq_vendored"]
 local_nodes_pool = []
+rich_schema = []
+default = ["ffi", "log", "zmq_vendored"]
 
 [dependencies]
 base64 = "0.10.1"
-bs58 = "0.3.0"
 env_logger = { version = "0.7.1", optional = true }
 etcommon-rlp = "0.2.4"
 ffi-support = { version = "0.4.0", optional = true }
@@ -40,11 +40,12 @@ serde_derive = "1.0.99"
 serde_json = "1.0.40"
 thiserror = "1.0.9"
 zmq = { version = "0.9.2", optional = true }
+vdr-shared = { path = "../vdr-shared" }
 
 [dependencies.ursa]
 version = "0.3.2"
 default-features = false
-features = ["bls_bn254", "cl_native", "ed25519", "sha2", "sha3", "serde", "x25519"]
+features = ["bls_bn254", "cl_native", "sha3", "serde"]
 
 [dev-dependencies]
 rstest = "0.6"

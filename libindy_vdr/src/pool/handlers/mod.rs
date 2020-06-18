@@ -5,11 +5,14 @@ use serde_json::{self, Value as SJsonValue};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58::{FromBase58, ToBase58};
+use crate::utils::base58;
 use crate::utils::validation::ValidationError;
 
-use super::requests::{PoolRequest, RequestEvent, RequestResult, TimingResult};
-use super::types::{self, CatchupReq, LedgerStatus, LedgerType, Message, ProtocolVersion};
+use super::requests::{PoolRequest, RequestEvent};
+use super::types::{
+    self, CatchupReq, LedgerStatus, LedgerType, Message, NodeReplies, ProtocolVersion,
+    RequestResult, SingleReply, TimingResult,
+};
 
 mod catchup;
 mod consensus;
@@ -22,31 +25,12 @@ pub use full::handle_full_request;
 pub use status::{handle_status_request, CatchupTarget};
 
 #[derive(Debug)]
-pub enum SingleReply<T> {
-    Reply(T),
-    Failed(String),
-    Timeout(),
-}
-
-impl<T: ToString> ToString for SingleReply<T> {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Reply(msg) => msg.to_string(),
-            Self::Failed(msg) => msg.clone(),
-            Self::Timeout() => "timeout".to_owned(),
-        }
-    }
-}
-
-pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;
-
-#[derive(Debug)]
-pub struct ReplyState<T> {
+struct ReplyState<T> {
     pub inner: HashMap<String, SingleReply<T>>,
 }
 
 #[derive(Default)]
-pub struct ReplyCounts {
+struct ReplyCounts {
     pub replies: usize,
     pub failed: usize,
     pub timeout: usize,
@@ -93,6 +77,7 @@ impl<T> ReplyState<T> {
         counts
     }
 
+    #[allow(unused)]
     pub fn failed_len(&self) -> usize {
         self.inner
             .values()
@@ -161,7 +146,7 @@ impl<K: Eq + Hash, T: Eq + Hash> ConsensusState<K, T> {
 }
 
 #[derive(Debug)]
-pub struct HashableValue {
+pub(crate) struct HashableValue {
     pub inner: SJsonValue,
 }
 
@@ -199,8 +184,7 @@ fn check_cons_proofs(
         let cons_proof: &String = cons_proof;
 
         bytes_proofs.push(
-            cons_proof
-                .from_base58()
+            base58::decode(cons_proof)
                 .map_err(|_| invalid!("Can't decode node consistency proof"))?,
         );
     }
@@ -212,14 +196,14 @@ fn check_cons_proofs(
     Ok(())
 }
 
-pub fn build_pool_status_request(
+pub(crate) fn build_pool_status_request(
     merkle_root: &[u8],
     merkle_tree_size: usize,
     protocol_version: ProtocolVersion,
 ) -> VdrResult<Message> {
     let lr = LedgerStatus {
         txnSeqNo: merkle_tree_size,
-        merkleRoot: merkle_root.to_base58(),
+        merkleRoot: base58::encode(merkle_root),
         ledgerId: LedgerType::POOL as u8,
         ppSeqNo: None,
         viewNo: None,
@@ -228,7 +212,7 @@ pub fn build_pool_status_request(
     Ok(Message::LedgerStatus(lr))
 }
 
-pub fn build_pool_catchup_request(
+pub(crate) fn build_pool_catchup_request(
     from_mt_size: usize,
     target_mt_size: usize,
 ) -> VdrResult<Message> {

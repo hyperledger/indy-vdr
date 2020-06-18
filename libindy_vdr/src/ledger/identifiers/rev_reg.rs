@@ -10,7 +10,7 @@ lazy_static! {
     static ref QUALIFIED_REV_REG_ID: Regex = Regex::new("(^revreg:(?P<method>[a-z0-9]+):)?(?P<did>.+):4:(?P<cred_def_id>.+):(?P<rev_reg_type>.+):(?P<tag>.+)$").unwrap();
 }
 
-qualifiable_type!(RevocationRegistryId);
+qualifiable_type!(RevocationRegistryId, "A revocation registry identifier");
 
 impl RevocationRegistryId {
     pub const PREFIX: &'static str = "revreg";

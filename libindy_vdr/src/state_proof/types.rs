@@ -1,14 +1,10 @@
-/**
- Single item to verification:
- - SP Trie with RootHash
- - BLS MS
- - set of key-value to verify
-*/
+/// A single parsed input for state proof verification
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ParsedSP {
     /// encoded SP Trie transferred from Node to Client
     pub proof_nodes: String,
-    /// RootHash of the Trie, start point for verification. Should be same with appropriate filed in BLS MS data
+    /// Root hash of the Trie, start point for verification.
+    /// Should be same with appropriate filed in BLS MS data
     pub root_hash: String,
     /// entities to verification against current SP Trie
     pub kvs_to_verify: KeyValuesInSP,
@@ -16,27 +12,21 @@ pub struct ParsedSP {
     pub multi_signature: serde_json::Value,
 }
 
-/**
- Variants of representation for items to verify against SP Trie
- Right now 2 options are specified:
- - simple array of key-value pair
- - whole subtrie
-*/
+/// Variants of representation for items to verify against SP Trie
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum KeyValuesInSP {
+    /// Simple array of key-value pairs
     Simple(KeyValueSimpleData),
+    /// Whole subtrie
     SubTrie(KeyValuesSubTrieData),
 }
 
-/**
- Simple variant of `KeyValuesInSP`.
-
- All required data already present in parent SP Trie (built from `proof_nodes`).
- `kvs` can be verified directly in parent trie
-
- Encoding of `key` in `kvs` is defined by verification type
-*/
+/// Simple variant of `KeyValuesInSP`.
+///
+/// All required data already present in parent SP Trie (built from `proof_nodes`).
+/// `kvs` can be verified directly in parent trie
+/// Encoding of `key` in `kvs` is defined by verification type
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct KeyValueSimpleData {
     pub kvs: Vec<(String /* key */, Option<String /* val */>)>,
@@ -44,9 +34,7 @@ pub struct KeyValueSimpleData {
     pub verification_type: KeyValueSimpleDataVerificationType,
 }
 
-/**
- Options of common state proof check process
-*/
+/// Options for the common state proof check process
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum KeyValueSimpleDataVerificationType {
@@ -71,12 +59,11 @@ pub struct NumericalSuffixAscendingNoGapsData {
     pub prefix: String,
 }
 
-/**
- Subtrie variant of `KeyValuesInSP`.
-
- In this case Client (libindy) should construct subtrie and append it into trie based on `proof_nodes`.
- After this preparation each kv pair can be checked.
-*/
+/// Subtrie variant of `KeyValuesInSP`.
+///
+/// In this case Client (libindy) should construct subtrie and append it
+/// into trie based on `proof_nodes`. After this preparation each kv pair
+/// can be checked.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct KeyValuesSubTrieData {
     /// base64-encoded common prefix of each pair in `kvs`. Should be used to correct merging initial trie and subtrie

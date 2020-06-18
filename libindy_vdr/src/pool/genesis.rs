@@ -3,37 +3,50 @@ use std::convert::TryFrom;
 use std::fs::File;
 use std::io::BufReader;
 use std::iter::IntoIterator;
-use std::path::PathBuf;
+use std::path::Path;
 
 use serde_json::{self, Deserializer, Value as SJsonValue};
 
 use super::types::{
-    BlsVerKey, NodeTransaction, NodeTransactionV0, NodeTransactionV1, ProtocolVersion,
-    VerifierInfo, Verifiers,
+    NodeTransaction, NodeTransactionV0, NodeTransactionV1, ProtocolVersion, VerifierInfo,
+    VerifierKey, Verifiers,
 };
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58::FromBase58;
+use crate::utils::base58;
 use crate::utils::crypto;
 
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
 
+/// A collection of pool genesis transactions.
 #[derive(Clone, PartialEq, Eq)]
 pub struct PoolTransactions {
     inner: Vec<Vec<u8>>, // stored in msgpack format
 }
 
 impl PoolTransactions {
+    /// Create a new blank set of transactions.
     fn new(inner: Vec<Vec<u8>>) -> Self {
         Self { inner }
     }
 
-    pub fn from_file(file_name: &str) -> VdrResult<Self> {
-        Self::from_file_path(&PathBuf::from(file_name))
+    /// Load JSON pool transactions from a string.
+    pub fn from_json(txns: &str) -> VdrResult<Self> {
+        let stream = Deserializer::from_str(txns).into_iter::<SJsonValue>();
+        let txns = _json_iter_to_msgpack(stream)?;
+        if txns.is_empty() {
+            Err(input_err("No genesis transactions found"))
+        } else {
+            Ok(Self::new(txns))
+        }
     }
 
-    pub fn from_file_path(file_name: &PathBuf) -> VdrResult<Self> {
-        let f = File::open(file_name).map_err(|err| {
+    /// Load JSON pool transactions from a file.
+    pub fn from_json_file<P>(file_name: P) -> VdrResult<Self>
+    where
+        P: AsRef<Path> + std::fmt::Debug,
+    {
+        let f = File::open(&file_name).map_err(|err| {
             err_msg(
                 VdrErrorKind::FileSystem(err),
                 format!("Can't open genesis transactions file: {:?}", file_name),
@@ -49,25 +62,8 @@ impl PoolTransactions {
         }
     }
 
-    pub fn from_transactions<T>(txns: T) -> Self
-    where
-        T: IntoIterator,
-        T::Item: AsRef<[u8]>,
-    {
-        Self::new(txns.into_iter().map(|t| t.as_ref().to_vec()).collect())
-    }
-
-    pub fn from_json(txns: &str) -> VdrResult<Self> {
-        let stream = Deserializer::from_str(txns).into_iter::<SJsonValue>();
-        let txns = _json_iter_to_msgpack(stream)?;
-        if txns.is_empty() {
-            Err(input_err("No genesis transactions found"))
-        } else {
-            Ok(Self::new(txns))
-        }
-    }
-
-    pub fn from_transactions_json<T>(txns: T) -> VdrResult<Self>
+    /// Load pool transactions from a sequence of JSON strings.
+    pub fn from_json_transactions<T>(txns: T) -> VdrResult<Self>
     where
         T: IntoIterator,
         T::Item: AsRef<str>,
@@ -77,6 +73,16 @@ impl PoolTransactions {
         Ok(pt)
     }
 
+    /// Load pool transactions from a sequence of msgpack-encoded byte strings.
+    pub fn from_transactions<T>(txns: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: AsRef<[u8]>,
+    {
+        Self::new(txns.into_iter().map(|t| t.as_ref().to_vec()).collect())
+    }
+
+    /// Extend the pool transactions with a set of msgpack-encoded byte strings.
     pub fn extend<T>(&mut self, txns: T)
     where
         T: IntoIterator<Item = Vec<u8>>,
@@ -84,6 +90,7 @@ impl PoolTransactions {
         self.inner.extend(txns)
     }
 
+    /// Extend the pool transactions with a set of JSON strings.
     pub fn extend_from_json<'a, T>(&mut self, txns: T) -> VdrResult<()>
     where
         T: IntoIterator,
@@ -97,18 +104,22 @@ impl PoolTransactions {
         Ok(())
     }
 
+    /// Derive a `MerkleTree` instance from the set of pool transactions.
     pub fn merkle_tree(&self) -> VdrResult<MerkleTree> {
         Ok(MerkleTree::from_vec(self.inner.clone())?)
     }
 
+    /// Convert the set of pool transactions into a `MerkleTree` instance.
     pub fn into_merkle_tree(self) -> VdrResult<MerkleTree> {
         Ok(MerkleTree::from_vec(self.inner)?)
     }
 
+    /// Iterate the set of transactions as a sequence of msgpack-encoded byte strings.
     pub fn iter(&self) -> impl Iterator<Item = &Vec<u8>> {
         self.inner.iter()
     }
 
+    /// Get a sequence of JSON strings representing the pool transactions.
     pub fn encode_json(&self) -> VdrResult<Vec<String>> {
         Ok(self
             .json_values()?
@@ -117,6 +128,7 @@ impl PoolTransactions {
             .collect())
     }
 
+    /// Get a sequence of `serde_json::Value` instances representing the pool transactions.
     pub fn json_values(&self) -> VdrResult<Vec<SJsonValue>> {
         self.inner.iter().try_fold(vec![], |mut vec, txn| {
             let value = rmp_serde::decode::from_slice(txn)
@@ -126,6 +138,7 @@ impl PoolTransactions {
         })
     }
 
+    /// Get the number of pool transactions.
     pub fn len(&self) -> usize {
         self.inner.len()
     }
@@ -161,7 +174,7 @@ impl TryFrom<&[String]> for PoolTransactions {
     type Error = VdrError;
 
     fn try_from(txns: &[String]) -> VdrResult<Self> {
-        PoolTransactions::from_transactions_json(txns)
+        PoolTransactions::from_json_transactions(txns)
     }
 }
 
@@ -235,7 +248,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 )));
             }
 
-            let verkey_bin = public_key.from_base58().map_input_err(|| {
+            let verkey_bin = base58::decode(&public_key).map_input_err(|| {
                 format!(
                     "Node '{}' has invalid field 'dest': failed parsing base58",
                     node_alias
@@ -261,18 +274,18 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 }
             };
 
-            let bls_key: Option<BlsVerKey> = match txn.txn.data.data.blskey {
-                Some(ref blskey) => {
-                    let key = blskey.as_str().from_base58().map_input_err(|| {
-                        format!("Node '{}': invalid base58 in field blskey", node_alias)
-                    })?;
-
-                    Some(BlsVerKey::from_bytes(&key).map_err(|_| {
-                        input_err(format!("Node '{}': invalid field blskey", node_alias))
-                    })?)
-                }
-                None => None,
-            };
+            let bls_key =
+                match txn.txn.data.data.blskey {
+                    Some(ref blskey) => {
+                        let key = base58::decode(blskey.as_str()).map_input_err(|| {
+                            format!("Node '{}': invalid base58 in field blskey", node_alias)
+                        })?;
+                        Some(VerifierKey::from_bytes(&key).map_input_err(|| {
+                            format!("Node '{}': invalid field blskey", node_alias)
+                        })?)
+                    }
+                    None => None,
+                };
 
             let info = VerifierInfo {
                 address,
@@ -341,7 +354,7 @@ mod tests {
         }
 
         pub fn _merkle_tree() -> MerkleTree {
-            PoolTransactions::from_transactions_json(&_transactions())
+            PoolTransactions::from_json_transactions(&_transactions())
                 .unwrap()
                 .merkle_tree()
                 .unwrap()
@@ -352,7 +365,7 @@ mod tests {
             let transaction = GenesisTransactions::new(None);
 
             let transactions: PoolTransactions =
-                PoolTransactions::from_transactions_json(&transaction.transactions).unwrap();
+                PoolTransactions::from_json_transactions(&transaction.transactions).unwrap();
 
             assert_eq!(
                 transactions.encode_json().unwrap(),
@@ -365,7 +378,7 @@ mod tests {
             let mut transaction = GenesisTransactions::new(None);
             let file = transaction.store_to_file();
 
-            let transactions: PoolTransactions = PoolTransactions::from_file_path(&file).unwrap();
+            let transactions: PoolTransactions = PoolTransactions::from_json_file(&file).unwrap();
 
             assert_eq!(
                 transactions.encode_json().unwrap(),
@@ -382,13 +395,13 @@ mod tests {
                 file.clone()
             };
 
-            let _err = PoolTransactions::from_file_path(&file).unwrap_err();
+            let _err = PoolTransactions::from_json_file(&file).unwrap_err();
         }
 
         #[test]
         fn test_pool_transactions_from_file_for_invalid_transactions() {
-            let file = TempFile::create(r#"{invalid}"#);
-            let _err = PoolTransactions::from_file_path(&file.path).unwrap_err();
+            let mut txns = GenesisTransactions::from_transactions(&[r#"{invalid}"#]);
+            let _err = PoolTransactions::from_json_file(txns.store_to_file()).unwrap_err();
         }
 
         #[test]
@@ -441,7 +454,7 @@ mod tests {
 
         #[test]
         fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_3() {
-            let merkle_tree = PoolTransactions::from_transactions_json(vec![NODE1_OLD, NODE2_OLD])
+            let merkle_tree = PoolTransactions::from_json_transactions(vec![NODE1_OLD, NODE2_OLD])
                 .unwrap()
                 .merkle_tree()
                 .unwrap();
@@ -472,7 +485,7 @@ mod tests {
 
         #[test]
         fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_4() {
-            let merkle_tree = PoolTransactions::from_transactions_json(vec![NODE1_OLD, NODE2_OLD])
+            let merkle_tree = PoolTransactions::from_json_transactions(vec![NODE1_OLD, NODE2_OLD])
                 .unwrap()
                 .merkle_tree()
                 .unwrap();

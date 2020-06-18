@@ -1,7 +1,7 @@
 use crate::utils::qualifier::Qualifiable;
 use crate::utils::validation::{Validatable, ValidationError};
 
-qualifiable_type!(RichSchemaId);
+qualifiable_type!(RichSchemaId, "A rich schema identifier");
 
 impl RichSchemaId {
     pub const PREFIX: &'static str = "rich_schema";

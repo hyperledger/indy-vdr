@@ -1,23 +1,30 @@
-pub use crate::pool::ProtocolVersion;
-
+use crate::pool::ProtocolVersion;
 use crate::utils::validation::{Validatable, ValidationError};
 
 use super::constants;
 
+/// Configuration settings for managing validator pool communication
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct PoolConfig {
+    /// The protocol version used in pool communication
     #[serde(default = "PoolConfig::default_protocol_version")]
     pub protocol_version: ProtocolVersion,
+    /// The freshness threshold to accept when validating state proofs
     #[serde(default = "PoolConfig::default_freshness_threshold")]
     pub freshness_threshold: u64,
+    /// The timeout to use when waiting for responses from multiple nodes
     #[serde(default = "PoolConfig::default_ack_timeout")]
     pub ack_timeout: i64,
+    /// The timeout for pool read and write transactions
     #[serde(default = "PoolConfig::default_reply_timeout")]
     pub reply_timeout: i64,
+    /// The maximum number of requests to process before creating a new pool connection
     #[serde(default = "PoolConfig::default_conn_request_limit")]
     pub conn_request_limit: usize,
+    /// The timeout before an active pool connection will stop accepting new requests
     #[serde(default = "PoolConfig::default_conn_active_timeout")]
     pub conn_active_timeout: i64,
+    /// The initial number of nodes to send ledger read requests
     #[serde(default = "PoolConfig::default_request_read_nodes")]
     pub request_read_nodes: usize,
 }
@@ -47,31 +54,38 @@ impl Validatable for PoolConfig {
 }
 
 impl PoolConfig {
-    fn default_freshness_threshold() -> u64 {
+    /// The default freshness threshold to accept when validating state proofs
+    pub fn default_freshness_threshold() -> u64 {
         constants::DEFAULT_FRESHNESS_TIMEOUT
     }
 
-    fn default_protocol_version() -> ProtocolVersion {
+    /// The default protocol version for pool communication
+    pub fn default_protocol_version() -> ProtocolVersion {
         constants::DEFAULT_PROTOCOL_VERSION
     }
 
-    fn default_ack_timeout() -> i64 {
+    /// The default timeout when waiting for responses from multiple nodes
+    pub fn default_ack_timeout() -> i64 {
         constants::DEFAULT_ACK_TIMEOUT
     }
 
-    fn default_reply_timeout() -> i64 {
+    /// The default timeout for pool read and write transactions
+    pub fn default_reply_timeout() -> i64 {
         constants::DEFAULT_REPLY_TIMEOUT
     }
 
-    fn default_conn_request_limit() -> usize {
+    /// The default maximum number of requests to process before creating a new pool connection
+    pub fn default_conn_request_limit() -> usize {
         constants::DEFAULT_CONN_REQUEST_LIMIT
     }
 
-    fn default_conn_active_timeout() -> i64 {
+    /// The default timeout before discarding an active pool connection
+    pub fn default_conn_active_timeout() -> i64 {
         constants::DEFAULT_CONN_ACTIVE_TIMEOUT
     }
 
-    fn default_request_read_nodes() -> usize {
+    /// The default initial number of nodes to send ledger read requests
+    pub fn default_request_read_nodes() -> usize {
         constants::DEFAULT_REQUEST_READ_NODES
     }
 }

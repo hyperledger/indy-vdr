@@ -11,6 +11,7 @@ use crate::common::verkey::build_full_verkey;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
 
+/// The Indy Node communication protocol version
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
 pub enum ProtocolVersion {
     Node1_3 = 1,
@@ -71,14 +72,17 @@ impl std::fmt::Display for ProtocolVersion {
     }
 }
 
+/// An Indy Node subledger identifier
 #[derive(Clone, Copy, Deserialize, Debug, PartialEq)]
 pub enum LedgerType {
+    /// `0` - Used for validator node details
     POOL = 0,
+    /// `1` - Used for the majority ledger transactions
     DOMAIN = 1,
+    /// `2` - Used for ledger configuration, such as the transaction author agreement
     CONFIG = 2,
 }
 
-#[allow(dead_code)]
 impl LedgerType {
     pub fn to_id(&self) -> i32 {
         *self as i32
@@ -89,10 +93,7 @@ impl LedgerType {
     }
 
     pub fn from_str(value: &str) -> VdrResult<Self> {
-        let value = value
-            .parse::<i32>()
-            .map_err(|_| input_err(format!("Invalid ledger type: {}", value)))?;
-        Self::from_id(value)
+        value.try_into()
     }
 }
 
@@ -109,7 +110,26 @@ impl TryFrom<i32> for LedgerType {
     }
 }
 
-pub type NodeKeys = HashMap<String, Option<BlsVerKey>>;
+impl TryFrom<&str> for LedgerType {
+    type Error = VdrError;
+
+    fn try_from(value: &str) -> VdrResult<Self> {
+        match value.to_ascii_uppercase().as_str() {
+            "POOL" => Ok(LedgerType::POOL),
+            "DOMAIN" => Ok(LedgerType::DOMAIN),
+            "CONFIG" => Ok(LedgerType::CONFIG),
+            _ => {
+                let ival = value
+                    .parse::<i32>()
+                    .map_input_err(|| format!("Unknown ledger type: {}", value))?;
+                Self::try_from(ival)
+            }
+        }
+    }
+}
+
+/// A collection of verifier node BLS keys
+pub type VerifierKeys = HashMap<String, VerifierKey>;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct NodeData {
@@ -541,30 +561,36 @@ impl Message {
     }
 }
 
+/// A verifier node BLS signing key
+#[derive(Clone)]
+pub struct VerifierKey {
+    pub(crate) inner: BlsVerKey,
+}
+
+impl VerifierKey {
+    pub fn from_bytes(key: &[u8]) -> VdrResult<Self> {
+        Ok(Self {
+            inner: BlsVerKey::from_bytes(&key).map_err(|_| input_err("Invalid BLS key"))?,
+        })
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.inner.as_bytes()
+    }
+}
+
+/// Validator node details loaded from pool transactions
 pub struct VerifierInfo {
     pub address: String,
     pub public_key: String,
     pub enc_key: Vec<u8>,
-    pub bls_key: Option<BlsVerKey>,
+    pub bls_key: Option<VerifierKey>,
 }
 
-pub struct Verifiers {
-    inner: HashMap<String, VerifierInfo>,
-}
+/// A standard collection of verifier information, indexed by node alias
+pub type Verifiers = HashMap<String, VerifierInfo>;
 
-impl From<HashMap<String, VerifierInfo>> for Verifiers {
-    fn from(inner: HashMap<String, VerifierInfo>) -> Self {
-        Self { inner }
-    }
-}
-
-impl std::ops::Deref for Verifiers {
-    type Target = HashMap<String, VerifierInfo>;
-    fn deref(&self) -> &HashMap<String, VerifierInfo> {
-        &self.inner
-    }
-}
-
+/// Setup parameters for `PoolImpl`, shared with cloned instances and derived pool requests
 pub struct PoolSetup {
     pub config: PoolConfig,
     pub merkle_tree: MerkleTree,
@@ -587,3 +613,58 @@ impl PoolSetup {
         }
     }
 }
+
+new_handle_type!(RequestHandle, RQ_COUNTER);
+
+/// Common result type returned by request handlers
+#[derive(Debug)]
+pub enum RequestResult<T> {
+    Reply(T),
+    Failed(VdrError),
+}
+
+impl<T> RequestResult<T> {
+    pub fn map_result<F, R>(self, f: F) -> VdrResult<RequestResult<R>>
+    where
+        F: FnOnce(T) -> VdrResult<R>,
+    {
+        match self {
+            Self::Reply(reply) => Ok(RequestResult::Reply(f(reply)?)),
+            Self::Failed(err) => Ok(RequestResult::Failed(err)),
+        }
+    }
+}
+
+/// Type representing timing information collected for ledger transaction request
+pub type TimingResult = HashMap<String, f32>;
+
+/// The result of a request to a single validator node
+#[derive(Debug)]
+pub enum SingleReply<T> {
+    Reply(T),
+    Failed(String),
+    Timeout(),
+}
+
+impl<T: ToString> ToString for SingleReply<T> {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Reply(msg) => msg.to_string(),
+            Self::Failed(msg) => msg.clone(),
+            Self::Timeout() => "timeout".to_owned(),
+        }
+    }
+}
+
+impl<T: Into<String>> Into<String> for SingleReply<T> {
+    fn into(self) -> String {
+        match self {
+            Self::Reply(msg) => msg.into(),
+            Self::Failed(msg) => msg,
+            Self::Timeout() => "timeout".to_owned(),
+        }
+    }
+}
+
+/// A collection of results from multiple validator nodes
+pub type NodeReplies<T> = HashMap<String, SingleReply<T>>;

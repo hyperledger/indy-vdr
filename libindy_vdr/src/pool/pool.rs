@@ -13,47 +13,63 @@ use super::genesis::{build_node_transaction_map, build_verifiers, PoolTransactio
 use super::networker::{
     LocalNetworker, Networker, NetworkerEvent, NetworkerFactory, SharedNetworker,
 };
-use super::requests::{PoolRequest, PoolRequestImpl, RequestHandle};
-use super::types::{PoolSetup, Verifiers};
+use super::requests::{PoolRequest, PoolRequestImpl};
+use super::types::{PoolSetup, RequestHandle, Verifiers};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
 use crate::ledger::RequestBuilder;
-use crate::utils::base58::ToBase58;
+use crate::utils::base58;
 
+/// A generic verifier pool with support for creating pool transaction requests
 pub trait Pool: Clone {
     type Request: PoolRequest;
 
+    /// Get the pool configuration for this instance
     fn get_config(&self) -> &PoolConfig;
+
+    /// Create a new pool request instance
     fn create_request<'a>(
         &'a self,
         req_id: String,
         req_json: String,
     ) -> LocalBoxFuture<'a, VdrResult<Self::Request>>;
+
+    /// Get the merkle tree representing the verifier pool transactions
     fn get_merkle_tree(&self) -> &MerkleTree;
+
+    /// A sequence of verifier node aliases
     fn get_node_aliases(&self) -> Vec<String>;
 
-    fn get_merkle_tree_root(&self) -> (String, usize) {
+    /// Get the size and root of the pool transactions merkle tree
+    fn get_merkle_tree_info(&self) -> (String, usize) {
         let tree = self.get_merkle_tree();
-        (tree.root_hash().to_base58(), tree.count())
+        (base58::encode(tree.root_hash()), tree.count())
     }
+
+    /// Get a request builder corresponding to this verifier pool
     fn get_request_builder(&self) -> RequestBuilder {
         RequestBuilder::new(self.get_config().protocol_version)
     }
-    fn get_transactions(&self) -> VdrResult<Vec<String>> {
+
+    /// Get the set of verifier pool transactions in JSON format
+    fn get_json_transactions(&self) -> VdrResult<Vec<String>> {
         PoolTransactions::from(self.get_merkle_tree()).encode_json()
     }
 }
 
+/// The default `Pool` implementation
 #[derive(Clone)]
 pub struct PoolImpl<S: AsRef<PoolSetup> + Clone, T: Networker + Clone> {
     setup: S,
     networker: T,
 }
 
+/// A verifier pool instance restricted to a single thread
 pub type LocalPool = PoolImpl<Rc<PoolSetup>, LocalNetworker>;
 
+/// A verifier pool instance which can be shared between threads
 pub type SharedPool = PoolImpl<Arc<PoolSetup>, SharedNetworker>;
 
 impl<S, T> PoolImpl<S, T>
@@ -61,10 +77,11 @@ where
     S: AsRef<PoolSetup> + Clone + From<Box<PoolSetup>>,
     T: Networker + Clone,
 {
-    pub fn new(setup: S, networker: T) -> Self {
+    pub(crate) fn new(setup: S, networker: T) -> Self {
         Self { setup, networker }
     }
 
+    /// Build a new verifier pool instance
     pub fn build<F>(
         config: PoolConfig,
         merkle_tree: MerkleTree,
@@ -123,7 +140,10 @@ where
     }
 }
 
-pub fn choose_nodes(verifiers: &Verifiers, weights: Option<HashMap<String, f32>>) -> Vec<String> {
+pub(crate) fn choose_nodes(
+    verifiers: &Verifiers,
+    weights: Option<HashMap<String, f32>>,
+) -> Vec<String> {
     let mut weighted = verifiers
         .keys()
         .map(|name| {

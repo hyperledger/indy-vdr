@@ -9,6 +9,7 @@ use crate::config::PoolConfig;
 
 use std::collections::HashMap;
 
+/// A utility class for building a new pool instance or runner.
 #[derive(Clone)]
 pub struct PoolBuilder {
     pub config: PoolConfig,
@@ -17,6 +18,7 @@ pub struct PoolBuilder {
 }
 
 impl PoolBuilder {
+    /// Create a new `PoolBuilder` instance.
     pub fn new(
         config: PoolConfig,
         merkle_tree: Option<MerkleTree>,
@@ -29,26 +31,26 @@ impl PoolBuilder {
         }
     }
 
-    pub fn from_config(config: PoolConfig) -> Self {
-        Self::new(config, None, None)
-    }
-
+    /// Replace the builder's pool transactions from a `MerkleTree` instance.
     pub fn merkle_tree(mut self, merkle_tree: MerkleTree) -> Self {
         self.merkle_tree.replace(merkle_tree);
         self
     }
 
+    /// Set the node weights associated with the builder.
     pub fn node_weights(mut self, node_weights: Option<HashMap<String, f32>>) -> Self {
         self.node_weights = node_weights;
         self
     }
 
+    /// Replace the builder's pool transactions.
     pub fn transactions(mut self, transactions: PoolTransactions) -> VdrResult<Self> {
         let merkle_tree = transactions.into_merkle_tree()?;
         self.merkle_tree.replace(merkle_tree);
         Ok(self)
     }
 
+    /// Create a `LocalPool` instance from the builder, for use in a single thread.
     pub fn into_local(self) -> VdrResult<LocalPool> {
         if self.merkle_tree.is_none() {
             return Err(err_msg(
@@ -64,6 +66,7 @@ impl PoolBuilder {
         )
     }
 
+    /// Create a `SharedPool` instance from the builder, for use across multiple threads.
     pub fn into_shared(self) -> VdrResult<SharedPool> {
         if self.merkle_tree.is_none() {
             return Err(err_msg(
@@ -79,6 +82,8 @@ impl PoolBuilder {
         )
     }
 
+    /// Create a `PoolRunner` instance from the builder, to handle pool interaction
+    /// in a dedicated thread.
     pub fn into_runner(self) -> VdrResult<PoolRunner> {
         if self.merkle_tree.is_none() {
             return Err(err_msg(
@@ -98,5 +103,11 @@ impl PoolBuilder {
 impl Default for PoolBuilder {
     fn default() -> Self {
         PoolBuilder::new(PoolConfig::default(), None, None)
+    }
+}
+
+impl From<PoolConfig> for PoolBuilder {
+    fn from(config: PoolConfig) -> Self {
+        PoolBuilder::new(config, None, None)
     }
 }

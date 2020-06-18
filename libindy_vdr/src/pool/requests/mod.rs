@@ -1,15 +1,26 @@
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::networker;
-use super::types::{self, Message, PoolSetup};
+use super::types::{self, Message, PoolSetup, TimingResult};
 
 mod base;
-pub use base::{PoolRequest, PoolRequestImpl, RequestHandle};
+pub use base::{PoolRequest, PoolRequestImpl};
 
-use crate::common::error::prelude::*;
+/// Assembled ledger transaction request
+mod prepared_request;
+pub use prepared_request::{PreparedRequest, RequestMethod};
 
+/// Get a new unique request ID
+pub fn new_request_id() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time has gone backwards")
+        .as_nanos() as u64
+}
+
+/// Events received by `Request` instances as pending dispatches are resolved
 #[derive(Debug)]
 pub enum RequestEvent {
     Received(
@@ -22,9 +33,10 @@ pub enum RequestEvent {
     ),
 }
 
+/// Extended request events produced by a `Networker` and processed by the event stream producer
 #[derive(Debug)]
 pub enum RequestExtEvent {
-    Init(),
+    Init,
     Sent(
         String,     // node alias
         SystemTime, // send time
@@ -40,26 +52,9 @@ pub enum RequestExtEvent {
     ),
 }
 
-#[derive(Debug)]
-pub enum RequestResult<T> {
-    Reply(T),
-    Failed(VdrError),
-}
-
-impl<T> RequestResult<T> {
-    pub fn map_result<F, R>(self, f: F) -> VdrResult<RequestResult<R>>
-    where
-        F: FnOnce(T) -> VdrResult<R>,
-    {
-        match self {
-            Self::Reply(reply) => Ok(RequestResult::Reply(f(reply)?)),
-            Self::Failed(err) => Ok(RequestResult::Failed(err)),
-        }
-    }
-}
-
+/// Basic state enum for ledger transaction requests
 #[derive(Debug, PartialEq, Eq)]
-pub enum RequestState {
+enum RequestState {
     NotStarted,
     Active,
     Terminated,
@@ -76,19 +71,8 @@ impl std::fmt::Display for RequestState {
     }
 }
 
-pub type TimingResult = HashMap<String, f32>;
-
 #[derive(Debug)]
-pub enum RequestTarget {
-    Default(),
-    Full(
-        Option<Vec<String>>, // nodes to send
-        Option<i64>,         // timeout
-    ),
-}
-
-#[derive(Debug)]
-pub struct RequestTiming {
+pub(crate) struct RequestTiming {
     replies: HashMap<String, (SystemTime, f32)>,
 }
 
@@ -114,7 +98,7 @@ impl RequestTiming {
         });
     }
 
-    pub fn get_result(&self) -> Option<TimingResult> {
+    pub fn result(&self) -> Option<TimingResult> {
         Some(HashMap::from_iter(
             self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
         ))

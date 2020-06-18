@@ -1,6 +1,7 @@
 extern crate percent_encoding;
 
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::rc::Rc;
 use std::time::UNIX_EPOCH;
 
@@ -14,7 +15,7 @@ use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
 use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
 use indy_vdr::ledger::identifiers::schema::SchemaId;
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
-use indy_vdr::pool::{Pool, RequestResult, TimingResult};
+use indy_vdr::pool::{LedgerType, Pool, PreparedRequest, RequestResult, TimingResult};
 use indy_vdr::utils::qualifier::Qualifiable;
 
 #[derive(PartialEq, Eq)]
@@ -237,14 +238,14 @@ fn http_status_msg<T: std::fmt::Display>(code: StatusCode, msg: T) -> VdrResult<
 }
 
 async fn get_pool_genesis<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
-    let txns = pool.get_transactions()?;
+    let txns = pool.get_json_transactions()?;
     Ok(ResponseType::Genesis(txns.join("\n")))
 }
 
 fn get_pool_status(state: Rc<RefCell<AppState>>) -> VdrResult<ResponseType> {
     let opt_pool = &state.borrow().pool;
     let (status, mt_root, mt_size, nodes) = if let Some(pool) = opt_pool {
-        let (mt_root, mt_size) = pool.get_merkle_tree_root();
+        let (mt_root, mt_size) = pool.get_merkle_tree_info();
         let nodes = pool.get_node_aliases();
         ("active", Some(mt_root), Some(mt_size), Some(nodes))
     } else {
@@ -268,7 +269,7 @@ async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str) -> VdrResult<Respo
         None,
         None,
     )?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -277,7 +278,7 @@ async fn get_nym<T: Pool>(pool: &T, nym: &str) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_nym_request(None, &nym)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -286,7 +287,7 @@ async fn get_schema<T: Pool>(pool: &T, schema_id: &str) -> VdrResult<ResponseTyp
     let request = pool
         .get_request_builder()
         .build_get_schema_request(None, &schema_id)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -295,7 +296,7 @@ async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str) -> VdrResult<Respons
     let request = pool
         .get_request_builder()
         .build_get_cred_def_request(None, &cred_def_id)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -304,7 +305,7 @@ async fn get_revoc_reg_def<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrResu
     let request = pool
         .get_request_builder()
         .build_get_revoc_reg_def_request(None, &revoc_reg_def_id)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -315,7 +316,7 @@ async fn get_revoc_reg<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrResult<R
         &revoc_reg_def_id,
         timestamp_now(),
     )?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -324,7 +325,7 @@ async fn get_revoc_reg_delta<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrRe
     let request = pool
         .get_request_builder()
         .build_get_revoc_reg_delta_request(None, &revoc_reg_def_id, None, timestamp_now())?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -339,7 +340,7 @@ async fn get_taa<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_txn_author_agreement_request(None, None)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -347,7 +348,7 @@ async fn get_aml<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_acceptance_mechanisms_request(None, None, None)?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -365,20 +366,18 @@ async fn get_auth_rule<T: Pool>(
         None,
         None,
     )?;
-    let result = perform_ledger_request(pool, request, None).await?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
-async fn get_txn<T: Pool>(pool: &T, ledger: i32, seq_no: i32) -> VdrResult<ResponseType> {
-    let result = perform_get_txn(pool, ledger, seq_no).await?;
+async fn get_txn<T: Pool>(pool: &T, ledger: LedgerType, seq_no: i32) -> VdrResult<ResponseType> {
+    let result = perform_get_txn(pool, ledger.to_id(), seq_no).await?;
     Ok(result.into())
 }
 
 async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> VdrResult<ResponseType> {
-    let (request, target) =
-        pool.get_request_builder()
-            .build_custom_request(&message, None, (None, None))?;
-    let result = perform_ledger_request(pool, request, target).await?;
+    let request = PreparedRequest::from_request_json(message)?;
+    let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
 
@@ -518,7 +517,9 @@ pub async fn handle_request<T: Pool>(
         }
         (&Method::GET, "txn") => {
             if let (Some(ledger), Some(txn)) = (parts.next(), parts.next()) {
-                if let (Ok(ledger), Ok(txn)) = (ledger.parse::<i32>(), txn.parse::<i32>()) {
+                if let (Ok(ledger), Ok(txn)) =
+                    (LedgerType::try_from(ledger.as_str()), txn.parse::<i32>())
+                {
                     get_txn(pool, ledger, txn).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)

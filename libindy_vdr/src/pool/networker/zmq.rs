@@ -14,7 +14,7 @@ use zmq::Socket as ZSocket;
 
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
-use crate::utils::base58::ToBase58;
+use crate::utils::base58;
 
 use super::types::{Message, Verifiers};
 use super::{Networker, NetworkerEvent, NetworkerFactory, RequestExtEvent, RequestHandle};
@@ -23,7 +23,14 @@ new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 
 new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 
+/// ZeroMQ `NetworkerFactory` implementation
 pub struct ZMQNetworkerFactory;
+
+impl ZMQNetworkerFactory {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl NetworkerFactory for ZMQNetworkerFactory {
     type Output = ZMQNetworker;
@@ -49,6 +56,7 @@ impl NetworkerFactory for ZMQNetworkerFactory {
     }
 }
 
+/// ZeroMQ `Networker` implementation
 pub struct ZMQNetworker {
     cmd_send: zmq::Socket,
     evt_send: mpsc::Sender<NetworkerEvent>,
@@ -249,7 +257,7 @@ impl ZMQThread {
                 // FIXME set a timer to cancel the request if no messages are sent
                 trace!("New request {}", handle);
                 let pending = self.add_request(handle, sub_id, body, sender).unwrap();
-                if !pending.send_event(RequestExtEvent::Init()) {
+                if !pending.send_event(RequestExtEvent::Init) {
                     trace!("Removing, sender dropped before Init {}", handle);
                     self.remove_request(handle);
                 }
@@ -728,7 +736,7 @@ impl RemoteNode {
 
 impl std::fmt::Debug for RemoteNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let pubkey = self.enc_key.to_base58();
+        let pubkey = base58::encode(&self.enc_key);
         write!(
             f,
             "RemoteNode {{ name: {}, public_key: {}, zaddr: {}, is_blacklisted: {:?} }}",

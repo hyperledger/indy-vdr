@@ -3,23 +3,24 @@ use serde_json::{self, Value as SJsonValue};
 
 use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
-use crate::pool::{ProtocolVersion, RequestTarget};
-use crate::state_proof::{
-    constants::REQUEST_FOR_FULL, parse_key_from_request_for_builtin_sp,
-    parse_timestamp_from_req_for_builtin_sp,
-};
-use crate::utils::base58::ToBase58;
+use crate::pool::{new_request_id, PreparedRequest, ProtocolVersion, RequestMethod};
 use crate::utils::hash::{digest, Sha256};
 use crate::utils::qualifier::Qualifiable;
-use crate::utils::signature::serialize_signature;
 
 use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::rev_reg::RevocationRegistryId;
+#[cfg(any(feature = "rich_schema", test))]
 use super::identifiers::rich_schema::RichSchemaId;
 use super::identifiers::schema::SchemaId;
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
-use super::requests::auth_rule::*;
-use super::requests::author_agreement::*;
+use super::requests::auth_rule::{
+    AuthAction, AuthRuleOperation, AuthRules, AuthRulesOperation, Constraint, GetAuthRuleOperation,
+};
+use super::requests::author_agreement::{
+    AcceptanceMechanisms, DisableAllTxnAuthorAgreementsOperation, GetAcceptanceMechanismOperation,
+    GetTxnAuthorAgreementData, GetTxnAuthorAgreementOperation, SetAcceptanceMechanismOperation,
+    TxnAuthorAgreementOperation, TxnAuthrAgrmtAcceptanceData,
+};
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
@@ -32,21 +33,21 @@ use super::requests::rev_reg::{
 use super::requests::rev_reg_def::{
     GetRevRegDefOperation, RegistryType, RevRegDefOperation, RevocationRegistryDefinition,
 };
-use super::requests::schema::{
-    GetSchemaOperation, GetSchemaOperationData, Schema, SchemaOperation, SchemaOperationData,
-};
-use super::requests::txn::GetTxnOperation;
-use super::requests::validator_info::GetValidatorInfoOperation;
-use super::requests::{get_request_id, Request, RequestType, TxnAuthrAgrmtAcceptanceData};
-
-use super::constants::{txn_name_to_code, READ_REQUESTS};
-
+#[cfg(any(feature = "rich_schema", test))]
 use super::requests::rich_schema::{
     GetRichSchemaById, GetRichSchemaByIdOperation, GetRichSchemaByMetadata,
     GetRichSchemaByMetadataOperation, RSContent, RSContextOperation, RSCredDefOperation,
     RSEncodingOperation, RSMappingOperation, RSPresDefOperation, RSType, RichSchema,
     RichSchemaBaseOperation, RichSchemaOperation,
 };
+use super::requests::schema::{
+    GetSchemaOperation, GetSchemaOperationData, Schema, SchemaOperation, SchemaOperationData,
+};
+use super::requests::txn::GetTxnOperation;
+use super::requests::validator_info::GetValidatorInfoOperation;
+use super::requests::{Request, RequestType};
+
+use super::constants::txn_name_to_code;
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
     const SEC_IN_DAY: u64 = 86400;
@@ -71,133 +72,7 @@ fn compare_hash(text: &str, version: &str, hash: &str) -> VdrResult<()> {
     Ok(())
 }
 
-#[derive(Debug)]
-pub struct PreparedRequest {
-    pub protocol_version: ProtocolVersion,
-    pub txn_type: String,
-    pub req_id: String,
-    pub req_json: SJsonValue,
-    pub sp_key: Option<Vec<u8>>,
-    pub sp_timestamps: (Option<u64>, Option<u64>),
-    pub is_read_request: bool,
-}
-
-impl PreparedRequest {
-    pub fn new(
-        protocol_version: ProtocolVersion,
-        txn_type: String,
-        req_id: String,
-        req_json: SJsonValue,
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-        is_read_request: bool,
-    ) -> Self {
-        Self {
-            protocol_version,
-            txn_type,
-            req_id,
-            req_json,
-            sp_key,
-            sp_timestamps,
-            is_read_request,
-        }
-    }
-
-    pub fn get_signature_input(&self) -> VdrResult<String> {
-        Ok(serialize_signature(&self.req_json)?)
-    }
-
-    pub fn set_endorser(&mut self, endorser: &DidValue) -> VdrResult<()> {
-        self.req_json["endorser"] = SJsonValue::String(endorser.to_short().to_string());
-        Ok(())
-    }
-
-    pub fn set_signature(&mut self, signature: &[u8]) -> VdrResult<()> {
-        self.req_json["signature"] = SJsonValue::String(signature.to_base58());
-        Ok(())
-    }
-
-    pub fn set_multi_signature(
-        &mut self,
-        identifier: &DidValue,
-        signature: &[u8],
-    ) -> VdrResult<()> {
-        self.req_json.as_object_mut().map(|request| {
-            if !request.contains_key("signatures") {
-                request.insert(
-                    "signatures".to_string(),
-                    serde_json::Value::Object(serde_json::Map::new()),
-                );
-            }
-            request["signatures"]
-                .as_object_mut()
-                .unwrap()
-                .insert(identifier.0.to_owned(), json!(signature.to_base58()));
-
-            if let (Some(identifier), Some(signature)) = (
-                request
-                    .get("identifier")
-                    .and_then(serde_json::Value::as_str)
-                    .map(str::to_owned),
-                request.remove("signature"),
-            ) {
-                request["signatures"]
-                    .as_object_mut()
-                    .unwrap()
-                    .insert(identifier, signature);
-            }
-        });
-
-        Ok(())
-    }
-
-    pub fn set_txn_author_agreement_acceptance(
-        &mut self,
-        acceptance: &TxnAuthrAgrmtAcceptanceData,
-    ) -> VdrResult<()> {
-        self.req_json["taaAcceptance"] = serde_json::to_value(acceptance)
-            .with_err_msg(VdrErrorKind::Unexpected, "Error serializing TAA acceptance")?;
-        Ok(())
-    }
-
-    pub fn from_request_json(message: &str) -> VdrResult<PreparedRequest> {
-        let req_json: SJsonValue =
-            serde_json::from_str(message).with_input_err("Invalid request JSON")?;
-
-        let protocol_version = req_json["protocolVersion"]
-            .as_u64()
-            .ok_or(input_err("Invalid request JSON: protocolVersion not found"))
-            .and_then(ProtocolVersion::from_id)?;
-
-        let req_id = req_json["reqId"]
-            .as_u64()
-            .ok_or(input_err("Invalid request JSON: reqId not found"))?
-            .to_string();
-
-        let txn_type = req_json["operation"]["type"]
-            .as_str()
-            .ok_or_else(|| input_err("No operation type in request"))?
-            .to_string();
-
-        let (sp_key, sp_timestamps) = (
-            parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
-            parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
-        );
-
-        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
-
-        Ok(PreparedRequest::new(
-            protocol_version,
-            txn_type,
-            req_id,
-            req_json,
-            sp_key,
-            sp_timestamps,
-            is_read_request,
-        ))
-    }
-}
-
+/// A utility class for constructing ledger transaction requests
 pub struct RequestBuilder {
     pub protocol_version: ProtocolVersion,
 }
@@ -209,21 +84,29 @@ impl Default for RequestBuilder {
 }
 
 impl RequestBuilder {
+    /// Create a new `RequestBuilder` for a specific protocol version
     pub fn new(protocol_version: ProtocolVersion) -> Self {
         Self { protocol_version }
     }
 
+    /// Build a generic prepared request
     pub fn build<T: RequestType>(
         &self,
         operation: T,
         identifier: Option<&DidValue>,
     ) -> VdrResult<PreparedRequest> {
-        let req_id = get_request_id();
+        let req_id = new_request_id();
         let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
         let txn_type = T::get_txn_type().to_string();
         let sp_key = operation.get_sp_key(self.protocol_version)?;
-        let sp_timestamps = operation.get_sp_timestamps()?;
-        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
+        let method = if sp_key.is_some() {
+            Some(RequestMethod::BuiltinStateProof {
+                sp_key: sp_key.unwrap(),
+                sp_timestamps: operation.get_sp_timestamps()?,
+            })
+        } else {
+            None
+        };
         let body = Request::build_request(
             req_id,
             operation,
@@ -236,12 +119,11 @@ impl RequestBuilder {
             txn_type,
             req_id.to_string(),
             body,
-            sp_key,
-            sp_timestamps,
-            is_read_request,
+            method,
         ))
     }
 
+    /// Build a `NYM` transaction request
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
@@ -255,6 +137,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_NYM` transaction request
     pub fn build_get_nym_request(
         &self,
         identifier: Option<&DidValue>,
@@ -265,6 +148,7 @@ impl RequestBuilder {
         self.build(operation, identifier)
     }
 
+    /// Build an `ATTRIB` transaction request
     pub fn build_attrib_request(
         &self,
         identifier: &DidValue,
@@ -278,6 +162,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_ATTRIB` transaction request
     pub fn build_get_attrib_request(
         &self,
         identifier: Option<&DidValue>,
@@ -290,6 +175,7 @@ impl RequestBuilder {
         self.build(operation, identifier)
     }
 
+    /// Build a `NODE` transaction request
     pub fn build_node_request(
         &self,
         identifier: &DidValue,
@@ -300,6 +186,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_VALIDATOR_INFO` transaction request
     pub fn build_get_validator_info_request(
         &self,
         identifier: &DidValue,
@@ -307,6 +194,7 @@ impl RequestBuilder {
         self.build(GetValidatorInfoOperation::new(), Some(identifier))
     }
 
+    /// Build a `GET_TXN` transaction request
     pub fn build_get_txn_request(
         &self,
         identifier: Option<&DidValue>,
@@ -319,6 +207,7 @@ impl RequestBuilder {
         self.build(GetTxnOperation::new(seq_no, ledger_type), identifier)
     }
 
+    /// Build a `POOL_CONFIG` transaction request
     pub fn build_pool_config(
         &self,
         identifier: &DidValue,
@@ -328,6 +217,7 @@ impl RequestBuilder {
         self.build(PoolConfigOperation::new(writes, force), Some(identifier))
     }
 
+    /// Build a `POOL_RESTART` transaction request
     pub fn build_pool_restart(
         &self,
         identifier: &DidValue,
@@ -340,6 +230,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `POOL_UPGRADE` transaction request
     pub fn build_pool_upgrade(
         &self,
         identifier: &DidValue,
@@ -369,6 +260,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build an `AUTH_RULE` transaction request
     pub fn build_auth_rule_request(
         &self,
         submitter_did: &DidValue,
@@ -391,6 +283,7 @@ impl RequestBuilder {
         self.build(operation, Some(submitter_did))
     }
 
+    /// Build an `AUTH_RULES` transaction request
     pub fn build_auth_rules_request(
         &self,
         submitter_did: &DidValue,
@@ -399,6 +292,7 @@ impl RequestBuilder {
         self.build(AuthRulesOperation::new(rules), Some(submitter_did))
     }
 
+    /// Build a `GET_AUTH_RULE` transaction request
     pub fn build_get_auth_rule_request(
         &self,
         submitter_did: Option<&DidValue>,
@@ -434,6 +328,7 @@ impl RequestBuilder {
         self.build(operation, submitter_did)
     }
 
+    /// Build a `TXN_AUTHR_AGRMT` transacation request
     pub fn build_txn_author_agreement_request(
         &self,
         identifier: &DidValue,
@@ -448,6 +343,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `GET_TXN_AUTHR_AGRMT` transaction request
     pub fn build_get_txn_author_agreement_request(
         &self,
         identifier: Option<&DidValue>,
@@ -456,6 +352,7 @@ impl RequestBuilder {
         self.build(GetTxnAuthorAgreementOperation::new(data), identifier)
     }
 
+    /// Build a `DISABLE_ALL_TXN_AUTHR_AGRMTS` transaction request
     pub fn build_disable_all_txn_author_agreements_request(
         &self,
         identifier: &DidValue,
@@ -466,6 +363,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `TXN_AUTHR_AGRMT_AML` transaction request
     pub fn build_acceptance_mechanisms_request(
         &self,
         identifier: &DidValue,
@@ -481,6 +379,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
+    /// Build a `GET_TXN_AUTHR_AGRMT_AML` transaction request
     pub fn build_get_acceptance_mechanisms_request(
         &self,
         identifier: Option<&DidValue>,
@@ -498,6 +397,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `SCHEMA` transaction request
     pub fn build_schema_request(
         &self,
         identifier: &DidValue,
@@ -511,6 +411,7 @@ impl RequestBuilder {
         self.build(SchemaOperation::new(schema_data), Some(identifier))
     }
 
+    /// Build a `GET_SCHEMA` transaction request
     pub fn build_get_schema_request(
         &self,
         identifier: Option<&DidValue>,
@@ -525,6 +426,7 @@ impl RequestBuilder {
         self.build(GetSchemaOperation::new(dest.to_short(), data), identifier)
     }
 
+    /// Build a `CRED_DEF` transaction request
     pub fn build_cred_def_request(
         &self,
         identifier: &DidValue,
@@ -536,6 +438,7 @@ impl RequestBuilder {
         self.build(CredDefOperation::new(cred_def), Some(identifier))
     }
 
+    /// Build a `GET_CRED_DEF` transaction request
     pub fn build_get_cred_def_request(
         &self,
         identifier: Option<&DidValue>,
@@ -554,6 +457,7 @@ impl RequestBuilder {
         self.build(operation, identifier)
     }
 
+    /// Build a `GET_REVOC_REG_DEF` transaction request
     pub fn build_get_revoc_reg_def_request(
         &self,
         identifier: Option<&DidValue>,
@@ -563,6 +467,7 @@ impl RequestBuilder {
         self.build(GetRevRegDefOperation::new(&id), identifier)
     }
 
+    /// Build a `GET_REVOC_REG` transaction request
     pub fn build_get_revoc_reg_request(
         &self,
         identifier: Option<&DidValue>,
@@ -576,6 +481,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `GET_REVOC_REG_DELTA` transaction request
     pub fn build_get_revoc_reg_delta_request(
         &self,
         identifier: Option<&DidValue>,
@@ -590,6 +496,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Build a `REVOC_REG_DEF` transaction request
     pub fn build_revoc_reg_def_request(
         &self,
         identifier: &DidValue,
@@ -601,6 +508,7 @@ impl RequestBuilder {
         self.build(RevRegDefOperation::new(revoc_reg), Some(identifier))
     }
 
+    /// Build a `REVOC_REG_ENTRY` transaction request
     pub fn build_revoc_reg_entry_request(
         &self,
         identifier: &DidValue,
@@ -618,6 +526,7 @@ impl RequestBuilder {
         )
     }
 
+    /// Prepare transaction author agreement acceptance data
     pub fn prepare_txn_author_agreement_acceptance_data(
         &self,
         text: Option<&str>,
@@ -650,83 +559,8 @@ impl RequestBuilder {
         Ok(acceptance_data)
     }
 
-    pub fn build_custom_request(
-        &self,
-        message: &[u8],
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
-        let message = std::str::from_utf8(message).with_input_err("Invalid UTF-8")?;
-        self.build_custom_request_from_str(message, sp_key, sp_timestamps)
-    }
-
-    pub fn build_custom_request_from_str(
-        &self,
-        message: &str,
-        sp_key: Option<Vec<u8>>,
-        sp_timestamps: (Option<u64>, Option<u64>),
-    ) -> VdrResult<(PreparedRequest, Option<RequestTarget>)> {
-        let mut req_json: SJsonValue =
-            serde_json::from_str(message).with_input_err("Invalid request JSON")?;
-
-        let protocol_version = req_json["protocolVersion"].as_u64();
-        let protocol_version = if protocol_version.is_none() {
-            req_json["protocolVersion"] = SJsonValue::from(self.protocol_version as usize);
-            self.protocol_version
-        } else {
-            ProtocolVersion::from_id(protocol_version.unwrap())?
-        };
-
-        let ident = req_json["identifier"].as_str();
-        if ident.is_none() {
-            req_json["identifier"] = SJsonValue::from(DEFAULT_LIBINDY_DID.to_string());
-        } else {
-            // FIXME validate identifier
-        }
-
-        let req_id = req_json["reqId"].as_u64();
-        let req_id = if req_id.is_none() {
-            let new_req_id = get_request_id();
-            req_json["reqId"] = SJsonValue::from(new_req_id);
-            new_req_id
-        } else {
-            req_id.unwrap() // FIXME validate?
-        }
-        .to_string();
-
-        let txn_type = req_json["operation"]["type"]
-            .as_str()
-            .ok_or_else(|| input_err("No operation type in request"))?
-            .to_string();
-
-        let target = if REQUEST_FOR_FULL.contains(&txn_type.as_str()) {
-            Some(RequestTarget::Full(None, None))
-        } else {
-            None
-        };
-
-        let (sp_key, sp_timestamps) = if sp_key.is_some() {
-            (sp_key, sp_timestamps)
-        } else {
-            (
-                parse_key_from_request_for_builtin_sp(&req_json, protocol_version),
-                parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
-            )
-        };
-        let is_read_request = sp_key.is_some() || READ_REQUESTS.contains(&txn_type.as_str());
-        Ok((
-            PreparedRequest::new(
-                protocol_version,
-                txn_type,
-                req_id,
-                req_json,
-                sp_key,
-                sp_timestamps,
-                is_read_request,
-            ),
-            target,
-        ))
-    }
+    #[cfg(any(feature = "rich_schema", test))]
+    /// Build a `RICH_SCHEMA` transaction request
     pub fn build_rich_schema_request(
         &self,
         identifier: &DidValue,
@@ -750,6 +584,9 @@ impl RequestBuilder {
             RSType::Pdf => build_rs_operation!(self, RSPresDefOperation, identifier, rich_schema),
         }
     }
+
+    #[cfg(any(feature = "rich_schema", test))]
+    /// Build a `GET_RICH_SCHEMA_BY_ID` transaction request
     pub fn build_get_rich_schema_by_id(
         &self,
         identifier: &DidValue,
@@ -761,6 +598,9 @@ impl RequestBuilder {
             Some(identifier),
         )
     }
+
+    #[cfg(any(feature = "rich_schema", test))]
+    /// Build a `GET_RICH_SCHEMA_BY_METADATA` transaction request
     pub fn build_get_rich_schema_by_metadata(
         &self,
         identifier: &DidValue,
@@ -839,9 +679,7 @@ mod tests {
             assert_eq!(request.protocol_version, _protocol_version());
             assert_eq!(request.txn_type, TYPE);
             assert_eq!(request.req_id, REQ_ID.to_string());
-            assert_eq!(request.sp_key, None);
-            assert_eq!(request.sp_timestamps, (None, None));
-            assert_eq!(request.is_read_request, false);
+            assert_eq!(request.method, RequestMethod::Consensus);
         }
 
         #[rstest]
@@ -867,9 +705,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
-            assert_eq!(request.sp_key, None);
-            assert_eq!(request.sp_timestamps, (None, None));
-            assert_eq!(request.is_read_request, false);
+            assert_eq!(request.method, RequestMethod::Consensus);
         }
 
         #[rstest]
@@ -882,14 +718,15 @@ mod tests {
 
             assert_eq!(request.txn_type, constants::GET_NYM);
             assert_eq!(
-                request.sp_key,
-                Some(vec![
-                    227, 51, 254, 11, 192, 83, 219, 131, 59, 204, 0, 126, 41, 96, 118, 238, 152,
-                    250, 160, 191, 198, 247, 4, 130, 44, 199, 140, 143, 18, 182, 93, 229
-                ])
+                request.method,
+                RequestMethod::BuiltinStateProof {
+                    sp_key: vec![
+                        227, 51, 254, 11, 192, 83, 219, 131, 59, 204, 0, 126, 41, 96, 118, 238,
+                        152, 250, 160, 191, 198, 247, 4, 130, 44, 199, 140, 143, 18, 182, 93, 229
+                    ],
+                    sp_timestamps: (None, None)
+                }
             );
-            assert_eq!(request.sp_timestamps, (None, None));
-            assert_eq!(request.is_read_request, true);
         }
 
         #[rstest]
@@ -910,11 +747,12 @@ mod tests {
 
             assert_eq!(request.txn_type, constants::GET_TXN_AUTHR_AGRMT);
             assert_eq!(
-                request.sp_key,
-                Some(vec![50, 58, 108, 97, 116, 101, 115, 116])
+                request.method,
+                RequestMethod::BuiltinStateProof {
+                    sp_key: vec![50, 58, 108, 97, 116, 101, 115, 116],
+                    sp_timestamps: (None, Some(123456789))
+                }
             );
-            assert_eq!(request.sp_timestamps, (None, Some(123456789)));
-            assert_eq!(request.is_read_request, true);
         }
 
         #[rstest]
@@ -931,18 +769,20 @@ mod tests {
 
             assert_eq!(request.txn_type, constants::GET_REVOC_REG_DELTA);
             assert_eq!(
-                request.sp_key,
-                Some(vec![
-                    54, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70,
-                    99, 89, 68, 105, 49, 101, 58, 52, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112,
-                    89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 51, 58, 67, 76,
-                    58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53, 70, 99,
-                    89, 68, 105, 49, 101, 58, 50, 58, 103, 118, 116, 58, 49, 46, 48, 58, 116, 97,
-                    103, 58, 67, 76, 95, 65, 67, 67, 85, 77, 58, 84, 65, 71, 95, 49
-                ])
+                request.method,
+                RequestMethod::BuiltinStateProof {
+                    sp_key: vec![
+                        54, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111, 118, 53,
+                        70, 99, 89, 68, 105, 49, 101, 58, 52, 58, 78, 99, 89, 120, 105, 68, 88,
+                        107, 112, 89, 105, 54, 111, 118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 51,
+                        58, 67, 76, 58, 78, 99, 89, 120, 105, 68, 88, 107, 112, 89, 105, 54, 111,
+                        118, 53, 70, 99, 89, 68, 105, 49, 101, 58, 50, 58, 103, 118, 116, 58, 49,
+                        46, 48, 58, 116, 97, 103, 58, 67, 76, 95, 65, 67, 67, 85, 77, 58, 84, 65,
+                        71, 95, 49
+                    ],
+                    sp_timestamps: (Some(from as u64), Some(to as u64))
+                }
             );
-            assert_eq!(request.sp_timestamps, (Some(from as u64), Some(to as u64)));
-            assert_eq!(request.is_read_request, true);
         }
     }
 

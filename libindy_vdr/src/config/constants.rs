@@ -1,4 +1,4 @@
-use super::ProtocolVersion;
+use crate::pool::ProtocolVersion;
 
 pub const DEFAULT_ACK_TIMEOUT: i64 = 20;
 pub const DEFAULT_REPLY_TIMEOUT: i64 = 60;

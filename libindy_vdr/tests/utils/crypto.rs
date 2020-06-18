@@ -1,6 +1,6 @@
 use indy_vdr::common::did::DidValue;
-use indy_vdr::ledger::PreparedRequest;
-use indy_vdr::utils::base58::ToBase58;
+use indy_vdr::pool::PreparedRequest;
+use vdr_shared::base58;
 
 use crate::utils::constants::*;
 
@@ -27,8 +27,8 @@ impl Identity {
 
         let (public_key, private_key) = ed25519.keypair(seed).unwrap();
 
-        let verkey = public_key[..].to_base58();
-        let did = public_key[0..16].to_vec().to_base58();
+        let verkey = base58::encode(&public_key);
+        let did = base58::encode(&public_key[0..16]);
 
         Identity {
             did: DidValue(did),

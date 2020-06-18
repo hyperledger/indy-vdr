@@ -1,9 +1,9 @@
 extern crate base64;
 extern crate rlp;
 
-pub mod constants;
+pub(crate) mod constants;
 mod node;
-pub mod types;
+pub(crate) mod types;
 
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -13,8 +13,8 @@ use serde_json::Value as SJsonValue;
 use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
 use crate::common::error::prelude::*;
-use crate::pool::{NodeKeys, ProtocolVersion};
-use crate::utils::base58::{FromBase58, ToBase58};
+use crate::pool::{ProtocolVersion, VerifierKeys};
+use crate::utils::base58;
 use crate::utils::hash::{digest, Sha256, TreeHash};
 
 use self::constants::{
@@ -24,17 +24,71 @@ use self::constants::{
 use self::node::{Node, TrieDB};
 use self::types::*;
 
-pub fn check_state_proof(
+pub use types::ParsedSP;
+
+/// A `StateProofParser` appropriate for attaching to a `PreparedRequest`
+pub struct BoxedSPParser(Box<dyn StateProofParser + Send + Sync>);
+
+impl std::ops::Deref for BoxedSPParser {
+    type Target = dyn StateProofParser;
+    fn deref(&self) -> &(dyn StateProofParser + 'static) {
+        &*self.0
+    }
+}
+
+impl PartialEq for BoxedSPParser {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+impl Eq for BoxedSPParser {}
+
+/// Construct a `StateProofParser` from a simple callback function
+pub fn state_proof_parser_fn<F>(cb: F) -> impl StateProofParser
+where
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>> + Send,
+{
+    StateProofParserFn(cb)
+}
+
+/// Custom state proof parser implementation
+pub trait StateProofParser {
+    /// Construct a `BoxedSPParser` from this instance
+    fn boxed(self) -> BoxedSPParser
+    where
+        Self: Send + Sync + Sized + 'static,
+    {
+        BoxedSPParser(Box::new(self))
+    }
+
+    /// Parse a node message into a sequence of `ParsedSP` instances
+    fn parse(&self, txn_type: &str, raw_msg: &str) -> Option<Vec<ParsedSP>>;
+}
+
+struct StateProofParserFn<F>(F)
+where
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>>;
+
+impl<F> StateProofParser for StateProofParserFn<F>
+where
+    F: Fn(&str, &str) -> Option<Vec<ParsedSP>> + Send,
+{
+    fn parse(&self, txn_type: &str, raw_msg: &str) -> Option<Vec<ParsedSP>> {
+        self.0(txn_type, raw_msg)
+    }
+}
+
+pub(crate) fn check_state_proof(
     msg_result: &SJsonValue,
     f: usize,
     gen: &Generator,
-    bls_keys: &NodeKeys,
+    bls_keys: &VerifierKeys,
     raw_msg: &str,
     sp_key: Option<&[u8]>,
     requested_timestamps: (Option<u64>, Option<u64>),
     last_write_time: u64,
     threshold: u64,
-    custom_state_proof_parser: Option<&Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>>>,
+    custom_state_proof_parser: Option<&BoxedSPParser>,
 ) -> bool {
     trace!("process_reply: Try to verify proof and signature >>");
 
@@ -71,7 +125,7 @@ pub fn check_state_proof(
     res
 }
 
-pub fn check_freshness(
+pub(crate) fn check_freshness(
     msg_result: &SJsonValue,
     requested_timestamps: (Option<u64>, Option<u64>),
     last_write_time: u64,
@@ -144,7 +198,7 @@ pub fn check_freshness(
     res
 }
 
-pub fn get_cur_time() -> u64 {
+pub(crate) fn get_cur_time() -> u64 {
     let since_epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Time has gone backwards");
@@ -165,7 +219,7 @@ fn extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
     }
 }
 
-pub fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
+pub(crate) fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
     let mut result_without_proof = result.clone();
     result_without_proof
         .as_object_mut()
@@ -192,11 +246,11 @@ pub fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
     result_without_proof
 }
 
-pub fn parse_generic_reply_for_proof_checking(
+pub(crate) fn parse_generic_reply_for_proof_checking(
     json_msg: &SJsonValue,
     raw_msg: &str,
     sp_key: Option<&[u8]>,
-    custom_state_proof_parser: Option<&Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>>>,
+    custom_state_proof_parser: Option<&BoxedSPParser>,
 ) -> Option<Vec<ParsedSP>> {
     let type_ = if let Some(type_) = json_msg["type"].as_str() {
         trace!("type_: {:?}", type_);
@@ -214,16 +268,16 @@ pub fn parse_generic_reply_for_proof_checking(
             None
         }
     } else if let Some(custom_state_proof_parser_) = custom_state_proof_parser {
-        custom_state_proof_parser_(type_, raw_msg)
+        custom_state_proof_parser_.parse(type_, raw_msg)
     } else {
         trace!("parse_generic_reply_for_proof_checking: <<< type not supported");
         None
     }
 }
 
-pub fn verify_parsed_sp(
+pub(crate) fn verify_parsed_sp(
     parsed_sps: Vec<ParsedSP>,
-    nodes: &NodeKeys,
+    nodes: &VerifierKeys,
     f: usize,
     gen: &Generator,
 ) -> bool {
@@ -257,7 +311,7 @@ pub fn verify_parsed_sp(
             debug!("Error decoding proof nodes from state proof");
             false
         });
-        let root_hash = unwrap_or_return!(parsed_sp.root_hash.from_base58(), {
+        let root_hash = unwrap_or_return!(base58::decode(parsed_sp.root_hash), {
             debug!("Error decoding root hash from state proof");
             false
         });
@@ -318,7 +372,7 @@ pub fn verify_parsed_sp(
     true
 }
 
-pub fn parse_key_from_request_for_builtin_sp(
+pub(crate) fn parse_key_from_request_for_builtin_sp(
     json_msg: &SJsonValue,
     protocol_version: ProtocolVersion,
 ) -> Option<Vec<u8>> {
@@ -543,7 +597,7 @@ pub fn parse_key_from_request_for_builtin_sp(
     Some(key)
 }
 
-pub fn parse_timestamp_from_req_for_builtin_sp(
+pub(crate) fn parse_timestamp_from_req_for_builtin_sp(
     req: &SJsonValue,
     op: &str,
 ) -> (Option<u64>, Option<u64>) {
@@ -819,15 +873,18 @@ fn _parse_reply_for_multi_sp(
 
 fn _parse_reply_for_proof_signature_checking(
     json_msg: &SJsonValue,
-) -> Option<(&str, Vec<&str>, Vec<u8>)> {
+) -> Option<(&str, Vec<String>, Vec<u8>)> {
     match (
         json_msg["signature"].as_str(),
         json_msg["participants"].as_array(),
         rmp_serde::to_vec_named(&json_msg["value"]),
     ) {
         (Some(signature), Some(participants), Ok(value)) => {
-            let participants_unwrap: Vec<&str> =
-                participants.iter().flat_map(SJsonValue::as_str).collect();
+            let participants_unwrap = participants
+                .iter()
+                .flat_map(SJsonValue::as_str)
+                .map(str::to_owned)
+                .collect::<Vec<String>>();
 
             if participants.len() == participants_unwrap.len() {
                 Some((signature, participants_unwrap, value))
@@ -914,10 +971,10 @@ fn _verify_merkle_tree(
         return false;
     });
 
-    trace!("Hashed leaf in b58: {}", hash.to_base58());
+    trace!("Hashed leaf in b58: {}", base58::encode(&hash));
 
     for (next_hash, turn_right) in hashes_with_turns {
-        let _next_hash = unwrap_or_return!(next_hash.from_base58(), {
+        let _next_hash = unwrap_or_return!(base58::decode(next_hash), {
             debug!("Error decoding next hash as base58");
             false
         });
@@ -936,11 +993,11 @@ fn _verify_merkle_tree(
     if !result {
         debug!(
             "Merkle tree hash mismatch: {} != {}",
-            hash.to_base58(),
-            root_hash.to_base58()
+            base58::encode(hash),
+            base58::encode(root_hash)
         );
     } else {
-        trace!("Matched root hash: {}", root_hash.to_base58())
+        trace!("Matched root hash: {}", base58::encode(root_hash))
     }
 
     result
@@ -1062,20 +1119,19 @@ fn _verify_proof_range(
 
 fn _verify_proof_signature(
     signature: &str,
-    participants: &[&str],
+    participants: &[String],
     value: &[u8],
-    nodes: &NodeKeys,
+    nodes: &VerifierKeys,
     f: usize,
     gen: &Generator,
 ) -> VdrResult<bool> {
     let mut ver_keys: Vec<&VerKey> = Vec::with_capacity(nodes.len());
 
-    for (name, verkey) in nodes {
-        if participants.contains(&name.as_str()) {
-            match *verkey {
-                Some(ref blskey) => ver_keys.push(blskey),
-                _ => return Err(input_err(format!("Blskey not found for node: {:?}", name))),
-            };
+    for name in participants {
+        if let Some(blskey) = nodes.get(name) {
+            ver_keys.push(&blskey.inner)
+        } else {
+            return Err(input_err(format!("BLS key not found for node: {:?}", name)));
         }
     }
 
@@ -1088,7 +1144,7 @@ fn _verify_proof_signature(
         return Ok(false);
     }
 
-    let signature = if let Ok(signature) = signature.from_base58() {
+    let signature = if let Ok(signature) = base58::decode(signature) {
         signature
     } else {
         return Ok(false);
@@ -1288,9 +1344,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1309,9 +1363,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1330,9 +1382,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "G9QooEDKSmEtLGNyTwafQiPfGHMqw3A3Fjcj2eLRG4G1"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("G9QooEDKSmEtLGNyTwafQiPfGHMqw3A3Fjcj2eLRG4G1").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1351,9 +1401,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1372,9 +1420,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("3"), Some(r#"{"4":"4"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1393,9 +1439,7 @@ mod tests {
         .to_string();
         let kvs = vec![(base64::encode("4"), Some(r#"{"3":"3"}"#.to_string()))];
         let node_bytes = &nodes;
-        let root_hash = "CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("CrA5sqYe3ruf2uY7d8re7ePmyHqptHqANtMZcfZd4BvK").unwrap();
         assert!(!_verify_merkle_tree(
             node_bytes.as_bytes(),
             root_hash.as_slice(),
@@ -1493,9 +1537,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1522,9 +1564,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1547,9 +1587,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         // no "abcdefgh11" value in kvs
         assert!(!_verify_proof_range(
             proofs.as_slice(),
@@ -1576,9 +1614,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         // no "abcdefgh11" value in kvs
         assert!(!_verify_proof_range(
             proofs.as_slice(),
@@ -1607,9 +1643,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1636,9 +1670,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1665,9 +1697,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1697,9 +1727,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1729,9 +1757,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1762,9 +1788,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1793,9 +1817,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1824,9 +1846,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1855,9 +1875,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1887,9 +1905,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -1917,9 +1933,7 @@ mod tests {
             'abcdefgh100'   -> '3833'
         */
         let proofs = base64::decode("+QEO34CAgMgwhsWEMzgzM4CAgICAgICAgICAgIbFhDQ5NzD4TYCgWvV3JP22NK5fmfA2xp0DgkFi9rkBdw4ADHTeyez/RtzKgiA0hsWENDkwNYDIIIbFhDMwMzeAgICAyoIgOYbFhDQ1MjKAgICAgICA94CAgKCwvJK5hgh1xdoCVjFsZLAr2Ct5ADxnseuJtF+m80+y64CAgICAgICAgICAgIbFhDM2MzD4OaAfBo1nqEW9/DhdOYucHjHAgqpZsF3f96awYBKZkmR2i8gghsWENDM3M4CAgICAgICAgICAgICAgOuJFhYmNkZWZnaDoNDKeVFnNI85QpRhrd2t8hS4By3wpD4R5ZyUegAPUtga").unwrap();
-        let root_hash = "EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF"
-            .from_base58()
-            .unwrap();
+        let root_hash = base58::decode("EA9zTfmf5Ex4ZUTPpMwpsQxQzTkevtwg9PADTqJczhSF").unwrap();
         assert!(!_verify_proof_range(
             proofs.as_slice(),
             root_hash.as_slice(),
@@ -2133,21 +2147,18 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(
-            _txn_type: &str,
-            reply_from_node: &str,
-        ) -> Option<Vec<ParsedSP>> {
-            Some(serde_json::from_str(reply_from_node).unwrap())
+        struct CustomSPParser {}
+        impl StateProofParser for CustomSPParser {
+            fn parse(&self, _txn_type: &str, reply_from_node: &str) -> Option<Vec<ParsedSP>> {
+                Some(serde_json::from_str(reply_from_node).unwrap())
+            }
         }
-
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
-            Box::new(custom_state_proofs_parser);
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
             parsed_sp.to_string().as_str(),
             None,
-            Some(&custom_state_proofs_parser_),
+            Some(CustomSPParser {}.boxed()).as_ref(),
         )
         .unwrap();
 
@@ -2183,21 +2194,16 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(
-            _txn_type: &str,
-            reply_from_node: &str,
-        ) -> Option<Vec<ParsedSP>> {
-            Some(serde_json::from_str(reply_from_node).unwrap())
-        }
-
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
-            Box::new(custom_state_proofs_parser);
+        let custom_state_proofs_parser =
+            state_proof_parser_fn(|_txn_type: &str, reply_from_node: &str| {
+                Some(serde_json::from_str(reply_from_node).unwrap())
+            });
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
             parsed_sp.to_string().as_str(),
             None,
-            Some(&custom_state_proofs_parser_),
+            Some(&custom_state_proofs_parser.boxed()),
         )
         .unwrap();
 
@@ -2240,21 +2246,16 @@ mod tests {
             },
         }]);
 
-        fn custom_state_proofs_parser(
-            _txn_type: &str,
-            reply_from_node: &str,
-        ) -> Option<Vec<ParsedSP>> {
-            Some(serde_json::from_str(reply_from_node).unwrap())
-        }
-
-        let custom_state_proofs_parser_: Box<dyn Fn(&str, &str) -> Option<Vec<ParsedSP>>> =
-            Box::new(custom_state_proofs_parser);
+        let custom_state_proofs_parser =
+            state_proof_parser_fn(|_txn_type: &str, reply_from_node: &str| {
+                Some(serde_json::from_str(reply_from_node).unwrap())
+            });
 
         let mut parsed_sps = super::parse_generic_reply_for_proof_checking(
             &json!({"type".to_owned(): "test"}),
             parsed_sp.to_string().as_str(),
             None,
-            Some(&custom_state_proofs_parser_),
+            Some(&custom_state_proofs_parser.boxed()),
         )
         .unwrap();
 

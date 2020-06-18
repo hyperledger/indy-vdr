@@ -1,10 +1,8 @@
-use indy_vdr::ledger::requests::identifiers::did::DidValue;
-use indy_vdr::ledger::PreparedRequest;
-
 use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
+use indy_vdr::common::did::DidValue;
 use indy_vdr::common::error::VdrResult;
-use indy_vdr::pool::handlers::NodeReplies;
+use indy_vdr::pool::{NodeReplies, PreparedRequest};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 

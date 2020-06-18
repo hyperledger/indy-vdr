@@ -1,6 +1,6 @@
 use crate::common::error::prelude::*;
 use crate::pool::{
-    PoolBuilder, PoolRunner, PoolTransactions, RequestResult, RequestTarget, TimingResult,
+    PoolBuilder, PoolRunner, PoolTransactions, RequestMethod, RequestResult, TimingResult,
 };
 
 use std::collections::{BTreeMap, HashMap};
@@ -41,7 +41,7 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> 
             PoolTransactions::from_json(txns.as_str())?
         }
         else if let Some(path) = params.transactions_path {
-            PoolTransactions::from_file(path.as_str())?
+            PoolTransactions::from_json_file(path.as_str())?
         }
         else {
             return Err(input_err(
@@ -50,7 +50,7 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> 
         };
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            PoolBuilder::from_config(*gcfg).transactions(txns)?.node_weights(params.node_weights)
+            PoolBuilder::from(*gcfg).transactions(txns)?.node_weights(params.node_weights)
         };
         let pool = builder.into_runner()?;
         let handle = PoolHandle::next();
@@ -70,11 +70,11 @@ fn handle_pool_refresh(
 ) -> ErrorCode {
     catch_err! {
         debug!("Adding {} new pool transactions", new_txns.len());
-        let mut txns = PoolTransactions::from_transactions_json(old_txns)?;
+        let mut txns = PoolTransactions::from_json_transactions(old_txns)?;
         txns.extend_from_json(&new_txns)?;
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            PoolBuilder::from_config(*gcfg)
+            PoolBuilder::from(*gcfg)
         };
         let pool = builder.transactions(txns)?.into_runner()?;
         let mut pools = write_lock!(POOLS)?;
@@ -224,15 +224,16 @@ pub extern "C" fn indy_vdr_pool_submit_action(
         let pools = read_lock!(POOLS)?;
         let pool = pools.get(&PoolHandle(pool_handle))
             .ok_or_else(|| input_err("Unknown pool handle"))?;
-        let req = {
+        let mut req = {
             let mut reqs = write_lock!(REQUESTS)?;
             reqs.remove(&RequestHandle(request_handle))
                 .ok_or_else(|| input_err("Unknown request handle"))?
         };
-        let nodes = nodes.as_opt_str().map(serde_json::from_str::<Vec<String>>)
+        let node_aliases = nodes.as_opt_str().map(serde_json::from_str::<Vec<String>>)
             .transpose().with_input_err("Invalid JSON value for 'nodes'")?;
         let timeout = if timeout == -1 { None } else { Some(timeout as i64) };
-        pool.send_request(req, Some(RequestTarget::Full(nodes, timeout)), Box::new(
+        req.method = RequestMethod::Full{ node_aliases, timeout };
+        pool.send_request(req, Box::new(
             move |result| {
                 let (errcode, reply) = handle_request_result(result);
                 cb(errcode, rust_string_to_c(reply))
@@ -258,7 +259,7 @@ pub extern "C" fn indy_vdr_pool_submit_request(
             reqs.remove(&RequestHandle(request_handle))
                 .ok_or_else(|| input_err("Unknown request handle"))?
         };
-        pool.send_request(req, None, Box::new(
+        pool.send_request(req, Box::new(
             move |result| {
                 let (errcode, reply) = handle_request_result(result);
                 cb(errcode, rust_string_to_c(reply))
