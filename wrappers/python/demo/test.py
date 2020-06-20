@@ -2,6 +2,7 @@ import asyncio
 import json
 import sys
 import os
+import urllib.request
 
 from indy_vdr.bindings import version
 from indy_vdr.ledger import (
@@ -109,12 +110,20 @@ async def basic_test(transactions_path):
     # req = build_get_schema_object_by_metadata_request(None, "sch", "test", "1.0.0")
     # log("Get rich schema GET request by Metadata:", req.body)
 
+
 def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__))
+
+
+def donwload_buildernet_genesis_file():
+    genesis_file_url = "https://raw.githubusercontent.com/sovrin-foundation/sovrin/master/sovrin/pool_transactions_builder_genesis"
+    target_local_path = f'{get_script_dir()}/genesis_sov_buildernet.txn'
+    urllib.request.urlretrieve(genesis_file_url, target_local_path)
+    return target_local_path
+
 
 if __name__ == "__main__":
     log("indy-vdr version:", version())
 
-    genesis_path = len(sys.argv) > 1 and sys.argv[1] or f'{get_script_dir()}/genesis_sov_buildernet.txn'
-
+    genesis_path = sys.argv[1] if len(sys.argv) > 1 else donwload_buildernet_genesis_file()
     asyncio.get_event_loop().run_until_complete(basic_test(genesis_path))
