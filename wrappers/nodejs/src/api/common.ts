@@ -1,0 +1,14 @@
+export enum VDRCode {
+    SUCCESS = 0,
+    CONFIG = 1,
+    CONNECTION = 2,
+    FILESYSTEM = 3,
+    INPUT = 4,
+    RESOURCE = 5,
+    UNAVAILABLE = 6,
+    UNEXPECTED = 7,
+    INCOMPATIBLE = 8,
+    POOL_NO_CONSENSUS = 30,
+    POOL_REQUEST_FAILED = 31,
+    POOL_TIMEOUT = 32,
+}

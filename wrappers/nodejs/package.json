@@ -1,0 +1,71 @@
+{
+    "homepage": "https://github.com/hyperledger/indy-vdr",
+    "name": "indy-vdr",
+    "version": "0.0.1",
+    "description": "Node wrapper for Indy VDR",
+    "main": "dist/src/index.js",
+    "license": "Apache-2.0",
+    "typings": "dist/index.d.ts",
+    "directories": {
+        "test": "test",
+        "build": "dist",
+        "lib": "src"
+    },
+    "contributors": [
+        {
+            "name": "Hyperledger Indy Contributors",
+            "email": "hyperledger-indy@lists.hyperledger.org"
+        }
+    ],
+    "repository": {
+        "url": "git+https://github.com/hyperledger/indy-vdr.git",
+        "type": "git"
+    },
+    "dependencies": {
+        "@types/ffi-napi": "^2.4.1",
+        "@types/node": "^8.0.47",
+        "@types/ref-napi": "^1.4.0",
+        "@types/ref-struct-di": "^1.1.0",
+        "@types/weak-napi": "^1.0.0",
+        "eslint": "^7.3.0",
+        "ffi-napi": "^2.4.7",
+        "fs-extra": "^4.0.2",
+        "lodash": "^4.17.11",
+        "ref-napi": "^1.4.3",
+        "ref-struct-di": "^1.1.0",
+        "weak-napi": "^1.0.3"
+    },
+    "devDependencies": {
+        "@types/chai": "^4.1.4",
+        "@types/lodash": "^4.14.109",
+        "@types/mocha": "^5.2.3",
+        "@types/sinon": "^5.0.1",
+        "@types/weak": "^1.0.0",
+        "@typescript-eslint/eslint-plugin": "^3.3.0",
+        "@typescript-eslint/parser": "^3.3.0",
+        "app-module-path": "^2.2.0",
+        "babel-cli": "^6.26.0",
+        "babel-core": "^6.26.3",
+        "babel-loader": "6.2.4",
+        "babel-preset-env": "^1.7.0",
+        "body-parser": "^1.19.0",
+        "chai": "^4.1.2",
+        "eslint-config-prettier": "^6.11.0",
+        "eslint-plugin-prettier": "^3.1.4",
+        "mocha": "^7.2.0",
+        "prettier": "^2.0.5",
+        "readline-sync": "^1.4.9",
+        "sinon": "^4.1.2",
+        "sleep-promise": "^8.0.1",
+        "ts-node": "^6.1.2",
+        "typedoc": "^0.15.4",
+        "typescript": "^3.0.0",
+        "winston": "^3.2.1"
+    },
+    "scripts": {
+        "demo": "node demo/demo.js",
+        "compile": "./node_modules/.bin/tsc -p ./tsconfig.json",
+        "clean": "rm -rf dist node_modules",
+        "lint": "eslint 'src/**/*.{js,ts,tsx}' --quiet --fix"
+    }
+}
