@@ -1,9 +1,11 @@
 import asyncio
 import json
 import sys
+import os
+import urllib.request
 
-from .bindings import version
-from .ledger import (
+from indy_vdr.bindings import version
+from indy_vdr.ledger import (
     build_custom_request,
     build_get_txn_request,
     build_get_acceptance_mechanisms_request,
@@ -15,12 +17,12 @@ from .ledger import (
     build_get_revoc_reg_delta_request,
     build_get_schema_request,
     build_rich_schema_request,
-    build_get_schema_object_by_id_request,
-    build_get_schema_object_by_metadata_request,
+    # build_get_schema_object_by_id_request,
+    # build_get_schema_object_by_metadata_request,
     prepare_txn_author_agreement_acceptance,
     LedgerType,
 )
-from .pool import Pool, open_pool
+from indy_vdr.pool import Pool, open_pool
 
 
 def log(*args):
@@ -50,10 +52,10 @@ async def basic_test(transactions_path):
     pool = await open_pool(transactions_path=transactions_path)
     log(f"Created pool: {pool}")
 
-    test_req = {"operation": {"data": 1, "ledgerId": 1, "type": "3"}}
+    test_req = {"operation": {"data": 1, "ledgerId": 1, "type": "3"}, "protocolVersion": 2, "reqId":123, "identifier": "LibindyDid111111111111"}
     req = build_custom_request(test_req)
     log("Custom request body:", req.body)
-
+    #
     sig_in = req.signature_input
     log("Custom request signature input:", sig_in)
 
@@ -99,19 +101,29 @@ async def basic_test(transactions_path):
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
 
-    req = build_rich_schema_request(None, "did:sov:some_hash", "{\"some\": 1}", "test", "version", "sch", "1.0.0")
-    log("Get rich schema request:", req.body)
+    # req = build_rich_schema_request(None, "did:sov:some_hash", "{\"some\": 1}", "test", "version", "sch", "1.0.0")
+    # log("Get rich schema request:", req.body)
 
-    req = build_get_schema_object_by_id_request(None, "did:sov:some_hash")
-    log("Get rich schema GET request by ID:", req.body)
+    # req = build_get_schema_object_by_id_request(None, "did:sov:some_hash")
+    # log("Get rich schema GET request by ID:", req.body)
+    #
+    # req = build_get_schema_object_by_metadata_request(None, "sch", "test", "1.0.0")
+    # log("Get rich schema GET request by Metadata:", req.body)
 
-    req = build_get_schema_object_by_metadata_request(None, "sch", "test", "1.0.0")
-    log("Get rich schema GET request by Metadata:", req.body)
+
+def get_script_dir():
+    return os.path.dirname(os.path.realpath(__file__))
+
+
+def donwload_buildernet_genesis_file():
+    genesis_file_url = "https://raw.githubusercontent.com/sovrin-foundation/sovrin/master/sovrin/pool_transactions_builder_genesis"
+    target_local_path = f'{get_script_dir()}/genesis_sov_buildernet.txn'
+    urllib.request.urlretrieve(genesis_file_url, target_local_path)
+    return target_local_path
 
 
 if __name__ == "__main__":
     log("indy-vdr version:", version())
 
-    genesis_path = len(sys.argv) > 1 and sys.argv[1] or "genesis.txn"
-
+    genesis_path = sys.argv[1] if len(sys.argv) > 1 else donwload_buildernet_genesis_file()
     asyncio.get_event_loop().run_until_complete(basic_test(genesis_path))
