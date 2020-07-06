@@ -94,7 +94,8 @@ fn handle_pool_refresh(
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_refresh(
     pool_handle: usize,
-    cb: Option<extern "C" fn(err: ErrorCode)>,
+    cb: Option<extern "C" fn(id: usize, err: ErrorCode)>,
+    cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
         trace!("Refresh pool");
@@ -112,7 +113,7 @@ pub extern "C" fn indy_vdr_pool_refresh(
                             // the instance now it will create a deadlock
                             thread::spawn(move || {
                                 let result = handle_pool_refresh(PoolHandle(pool_handle), old_txns, new_txns);
-                                cb(result)
+                                cb(cb_id, result)
                             });
                             return
                         } else {
@@ -125,7 +126,7 @@ pub extern "C" fn indy_vdr_pool_refresh(
                         code
                     }
                 };
-                cb(errcode)
+                cb(cb_id, errcode)
             }))?;
         Ok(ErrorCode::Success)
     }
@@ -134,7 +135,8 @@ pub extern "C" fn indy_vdr_pool_refresh(
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_status(
     pool_handle: usize,
-    cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
         trace!("Get pool status: {}", pool_handle);
@@ -155,7 +157,7 @@ pub extern "C" fn indy_vdr_pool_get_status(
                         (code, String::new())
                     }
                 };
-                cb(errcode, rust_string_to_c(reply))
+                cb(cb_id, errcode, rust_string_to_c(reply))
             }))?;
         Ok(ErrorCode::Success)
     }
@@ -164,7 +166,8 @@ pub extern "C" fn indy_vdr_pool_get_status(
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_transactions(
     pool_handle: usize,
-    cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
         trace!("Get pool transactions");
@@ -184,7 +187,7 @@ pub extern "C" fn indy_vdr_pool_get_transactions(
                         (code, String::new())
                     }
                 };
-                cb(errcode, rust_string_to_c(reply))
+                cb(cb_id, errcode, rust_string_to_c(reply))
             }))?;
         Ok(ErrorCode::Success)
     }
@@ -216,7 +219,8 @@ pub extern "C" fn indy_vdr_pool_submit_action(
     request_handle: usize,
     nodes: FfiStr, // optional
     timeout: i32,  // -1 for default
-    cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
         trace!("Submit action: {} {} {:?} {}", pool_handle, request_handle, nodes, timeout);
@@ -236,7 +240,7 @@ pub extern "C" fn indy_vdr_pool_submit_action(
         pool.send_request(req, Box::new(
             move |result| {
                 let (errcode, reply) = handle_request_result(result);
-                cb(errcode, rust_string_to_c(reply))
+                cb(cb_id, errcode, rust_string_to_c(reply))
             }))?;
         Ok(ErrorCode::Success)
     }
@@ -246,7 +250,8 @@ pub extern "C" fn indy_vdr_pool_submit_action(
 pub extern "C" fn indy_vdr_pool_submit_request(
     pool_handle: usize,
     request_handle: usize,
-    cb: Option<extern "C" fn(err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
         trace!("Submit request: {} {}", pool_handle, request_handle);
@@ -262,7 +267,7 @@ pub extern "C" fn indy_vdr_pool_submit_request(
         pool.send_request(req, Box::new(
             move |result| {
                 let (errcode, reply) = handle_request_result(result);
-                cb(errcode, rust_string_to_c(reply))
+                cb(cb_id, errcode, rust_string_to_c(reply))
             }))?;
         Ok(ErrorCode::Success)
     }

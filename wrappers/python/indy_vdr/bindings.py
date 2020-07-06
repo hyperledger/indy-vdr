@@ -69,17 +69,12 @@ def _load_library(lib_name: str) -> CDLL:
     The python module directory is searched first, followed by the usual
     library resolution for the current system.
     """
-    lib_prefix_mapping = {"darwin": "lib", "linux": "lib", "linux2": "lib", "win32": ""}
-    lib_suffix_mapping = {
-        "darwin": ".dylib",
-        "linux": ".so",
-        "linux2": ".so",
-        "win32": ".dll",
-    }
+    lib_prefix_mapping = {"win32": ""}
+    lib_suffix_mapping = {"darwin": ".dylib", "win32": ".dll"}
     try:
         os_name = sys.platform
-        lib_prefix = lib_prefix_mapping[os_name]
-        lib_suffix = lib_suffix_mapping[os_name]
+        lib_prefix = lib_prefix_mapping.get(os_name, "lib")
+        lib_suffix = lib_suffix_mapping.get(os_name, ".so")
         lib_path = os.path.join(
             os.path.dirname(__file__), f"{lib_prefix}{lib_name}{lib_suffix}"
         )
@@ -113,7 +108,7 @@ def _fulfill_future(fut: asyncio.Future, result, err: Exception = None):
 def _create_callback(cb_type: CFUNCTYPE, fut: asyncio.Future, post_process=None):
     """Create a callback to handle the response from an async library method."""
 
-    def _cb(err: int, result=None):
+    def _cb(id: int, err: int, result=None):
         """Callback function passed to the CFUNCTYPE for invocation."""
         if post_process:
             result = post_process(result)
@@ -138,18 +133,18 @@ def do_call(fn_name, *args):
 
 
 def do_call_async(fn_name, *args, return_type=None, post_process=None):
-    """Perform a asynchronous library function call."""
+    """Perform an asynchronous library function call."""
     lib_fn = getattr(get_library(), fn_name)
     loop = asyncio.get_event_loop()
     fut = loop.create_future()
-    cf_args = [None, c_size_t]
+    cf_args = [None, c_size_t, c_size_t]
     if return_type:
         cf_args.append(return_type)
     cb_type = CFUNCTYPE(*cf_args)  # could be cached
-    res = _create_callback(cb_type, fut, post_process)
+    cb_res = _create_callback(cb_type, fut, post_process)
     # keep a reference to the callback function to avoid it being freed
-    CALLBACKS[fut] = (loop, res)
-    result = lib_fn(*args, res)
+    CALLBACKS[fut] = (loop, cb_res)
+    result = lib_fn(*args, cb_res, c_size_t(0))  # not making use of callback ID
     if result:
         # callback will not be executed
         del CALLBACKS[fut]

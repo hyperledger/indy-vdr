@@ -11,6 +11,7 @@ const ARCHITECTURE: string = process.env.INDY_VDR_FFI_ARCHITECTURE || 'x64';
 const FFI_UINT: string = UINTS_TYPES[ARCHITECTURE];
 
 // FFI Type Strings
+export const FFI_CALLBACK_ID = 'int';
 export const FFI_ERROR_CODE = 'int';
 export const FFI_BOOL = 'bool';
 export const FFI_POOL_HANDLE = 'uint32';
