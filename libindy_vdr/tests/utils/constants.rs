@@ -17,7 +17,11 @@ pub const STEWARD_SEED: [u8; 32] = [
     83, 116, 101, 119, 97, 114, 100, 49,
 ];
 pub const STEWARD_DID: &str = "V4SGRU86Z58d6TV7PBUe6f"; // TODO: change
-                                                        //pub const MY1_SEED: [u8;64] = [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 77, 121, 49, 233, 198, 118, 109, 146, 166, 42, 37, 34, 23, 211, 11, 40, 37, 124, 32, 134, 8, 18, 195, 139, 30, 194, 70, 230, 160, 73, 245, 42, 208, 96, 25];
+
+// pub const MY1_SEED: [u8; 32] = [
+//     48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48,
+//     48, 48, 48, 48, 48, 77, 121, 49,
+// ];
 pub const MY1_DID: &str = "VsKV7grR1BUE29mG2Fm2kX";
 pub const MY1_DID_FQ: &str = "did:sov:VsKV7grR1BUE29mG2Fm2kX";
 pub const MY1_VERKEY: &str = "GjZWsBLgZCR18aL468JAT7w9CZRiBnpxUPPgyQxh4voa";
