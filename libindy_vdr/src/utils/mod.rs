@@ -8,5 +8,5 @@ pub(crate) use indy_utils::base58;
 pub(crate) use indy_utils::base64;
 pub use indy_utils::did;
 pub(crate) use indy_utils::hash;
-pub(crate) use indy_utils::keys;
+pub use indy_utils::keys;
 pub(crate) use indy_utils::txn_signature;

@@ -38,6 +38,8 @@ use crate::common::error::prelude::*;
 use crate::pool::ProtocolVersion;
 use crate::utils::did::{self, DidValue, ShortDidValue};
 
+pub use indy_data_types::EmbedJson;
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Request<T: serde::Serialize> {

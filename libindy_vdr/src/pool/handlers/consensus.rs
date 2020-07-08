@@ -1,6 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-use futures::stream::StreamExt;
+use futures_util::stream::StreamExt;
 
 use serde_json::Value as SJsonValue;
 

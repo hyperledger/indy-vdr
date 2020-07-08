@@ -7,11 +7,9 @@ use crate::utils::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::utils::hash::SHA256;
 use crate::utils::Qualifiable;
 
-use super::identifiers::cred_def::CredentialDefinitionId;
-use super::identifiers::rev_reg::RevocationRegistryId;
 #[cfg(any(feature = "rich_schema", test))]
-use super::identifiers::rich_schema::RichSchemaId;
-use super::identifiers::schema::SchemaId;
+use super::identifiers::RichSchemaId;
+use super::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
 use super::requests::attrib::{AttribOperation, GetAttribOperation};
 use super::requests::auth_rule::{
     AuthAction, AuthRuleOperation, AuthRules, AuthRulesOperation, Constraint, GetAuthRuleOperation,

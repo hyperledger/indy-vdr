@@ -15,7 +15,7 @@ default = ["fetch", "zmq_vendored"]
 [dependencies]
 clap = "2.33.0"
 env_logger = "0.7.1"
-futures = "0.3.1"
+futures-util = "0.3.5"
 hyper = "0.13.0"
 hyper-tls = { version = "0.4.1", optional = true }
 hyper-unix-connector = "0.1.4"

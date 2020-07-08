@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use futures::channel::mpsc::unbounded;
-use futures::future::{lazy, FutureExt, LocalBoxFuture};
+use futures_channel::mpsc::unbounded;
+use futures_util::future::{lazy, FutureExt, LocalBoxFuture};
 use rand::seq::SliceRandom;
 
 use super::genesis::{build_node_transaction_map, build_verifiers, PoolTransactions};

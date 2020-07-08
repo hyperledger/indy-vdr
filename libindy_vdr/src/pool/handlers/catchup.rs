@@ -1,4 +1,4 @@
-use futures::stream::StreamExt;
+use futures_util::stream::StreamExt;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;

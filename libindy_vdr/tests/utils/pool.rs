@@ -6,7 +6,7 @@ use indy_vdr::pool::{
     NodeReplies, Pool, PoolBuilder, PoolTransactions, PreparedRequest, RequestResult, SharedPool,
 };
 
-use futures::executor::block_on;
+use futures_executor::block_on;
 
 pub struct TestPool {
     pool: SharedPool,

@@ -1,9 +1,7 @@
 use crate::common::error::prelude::*;
-use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
-use crate::ledger::identifiers::rev_reg::RevocationRegistryId;
 #[cfg(any(feature = "rich_schema", test))]
-use crate::ledger::identifiers::rich_schema::RichSchemaId;
-use crate::ledger::identifiers::schema::SchemaId;
+use crate::ledger::identifiers::RichSchemaId;
+use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;

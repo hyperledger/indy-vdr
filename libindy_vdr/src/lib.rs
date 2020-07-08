@@ -13,7 +13,7 @@
 //! to construct a [`pool::PreparedRequest`] and dispatch it.
 //!
 //! ```no_run
-//! use futures::executor::block_on;
+//! use futures_executor::block_on;
 //! use indy_vdr::pool::{
 //!     helpers::perform_get_txn,
 //!     PoolBuilder,

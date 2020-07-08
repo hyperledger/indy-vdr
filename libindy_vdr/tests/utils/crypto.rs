@@ -1,17 +1,13 @@
-use indy_utils::base58;
 use indy_vdr::pool::PreparedRequest;
-use indy_vdr::utils::did::DidValue;
+use indy_vdr::utils::did::{generate_did, DidValue};
+use indy_vdr::utils::keys::{PrivateKey, VerKey};
 
 use crate::utils::constants::*;
-
-use ursa::keys::{KeyGenOption, PrivateKey, PublicKey};
-use ursa::signatures::ed25519::Ed25519Sha512;
-use ursa::signatures::SignatureScheme;
 
 pub struct Identity {
     pub did: DidValue,
     pub verkey: String,
-    _public_key: PublicKey,
+    _public_key: VerKey,
     private_key: PrivateKey,
 }
 
@@ -20,18 +16,14 @@ impl Identity {
         Identity::new(Some(TRUSTEE_SEED))
     }
 
-    pub fn new(seed: Option<[u8; 64]>) -> Identity {
-        let ed25519 = Ed25519Sha512::new();
+    pub fn new(seed: Option<[u8; 32]>) -> Identity {
+        let (short_did, private_key, public_key) =
+            generate_did(seed.as_ref().map(|s| &s[..])).unwrap();
 
-        let seed = seed.map(|seed_| KeyGenOption::FromSecretKey(PrivateKey(seed_.to_vec()))); // TODO: FIXME MUST BE SEED but seems Ursa provides different derivation
-
-        let (public_key, private_key) = ed25519.keypair(seed).unwrap();
-
-        let verkey = base58::encode(&public_key);
-        let did = base58::encode(&public_key[0..16]);
+        let verkey = public_key.as_base58().unwrap().to_string();
 
         Identity {
-            did: DidValue(did),
+            did: DidValue((*short_did).to_owned()),
             verkey,
             _public_key: public_key,
             private_key,
@@ -40,10 +32,7 @@ impl Identity {
 
     fn _generate_signature(&self, request: &mut PreparedRequest) -> Vec<u8> {
         let signature_input = request.get_signature_input().unwrap();
-        let ed25519 = Ed25519Sha512::new();
-        ed25519
-            .sign(signature_input.as_bytes(), &self.private_key)
-            .unwrap()
+        self.private_key.sign(signature_input.as_bytes()).unwrap()
     }
 
     pub fn sign_request(&self, request: &mut PreparedRequest) {

@@ -4,8 +4,7 @@ mod utils;
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
-use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
-use indy_vdr::ledger::identifiers::schema::SchemaId;
+use indy_vdr::ledger::identifiers::{CredentialDefinitionId, SchemaId};
 use indy_vdr::ledger::requests::cred_def::CredentialDefinition;
 use indy_vdr::utils::did::DidValue;
 

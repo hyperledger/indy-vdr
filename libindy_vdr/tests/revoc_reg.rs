@@ -4,8 +4,7 @@ mod utils;
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
-use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
-use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
+use indy_vdr::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId};
 use indy_vdr::ledger::requests::rev_reg_def::RevocationRegistryDefinition;
 use indy_vdr::utils::did::DidValue;
 

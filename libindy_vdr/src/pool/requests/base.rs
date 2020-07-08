@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::pin::Pin;
 
-use futures::channel::mpsc::UnboundedReceiver;
-use futures::stream::{FusedStream, Stream};
-use futures::task::{Context, Poll};
+use futures_channel::mpsc::UnboundedReceiver;
+use futures_util::stream::{FusedStream, Stream};
+use futures_util::task::{Context, Poll};
 
 use pin_utils::unsafe_pinned;
 

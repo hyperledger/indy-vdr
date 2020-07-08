@@ -6,7 +6,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
-use futures::channel::mpsc::UnboundedSender;
+use futures_channel::mpsc::UnboundedSender;
 
 use zmq::PollItem;
 use zmq::Socket as ZSocket;
