@@ -1,8 +1,8 @@
 use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
-use indy_vdr::common::did::DidValue;
 use indy_vdr::common::error::VdrResult;
 use indy_vdr::pool::{NodeReplies, PreparedRequest};
+use indy_vdr::utils::did::DidValue;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 

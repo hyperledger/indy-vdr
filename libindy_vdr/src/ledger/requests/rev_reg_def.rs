@@ -5,8 +5,7 @@ use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::rev_reg::RevocationRegistryId;
 use super::{ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
-use crate::utils::qualifier::Qualifiable;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{Qualifiable, Validatable, ValidationError};
 
 pub const CL_ACCUM: &str = "CL_ACCUM";
 

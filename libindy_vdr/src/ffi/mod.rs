@@ -1,7 +1,7 @@
 use crate::common::error::prelude::*;
 use crate::config::{PoolConfig, LIB_VERSION};
 use crate::pool::ProtocolVersion;
-use crate::utils::validation::Validatable;
+use crate::utils::Validatable;
 
 use std::convert::TryFrom;
 use std::os::raw::c_char;

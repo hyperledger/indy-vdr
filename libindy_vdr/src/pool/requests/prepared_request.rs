@@ -1,7 +1,6 @@
 use serde_json::{self, Value as SJsonValue};
 
 use super::new_request_id;
-use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
 use crate::ledger::constants::READ_REQUESTS;
 use crate::ledger::TxnAuthrAgrmtAcceptanceData;
@@ -11,8 +10,9 @@ use crate::state_proof::{
     parse_timestamp_from_req_for_builtin_sp, BoxedSPParser,
 };
 use crate::utils::base58;
-use crate::utils::signature::serialize_signature;
-use crate::utils::validation::Validatable;
+use crate::utils::did::{DidValue, DEFAULT_LIBINDY_DID};
+use crate::utils::txn_signature::serialize_signature;
+use crate::utils::Validatable;
 
 /// Determines the handler and state proof semantics used to process a request
 #[derive(PartialEq, Eq)]

@@ -6,7 +6,6 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
-use base64;
 use futures::channel::mpsc::UnboundedSender;
 
 use zmq::PollItem;
@@ -14,7 +13,7 @@ use zmq::Socket as ZSocket;
 
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
-use crate::utils::base58;
+use crate::utils::{base58, base64};
 
 use super::types::{Message, Verifiers};
 use super::{Networker, NetworkerEvent, NetworkerFactory, RequestExtEvent, RequestHandle};

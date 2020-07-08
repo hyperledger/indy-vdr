@@ -1,10 +1,9 @@
 use regex::Regex;
 
 use super::cred_def::CredentialDefinitionId;
+use super::did::DidValue;
 use super::DELIMITER;
-use crate::common::did::DidValue;
-use crate::utils::qualifier::{self, Qualifiable};
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{qualifiable, Qualifiable, Validatable, ValidationError};
 
 lazy_static! {
     static ref QUALIFIED_REV_REG_ID: Regex = Regex::new("(^revreg:(?P<method>[a-z0-9]+):)?(?P<did>.+):4:(?P<cred_def_id>.+):(?P<rev_reg_type>.+):(?P<tag>.+)$").unwrap();
@@ -34,7 +33,7 @@ impl RevocationRegistryId {
             DELIMITER,
             tag
         );
-        Self::from(qualifier::combine(
+        Self::from(qualifiable::combine(
             Self::PREFIX,
             did.get_method(),
             id.as_str(),

@@ -8,7 +8,7 @@ pub mod rich_schema;
 /// V1 schema identifiers
 pub mod schema;
 
-pub(crate) use crate::common::did;
+pub(crate) use crate::utils::did;
 
 /// The standard delimiter used in identifier strings
 pub const DELIMITER: &'static str = ":";

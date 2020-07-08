@@ -45,13 +45,13 @@ extern crate lazy_static;
 extern crate log;
 
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 #[macro_use]
 extern crate serde_json;
 
 #[macro_use]
-extern crate vdr_shared;
+extern crate indy_utils;
 
 /// Utility functions, traits and macros
 #[macro_use]

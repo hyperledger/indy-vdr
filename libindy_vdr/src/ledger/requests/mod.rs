@@ -34,9 +34,9 @@ use serde_json;
 
 use super::constants;
 use super::identifiers;
-use crate::common::did::{self, DidValue, ShortDidValue};
 use crate::common::error::prelude::*;
 use crate::pool::ProtocolVersion;
+use crate::utils::did::{self, DidValue, ShortDidValue};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]

@@ -1,5 +1,4 @@
-use crate::utils::qualifier::Qualifiable;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{Qualifiable, Validatable, ValidationError};
 
 qualifiable_type!(RichSchemaId, "A rich schema identifier");
 

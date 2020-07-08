@@ -1,10 +1,9 @@
 use super::constants::{GET_SCHEMA, SCHEMA};
+use super::did::ShortDidValue;
 use super::identifiers::schema::SchemaId;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
-use crate::common::did::ShortDidValue;
 use crate::common::error::prelude::*;
-use crate::utils::qualifier::Qualifiable;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{Qualifiable, Validatable, ValidationError};
 
 use std::collections::HashSet;
 

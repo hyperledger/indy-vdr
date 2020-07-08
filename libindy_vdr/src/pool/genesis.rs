@@ -13,8 +13,10 @@ use super::types::{
 };
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58;
-use crate::utils::crypto;
+use crate::utils::{
+    base58,
+    keys::{EncodedVerKey, KeyEncoding, KeyType},
+};
 
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
 
@@ -248,19 +250,29 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 )));
             }
 
-            let verkey_bin = base58::decode(&public_key).map_input_err(|| {
+            let verkey = EncodedVerKey::new(
+                &public_key,
+                Some(KeyType::ED25519),
+                Some(KeyEncoding::BASE58),
+            )
+            .decode()
+            .map_input_err(|| {
                 format!(
                     "Node '{}' has invalid field 'dest': failed parsing base58",
                     node_alias
                 )
             })?;
 
-            let enc_key = crypto::vk_to_curve25519(&verkey_bin).map_input_err(|| {
-                format!(
-                    "Node '{}' has invalid field 'dest': key not accepted",
-                    node_alias
-                )
-            })?;
+            let enc_key = verkey
+                .key_exchange()
+                .map_input_err(|| {
+                    format!(
+                        "Node '{}' has invalid field 'dest': key not accepted",
+                        node_alias
+                    )
+                })?
+                .key_bytes()
+                .to_vec();
 
             let client_addr = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
                 (&Some(ref client_ip), &Some(ref client_port)) => {
@@ -360,7 +372,7 @@ mod tests {
 
     mod pool_transactions_tests {
         use super::*;
-        use crate::utils::test::*;
+        use indy_test_utils::genesis::GenesisTransactions;
 
         pub fn _transactions() -> Vec<String> {
             GenesisTransactions::new(Some(4)).transactions.clone()

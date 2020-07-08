@@ -1,5 +1,5 @@
 use crate::pool::ProtocolVersion;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{Validatable, ValidationError};
 
 use super::constants;
 

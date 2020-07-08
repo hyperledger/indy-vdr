@@ -11,9 +11,9 @@ use crate::utils::constants::TRUSTEE_DID;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
 use crate::utils::pool::*;
-use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
 use indy_vdr::ledger::identifiers::rich_schema::RichSchemaId;
+use indy_vdr::utils::did::DidValue;
 use rand::Rng;
 
 pub mod builder {

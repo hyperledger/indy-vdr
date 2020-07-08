@@ -1,6 +1,5 @@
-use crate::common::did::DidValue;
-use crate::utils::qualifier::{self, Qualifiable};
-use crate::utils::validation::{Validatable, ValidationError};
+use super::did::DidValue;
+use crate::utils::{qualifiable, Qualifiable, Validatable, ValidationError};
 
 use super::DELIMITER;
 
@@ -21,7 +20,7 @@ impl SchemaId {
             DELIMITER,
             version
         );
-        Self::from(qualifier::combine(
+        Self::from(qualifiable::combine(
             Self::PREFIX,
             did.get_method(),
             id.as_str(),

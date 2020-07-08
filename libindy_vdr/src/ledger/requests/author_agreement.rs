@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::common::error::prelude::*;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{Validatable, ValidationError};
 
 use super::constants::{
     DISABLE_ALL_TXN_AUTHR_AGRMTS, GET_TXN_AUTHR_AGRMT, GET_TXN_AUTHR_AGRMT_AML, TXN_AUTHR_AGRMT,

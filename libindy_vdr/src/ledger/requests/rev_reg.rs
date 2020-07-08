@@ -8,7 +8,7 @@ use super::identifiers::rev_reg::RevocationRegistryId;
 use super::rev_reg_def::RegistryType;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
-use crate::utils::validation::Validatable;
+use crate::utils::Validatable;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "ver")]

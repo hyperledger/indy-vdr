@@ -1,5 +1,5 @@
-use crate::utils::hash::{DefaultHash as Hash, TreeHash};
-use crate::utils::validation::ValidationError;
+use crate::utils::hash::{TreeHash, SHA256::DigestType as Hash};
+use crate::utils::ValidationError;
 
 use super::tree::{Tree, TreeLeafData};
 

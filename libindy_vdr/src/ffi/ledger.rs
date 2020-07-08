@@ -1,4 +1,3 @@
-use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
 use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
 use crate::ledger::identifiers::rev_reg::RevocationRegistryId;
@@ -13,7 +12,8 @@ use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefin
 use crate::ledger::requests::rich_schema::RSContent;
 use crate::ledger::requests::schema::Schema;
 use crate::pool::PreparedRequest;
-use crate::utils::qualifier::Qualifiable;
+use crate::utils::did::DidValue;
+use crate::utils::Qualifiable;
 
 use ffi_support::FfiStr;
 

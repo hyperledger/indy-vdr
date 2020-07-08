@@ -1,10 +1,10 @@
+use indy_test_utils::genesis::GenesisTransactions;
 use indy_vdr::common::error::VdrResult;
 use indy_vdr::ledger::RequestBuilder;
 use indy_vdr::pool::helpers::{perform_ledger_action, perform_ledger_request};
 use indy_vdr::pool::{
     NodeReplies, Pool, PoolBuilder, PoolTransactions, PreparedRequest, RequestResult, SharedPool,
 };
-use vdr_shared::test::GenesisTransactions;
 
 use futures::executor::block_on;
 

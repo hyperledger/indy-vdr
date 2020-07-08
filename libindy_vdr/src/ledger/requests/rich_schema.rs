@@ -4,7 +4,7 @@ use crate::ledger::constants::{
     RICH_SCHEMA_CTX, RICH_SCHEMA_ENCODING, RICH_SCHEMA_MAPPING, RICH_SCHEMA_PRES_DEF,
 };
 use crate::ledger::identifiers::rich_schema::RichSchemaId;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{Validatable, ValidationError};
 
 #[macro_export]
 macro_rules! build_rs_operation {

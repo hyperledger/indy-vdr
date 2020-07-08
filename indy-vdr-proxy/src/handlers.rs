@@ -9,14 +9,14 @@ use hyper::{Body, Method, Request, Response, StatusCode};
 use percent_encoding::percent_decode_str;
 
 use super::AppState;
-use indy_vdr::common::did::DidValue;
 use indy_vdr::common::error::prelude::*;
 use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
 use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
 use indy_vdr::ledger::identifiers::schema::SchemaId;
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
 use indy_vdr::pool::{LedgerType, Pool, PreparedRequest, RequestResult, TimingResult};
-use indy_vdr::utils::qualifier::Qualifiable;
+use indy_vdr::utils::did::DidValue;
+use indy_vdr::utils::Qualifiable;
 
 #[derive(PartialEq, Eq)]
 enum ResponseFormat {

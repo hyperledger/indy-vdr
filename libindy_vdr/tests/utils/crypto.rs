@@ -1,6 +1,6 @@
-use indy_vdr::common::did::DidValue;
+use indy_utils::base58;
 use indy_vdr::pool::PreparedRequest;
-use vdr_shared::base58;
+use indy_vdr::utils::did::DidValue;
 
 use crate::utils::constants::*;
 

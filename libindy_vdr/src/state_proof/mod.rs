@@ -1,4 +1,3 @@
-extern crate base64;
 extern crate rlp;
 
 pub(crate) mod constants;
@@ -15,7 +14,11 @@ use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 use crate::common::error::prelude::*;
 use crate::pool::{ProtocolVersion, VerifierKeys};
 use crate::utils::base58;
-use crate::utils::hash::{digest, Sha256, TreeHash};
+use crate::utils::base64;
+use crate::utils::hash::{
+    TreeHash,
+    SHA256::{self, DigestType as Sha256},
+};
 
 use self::constants::{
     REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS,
@@ -392,7 +395,7 @@ pub(crate) fn parse_key_from_request_for_builtin_sp(
                 );
 
                 let marker = if is_node_1_3 { '\x01' } else { '1' };
-                let hash = digest::<Sha256>(attr_name.as_bytes());
+                let hash = SHA256::digest(attr_name.as_bytes());
                 format!(":{}:{}", marker, hex::encode(hash))
             } else {
                 trace!("parse_key_from_request_for_builtin_sp: <<< GET_ATTR No key suffix");
@@ -560,7 +563,7 @@ pub(crate) fn parse_key_from_request_for_builtin_sp(
     let key_prefix = match type_ {
         constants::GET_NYM => {
             if let Some(dest) = dest {
-                digest::<Sha256>(dest.as_bytes())
+                SHA256::digest(dest.as_bytes())
             } else {
                 debug!("parse_key_from_request_for_builtin_sp: <<< No dest");
                 return None;
@@ -1221,14 +1224,14 @@ fn _parse_reply_for_proof_value(
                             value["txn"]["data"]["raw"] = SJsonValue::from("");
                         } else {
                             value["txn"]["data"]["raw"] =
-                                SJsonValue::from(hex::encode(digest::<Sha256>(raw.as_bytes())));
+                                SJsonValue::from(hex::encode(SHA256::digest(raw.as_bytes())));
                         }
                     } else if let Some(enc) = value["txn"]["data"]["enc"].as_str() {
                         if enc.is_empty() {
                             value["txn"]["data"]["enc"] = SJsonValue::from("");
                         } else {
                             value["txn"]["data"]["enc"] =
-                                SJsonValue::from(hex::encode(digest::<Sha256>(enc.as_bytes())));
+                                SJsonValue::from(hex::encode(SHA256::digest(enc.as_bytes())));
                         }
                     }
                 }
@@ -1239,7 +1242,7 @@ fn _parse_reply_for_proof_value(
                 value["verkey"] = parsed_data["verkey"].clone();
             }
             constants::GET_ATTR => {
-                value["val"] = SJsonValue::String(hex::encode(digest::<Sha256>(data.as_bytes())));
+                value["val"] = SJsonValue::String(hex::encode(SHA256::digest(data.as_bytes())));
             }
             constants::GET_CRED_DEF
             | constants::GET_REVOC_REG_DEF
@@ -1306,7 +1309,7 @@ fn _parse_reply_for_proof_value(
 
 fn _calculate_taa_digest(text: &str, version: &str) -> VdrResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    Ok(digest::<Sha256>(content.as_bytes()))
+    Ok(SHA256::digest(content.as_bytes()))
 }
 
 fn _is_full_taa_state_value_expected(expected_state_key: &[u8]) -> bool {

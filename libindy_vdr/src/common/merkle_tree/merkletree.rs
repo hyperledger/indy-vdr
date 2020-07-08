@@ -1,5 +1,8 @@
-use crate::utils::hash::{DefaultHash as Hash, TreeHash, EMPTY_HASH_BYTES};
-use crate::utils::validation::ValidationError;
+use crate::utils::hash::{
+    TreeHash,
+    SHA256::{digest_empty, DigestType as Hash},
+};
+use crate::utils::ValidationError;
 
 use super::proof::{Lemma, Proof};
 use super::tree::{LeavesIntoIterator, LeavesIterator, Tree, TreeLeafData};
@@ -25,7 +28,7 @@ impl Default for MerkleTree {
     fn default() -> Self {
         MerkleTree {
             root: Tree::Empty {
-                hash: EMPTY_HASH_BYTES.to_vec(),
+                hash: digest_empty().to_vec(),
             },
             height: 0,
             count: 0,

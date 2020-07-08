@@ -4,8 +4,7 @@ use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::schema::SchemaId;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
-use crate::utils::qualifier::Qualifiable;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::utils::{Qualifiable, Validatable, ValidationError};
 
 use ursa::cl::{CredentialPrimaryPublicKey, CredentialRevocationPublicKey};
 

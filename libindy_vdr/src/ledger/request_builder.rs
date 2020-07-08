@@ -1,11 +1,11 @@
 use hex::FromHex;
 use serde_json::{self, Value as SJsonValue};
 
-use crate::common::did::{DidValue, DEFAULT_LIBINDY_DID};
 use crate::common::error::prelude::*;
 use crate::pool::{new_request_id, PreparedRequest, ProtocolVersion, RequestMethod};
-use crate::utils::hash::{digest, Sha256};
-use crate::utils::qualifier::Qualifiable;
+use crate::utils::did::{DidValue, DEFAULT_LIBINDY_DID};
+use crate::utils::hash::SHA256;
+use crate::utils::Qualifiable;
 
 use super::identifiers::cred_def::CredentialDefinitionId;
 use super::identifiers::rev_reg::RevocationRegistryId;
@@ -56,7 +56,7 @@ fn datetime_to_date_timestamp(time: u64) -> u64 {
 
 fn calculate_hash(text: &str, version: &str) -> VdrResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    Ok(digest::<Sha256>(content.as_bytes()))
+    Ok(SHA256::digest(content.as_bytes()))
 }
 
 fn compare_hash(text: &str, version: &str, hash: &str) -> VdrResult<()> {
