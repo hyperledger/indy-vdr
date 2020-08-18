@@ -1,4 +1,4 @@
-module github.com/pfeairheller/indy-vdr/wrappers/golang
+module github.com/hyperledger/indy-vdr/wrappers/golang
 
 go 1.14
 

@@ -1,4 +1,4 @@
-[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=for-the-badge)](https://pkg.go.dev/github.com/pfeairheller/indy-vdr/wrappers/golang/vdr)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=for-the-badge)](https://pkg.go.dev/github.com/hyperledger/indy-vdr/wrappers/golang/vdr)
 # Run demo
 
 - The Go demo requires libindy_vdr shared library to be installed (eg: /usr/local/lib), and the header file `include/libindy_vdr.h`
