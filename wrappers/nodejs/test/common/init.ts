@@ -3,7 +3,12 @@ import { assert } from 'chai';
 import { downloadGenesisFile, getNetworkGenesisFileUrl, IndyNetwork } from '../../src/tools';
 import * as fs from 'fs';
 
-export async function initVdrTest(): Promise<string> {
+export interface NetworkInfo {
+    network: IndyNetwork;
+    genesisFilePath: string;
+}
+
+export async function initVdrTest(): Promise<NetworkInfo> {
     const initSuccess = initVdr();
     assert.isTrue(initSuccess);
     indyVdrSetDefaultLogger();
@@ -11,10 +16,13 @@ export async function initVdrTest(): Promise<string> {
     const selectedNetwork: string = process.env.INDY_NETWORK || 'SOVRIN_BUILDER_NET';
     const network = IndyNetwork[selectedNetwork as keyof typeof IndyNetwork];
     const genesisUrl = getNetworkGenesisFileUrl(network);
-    const genesisPath = `${__dirname}/${selectedNetwork}.genesis.txn`;
-    console.log(`genesisPath=${genesisPath}`);
-    if (!fs.existsSync(genesisPath)) {
-        await downloadGenesisFile(genesisUrl, genesisPath);
+    const genesisFilePath = `${__dirname}/${selectedNetwork}.genesis.txn`;
+    console.log(`genesisPath=${genesisFilePath}`);
+    if (!fs.existsSync(genesisFilePath)) {
+        await downloadGenesisFile(genesisUrl, genesisFilePath);
     }
-    return genesisPath;
+    return {
+        genesisFilePath,
+        network,
+    };
 }

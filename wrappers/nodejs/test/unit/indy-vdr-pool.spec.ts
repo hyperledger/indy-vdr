@@ -2,10 +2,10 @@ import '../module-resolver-helper';
 
 import { assert } from 'chai';
 import { IndyVdrPool } from 'src';
-import { initVdrTest } from '../common/init';
+import { initVdrTest, NetworkInfo } from '../common/init';
 
 describe('Pool suite', () => {
-    let genesisPath: string;
+    let genesisPath: NetworkInfo;
 
     before(async () => {
         genesisPath = await initVdrTest();
@@ -13,7 +13,7 @@ describe('Pool suite', () => {
 
     describe('create:', () => {
         it('many pool instances with unique handles', async () => {
-            const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
+            const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
             const poolHandles = [];
             for (let i = 1; i < 20; i++) {
                 const pool: IndyVdrPool = IndyVdrPool.create('pool_foo', createPoolParams);
@@ -24,7 +24,7 @@ describe('Pool suite', () => {
         });
 
         it('success', async () => {
-            const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
+            const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
 
             const pool: IndyVdrPool = IndyVdrPool.create('pool_foo', createPoolParams);
             const poolHandle: number = pool.getHandle();
@@ -42,8 +42,8 @@ describe('Pool suite', () => {
         });
 
         it('should get pool transactions', async () => {
-            const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
-            const pool: IndyVdrPool = IndyVdrPool.create('Buildernet', createPoolParams);
+            const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
+            const pool: IndyVdrPool = IndyVdrPool.create('foo', createPoolParams);
             const response = await pool.getPoolTransactions();
             const lines = response.split('\n');
             for (let i = 0; i < lines.length; i++) {

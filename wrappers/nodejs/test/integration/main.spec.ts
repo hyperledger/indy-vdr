@@ -1,17 +1,17 @@
 import '../module-resolver-helper';
 
 import { assert } from 'chai';
-import { IndyVdrPool, LedgerRequestCustom } from 'src';
-import { initVdrTest } from '../common/init';
+import { IndyVdrPool, LedgerRequestCustom, LedgerRequestGetTxn } from 'src';
+import { initVdrTest, NetworkInfo } from '../common/init';
 
 describe('Integration suite', () => {
-    let genesisPath: string;
+    let genesisPath: NetworkInfo;
 
     before(async () => {
         genesisPath = await initVdrTest();
     });
 
-    it('should fetch transaction by seqNo', async () => {
+    it('should fetch transaction using custom transaction', async () => {
         const testRequestData = JSON.stringify({
             operation: { data: 1, ledgerId: 1, type: '3' },
             protocolVersion: 2,
@@ -20,9 +20,23 @@ describe('Integration suite', () => {
         });
 
         const request: LedgerRequestCustom = LedgerRequestCustom.create(testRequestData);
-        const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
+        const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
 
-        const pool: IndyVdrPool = IndyVdrPool.create('Buildernet', createPoolParams);
+        const pool: IndyVdrPool = IndyVdrPool.create(genesisPath.network.toString(), createPoolParams);
+        const response = await pool.submitRequest(request);
+        assert.isString(response);
+        const responseObj = JSON.parse(response);
+        assert.equal(responseObj.op, 'REPLY');
+        assert.equal(responseObj.result.seqNo, 1);
+        assert.isObject(responseObj.result.data);
+        // pool.close();
+    });
+
+    it('should fetch transaction using get-txn', async () => {
+        const request: LedgerRequestGetTxn = LedgerRequestGetTxn.create(1, 1, 'LibindyDid111111111111');
+        const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
+
+        const pool: IndyVdrPool = IndyVdrPool.create(genesisPath.network.toString(), createPoolParams);
         const response = await pool.submitRequest(request);
         assert.isString(response);
         const responseObj = JSON.parse(response);
@@ -33,8 +47,8 @@ describe('Integration suite', () => {
     });
 
     it('should get pool status', async () => {
-        const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
-        const pool: IndyVdrPool = IndyVdrPool.create('Buildernet', createPoolParams);
+        const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
+        const pool: IndyVdrPool = IndyVdrPool.create(genesisPath.network.toString(), createPoolParams);
         const response = await pool.getStatus();
         assert.isString(response);
         const responseObj = JSON.parse(response);
@@ -45,8 +59,8 @@ describe('Integration suite', () => {
     });
 
     it('should close pool', async () => {
-        const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
-        const pool: IndyVdrPool = IndyVdrPool.create('Buildernet', createPoolParams);
+        const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
+        const pool: IndyVdrPool = IndyVdrPool.create(genesisPath.network.toString(), createPoolParams);
         pool.close();
         let thrown = false;
         try {
