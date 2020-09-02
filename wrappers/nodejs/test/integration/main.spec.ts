@@ -4,6 +4,7 @@ import { assert } from 'chai';
 import { IndyVdrPool, LedgerRequestCustom, LedgerRequestGetTxn } from 'src';
 import { initVdrTest, NetworkInfo } from '../common/init';
 import { LedgerRequestNym } from '../../src/api/ledger-requests/ledger-request-nym';
+import { LedgerRequestGetValidatorInfo } from '../../src/api/ledger-requests/ledger-request-get-validator-info';
 
 describe('Integration suite', () => {
     let genesisPath: NetworkInfo;
@@ -60,6 +61,17 @@ describe('Integration suite', () => {
         assert.isString(response);
         console.log(JSON.stringify(JSON.parse(response), null, 2));
         // pool.close();
+    });
+
+    // todo: to test this, we'd need to sign the request and attach it using indy_vdr_request_set_signature
+    it.skip('should get validator info', async () => {
+        const request: LedgerRequestGetValidatorInfo = LedgerRequestGetValidatorInfo.create('FbjuFFq6jLsSMdgN9ifErE');
+        const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
+
+        const pool: IndyVdrPool = IndyVdrPool.create(genesisPath.network.toString(), createPoolParams);
+        const response = await pool.submitRequest(request);
+        assert.isString(response);
+        console.log(JSON.stringify(JSON.parse(response), null, 2));
     });
 
     it('should get pool status', async () => {

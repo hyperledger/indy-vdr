@@ -10,3 +10,4 @@ npm-debug.log
 package-lock.json
 yarn.lock
 **/*.genesis.txn
+test/integration/dev.spec.ts
