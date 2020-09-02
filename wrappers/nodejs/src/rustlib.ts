@@ -54,6 +54,7 @@ export interface IFFIEntryPoint {
         role: Buffer,
         requestHandle: Buffer,
     ) => rust_err_code;
+    indy_vdr_build_get_nym_request: (submitterDid: Buffer, dest: Buffer, requestHandle: Buffer) => rust_err_code;
     indy_vdr_build_get_validator_info_request: (submitterDid: Buffer, requestHandle: Buffer) => rust_err_code;
     indy_vdr_request_get_body: (requestHandle: number, bodyReturnPtr: number) => rust_err_code;
     // pool
@@ -79,6 +80,7 @@ export const FFIConfiguration: { [Key in keyof IFFIEntryPoint]: any } = {
         FFI_ERROR_CODE,
         [FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR],
     ],
+    indy_vdr_build_get_nym_request: [FFI_ERROR_CODE, [FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR]],
     indy_vdr_build_get_validator_info_request: [FFI_ERROR_CODE, [FFI_USIZE_PTR, FFI_USIZE_PTR]],
     indy_vdr_request_get_body: [FFI_ERROR_CODE, [FFI_USIZE, FFI_USIZE]],
     // pool
