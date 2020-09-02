@@ -61,7 +61,8 @@
         "compile": "./node_modules/.bin/tsc -p ./tsconfig.json",
         "clean": "rm -rf dist node_modules",
         "lint": "eslint 'src/**/*.{js,ts,tsx}' --quiet --fix",
-        "test": "npm run test:ffi-tools; npm run test:vdr-request; npm run test:vdr-pool;",
+        "test": "npm run test:ffi-tools; npm run test:vdr-request; npm run test:vdr-pool; npm run test:integration;",
+        "test:integration": "TS_NODE_PROJECT=./test/tsconfig.json NODE_ENV=test RUST_BACKTRACE=full mocha --timeout 10000 --expose-gc --exit --recursive --use_strict --require ts-node/register ./test/integration/*",
         "test:ffi-tools": "TS_NODE_PROJECT=./test/tsconfig.json NODE_ENV=test RUST_BACKTRACE=full mocha --timeout 10000 --expose-gc --exit --recursive --use_strict --require ts-node/register ./test/unit/ffi-tools.spec.ts",
         "test:vdr-pool": "TS_NODE_PROJECT=./test/tsconfig.json NODE_ENV=test RUST_BACKTRACE=full mocha --timeout 10000 --expose-gc --exit --recursive --use_strict --require ts-node/register ./test/unit/indy-vdr-pool.spec.ts",
         "test:vdr-request": "TS_NODE_PROJECT=./test/tsconfig.json NODE_ENV=test RUST_BACKTRACE=full mocha --timeout 10000 --expose-gc --exit --recursive --use_strict --require ts-node/register ./test/unit/indy-vdr-request.spec.ts"

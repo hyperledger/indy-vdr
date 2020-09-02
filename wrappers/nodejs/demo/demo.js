@@ -55,8 +55,8 @@ async function run() {
     const req = IndyVdrRequest.create(JSON.stringify(testRequestData));
     console.log(`Created request using params: ${req.getRequestBody()}`);
 
-    // const res = await pool.submitRequest(req);
-    // console.log(`Ledger response: ${JSON.stringify(res)}`);
+    const res = await pool.submitRequest(req);
+    console.log(`Ledger response: ${JSON.stringify(res)}`);
 }
 
 run();
