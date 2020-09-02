@@ -1,9 +1,9 @@
-import { rustAPI } from '../rustlib';
-import { VDRInternalError } from '../errors';
-import { allocateHandleBuffer, handleBufferToNumber } from './ffi-tools';
+import { rustAPI } from '../../rustlib';
+import { VDRInternalError } from '../../errors';
+import { allocateHandleBuffer, handleBufferToNumber } from '../ffi-tools';
 import * as ref from 'ref-napi';
 
-export class IndyVdrRequest {
+export class LedgerRequestCustom {
     protected _handle: Buffer;
     protected _params: string;
 
@@ -12,9 +12,9 @@ export class IndyVdrRequest {
         this._params = params;
     }
 
-    public static create(params: string): IndyVdrRequest {
+    public static create(params: string): LedgerRequestCustom {
         try {
-            const request = new IndyVdrRequest(params);
+            const request = new LedgerRequestCustom(params);
             rustAPI().indy_vdr_build_custom_request(params, request._handle);
             return request;
         } catch (err) {

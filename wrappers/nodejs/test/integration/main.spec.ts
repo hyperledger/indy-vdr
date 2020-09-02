@@ -1,7 +1,7 @@
 import '../module-resolver-helper';
 
 import { assert } from 'chai';
-import { IndyVdrPool, IndyVdrRequest } from 'src';
+import { IndyVdrPool, LedgerRequestCustom } from 'src';
 import { initVdrTest } from '../common/init';
 
 describe('Integration suite', () => {
@@ -19,7 +19,7 @@ describe('Integration suite', () => {
             identifier: 'LibindyDid111111111111',
         });
 
-        const request: IndyVdrRequest = IndyVdrRequest.create(testRequestData);
+        const request: LedgerRequestCustom = LedgerRequestCustom.create(testRequestData);
         const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
 
         const pool: IndyVdrPool = IndyVdrPool.create('Buildernet', createPoolParams);

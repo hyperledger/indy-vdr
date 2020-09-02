@@ -1,7 +1,7 @@
-import '../module-resolver-helper';
+import '../../module-resolver-helper';
 
 import { assert } from 'chai';
-import { IndyVdrRequest, indyVdrSetDefaultLogger, initVdr } from 'src';
+import { LedgerRequestCustom, indyVdrSetDefaultLogger, initVdr } from 'src';
 
 describe('Pool suite', () => {
     before(async () => {
@@ -19,7 +19,7 @@ describe('Pool suite', () => {
 
     describe('create:', () => {
         it('should create single request instance', async () => {
-            const request: IndyVdrRequest = IndyVdrRequest.create(testRequestData);
+            const request: LedgerRequestCustom = LedgerRequestCustom.create(testRequestData);
             const handle: number = request.getHandle();
             assert.isNumber(handle);
         });
@@ -27,7 +27,7 @@ describe('Pool suite', () => {
         it('request handles should be increment pre each new request created', async () => {
             const handles = [];
             for (let i = 1; i < 19; i++) {
-                const request: IndyVdrRequest = IndyVdrRequest.create(testRequestData);
+                const request: LedgerRequestCustom = LedgerRequestCustom.create(testRequestData);
                 const handle: number = request.getHandle();
                 if (handles.length > 0) {
                     assert.equal(handle, handles[handles.length - 1] + 1);
@@ -37,7 +37,7 @@ describe('Pool suite', () => {
         });
 
         it('should get request body', async () => {
-            const request: IndyVdrRequest = IndyVdrRequest.create(testRequestData);
+            const request: LedgerRequestCustom = LedgerRequestCustom.create(testRequestData);
             const body = request.getRequestBody();
             assert.deepEqual(JSON.parse(body), JSON.parse(testRequestData));
         });

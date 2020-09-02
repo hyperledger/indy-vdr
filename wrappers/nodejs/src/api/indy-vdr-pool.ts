@@ -3,8 +3,8 @@ import { VDRInternalError } from '../errors';
 import { allocateHandleBuffer, handleBufferToNumber } from './ffi-tools';
 import { createFFICallbackPromise } from '../utils/ffi-helpers';
 import { Callback } from 'ffi-napi';
-import { IndyVdrRequest } from './indy-vdr-request';
 import * as ref from 'ref-napi';
+import { LedgerRequestCustom } from './ledger-requests/ledger-request-custom';
 
 /**
  * @class Class representing a Indy Pool
@@ -53,7 +53,7 @@ export class IndyVdrPool {
         return this._params;
     }
 
-    public async submitRequest(request: IndyVdrRequest): Promise<string> {
+    public async submitRequest(request: LedgerRequestCustom): Promise<string> {
         try {
             return await createFFICallbackPromise<string>(
                 (resolve, reject, cb) => {
