@@ -1,16 +1,14 @@
 import '../module-resolver-helper';
 
 import { assert } from 'chai';
-import { IndyVdrPool, indyVdrSetDefaultLogger, initVdr } from 'src';
-import { donwloadGenesis } from '../common/tools';
+import { IndyVdrPool } from 'src';
+import { initVdrTest } from '../common/init';
 
 describe('Pool suite', () => {
     let genesisPath: string;
+
     before(async () => {
-        const initSuccess = initVdr();
-        assert.isTrue(initSuccess);
-        indyVdrSetDefaultLogger();
-        genesisPath = await donwloadGenesis();
+        genesisPath = await initVdrTest();
     });
 
     describe('create:', () => {
@@ -41,6 +39,19 @@ describe('Pool suite', () => {
             assert.equal(pool2.getParams(), createPoolParams);
 
             assert.notEqual(poolHandle, poolHandle2);
+        });
+
+        it('should get pool transactions', async () => {
+            const createPoolParams = JSON.stringify({ transactions_path: genesisPath });
+            const pool: IndyVdrPool = IndyVdrPool.create('Buildernet', createPoolParams);
+            const response = await pool.getPoolTransactions();
+            const lines = response.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                const poolTx = JSON.parse(lines[i]);
+                assert.isObject(poolTx.txn);
+                assert.isObject(poolTx.txnMetadata);
+                assert.isString(poolTx.ver);
+            }
         });
 
         // Todo: I suppose rust should check the path is valid and throw error if not

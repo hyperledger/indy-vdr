@@ -87,4 +87,27 @@ export class IndyVdrPool {
             throw new VDRInternalError(err);
         }
     }
+
+    public async getPoolTransactions(): Promise<string> {
+        try {
+            return await createFFICallbackPromise<string>(
+                (resolve, reject, cb) => {
+                    const rc = rustAPI().indy_vdr_pool_get_transactions(this.getHandle(), cb, 5);
+                    if (rc) {
+                        reject(rc);
+                    }
+                },
+                (resolve, reject) =>
+                    Callback('void', ['uint32', 'uint32', 'pointer'], (id: number, err: number, response: Buffer) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        resolve(ref.readCString(response, 0));
+                    }),
+            );
+        } catch (err) {
+            throw new VDRInternalError(err);
+        }
+    }
 }

@@ -1,16 +1,14 @@
 import '../module-resolver-helper';
 
 import { assert } from 'chai';
-import {IndyVdrPool, IndyVdrRequest, indyVdrSetDefaultLogger, initVdr} from 'src';
-import { donwloadGenesis } from '../common/tools';
+import { IndyVdrPool, IndyVdrRequest } from 'src';
+import { initVdrTest } from '../common/init';
 
 describe('Integration suite', () => {
     let genesisPath: string;
+
     before(async () => {
-        const initSuccess = initVdr();
-        assert.isTrue(initSuccess);
-        indyVdrSetDefaultLogger();
-        genesisPath = await donwloadGenesis();
+        genesisPath = await initVdrTest();
     });
 
     it('should fetch transaction by seqNo', async () => {

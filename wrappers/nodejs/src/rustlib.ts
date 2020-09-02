@@ -45,6 +45,7 @@ export interface IFFIEntryPoint {
     indy_vdr_request_get_body: (requestHandle: number, bodyReturnPtr: number) => rust_err_code;
     indy_vdr_pool_submit_request: (poolHandle: number, requestHandle: number, cb: any, cbId: number) => rust_err_code;
     indy_vdr_pool_get_status: (poolHandle: number, cb: any, cbId: number) => rust_err_code;
+    indy_vdr_pool_get_transactions: (poolHandle: number, cb: any, cbId: number) => rust_err_code;
 }
 
 /**
@@ -62,6 +63,7 @@ export const FFIConfiguration: { [Key in keyof IFFIEntryPoint]: any } = {
     indy_vdr_pool_close: [FFI_ERROR_CODE, [FFI_USIZE_PTR]],
     indy_vdr_pool_submit_request: [FFI_ERROR_CODE, [FFI_USIZE, FFI_USIZE, FFI_CALLBACK_PTR, FFI_USIZE]],
     indy_vdr_pool_get_status: [FFI_ERROR_CODE, [FFI_USIZE, FFI_CALLBACK_PTR, FFI_USIZE]],
+    indy_vdr_pool_get_transactions: [FFI_ERROR_CODE, [FFI_USIZE, FFI_CALLBACK_PTR, FFI_USIZE]],
 };
 
 let _rustAPI: IFFIEntryPoint;
