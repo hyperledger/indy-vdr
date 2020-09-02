@@ -3,6 +3,7 @@ import '../module-resolver-helper';
 import { assert } from 'chai';
 import { IndyVdrPool, LedgerRequestCustom, LedgerRequestGetTxn } from 'src';
 import { initVdrTest, NetworkInfo } from '../common/init';
+import { LedgerRequestNym } from '../../src/api/ledger-requests/ledger-request-nym';
 
 describe('Integration suite', () => {
     let genesisPath: NetworkInfo;
@@ -33,7 +34,7 @@ describe('Integration suite', () => {
     });
 
     it('should fetch transaction using get-txn', async () => {
-        const request: LedgerRequestGetTxn = LedgerRequestGetTxn.create(1, 1, 'LibindyDid111111111111');
+        const request: LedgerRequestGetTxn = LedgerRequestGetTxn.create(1, 1);
         const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
 
         const pool: IndyVdrPool = IndyVdrPool.create(genesisPath.network.toString(), createPoolParams);
@@ -43,6 +44,21 @@ describe('Integration suite', () => {
         assert.equal(responseObj.op, 'REPLY');
         assert.equal(responseObj.result.seqNo, 1);
         assert.isObject(responseObj.result.data);
+        // pool.close();
+    });
+
+    // todo: to test this, we'd need to sign the request and attach it using indy_vdr_request_set_signature
+    it.skip('should fetch transaction using nym', async () => {
+        const request: LedgerRequestGetTxn = LedgerRequestNym.create(
+            'LibindyDid111111111111',
+            'FbjuFFq6jLsSMdgN9ifErE',
+        );
+        const createPoolParams = JSON.stringify({ transactions_path: genesisPath.genesisFilePath });
+
+        const pool: IndyVdrPool = IndyVdrPool.create(genesisPath.network.toString(), createPoolParams);
+        const response = await pool.submitRequest(request);
+        assert.isString(response);
+        console.log(JSON.stringify(JSON.parse(response), null, 2));
         // pool.close();
     });
 
