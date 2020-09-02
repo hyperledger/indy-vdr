@@ -38,11 +38,12 @@ export interface IFFIEntryPoint {
     indy_vdr_version: () => rust_string;
     indy_vdr_set_config: (config: rust_string) => rust_err_code;
     indy_vdr_set_default_logger: () => rust_err_code;
+    // requests
+    indy_vdr_build_custom_request: (requestJson: string, requestHandle: Buffer) => rust_err_code;
+    indy_vdr_request_get_body: (requestHandle: number, bodyReturnPtr: number) => rust_err_code;
     // pool
     indy_vdr_pool_create: (params: rust_string, pool_handle: Buffer) => rust_err_code;
     indy_vdr_pool_close: (poolHandle: number) => rust_err_code;
-    indy_vdr_build_custom_request: (requestJson: string, requestHandle: Buffer) => rust_err_code;
-    indy_vdr_request_get_body: (requestHandle: number, bodyReturnPtr: number) => rust_err_code;
     indy_vdr_pool_submit_request: (poolHandle: number, requestHandle: number, cb: any, cbId: number) => rust_err_code;
     indy_vdr_pool_get_status: (poolHandle: number, cb: any, cbId: number) => rust_err_code;
     indy_vdr_pool_get_transactions: (poolHandle: number, cb: any, cbId: number) => rust_err_code;
@@ -56,11 +57,12 @@ export const FFIConfiguration: { [Key in keyof IFFIEntryPoint]: any } = {
     indy_vdr_version: [FFI_STRING, []],
     indy_vdr_set_config: [FFI_ERROR_CODE, [FFI_STRING_DATA]],
     indy_vdr_set_default_logger: [FFI_ERROR_CODE, []],
+    // requests
     indy_vdr_build_custom_request: [FFI_ERROR_CODE, [FFI_STRING_DATA, FFI_USIZE_PTR]],
     indy_vdr_request_get_body: [FFI_ERROR_CODE, [FFI_USIZE, FFI_USIZE]],
     // pool
     indy_vdr_pool_create: [FFI_ERROR_CODE, [FFI_STRING_DATA, FFI_USIZE_PTR]],
-    indy_vdr_pool_close: [FFI_ERROR_CODE, [FFI_USIZE_PTR]],
+    indy_vdr_pool_close: [FFI_ERROR_CODE, [FFI_USIZE]],
     indy_vdr_pool_submit_request: [FFI_ERROR_CODE, [FFI_USIZE, FFI_USIZE, FFI_CALLBACK_PTR, FFI_USIZE]],
     indy_vdr_pool_get_status: [FFI_ERROR_CODE, [FFI_USIZE, FFI_CALLBACK_PTR, FFI_USIZE]],
     indy_vdr_pool_get_transactions: [FFI_ERROR_CODE, [FFI_USIZE, FFI_CALLBACK_PTR, FFI_USIZE]],

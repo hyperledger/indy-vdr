@@ -30,6 +30,17 @@ export class IndyVdrPool {
         }
     }
 
+    public close() {
+        try {
+            const rc = rustAPI().indy_vdr_pool_close(this.getHandle());
+            if (rc) {
+                throw Error(`Failed to close pool!`);
+            }
+        } catch (err) {
+            throw new VDRInternalError(err);
+        }
+    }
+
     public getHandle(): number {
         return handleBufferToNumber(this._handle);
     }
