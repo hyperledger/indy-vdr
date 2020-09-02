@@ -1,13 +1,13 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { IndyVdrRequest } = require('../dist/api/indy-vdr-request');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { IndyVdrPool } = require('../dist/api/indy-vdr-pool');
+const { IndyVdrPool, LedgerRequestCustom, LedgerRequestGetTxn } = require('../dist');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { initVdr, indyVdrVersion, indyVdrSetDefaultLogger, indyVdrSetConfig } = require('../dist/api/indy-vdr-utils');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const axios = require('axios');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const fs = require('fs');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const logger = require('./logger')('demo');
 
 async function donwloadGenesis() {
     const genesisFileUrl =
@@ -20,12 +20,12 @@ async function donwloadGenesis() {
 
 async function run() {
     const initSuccess = initVdr();
-    console.log(`Init success = ${initSuccess}`);
+    logger.info(`Init success = ${initSuccess}`);
 
     indyVdrSetDefaultLogger();
 
     const vdrVersion = indyVdrVersion();
-    console.log(`vdrVersion = ${vdrVersion}`);
+    logger.info(`vdrVersion = ${vdrVersion}`);
 
     const poolConfig = {
         protocol_version: 'Node1_4',
@@ -37,14 +37,14 @@ async function run() {
         request_read_nodes: 2,
     };
     indyVdrSetConfig(JSON.stringify(poolConfig));
-    console.log(`updated vdr configuration`);
+    logger.info(`updated vdr configuration`);
 
     const genesisPath = await donwloadGenesis();
     const createPoolParams = JSON.stringify({
         transactions_path: genesisPath,
     });
     const pool = IndyVdrPool.create('SovrinBuildernet', createPoolParams);
-    console.log(`Created Pool ${pool.getName()} using params ${pool.getParams()}`);
+    logger.info(`Created Pool ${pool.getName()} using params ${pool.getParams()}`);
 
     const testRequestData = {
         operation: { data: 1, ledgerId: 1, type: '3' },
@@ -52,11 +52,18 @@ async function run() {
         reqId: 123,
         identifier: 'LibindyDid111111111111',
     };
-    const req = IndyVdrRequest.create(JSON.stringify(testRequestData));
-    console.log(`Created request using params: ${req.getRequestBody()}`);
-
-    const res = await pool.submitRequest(req);
-    console.log(`Ledger response: ${JSON.stringify(res)}`);
+    {
+        const req = LedgerRequestCustom.create(JSON.stringify(testRequestData));
+        logger.debug(`Created custom request: ${req.getRequestBody()}`);
+        const res = await pool.submitRequest(req);
+        logger.info(`Ledger response: ${JSON.stringify(JSON.parse(res), null, 2)}`);
+    }
+    {
+        const req = LedgerRequestGetTxn.create(1, 1, 'LibindyDid111111111111');
+        logger.debug(`Created get-txn request: ${req.getRequestBody()}`);
+        const res = await pool.submitRequest(req);
+        logger.info(`Ledger response: ${JSON.stringify(JSON.parse(res), null, 2)}`);
+    }
 }
 
 run();
