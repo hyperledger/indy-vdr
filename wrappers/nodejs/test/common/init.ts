@@ -10,7 +10,6 @@ export async function initVdrTest(): Promise<string> {
 
     const selectedNetwork: string = process.env.INDY_NETWORK || 'SOVRIN_BUILDER_NET';
     const network = IndyNetwork[selectedNetwork as keyof typeof IndyNetwork];
-    console.log(`Running integration tests against network ${network}`);
     const genesisUrl = getNetworkGenesisFileUrl(network);
     const genesisPath = `${__dirname}/${selectedNetwork}.genesis.txn`;
     console.log(`genesisPath=${genesisPath}`);
