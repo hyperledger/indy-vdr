@@ -9,7 +9,10 @@
     "strict": true,
     "strictFunctionTypes": false,
     "noUnusedLocals": true,
-    "preserveConstEnums": true
+    "preserveConstEnums": true,
+    "lib": [
+      "esnext.bigint"
+    ]
   },
   "include": [
     "./src/**/*", "test/suite3/logging.2.test.ts", "test/suite3/logging.1.test.ts"

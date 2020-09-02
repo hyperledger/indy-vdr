@@ -1,5 +1,22 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { initVdr, indyVdrVersion, indyVdrSetDefaultLogger, indyVdrSetConfig } = require('../dist/api/utils');
+const { IndyVdrRequest } = require('../dist/api/indy-vdr-request');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { IndyVdrPool } = require('../dist/api/indy-vdr-pool');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { initVdr, indyVdrVersion, indyVdrSetDefaultLogger, indyVdrSetConfig } = require('../dist/api/indy-vdr-utils');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const axios = require('axios');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const fs = require('fs');
+
+async function donwloadGenesis() {
+    const genesisFileUrl =
+        'https://raw.githubusercontent.com/sovrin-foundation/sovrin/master/sovrin/pool_transactions_builder_genesis';
+    const targetFilePath = `${__dirname}/sov_buildernet.genesis.txn`;
+    const { data } = await axios.get(genesisFileUrl);
+    fs.writeFileSync(targetFilePath, data);
+    return targetFilePath;
+}
 
 async function run() {
     const initSuccess = initVdr();
@@ -21,6 +38,25 @@ async function run() {
     };
     indyVdrSetConfig(JSON.stringify(poolConfig));
     console.log(`updated vdr configuration`);
+
+    const genesisPath = await donwloadGenesis();
+    const createPoolParams = JSON.stringify({
+        transactions_path: genesisPath,
+    });
+    const pool = IndyVdrPool.create('SovrinBuildernet', createPoolParams);
+    console.log(`Created Pool ${pool.getName()} using params ${pool.getParams()}`);
+
+    const testRequestData = {
+        operation: { data: 1, ledgerId: 1, type: '3' },
+        protocolVersion: 2,
+        reqId: 123,
+        identifier: 'LibindyDid111111111111',
+    };
+    const req = IndyVdrRequest.create(JSON.stringify(testRequestData));
+    console.log(`Created request using params: ${req.getRequestBody()}`);
+
+    // const res = await pool.submitRequest(req);
+    // console.log(`Ledger response: ${JSON.stringify(res)}`);
 }
 
 run();

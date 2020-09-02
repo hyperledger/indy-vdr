@@ -9,3 +9,4 @@ prebuilds/
 npm-debug.log
 package-lock.json
 yarn.lock
+**/*.genesis.txn
