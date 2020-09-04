@@ -10,12 +10,10 @@ on:
 
 jobs:
   workflow-setup:
+    name: Setup CI variables
     runs-on: ubuntu-latest
     outputs:
-      GITHUB_REPOSITORY_LOWERCASE: ${{ steps.mainstep.outputs.GITHUB_REPOSITORY_LOWERCASE }}
       CACHE_KEY_VDR_BINARY: ${{ steps.mainstep.outputs.CACHE_KEY_VDR_BINARY }}
-      PUBLISH_VERSION: ${{ steps.mainstep.outputs.PUBLISH_VERSION }}
-      RELEASE: ${{ steps.mainstep.outputs.RELEASE }}
     steps:
       - name: Git checkout
         uses: actions/checkout@v1
@@ -25,77 +23,14 @@ jobs:
       - name: Set custom env variables
         run: |
           set -x
-          GITHUB_REPOSITORY_LOWERCASE=`echo $GITHUB_REPOSITORY | awk '{print tolower($0)}'`
-          echo ::set-env name=GITHUB_REPOSITORY_LOWERCASE::$(echo $GITHUB_REPOSITORY_LOWERCASE)
-
-          if [[ -z "$GITHUB_HEAD_REF" ]] # is set only if pipeline run is triggered as pull request
-          then
-            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-            echo "Setting BRANCH_NAME=$BRANCH_NAME because this pipeline is run as Push"
-          else
-            BRANCH_NAME=$GITHUB_HEAD_REF
-            echo "Setting BRANCH_NAME=$BRANCH_NAME because this pipeline is run as Pull Request"
-          fi
-
-          BRANCH_NAME=`echo $BRANCH_NAME | sed "s/[^[:alnum:]-]//g" | tr '[:upper:]' '[:lower:]'` # lowercase, only alphanumeric and dash
-          echo ::set-env name=BRANCH_NAME::$(echo $BRANCH_NAME)
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]
-          then
-            REPO_HEAD="${{ github.event.pull_request.head.repo.full_name }}" # source repository
-            REPO_BASE="${{ github.event.pull_request.head.base.full_name }}" # target repository
-            echo "This is pull request from $REPO_HEAD to $REPO_BASE"
-
-            if [[ "$REPO_HEAD" == "${{ github.repository }}" ]]
-            then
-              echo "This CI run is PR from non-forked repository."
-              IS_FORK="false";
-            else
-              echo "This is fork."
-              IS_FORK="true";
-            fi;
-          else
-            echo "Not PR so this is not fork."
-            IS_FORK="false";
-          fi;
-
-          REPO_VERSION_MOST_RECENT=$(git describe --tags --always --abbrev=0)
-          REPO_VERSION_DESIRED=$(cargo pkgid --manifest-path libindy_vdr/Cargo.toml | cut -d# -f2 | cut -d: -f2)
-          echo "Highest released version was: $REPO_VERSION_MOST_RECENT, desired version (specified in Cargo.toml) is $REPO_VERSION_DESIRED"
-
-          RELEASE="false"
-          if [[ "$IS_FORK" == "false" ]]
-          then
-            if [[ "$BRANCH_NAME" == "master" && "$REPO_VERSION_DESIRED" != "$REPO_VERSION_MOST_RECENT" ]]
-            then
-              PUBLISH_VERSION="$REPO_VERSION_DESIRED"
-              RELEASE="true"
-              echo "This is push to master, and version was bumped $REPO_VERSION_MOST_RECENT->$REPO_VERSION_DESIRED. Will publish and release $REPO_VERSION_DESIRED."
-            else
-              PUBLISH_VERSION="$REPO_VERSION_MOST_RECENT-$BRANCH_NAME-${{ github.run_number }}"
-              echo "This is not push to master. Will be publishing version: $PUBLISH_VERSION."
-            fi;
-          else
-            echo "This PR is from fork, nothing will be published because the CI wouldn't be able to access repo secrets to perform publish."
-            PUBLISH_VERSION=""
-          fi;
-
           LIBINDY_VDR_HASH=${{ hashFiles('libindy_vdr') }}
           VDR_SHARED_HASH=${{ hashFiles('vdr-shared') }}
-
-          echo ::set-env name=PUBLISH_VERSION::$PUBLISH_VERSION
-          echo ::set-env name=RELEASE::$RELEASE
           echo ::set-env name=CACHE_KEY_VDR_BINARY::${LIBINDY_VDR_HASH:0:15}-${VDR_SHARED_HASH:0:15}
 
       - name: Set and print outputs
         id: mainstep
         run: |
           set -x
-          echo "::set-output name=PUBLISH_VERSION::$PUBLISH_VERSION"
-          echo "::set-output name=RELEASE::$RELEASE"
-
-          echo "::set-output name=GITHUB_REPOSITORY_LOWERCASE::$GITHUB_REPOSITORY_LOWERCASE"
-
           echo "::set-output name=CACHE_KEY_VDR_BINARY::$CACHE_KEY_VDR_BINARY"
           
   check:
@@ -145,7 +80,7 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  build-vdr:
+  build-vdr-binary:
     needs: workflow-setup
     name: Build IndyVDR binaries
     runs-on: ubuntu-latest
@@ -170,26 +105,63 @@ jobs:
         run: |
           set -x
           cargo build --release --manifest-path libindy_vdr/Cargo.toml --target-dir libindy_vdr/target
-          ls -lah
-          ls -lah libindy_vdr
-          ls -lah libindy_vdr/target
-          ls -lah libindy_vdr/target/release
-          ls -lah libindy_vdr/target/release/libindy_vdr.so
           cp libindy_vdr/target/release/libindy_vdr.so /tmp/libindy_vdr.so
-          echo "VDR Binary cached: `ls -lah /tmp/libindy_vdr.so`"
 
-  # clippy:
-  #   name: Clippy
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - uses: actions-rs/toolchain@v1
-  #       with:
-  #         profile: minimal
-  #         toolchain: stable
-  #         override: true
-  #     - run: rustup component add clippy
-  #     - uses: actions-rs/cargo@v1
-  #       with:
-  #         command: clippy
-  #         args: -- -D warnings
+  test-nodejs:
+    needs: [workflow-setup, build-vdr-binary]
+    name: Test NodeJS wrapper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+      - name: Load up custom variables
+        run: |
+          echo ::set-env name=CACHE_KEY_VDR_BINARY::$(echo ${{needs.workflow-setup.outputs.CACHE_KEY_VDR_BINARY}})
+      - name: Try load libindy_vdr binary from cache.
+        id: cache-vdr
+        uses: actions/cache@v2
+        with:
+          key: ${{ env.CACHE_KEY_VDR_BINARY }}
+          path: /tmp/libindy_vdr.so
+      - name: If NOT found in cache, build and cache image.
+        if: steps.cache-vdr.outputs.cache-hit != 'true'
+        run: |
+          echo "Expected to find indy vdr binaries in cache."
+          exit -1
+      - name: Install libindy_vdr
+        run: sudo cp /tmp/libindy_vdr.so /usr/lib/libindy_vdr.so
+      - name: Install NodeJS dependencies
+        run: |
+          cd wrappers/nodejs
+          npm install
+      - name: Transpile NodeJS wrapper
+        run: |
+          cd wrappers/nodejs
+          npm run compile
+      - name: Run NodeJS unit tests
+        run: |
+          cd wrappers/nodejs
+          npm run test:unit
+      - name: Run NodeJS integration tests against Sovrin Buildernet
+        run: |
+          cd wrappers/nodejs
+          INDY_NETWORK=SOVRIN_BUILDER_NET npm run test:integration
+
+#   clippy:
+#     name: Clippy
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - uses: actions-rs/toolchain@v1
+#         with:
+#           profile: minimal
+#           toolchain: stable
+#           override: true
+#       - run: rustup component add clippy
+#       - uses: actions-rs/cargo@v1
+#         with:
+#           command: clippy
+#           args: -- -D warnings
