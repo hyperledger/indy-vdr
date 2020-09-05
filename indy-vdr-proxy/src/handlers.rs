@@ -73,9 +73,9 @@ fn format_json_reply(message: String, pretty: bool) -> String {
                 result.remove("identifier");
                 result.remove("reqId");
                 result.remove("state_proof");
-                serde_json::to_string_pretty(&result).unwrap_or(message)
+                serde_json::to_string_pretty(&json).unwrap_or(message)
             } else {
-                serde_json::to_string(&result).unwrap_or(message)
+                serde_json::to_string(&json).unwrap_or(message)
             }
         } else {
             message
