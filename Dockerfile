@@ -9,7 +9,9 @@ RUN apt-get update -y && \
 
 COPY . .
 RUN cargo build $cargo_build_flags && \
-  cp target/*/libindy_vdr.so . && \
-  cp target/*/indy-vdr-proxy vdr-proxy
+  cp target/*/libindy_vdr.so ./bin/libindy_vdr.so && \
+  cp target/*/indy-vdr-proxy ./bin/vdr-proxy
 
-CMD ./vdr-proxy -g https://raw.githubusercontent.com/sovrin-foundation/sovrin/stable/sovrin/pool_transactions_sandbox_genesis -p 8080
+ENV PATH "$PATH:$PWD/bin"
+
+CMD vdr-proxy -g https://raw.githubusercontent.com/sovrin-foundation/sovrin/stable/sovrin/pool_transactions_sandbox_genesis -p 8080
