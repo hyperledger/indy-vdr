@@ -3,12 +3,36 @@ name: "Unit Tests"
 on:
   push:
     branches:
-      - master
+      - "**"
   pull_request:
     branches:
       - master
 
 jobs:
+  workflow-setup:
+    name: Setup CI variables
+    runs-on: ubuntu-latest
+    outputs:
+      CACHE_KEY_VDR_BINARY: ${{ steps.mainstep.outputs.CACHE_KEY_VDR_BINARY }}
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.40.0
+      - name: Set custom env variables
+        run: |
+          set -x
+          LIBINDY_VDR_HASH=${{ hashFiles('libindy_vdr') }}
+          VDR_SHARED_HASH=${{ hashFiles('vdr-shared') }}
+          echo ::set-env name=CACHE_KEY_VDR_BINARY::${LIBINDY_VDR_HASH:0:15}-${VDR_SHARED_HASH:0:15}
+
+      - name: Set and print outputs
+        id: mainstep
+        run: |
+          set -x
+          echo "::set-output name=CACHE_KEY_VDR_BINARY::$CACHE_KEY_VDR_BINARY"
+          
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -55,18 +79,89 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-  # clippy:
-  #   name: Clippy
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - uses: actions-rs/toolchain@v1
-  #       with:
-  #         profile: minimal
-  #         toolchain: stable
-  #         override: true
-  #     - run: rustup component add clippy
-  #     - uses: actions-rs/cargo@v1
-  #       with:
-  #         command: clippy
-  #         args: -- -D warnings
+
+  build-vdr-binary:
+    needs: workflow-setup
+    name: Build IndyVDR binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Load up custom variables
+        run: |
+          echo ::set-env name=CACHE_KEY_VDR_BINARY::$(echo ${{needs.workflow-setup.outputs.CACHE_KEY_VDR_BINARY}})
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Try load libindy_vdr binary from cache.
+        id: cache-vdr
+        uses: actions/cache@v2
+        with:
+          key: ${{ env.CACHE_KEY_VDR_BINARY }}
+          path: /tmp/libindy_vdr.so
+      - name: If NOT found in cache, build and cache image.
+        if: steps.cache-vdr.outputs.cache-hit != 'true'
+        run: |
+          set -x
+          cargo build --release --manifest-path libindy_vdr/Cargo.toml --target-dir libindy_vdr/target
+          cp libindy_vdr/target/release/libindy_vdr.so /tmp/libindy_vdr.so
+
+  test-nodejs:
+    needs: [workflow-setup, build-vdr-binary]
+    name: Test NodeJS wrapper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+      - name: Load up custom variables
+        run: |
+          echo ::set-env name=CACHE_KEY_VDR_BINARY::$(echo ${{needs.workflow-setup.outputs.CACHE_KEY_VDR_BINARY}})
+      - name: Try load libindy_vdr binary from cache.
+        id: cache-vdr
+        uses: actions/cache@v2
+        with:
+          key: ${{ env.CACHE_KEY_VDR_BINARY }}
+          path: /tmp/libindy_vdr.so
+      - name: If NOT found in cache, build and cache image.
+        if: steps.cache-vdr.outputs.cache-hit != 'true'
+        run: |
+          echo "Expected to find indy vdr binaries in cache."
+          exit -1
+      - name: Install libindy_vdr
+        run: sudo cp /tmp/libindy_vdr.so /usr/lib/libindy_vdr.so
+      - name: Install NodeJS dependencies
+        run: |
+          cd wrappers/nodejs
+          npm install
+      - name: Transpile NodeJS wrapper
+        run: |
+          cd wrappers/nodejs
+          npm run compile
+      - name: Run NodeJS unit tests
+        run: |
+          cd wrappers/nodejs
+          npm run test:unit
+      - name: Run NodeJS integration tests against Sovrin Buildernet
+        run: |
+          cd wrappers/nodejs
+          INDY_NETWORK=SOVRIN_BUILDER_NET npm run test:integration
+
+#   clippy:
+#     name: Clippy
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - uses: actions-rs/toolchain@v1
+#         with:
+#           profile: minimal
+#           toolchain: stable
+#           override: true
+#       - run: rustup component add clippy
+#       - uses: actions-rs/cargo@v1
+#         with:
+#           command: clippy
+#           args: -- -D warnings
