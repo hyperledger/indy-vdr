@@ -267,6 +267,16 @@ def pool_get_transactions(pool_handle: PoolHandle) -> asyncio.Future:
     )
 
 
+def pool_get_verifiers(pool_handle: PoolHandle) -> asyncio.Future:
+    """Fetch the set of active verifiers for an opened pool instance."""
+    return do_call_async(
+        "indy_vdr_pool_get_verifiers",
+        pool_handle,
+        return_type=lib_string,
+        post_process=str,
+    )
+
+
 def request_free(handle: RequestHandle):
     """Manually free a prepared request which won't be submitted."""
     do_call("indy_vdr_request_free", handle)

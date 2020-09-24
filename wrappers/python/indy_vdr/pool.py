@@ -38,6 +38,12 @@ class Pool:
             raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
         return await bindings.pool_get_transactions(self.handle)
 
+    async def get_verifiers(self) -> dict:
+        """Get the current set of active verifiers for the pool instance."""
+        if not self.handle:
+            raise VdrError(VdrErrorCode.WRAPPER, "pool is closed")
+        return json.loads(await bindings.pool_get_verifiers(self.handle))
+
     @property
     def last_refresh_seconds(self) -> float:
         """Get the number of seconds since the last verifier pool refresh."""

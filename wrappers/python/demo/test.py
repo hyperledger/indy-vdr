@@ -16,7 +16,7 @@ from indy_vdr.ledger import (
     build_get_revoc_reg_request,
     build_get_revoc_reg_delta_request,
     build_get_schema_request,
-    build_rich_schema_request,
+    # build_rich_schema_request,
     # build_get_schema_object_by_id_request,
     # build_get_schema_object_by_metadata_request,
     prepare_txn_author_agreement_acceptance,
@@ -50,9 +50,17 @@ async def get_validator_info(pool: Pool):
 
 async def basic_test(transactions_path):
     pool = await open_pool(transactions_path=transactions_path)
-    log(f"Created pool: {pool}")
+    log("Created pool:", pool)
 
-    test_req = {"operation": {"data": 1, "ledgerId": 1, "type": "3"}, "protocolVersion": 2, "reqId":123, "identifier": "LibindyDid111111111111"}
+    verifiers = await pool.get_verifiers()
+    log("Verifiers:", verifiers)
+
+    test_req = {
+        "operation": {"data": 1, "ledgerId": 1, "type": "3"},
+        "protocolVersion": 2,
+        "reqId": 123,
+        "identifier": "LibindyDid111111111111",
+    }
     req = build_custom_request(test_req)
     log("Custom request body:", req.body)
     #
@@ -101,7 +109,9 @@ async def basic_test(transactions_path):
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
 
-    # req = build_rich_schema_request(None, "did:sov:some_hash", "{\"some\": 1}", "test", "version", "sch", "1.0.0")
+    # req = build_rich_schema_request(
+    #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"
+    # )
     # log("Get rich schema request:", req.body)
 
     # req = build_get_schema_object_by_id_request(None, "did:sov:some_hash")
@@ -116,8 +126,11 @@ def get_script_dir():
 
 
 def donwload_buildernet_genesis_file():
-    genesis_file_url = "https://raw.githubusercontent.com/sovrin-foundation/sovrin/master/sovrin/pool_transactions_builder_genesis"
-    target_local_path = f'{get_script_dir()}/genesis_sov_buildernet.txn'
+    genesis_file_url = (
+        "https://raw.githubusercontent.com/sovrin-foundation/"
+        "sovrin/master/sovrin/pool_transactions_builder_genesis"
+    )
+    target_local_path = f"{get_script_dir()}/genesis_sov_buildernet.txn"
     urllib.request.urlretrieve(genesis_file_url, target_local_path)
     return target_local_path
 
@@ -125,5 +138,7 @@ def donwload_buildernet_genesis_file():
 if __name__ == "__main__":
     log("indy-vdr version:", version())
 
-    genesis_path = sys.argv[1] if len(sys.argv) > 1 else donwload_buildernet_genesis_file()
+    genesis_path = (
+        sys.argv[1] if len(sys.argv) > 1 else donwload_buildernet_genesis_file()
+    )
     asyncio.get_event_loop().run_until_complete(basic_test(genesis_path))

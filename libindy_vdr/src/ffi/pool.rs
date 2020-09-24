@@ -193,6 +193,38 @@ pub extern "C" fn indy_vdr_pool_get_transactions(
     }
 }
 
+#[no_mangle]
+pub extern "C" fn indy_vdr_pool_get_verifiers(
+    pool_handle: usize,
+    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb_id: usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Get pool verifiers");
+        let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
+        let pools = read_lock!(POOLS)?;
+        let pool = pools.get(&PoolHandle(pool_handle))
+            .ok_or_else(|| input_err("Unknown pool handle"))?;
+        pool.get_verifiers(Box::new(
+            move |result| {
+                let (errcode, reply) = match result.and_then(|v| {
+                    serde_json::to_string(&v).with_err_msg(VdrErrorKind::Unexpected, "Error serializing JSON")
+                }) {
+                    Ok(vers) => {
+                        (ErrorCode::Success, vers)
+                    },
+                    Err(err) => {
+                        let code = ErrorCode::from(err.kind());
+                        set_last_error(Some(err));
+                        (code, String::new())
+                    }
+                };
+                cb(cb_id, errcode, rust_string_to_c(reply))
+            }))?;
+        Ok(ErrorCode::Success)
+    }
+}
+
 fn handle_request_result(
     result: VdrResult<(RequestResult<String>, Option<TimingResult>)>,
 ) -> (ErrorCode, String) {

@@ -262,7 +262,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 )
             })?;
 
-            let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
+            let client_addr = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
                 (&Some(ref client_ip), &Some(ref client_port)) => {
                     format!("tcp://{}:{}", client_ip, client_port)
                 }
@@ -288,7 +288,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 };
 
             let info = VerifierInfo {
-                address,
+                client_addr,
                 bls_key,
                 public_key,
                 enc_key,
