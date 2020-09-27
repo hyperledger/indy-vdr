@@ -57,6 +57,9 @@ pub trait Pool: Clone {
     fn get_json_transactions(&self) -> VdrResult<Vec<String>> {
         PoolTransactions::from(self.get_merkle_tree()).encode_json()
     }
+
+    /// Get the summarized verifier details.
+    fn get_verifier_info(&self) -> VdrResult<Verifiers>;
 }
 
 /// The default `Pool` implementation
@@ -137,6 +140,10 @@ where
 
     fn get_node_aliases(&self) -> Vec<String> {
         self.setup.as_ref().verifiers.keys().cloned().collect()
+    }
+
+    fn get_verifier_info(&self) -> VdrResult<Verifiers> {
+        Ok(self.setup.as_ref().verifiers.clone())
     }
 }
 

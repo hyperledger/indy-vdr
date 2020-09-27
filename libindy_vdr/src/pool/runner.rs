@@ -10,7 +10,7 @@ use futures::{select, FutureExt};
 use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
 use super::requests::PreparedRequest;
-use super::types::{RequestResult, TimingResult};
+use super::types::{RequestResult, TimingResult, Verifiers};
 use super::{LocalPool, Pool};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -52,18 +52,23 @@ impl PoolRunner {
     }
 
     /// Fetch the status of the pool instance.
-    pub fn get_status(&self, callback: GetStatusCallback) -> VdrResult<()> {
+    pub fn get_status(&self, callback: Callback<GetStatusResponse>) -> VdrResult<()> {
         self.send_event(PoolEvent::GetStatus(callback))
     }
 
     /// Fetch the current set of pool transactions.
-    pub fn get_transactions(&self, callback: GetTxnsCallback) -> VdrResult<()> {
+    pub fn get_transactions(&self, callback: Callback<GetTxnsResponse>) -> VdrResult<()> {
         self.send_event(PoolEvent::GetTransactions(callback))
+    }
+
+    /// Fetch the current set of pool transactions.
+    pub fn get_verifiers(&self, callback: Callback<GetVerifiersResponse>) -> VdrResult<()> {
+        self.send_event(PoolEvent::GetVerifiers(callback))
     }
 
     /// Fetch the latest pool transactions and switch to the new validator
     /// pool if necessary.
-    pub fn refresh(&self, callback: RefreshCallback) -> VdrResult<()> {
+    pub fn refresh(&self, callback: Callback<RefreshResponse>) -> VdrResult<()> {
         self.send_event(PoolEvent::Refresh(callback))
     }
 
@@ -71,7 +76,7 @@ impl PoolRunner {
     pub fn send_request(
         &self,
         request: PreparedRequest,
-        callback: SendReqCallback,
+        callback: Callback<SendReqResponse>,
     ) -> VdrResult<()> {
         self.send_event(PoolEvent::SendRequest(request, callback))
     }
@@ -109,27 +114,24 @@ impl Drop for PoolRunner {
     }
 }
 
-type GetStatusCallback = Box<dyn (FnOnce(GetStatusResponse) -> ()) + Send>;
+type Callback<R> = Box<dyn (FnOnce(R) -> ()) + Send>;
 
 type GetStatusResponse = VdrResult<PoolRunnerStatus>;
 
-type GetTxnsCallback = Box<dyn (FnOnce(GetTxnsResponse) -> ()) + Send>;
-
 type GetTxnsResponse = VdrResult<Vec<String>>;
 
-type RefreshCallback = Box<dyn (FnOnce(RefreshResponse) -> ()) + Send>;
+type GetVerifiersResponse = VdrResult<Verifiers>;
 
 type RefreshResponse = VdrResult<(Vec<String>, Option<Vec<String>>, Option<TimingResult>)>;
-
-type SendReqCallback = Box<dyn (FnOnce(SendReqResponse) -> ()) + Send>;
 
 type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 enum PoolEvent {
-    GetStatus(GetStatusCallback),
-    GetTransactions(GetTxnsCallback),
-    Refresh(RefreshCallback),
-    SendRequest(PreparedRequest, SendReqCallback),
+    GetStatus(Callback<GetStatusResponse>),
+    GetTransactions(Callback<GetTxnsResponse>),
+    GetVerifiers(Callback<GetVerifiersResponse>),
+    Refresh(Callback<RefreshResponse>),
+    SendRequest(PreparedRequest, Callback<SendReqResponse>),
 }
 
 /// The current status of a validator pool.
@@ -185,6 +187,10 @@ impl PoolThread {
                             let txns = self.pool.get_json_transactions();
                             callback(txns);
                         }
+                        Some(PoolEvent::GetVerifiers(callback)) => {
+                            let vers = self.pool.get_verifier_info();
+                            callback(vers);
+                        }
                         Some(PoolEvent::Refresh(callback)) => {
                             let fut = _perform_refresh(&self.pool, callback);
                             futures.push(fut.boxed_local());
@@ -208,7 +214,7 @@ impl PoolThread {
     }
 }
 
-async fn _perform_refresh(pool: &LocalPool, callback: RefreshCallback) {
+async fn _perform_refresh(pool: &LocalPool, callback: Callback<RefreshResponse>) {
     let result = {
         match perform_refresh(pool).await {
             Ok((new_txns, timing)) => match pool.get_json_transactions() {
@@ -224,7 +230,7 @@ async fn _perform_refresh(pool: &LocalPool, callback: RefreshCallback) {
 async fn _perform_ledger_request(
     pool: &LocalPool,
     request: PreparedRequest,
-    callback: SendReqCallback,
+    callback: Callback<SendReqResponse>,
 ) {
     let result = perform_ledger_request(pool, &request).await;
     callback(result);

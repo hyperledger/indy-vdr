@@ -2,6 +2,7 @@ use std::cmp::Eq;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
+use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{self, Value as SJsonValue};
 pub use ursa::bls::VerKey as BlsVerKey;
 
@@ -10,6 +11,7 @@ use crate::common::merkle_tree::MerkleTree;
 use crate::common::verkey::build_full_verkey;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
+use crate::utils::base58;
 
 /// The Indy Node communication protocol version
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
@@ -149,9 +151,9 @@ pub struct NodeData {
 
 fn string_or_number<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
-    D: serde::Deserializer<'de>,
+    D: Deserializer<'de>,
 {
-    let deser_res: Result<serde_json::Value, _> = serde::Deserialize::deserialize(deserializer);
+    let deser_res: Result<serde_json::Value, _> = Deserialize::deserialize(deserializer);
 
     match deser_res {
         Ok(serde_json::Value::String(s)) => match s.parse::<u64>() {
@@ -562,7 +564,8 @@ impl Message {
 }
 
 /// A verifier node BLS signing key
-#[derive(Clone)]
+#[derive(Clone, Debug)]
+#[repr(transparent)]
 pub struct VerifierKey {
     pub(crate) inner: BlsVerKey,
 }
@@ -580,11 +583,31 @@ impl VerifierKey {
 }
 
 /// Validator node details loaded from pool transactions
+#[derive(Clone, Debug)]
 pub struct VerifierInfo {
-    pub address: String,
+    pub client_addr: String,
+    pub node_addr: String,
     pub public_key: String,
     pub enc_key: Vec<u8>,
     pub bls_key: Option<VerifierKey>,
+}
+
+impl Serialize for VerifierInfo {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(4))?;
+        map.serialize_entry("client_addr", &self.client_addr)?;
+        map.serialize_entry("node_addr", &self.node_addr)?;
+        map.serialize_entry("public_key", &self.public_key)?;
+        map.serialize_entry("enc_key", &base58::encode(&self.public_key))?;
+        map.serialize_entry(
+            "bls_key",
+            &self.bls_key.as_ref().map(|k| base58::encode(k.as_bytes())),
+        )?;
+        map.end()
+    }
 }
 
 /// A standard collection of verifier information, indexed by node alias

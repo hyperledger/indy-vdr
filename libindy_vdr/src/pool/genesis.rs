@@ -262,13 +262,25 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 )
             })?;
 
-            let address = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
+            let client_addr = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
                 (&Some(ref client_ip), &Some(ref client_port)) => {
                     format!("tcp://{}:{}", client_ip, client_port)
                 }
                 _ => {
                     return Err(input_err(format!(
                         "Node '{}' has no client address",
+                        node_alias
+                    )))
+                }
+            };
+
+            let node_addr = match (&txn.txn.data.data.node_ip, &txn.txn.data.data.node_port) {
+                (&Some(ref node_ip), &Some(ref node_port)) => {
+                    format!("tcp://{}:{}", node_ip, node_port)
+                }
+                _ => {
+                    return Err(input_err(format!(
+                        "Node '{}' has no node address",
                         node_alias
                     )))
                 }
@@ -288,7 +300,8 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 };
 
             let info = VerifierInfo {
-                address,
+                client_addr,
+                node_addr,
                 bls_key,
                 public_key,
                 enc_key,

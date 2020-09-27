@@ -762,7 +762,7 @@ fn _get_remotes(verifiers: &Verifiers) -> Vec<RemoteNode> {
         .map(|(alias, info)| RemoteNode {
             name: alias.clone(),
             enc_key: info.enc_key.clone(),
-            zaddr: info.address.clone(),
+            zaddr: info.client_addr.clone(),
             is_blacklisted: false,
         })
         .collect()
