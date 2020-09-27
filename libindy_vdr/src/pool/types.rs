@@ -586,6 +586,7 @@ impl VerifierKey {
 #[derive(Clone, Debug)]
 pub struct VerifierInfo {
     pub client_addr: String,
+    pub node_addr: String,
     pub public_key: String,
     pub enc_key: Vec<u8>,
     pub bls_key: Option<VerifierKey>,
@@ -598,6 +599,7 @@ impl Serialize for VerifierInfo {
     {
         let mut map = serializer.serialize_map(Some(4))?;
         map.serialize_entry("client_addr", &self.client_addr)?;
+        map.serialize_entry("node_addr", &self.node_addr)?;
         map.serialize_entry("public_key", &self.public_key)?;
         map.serialize_entry("enc_key", &base58::encode(&self.public_key))?;
         map.serialize_entry(
