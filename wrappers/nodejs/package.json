@@ -1,6 +1,6 @@
 {
     "homepage": "https://github.com/hyperledger/indy-vdr",
-    "name": "indy-vdr",
+    "name": "@hyperledger/indy-vdr",
     "version": "0.0.1",
     "description": "Node wrapper for Indy VDR",
     "main": "dist/src/index.js",
@@ -14,7 +14,7 @@
     "contributors": [
         {
             "name": "Hyperledger Indy Contributors",
-            "email": "hyperledger-indy@lists.hyperledger.org"
+            "email": "indy@lists.hyperledger.org"
         }
     ],
     "repository": {
