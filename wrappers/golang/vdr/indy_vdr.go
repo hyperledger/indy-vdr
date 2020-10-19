@@ -42,7 +42,7 @@ type Client struct {
 	genesisTxns []byte
 }
 
-//New creates an Indy VDR client connected to the Indy distributed ledger identified by the genesis file
+//New creates an Indy IndyVDR client connected to the Indy distributed ledger identified by the genesis file
 //provided as a reader.
 func New(genesis io.ReadCloser) (*Client, error) {
 
@@ -196,7 +196,10 @@ func (r *Client) RefreshPool() error {
 
 	result := C.indy_vdr_pool_refresh(C.u_long(r.pool), C.refreshWrapper(C.refresh))
 	if result != 0 {
-		return fmt.Errorf("refresh pool failed: (Indy error code: [%v])", result)
+		var errMsg *C.char
+		C.indy_vdr_get_current_error(&errMsg)
+		defer C.free(unsafe.Pointer(errMsg))
+		return fmt.Errorf("refresh pool failed: (Indy error code: [%v] %s)", result, C.GoString(errMsg))
 	}
 
 	res := <-refreshCh
@@ -320,8 +323,6 @@ func (r *Client) GetTxnTypeAuthRule(typ, action, field string) (*ReadReply, erro
 	if err != nil {
 		return nil, fmt.Errorf("marhsal indy auth rule request failed: (%w)", err)
 	}
-
-	fmt.Println(string(d))
 
 	response, err := r.Submit(d)
 	if err != nil {

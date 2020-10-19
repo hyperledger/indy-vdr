@@ -45,16 +45,23 @@ const (
 )
 
 type Request struct {
-	Operation       interface{} `json:"operation"`
-	Identifier      string      `json:"identifier,omitempty"`
-	Endorser        string      `json:"endorser,omitempty"`
-	ReqID           uint32      `json:"reqId"`
-	ProtocolVersion int         `json:"protocolVersion"`
-	Signature       string      `json:"signature,omitempty"`
+	Operation       interface{}    `json:"operation"`
+	Identifier      string         `json:"identifier,omitempty"`
+	Endorser        string         `json:"endorser,omitempty"`
+	ReqID           uint32         `json:"reqId"`
+	ProtocolVersion int            `json:"protocolVersion"`
+	Signature       string         `json:"signature,omitempty"`
+	TAAAcceptance   *TAAAcceptance `json:"taaAcceptance,omitempty"`
 }
 
 type Operation struct {
 	Type string `json:"type"`
+}
+
+type TAAAcceptance struct {
+	Digest    string `json:"taaDigest,omitempty"`
+	Mechanism string `json:"mechanism,omitempty"`
+	Time      uint32 `json:"time,omitempty"`
 }
 
 type NymRequest struct {

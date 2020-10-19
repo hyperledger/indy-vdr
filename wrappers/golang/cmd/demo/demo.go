@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +12,7 @@ import (
 	"github.com/hyperledger/indy-vdr/wrappers/golang/crypto"
 	"github.com/hyperledger/indy-vdr/wrappers/golang/identifiers"
 	"github.com/hyperledger/indy-vdr/wrappers/golang/vdr"
+	"github.com/mr-tron/base58"
 )
 
 func main() {
@@ -80,47 +83,60 @@ func writeDemoTest() {
 	d, _ := json.MarshalIndent(status, " ", " ")
 	fmt.Println(string(d))
 
-	did, keyPair, err := identifiers.CreateDID(&identifiers.MyDIDInfo{Seed: TrusteeSeed[0:32], Cid: true, MethodName: "sov"})
+	seed, err := identifiers.ConvertSeed(TrusteeSeed[0:32])
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	mysig := crypto.NewSigner(keyPair.RawPublicKey(), keyPair.RawPrivateKey())
+	var pubkey ed25519.PublicKey
+	var privkey ed25519.PrivateKey
+	privkey = ed25519.NewKeyFromSeed(seed)
+	pubkey = privkey.Public().(ed25519.PublicKey)
+	did, err := identifiers.CreateDID(&identifiers.MyDIDInfo{PublicKey: pubkey, Cid: true, MethodName: "sov"})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	mysig := crypto.NewSigner(pubkey, privkey)
 
 	fmt.Println("Steward DID:", did.String())
 	fmt.Println("Steward Verkey:", did.Verkey)
 	fmt.Println("Steward Short Verkey:", did.AbbreviateVerkey())
-
-	someRandomDID, someRandomKP, err := identifiers.CreateDID(&identifiers.MyDIDInfo{MethodName: "sov", Cid: true})
+	someRandomPubkey, someRandomPrivkey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err = client.CreateNym(someRandomDID.DIDVal.DID, someRandomDID.Verkey, vdr.EndorserRole, did.DIDVal.DID, mysig)
+	someRandomDID, err := identifiers.CreateDID(&identifiers.MyDIDInfo{PublicKey: someRandomPubkey, MethodName: "sov", Cid: true})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	err = client.CreateNym(someRandomDID.DIDVal.MethodSpecificID, someRandomDID.Verkey, vdr.EndorserRole, did.DIDVal.MethodSpecificID, mysig)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	fmt.Println("New Endorser DID:", someRandomDID.String())
 	fmt.Println("New Endorser Verkey:", someRandomDID.AbbreviateVerkey())
 	fmt.Println("Place These in Wallet:")
-	fmt.Println("Public:", someRandomKP.PublicKey())
-	fmt.Println("Private:", someRandomKP.PrivateKey())
+	fmt.Println("Public:", base58.Encode(someRandomPubkey))
+	fmt.Println("Private:", base58.Encode(someRandomPrivkey))
 
-	newDIDsig := crypto.NewSigner(someRandomKP.RawPublicKey(), someRandomKP.RawPrivateKey())
+	newDIDsig := crypto.NewSigner(someRandomPubkey, someRandomPrivkey)
 
-	err = client.SetEndpoint(someRandomDID.DIDVal.DID, someRandomDID.DIDVal.DID, "http://420.69.420.69:6969", newDIDsig)
+	err = client.SetEndpoint(someRandomDID.DIDVal.MethodSpecificID, someRandomDID.DIDVal.MethodSpecificID, "http://420.69.420.69:6969", newDIDsig)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	rply, err := client.GetNym(someRandomDID.DIDVal.DID)
+	rply, err := client.GetNym(someRandomDID.DIDVal.MethodSpecificID)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	fmt.Println(rply.Data)
 
-	rply, err = client.GetEndpoint(someRandomDID.DIDVal.DID)
+	rply, err = client.GetEndpoint(someRandomDID.DIDVal.MethodSpecificID)
 	if err != nil {
 		log.Fatalln(err)
 	}
