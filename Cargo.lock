@@ -661,6 +661,8 @@ dependencies = [
 [[package]]
 name = "indy-data-types"
 version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eef3c9e31a29c2374b275abcb6d69261acf5f3a3a7cbea6808533191f41892fe"
 dependencies = [
  "indy-utils",
  "once_cell",
@@ -682,6 +684,8 @@ dependencies = [
 [[package]]
 name = "indy-utils"
 version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31b660404176e8a0fbb9f318712695c06822139e9230828df9b79cdd333a3974"
 dependencies = [
  "aead",
  "base64",
