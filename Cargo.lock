@@ -97,18 +97,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
-name = "blake2"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94cb07b0da6a73955f8fb85d24c466778e70cda767a568229b104f0264089330"
-dependencies = [
- "byte-tools",
- "crypto-mac",
- "digest",
- "opaque-debug",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -187,20 +175,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed8738f14471a99f0e316c327e68fc82a3611cc2895fcb604b89eedaf8f39d95"
 dependencies = [
  "cipher",
- "zeroize",
-]
-
-[[package]]
-name = "chacha20poly1305"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af1fc18e6d90c40164bf6c317476f2a98f04661e310e79830366b7e914c58a8e"
-dependencies = [
- "aead",
- "chacha20",
- "cipher",
- "poly1305",
- "zeroize",
 ]
 
 [[package]]
@@ -280,19 +254,6 @@ checksum = "4434400df11d95d556bac068ddfedd482915eb18fe8bea89bc80b6e4b1c179e5"
 dependencies = [
  "generic-array 0.12.3",
  "subtle 1.0.0",
-]
-
-[[package]]
-name = "crypto_box"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0c239757c96b30119ff93c5f4e2f977436ae3088bc6ba609108aa74eeb2d891"
-dependencies = [
- "rand_core",
- "salsa20",
- "x25519-dalek",
- "xsalsa20poly1305",
- "zeroize",
 ]
 
 [[package]]
@@ -699,15 +660,14 @@ dependencies = [
 
 [[package]]
 name = "indy-data-types"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d95841fb7db1436cf847ae92b8d8b65f0231c60e13da818759d8aa157236967"
+version = "0.4.2"
 dependencies = [
  "indy-utils",
  "once_cell",
  "regex",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]
@@ -721,16 +681,12 @@ dependencies = [
 
 [[package]]
 name = "indy-utils"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9071b7b9ac4a5d6242c8dd645b94785d4c76026458041d0665e23fe7b03fa1b9"
+version = "0.3.8"
 dependencies = [
  "aead",
  "base64",
  "bs58",
  "chacha20",
- "chacha20poly1305",
- "crypto_box",
  "hex",
  "once_cell",
  "rand",
@@ -1063,15 +1019,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05da548ad6865900e60eaba7f589cc0783590a92e940c26953ff81ddbab2d677"
 
 [[package]]
-name = "poly1305"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ce46de8e53ee414ca4d02bfefac75d8c12fba948b76622a40b4be34dfce980"
-dependencies = [
- "universal-hash",
-]
-
-[[package]]
 name = "ppv-lite86"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1243,16 +1190,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "535622e6be132bccd223f4bb2b8ac8d53cda3c7a6394944d3b2b33fb974f9d76"
 
 [[package]]
-name = "salsa20"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fc17dc5eee5d3040d9f95a2d3ac42fb2c1829a80f417045da6cfd2befa66769"
-dependencies = [
- "stream-cipher",
- "zeroize",
-]
-
-[[package]]
 name = "schannel"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1371,15 +1308,6 @@ name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
-
-[[package]]
-name = "stream-cipher"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f8ed9974042b8c3672ff3030a69fcc03b74c47c3d1ecb7755e8a3626011e88"
-dependencies = [
- "generic-array 0.14.2",
-]
 
 [[package]]
 name = "strsim"
@@ -1588,16 +1516,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826e7639553986605ec5979c7dd957c7895e93eabed50ab2ffa7f6128a75097c"
 
 [[package]]
-name = "universal-hash"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8326b2c654932e3e4f9196e69d08fdf7cfd718e1dc6f66b347e6024a0c961402"
-dependencies = [
- "generic-array 0.14.2",
- "subtle 2.2.2",
-]
-
-[[package]]
 name = "ursa"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1605,7 +1523,6 @@ checksum = "42e50b5a83e303aa9e0a6affffbca0fe9444854d1c5fab409d401f1eaa9fa8b6"
 dependencies = [
  "amcl",
  "arrayref",
- "blake2",
  "curve25519-dalek",
  "ed25519-dalek",
  "failure",
@@ -1774,20 +1691,6 @@ checksum = "637ff90c9540fa3073bb577e65033069e4bae7c79d49d74aa3ffdf5342a53217"
 dependencies = [
  "curve25519-dalek",
  "rand_core",
- "zeroize",
-]
-
-[[package]]
-name = "xsalsa20poly1305"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7a4120d688bcca2a2226223c83a8ca3dbf349c6a3c7bef0f4a1ca8404326dba"
-dependencies = [
- "aead",
- "poly1305",
- "rand_core",
- "salsa20",
- "subtle 2.2.2",
  "zeroize",
 ]
 

@@ -71,6 +71,69 @@ pub extern "C" fn indy_vdr_build_get_acceptance_mechanisms_request(
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_build_attrib_request(
+    submitter_did: FfiStr, // optional
+    target_did: FfiStr,
+    hash: FfiStr, // optional
+    raw: FfiStr,  // optional
+    enc: FfiStr,  // optional
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build ATTRIB request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let dest = DidValue::from_str(target_did.as_str())?;
+        let raw = match raw.as_opt_str() {
+            Some(s) => {
+                let js = serde_json::from_str(s).with_input_err("Error deserializing raw value as JSON")?;
+                Some(js)
+            }
+            None => None,
+        };
+        let hash = hash.into_opt_string();
+        let enc = enc.into_opt_string();
+        let req = builder.build_attrib_request(&identifier, &dest, hash, raw.as_ref(), enc)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_attrib_request(
+    submitter_did: FfiStr, // optional
+    target_did: FfiStr,
+    raw: FfiStr,  // optional
+    hash: FfiStr, // optional
+    enc: FfiStr,  // optional
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_ATTRIB request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did
+            .as_opt_str()
+            .map(DidValue::from_str)
+            .transpose()?;
+        let dest = DidValue::from_str(target_did.as_str())?;
+        let raw = raw.into_opt_string();
+        let hash = hash.into_opt_string();
+        let enc = enc.into_opt_string();
+        let req = builder.build_get_attrib_request(identifier.as_ref(), &dest, raw, hash, enc)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_build_cred_def_request(
     submitter_did: FfiStr,
     cred_def: FfiStr,

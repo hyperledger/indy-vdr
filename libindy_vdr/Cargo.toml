@@ -33,8 +33,8 @@ futures-channel = "0.3.5"
 futures-executor = "0.3.5"
 futures-util = "0.3.5"
 hex = "0.4"
-indy-data-types = "0.3.0"
-indy-utils = { version = "0.3.6", features = ["base64", "ed25519", "hash", "txn_signature"] }
+indy-data-types = { version = "0.4", path = "../../indy-shared-rs/indy-data-types" }
+indy-utils = { version = "0.3.6", default-features = false, features = ["base64", "ed25519", "hash", "txn_signature"], path = "../../indy-shared-rs/indy-utils" }
 lazy_static = "1.3"
 log = { version = "0.4", optional = true }
 pin-utils = "0.1"
@@ -54,5 +54,5 @@ features = ["bls_bn254", "sha3"]
 [dev-dependencies]
 rstest = "0.6"
 chrono = "0.4"
-indy-data-types = { version = "0.3.0", features = ["cl_native", "rich_schema"] }
+indy-data-types = { version = "0.4", default-features = false, features = ["cl_native", "rich_schema"], path = "../../indy-shared-rs/indy-data-types" }
 indy-test-utils = { version = "0.1" }

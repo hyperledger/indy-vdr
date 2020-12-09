@@ -74,6 +74,44 @@ def build_acceptance_mechanisms_request(
     return Request(handle)
 
 
+def build_attrib_request(
+    submitter_did: Optional[str],
+    target_did: str,
+    xhash: Optional[str],
+    raw: Optional[str],
+    enc: Optional[str],
+) -> str:
+    """
+    Builds an ATTRIB request.
+
+    Request to add attribute to a NYM record.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        target_did: Target DID as base58-encoded string for 16 or 32 bit DID value.
+        xhash: (Optional) Hash of attribute data.
+        raw: (Optional) JSON, where key is attribute name and value is attribute value.
+        enc: (Optional) Encrypted value attribute data.
+    """
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    target_p = encode_str(target_did)
+    raw_p = encode_str(raw)
+    hash_p = encode_str(xhash)
+    enc_p = encode_str(enc)
+    do_call(
+        "indy_vdr_build_attrib_request",
+        did_p,
+        target_p,
+        hash_p,
+        raw_p,
+        enc_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
 def build_cred_def_request(
     submitter_did: str, cred_def: Union[bytes, str, dict]
 ) -> Request:
@@ -168,6 +206,45 @@ def build_get_acceptance_mechanisms_request(
         did_p,
         timestamp_c,
         version_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_get_attrib_request(
+    submitter_did: Optional[str],
+    target_did: str,
+    raw: Optional[str],
+    xhash: Optional[str],
+    enc: Optional[str],
+) -> str:
+    """
+    Builds a GET_ATTRIB request.
+
+    Request to get information about an Attribute for the specified DID.
+
+    Args:
+        submitter_did: (Optional) DID of the read request sender (if not provided, then
+            the default Libindy DID will be used).
+        target_did: Target DID as base58-encoded string for 16 or 32 bit DID value.
+        xhash: (Optional) Requested attribute name.
+        raw: (Optional) Requested attribute hash.
+        enc: (Optional) Requested attribute encrypted value.
+    """
+
+    handle = RequestHandle()
+    did_p = encode_str(submitter_did)
+    target_p = encode_str(target_did)
+    raw_p = encode_str(raw)
+    hash_p = encode_str(xhash)
+    enc_p = encode_str(enc)
+    do_call(
+        "indy_vdr_build_get_attrib_request",
+        did_p,
+        target_p,
+        raw_p,
+        hash_p,
+        enc_p,
         byref(handle),
     )
     return Request(handle)
@@ -674,25 +751,39 @@ def build_rich_schema_request(
     Builds a RICH_SCHEMA request to add it to the ledger.
 
     Args:
-        submitter_did: Identifier (DID) of the transaction author as base58-encoded string
-                "rs_id": "<identifier of rich schema>",
-                "rs_content": "<JSON-LD string object>",
-                "rs_name": "<rich schema name>",
-                "rs_version": "<rich schema version>",
-                "rs_type": <type constant as string, one of `ctx`, `sch`, `map`, `enc`, `cdf`, `pdf`>,
-                "ver": <version as string>
+        submitter_did: Identifier (DID) of the transaction author as a base58-encoded
+            string
+        rs_id: identifier of the rich schema
+        rs_content: JSON-LD string object
+        rs_name: rich schema name
+        rs_version: rich schema version
+        rs_type: type constant as string, one of
+            `ctx`, `sch`, `map`, `enc`, `cdf`, `pdf`
+        ver: version as string
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     rs_id = encode_str(rs_id)
     rs_content = (
-        encode_str(rs_content) if isinstance(rs_content, (str, bytes)) else encode_json(rs_content)
+        encode_str(rs_content)
+        if isinstance(rs_content, (str, bytes))
+        else encode_json(rs_content)
     )
     rs_name = encode_str(rs_name)
     rs_version = encode_str(rs_version)
     rs_type = encode_str(rs_type)
     ver = encode_str(ver)
-    do_call("indy_vdr_build_rich_schema_request", did_p, rs_id, rs_content, rs_name, rs_version, rs_type, ver, byref(handle))
+    do_call(
+        "indy_vdr_build_rich_schema_request",
+        did_p,
+        rs_id,
+        rs_content,
+        rs_name,
+        rs_version,
+        rs_type,
+        ver,
+        byref(handle),
+    )
     return Request(handle)
 
 
@@ -715,7 +806,12 @@ def build_get_rich_schema_object_by_id_request(
     do_call(
         "indy_vdr_build_get_schema_object_by_id_request", did_p, rs_id, byref(handle)
     )
-    do_call("indy_vdr_build_get_rich_schema_object_by_id_request", did_p, rs_id, byref(handle))
+    do_call(
+        "indy_vdr_build_get_rich_schema_object_by_id_request",
+        did_p,
+        rs_id,
+        byref(handle),
+    )
     return Request(handle)
 
 
@@ -723,7 +819,7 @@ def build_get_rich_schema_object_by_metadata_request(
     submitter_did: str,
     rs_type: Union[bytes, str],
     rs_name: Union[bytes, str],
-    rs_version: Union[bytes, str]
+    rs_version: Union[bytes, str],
 ) -> Request:
     """
     Builds a GET_RICH_SCHEMA_BY_METADATA request.
@@ -750,5 +846,12 @@ def build_get_rich_schema_object_by_metadata_request(
         rs_version,
         byref(handle),
     )
-    do_call("indy_vdr_build_get_rich_schema_object_by_metadata_request", did_p, rs_type, rs_name, rs_version, byref(handle))
+    do_call(
+        "indy_vdr_build_get_rich_schema_object_by_metadata_request",
+        did_p,
+        rs_type,
+        rs_name,
+        rs_version,
+        byref(handle),
+    )
     return Request(handle)
