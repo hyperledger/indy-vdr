@@ -11,9 +11,9 @@ describe('Pool:', () => {
     });
 
     describe('version', () => {
-        it('should be version 0.1.0', async () => {
+        it('should be version 0.2.0', async () => {
             const vdrVersion = indyVdrVersion();
-            assert.equal(vdrVersion, '0.1.0');
+            assert.equal(vdrVersion, '0.2.0');
         });
     });
 });
