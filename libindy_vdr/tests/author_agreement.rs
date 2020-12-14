@@ -311,7 +311,7 @@ mod author_agreement {
     use crate::utils::crypto::Identity;
     use crate::utils::helpers;
     use crate::utils::pool::TestPool;
-    use indy_vdr::ledger::PreparedRequest;
+    use indy_vdr::pool::PreparedRequest;
 
     fn _build_nym_request(pool: &TestPool, trustee: &Identity) -> PreparedRequest {
         let new_identity = Identity::new(None);

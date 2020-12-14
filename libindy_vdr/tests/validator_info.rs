@@ -68,6 +68,6 @@ mod send_get_validator_info {
 
         trustee.sign_request(&mut request);
 
-        let _err = pool.send_request(&request).unwrap_err();
+        let _ = pool.send_request(&request).unwrap();
     }
 }

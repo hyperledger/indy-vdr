@@ -5,6 +5,7 @@ use indy_vdr::pool::{NodeReplies, PreparedRequest};
 use indy_vdr::utils::did::DidValue;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use serde_json::json;
 
 pub fn current_timestamp() -> u64 {
     chrono::Local::now().timestamp() as u64
