@@ -32,6 +32,11 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+          components: rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -49,26 +54,11 @@ jobs:
       - run: docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
       - run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
       - run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
-      - uses: actions-rs/cargo@v1
+      - name: Run tests
+        uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features local_nodes_pool
-
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+          args: --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool
 
   build-vdr-binary:
     needs: workflow-setup
