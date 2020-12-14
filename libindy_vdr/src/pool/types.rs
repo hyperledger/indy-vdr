@@ -12,7 +12,6 @@ use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
 use crate::utils::{base58, keys::build_full_verkey};
 
-
 /// The Indy Node communication protocol version
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
 pub enum ProtocolVersion {
