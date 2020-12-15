@@ -1,5 +1,12 @@
+
 FROM rust:1.41-slim
 
+ADD ./ca-certificates.crt /usr/share/ca-certificates/netskope/
+RUN dpkg-reconfigure ca-certificates
+RUN update-ca-certificates
+ENV SSL_CERT_DIR /usr/share/ca-certificates/netskope
+ENV SSL_CERT_FILE /usr/share/ca-certificates/netskope/ca-certificates.crt
+ENV GIT_SSL_NO_VERIFY true
 EXPOSE 8080
 
 RUN apt-get update -y && \
