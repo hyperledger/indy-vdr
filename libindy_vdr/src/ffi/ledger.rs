@@ -452,8 +452,7 @@ pub extern "C" fn indy_vdr_build_revoc_reg_entry_request(
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
         let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id.as_str())?;
-        let revoc_reg_def_type = serde_json::from_str::<RegistryType>(revoc_reg_def_type.as_str())
-            .with_input_err("Unknown revocation registry type")?;
+        let revoc_reg_def_type = RegistryType::from_str(revoc_reg_def_type.as_str())?;
         let revoc_reg_entry = serde_json::from_str::<RevocationRegistryDelta>(revoc_reg_entry.as_str())
             .with_input_err("Error deserializing RevocationRegistryDelta")?;
         let req = builder.build_revoc_reg_entry_request(&identifier, &revoc_reg_def_id, &revoc_reg_def_type, revoc_reg_entry)?;

@@ -583,14 +583,16 @@ def build_revoc_reg_entry_request(
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
+    def_id_p = encode_str(revoc_reg_def_id)
+    def_type_p = encode_str(revoc_reg_def_type)
     entry_p = (
         encode_str(entry) if isinstance(entry, (str, bytes)) else encode_json(entry)
     )
     do_call(
         "indy_vdr_build_revoc_reg_entry_request",
         did_p,
-        revoc_reg_def_id,
-        revoc_reg_def_type,
+        def_id_p,
+        def_type_p,
         entry_p,
         byref(handle),
     )
