@@ -1,6 +1,6 @@
 [package]
 name = "indy-vdr-proxy"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
 description = "A basic proxy server exposing indy-vdr functionality over an HTTP interface"
 edition = "2018"
