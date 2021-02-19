@@ -1,10 +1,7 @@
-use crate::common::did::DidValue;
 use crate::common::error::prelude::*;
-use crate::ledger::identifiers::cred_def::CredentialDefinitionId;
-use crate::ledger::identifiers::rev_reg::RevocationRegistryId;
 #[cfg(any(feature = "rich_schema", test))]
-use crate::ledger::identifiers::rich_schema::RichSchemaId;
-use crate::ledger::identifiers::schema::SchemaId;
+use crate::ledger::identifiers::RichSchemaId;
+use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
@@ -13,7 +10,8 @@ use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefin
 use crate::ledger::requests::rich_schema::RSContent;
 use crate::ledger::requests::schema::Schema;
 use crate::pool::PreparedRequest;
-use crate::utils::qualifier::Qualifiable;
+use crate::utils::did::DidValue;
+use crate::utils::Qualifiable;
 
 use ffi_support::FfiStr;
 
@@ -64,6 +62,69 @@ pub extern "C" fn indy_vdr_build_get_acceptance_mechanisms_request(
         let timestamp = if timestamp == -1 { None } else { Some(timestamp as u64) };
         let version = version.into_opt_string();
         let req = builder.build_get_acceptance_mechanisms_request(identifier.as_ref(), timestamp, version)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_attrib_request(
+    submitter_did: FfiStr, // optional
+    target_did: FfiStr,
+    hash: FfiStr, // optional
+    raw: FfiStr,  // optional
+    enc: FfiStr,  // optional
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build ATTRIB request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let dest = DidValue::from_str(target_did.as_str())?;
+        let raw = match raw.as_opt_str() {
+            Some(s) => {
+                let js = serde_json::from_str(s).with_input_err("Error deserializing raw value as JSON")?;
+                Some(js)
+            }
+            None => None,
+        };
+        let hash = hash.into_opt_string();
+        let enc = enc.into_opt_string();
+        let req = builder.build_attrib_request(&identifier, &dest, hash, raw.as_ref(), enc)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_attrib_request(
+    submitter_did: FfiStr, // optional
+    target_did: FfiStr,
+    raw: FfiStr,  // optional
+    hash: FfiStr, // optional
+    enc: FfiStr,  // optional
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_ATTRIB request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = submitter_did
+            .as_opt_str()
+            .map(DidValue::from_str)
+            .transpose()?;
+        let dest = DidValue::from_str(target_did.as_str())?;
+        let raw = raw.into_opt_string();
+        let hash = hash.into_opt_string();
+        let enc = enc.into_opt_string();
+        let req = builder.build_get_attrib_request(identifier.as_ref(), &dest, raw, hash, enc)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;
@@ -391,8 +452,7 @@ pub extern "C" fn indy_vdr_build_revoc_reg_entry_request(
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(submitter_did.as_str())?;
         let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id.as_str())?;
-        let revoc_reg_def_type = serde_json::from_str::<RegistryType>(revoc_reg_def_type.as_str())
-            .with_input_err("Unknown revocation registry type")?;
+        let revoc_reg_def_type = RegistryType::from_str(revoc_reg_def_type.as_str())?;
         let revoc_reg_entry = serde_json::from_str::<RevocationRegistryDelta>(revoc_reg_entry.as_str())
             .with_input_err("Error deserializing RevocationRegistryDelta")?;
         let req = builder.build_revoc_reg_entry_request(&identifier, &revoc_reg_def_id, &revoc_reg_def_type, revoc_reg_entry)?;

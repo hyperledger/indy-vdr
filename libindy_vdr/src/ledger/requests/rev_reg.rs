@@ -1,41 +1,12 @@
-use ursa::cl::{
-    RevocationRegistry as CryptoRevocationRegistry,
-    RevocationRegistryDelta as CryptoRevocationRegistryDelta,
+pub use indy_data_types::anoncreds::rev_reg::{
+    RevocationRegistry, RevocationRegistryDelta, RevocationRegistryDeltaV1, RevocationRegistryV1,
 };
 
 use super::constants::{GET_REVOC_REG, GET_REVOC_REG_DELTA, REVOC_REG_ENTRY};
-use super::identifiers::rev_reg::RevocationRegistryId;
+use super::identifiers::RevocationRegistryId;
 use super::rev_reg_def::RegistryType;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
-use crate::utils::validation::Validatable;
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "ver")]
-pub enum RevocationRegistry {
-    #[serde(rename = "1.0")]
-    RevocationRegistryV1(RevocationRegistryV1),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "ver")]
-pub enum RevocationRegistryDelta {
-    #[serde(rename = "1.0")]
-    RevocationRegistryDeltaV1(RevocationRegistryDeltaV1),
-}
-
-impl Validatable for RevocationRegistryDelta {}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RevocationRegistryV1 {
-    pub value: CryptoRevocationRegistry,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RevocationRegistryDeltaV1 {
-    pub value: CryptoRevocationRegistryDelta,
-}
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -44,20 +15,20 @@ pub struct RevRegEntryOperation {
     pub _type: String,
     pub revoc_reg_def_id: RevocationRegistryId,
     pub revoc_def_type: String,
-    pub value: CryptoRevocationRegistryDelta,
+    pub value: serde_json::Value,
 }
 
 impl RevRegEntryOperation {
     pub fn new(
         rev_def_type: &RegistryType,
         revoc_reg_def_id: &RevocationRegistryId,
-        value: RevocationRegistryDeltaV1,
+        delta: RevocationRegistryDeltaV1,
     ) -> RevRegEntryOperation {
         RevRegEntryOperation {
             _type: Self::get_txn_type().to_string(),
             revoc_def_type: rev_def_type.to_str().to_string(),
             revoc_reg_def_id: revoc_reg_def_id.clone(),
-            value: value.value,
+            value: serde_json::to_value(delta.value).unwrap(),
         }
     }
 }

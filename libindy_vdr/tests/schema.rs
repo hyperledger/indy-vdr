@@ -3,10 +3,10 @@ mod utils;
 
 inject_dependencies!();
 
-use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
-use indy_vdr::ledger::identifiers::schema::SchemaId;
+use indy_vdr::ledger::identifiers::SchemaId;
 use indy_vdr::ledger::requests::schema::Schema;
+use indy_vdr::utils::did::DidValue;
 
 use crate::utils::fixtures::*;
 use crate::utils::helpers;

@@ -11,7 +11,7 @@ use std::process::exit;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 
-use futures::FutureExt;
+use futures_util::FutureExt;
 
 #[cfg(feature = "fetch")]
 use hyper::body::Buf;

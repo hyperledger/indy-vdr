@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::thread;
 
-use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures::executor::block_on;
-use futures::stream::{FuturesUnordered, StreamExt};
-use futures::{select, FutureExt};
+use futures_channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures_executor::block_on;
+use futures_util::stream::{FuturesUnordered, StreamExt};
+use futures_util::{select, FutureExt};
 
 use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};

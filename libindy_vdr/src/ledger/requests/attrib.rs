@@ -2,7 +2,7 @@ use super::constants::{ATTRIB, GET_ATTR};
 use super::did::ShortDidValue;
 use super::{get_sp_key_marker, ProtocolVersion, RequestType};
 use crate::common::error::VdrResult;
-use crate::utils::hash::{digest, Sha256};
+use crate::utils::hash::SHA256;
 
 #[derive(Serialize, PartialEq, Debug)]
 pub struct AttribOperation {
@@ -83,7 +83,7 @@ impl RequestType for GetAttribOperation {
             .or(self.hash.as_ref())
         {
             let marker = get_sp_key_marker(1, protocol_version);
-            let hash = digest::<Sha256>(attr_name.as_bytes());
+            let hash = SHA256::digest(attr_name.as_bytes());
             return Ok(Some(
                 format!("{}:{}:{}", self.dest.to_string(), marker, hex::encode(hash))
                     .as_bytes()

@@ -1,6 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-use futures::stream::StreamExt;
+use futures_util::stream::StreamExt;
 
 use serde_json::Value as SJsonValue;
 
@@ -9,7 +9,7 @@ use ursa::bls::Generator;
 use crate::common::error::prelude::*;
 use crate::config::constants::DEFAULT_GENERATOR;
 use crate::state_proof::{check_state_proof, result_without_state_proof, BoxedSPParser};
-use crate::utils::base58;
+use crate::utils::{base58, base64};
 
 use super::types::Message;
 use super::{

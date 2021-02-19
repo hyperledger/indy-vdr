@@ -1,5 +1,5 @@
 use crate::common::error::{input_err, VdrResult};
-use crate::utils::hash::{digest, Sha256};
+use crate::utils::hash::SHA256;
 
 use super::constants::{GET_NYM, NYM};
 use super::did::ShortDidValue;
@@ -64,7 +64,7 @@ impl RequestType for GetNymOperation {
     }
 
     fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
-        let hash = digest::<Sha256>(self.dest.as_bytes());
+        let hash = SHA256::digest(self.dest.as_bytes());
         Ok(Some(hash))
     }
 }

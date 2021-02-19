@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use futures::channel::mpsc::UnboundedSender;
+use futures_channel::mpsc::UnboundedSender;
 
 use crate::common::error::prelude::*;
 use crate::config::types::PoolConfig;

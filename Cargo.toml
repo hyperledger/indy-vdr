@@ -3,5 +3,4 @@
 members = [
     "libindy_vdr",
     "indy-vdr-proxy",
-    "vdr-shared"
 ]

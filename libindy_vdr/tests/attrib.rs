@@ -3,8 +3,8 @@ mod utils;
 
 inject_dependencies!();
 
-use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
+use indy_vdr::utils::did::DidValue;
 
 use crate::utils::fixtures::*;
 use crate::utils::helpers;

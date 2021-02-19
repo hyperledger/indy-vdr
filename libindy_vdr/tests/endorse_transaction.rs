@@ -12,6 +12,8 @@ fn empty() {
 #[cfg(feature = "local_nodes_pool")]
 mod endorse_transaction {
     use super::*;
+    use crate::utils::fixtures::*;
+    use crate::utils::helpers;
     use crate::utils::pool::TestPool;
 
     #[rstest]

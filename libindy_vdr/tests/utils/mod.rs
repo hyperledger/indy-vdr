@@ -10,8 +10,7 @@ macro_rules! inject_dependencies {
         extern crate indy_vdr;
         extern crate ursa;
         #[allow(unused_imports)]
-        #[macro_use]
-        extern crate serde_json;
+        use serde_json::json;
         #[allow(unused_imports)]
         #[macro_use]
         extern crate rstest;

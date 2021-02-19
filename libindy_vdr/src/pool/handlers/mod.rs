@@ -5,8 +5,7 @@ use serde_json::{self, Value as SJsonValue};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::utils::base58;
-use crate::utils::validation::ValidationError;
+use crate::utils::{base58, ValidationError};
 
 use super::requests::{PoolRequest, RequestEvent};
 use super::types::{

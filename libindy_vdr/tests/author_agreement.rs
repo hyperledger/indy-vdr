@@ -3,8 +3,8 @@ mod utils;
 
 inject_dependencies!();
 
-use indy_vdr::common::did::DidValue;
 use indy_vdr::ledger::constants;
+use indy_vdr::utils::did::DidValue;
 
 use crate::utils::fixtures::*;
 
@@ -311,7 +311,7 @@ mod author_agreement {
     use crate::utils::crypto::Identity;
     use crate::utils::helpers;
     use crate::utils::pool::TestPool;
-    use indy_vdr::ledger::PreparedRequest;
+    use indy_vdr::pool::PreparedRequest;
 
     fn _build_nym_request(pool: &TestPool, trustee: &Identity) -> PreparedRequest {
         let new_identity = Identity::new(None);

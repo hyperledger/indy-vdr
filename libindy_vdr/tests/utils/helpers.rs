@@ -1,10 +1,11 @@
 use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
-use indy_vdr::common::did::DidValue;
 use indy_vdr::common::error::VdrResult;
 use indy_vdr::pool::{NodeReplies, PreparedRequest};
+use indy_vdr::utils::did::DidValue;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use serde_json::json;
 
 pub fn current_timestamp() -> u64 {
     chrono::Local::now().timestamp() as u64
@@ -90,7 +91,7 @@ fn rand_version() -> String {
 
 pub mod schema {
     use super::*;
-    use indy_vdr::ledger::identifiers::schema::SchemaId;
+    use indy_vdr::ledger::identifiers::SchemaId;
     use indy_vdr::ledger::requests::schema::{AttributeNames, Schema, SchemaV1};
     use std::collections::HashSet;
 
@@ -166,8 +167,7 @@ pub mod schema {
 
 pub mod cred_def {
     use super::*;
-    use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
-    use indy_vdr::ledger::identifiers::schema::SchemaId;
+    use indy_vdr::ledger::identifiers::{CredentialDefinitionId, SchemaId};
     use indy_vdr::ledger::requests::cred_def::{
         CredentialDefinition, CredentialDefinitionV1, SignatureType,
     };
@@ -249,8 +249,7 @@ pub mod cred_def {
 
 pub mod revoc_reg {
     use super::*;
-    use indy_vdr::ledger::identifiers::cred_def::CredentialDefinitionId;
-    use indy_vdr::ledger::identifiers::rev_reg::RevocationRegistryId;
+    use indy_vdr::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId};
     use indy_vdr::ledger::requests::rev_reg::{RevocationRegistryDelta, RevocationRegistryDeltaV1};
     use indy_vdr::ledger::requests::rev_reg_def::{
         IssuanceType, RegistryType, RevocationRegistryDefinition, RevocationRegistryDefinitionV1,

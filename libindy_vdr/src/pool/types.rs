@@ -8,10 +8,9 @@ pub use ursa::bls::VerKey as BlsVerKey;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
-use crate::common::verkey::build_full_verkey;
 use crate::config::constants::DEFAULT_PROTOCOL_VERSION;
 use crate::config::PoolConfig;
-use crate::utils::base58;
+use crate::utils::{base58, keys::build_full_verkey};
 
 /// The Indy Node communication protocol version
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
@@ -244,10 +243,10 @@ impl NodeTransactionV1 {
         }
 
         if other.txn.data.verkey.is_some() {
-            self.txn.data.verkey = Some(build_full_verkey(
-                &self.txn.data.dest,
-                other.txn.data.verkey.as_ref().unwrap(),
-            )?);
+            self.txn.data.verkey = Some(
+                build_full_verkey(&self.txn.data.dest, other.txn.data.verkey.as_ref().unwrap())?
+                    .to_string(),
+            );
         }
 
         Ok(())

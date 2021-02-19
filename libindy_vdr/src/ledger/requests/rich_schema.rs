@@ -1,10 +1,12 @@
+pub use indy_data_types::anoncreds::rich_schema::{RSContent, RSType, RichSchema};
+
 use super::RequestType;
 use crate::ledger::constants::{
     GET_RICH_SCHEMA_BY_ID, GET_RICH_SCHEMA_BY_METADATA, RICH_SCHEMA, RICH_SCHEMA_CRED_DEF,
     RICH_SCHEMA_CTX, RICH_SCHEMA_ENCODING, RICH_SCHEMA_MAPPING, RICH_SCHEMA_PRES_DEF,
 };
-use crate::ledger::identifiers::rich_schema::RichSchemaId;
-use crate::utils::validation::{Validatable, ValidationError};
+use crate::ledger::identifiers::RichSchemaId;
+use crate::utils::{Validatable, ValidationError};
 
 #[macro_export]
 macro_rules! build_rs_operation {
@@ -17,55 +19,6 @@ macro_rules! build_rs_operation {
             Some($identifier),
         )
     }};
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RSContent(pub String);
-
-impl Validatable for RSContent {
-    fn validate(&self) -> Result<(), ValidationError> {
-        // ToDo: Add JSON-LD validation if needed
-        return Ok(());
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RichSchema {
-    pub id: RichSchemaId,
-    pub content: RSContent,
-    pub rs_name: String,
-    pub rs_version: String,
-    pub rs_type: String,
-    pub ver: String,
-}
-
-impl RichSchema {
-    pub fn new(
-        id: RichSchemaId,
-        content: RSContent,
-        rs_name: String,
-        rs_version: String,
-        rs_type: String,
-        ver: String,
-    ) -> Self {
-        Self {
-            id,
-            content,
-            rs_name,
-            rs_version,
-            rs_type,
-            ver,
-        }
-    }
-}
-
-impl Validatable for RichSchema {
-    fn validate(&self) -> Result<(), ValidationError> {
-        let _rs_type: RSType =
-            serde_json::from_value(serde_json::value::Value::String(self.rs_type.clone()))
-                .map_err(|_err| _err.to_string())?;
-        return self.id.validate();
-    }
 }
 
 #[derive(Serialize, Debug)]
@@ -147,22 +100,6 @@ impl RequestType for RSPresDefOperation {
     fn get_txn_type<'a>() -> &'a str {
         RICH_SCHEMA_PRES_DEF
     }
-}
-
-#[derive(Serialize, Debug, Deserialize, Clone)]
-pub enum RSType {
-    #[serde(rename = "sch")]
-    Sch,
-    #[serde(rename = "map")]
-    Map,
-    #[serde(rename = "ctx")]
-    Ctx,
-    #[serde(rename = "enc")]
-    Enc,
-    #[serde(rename = "cdf")]
-    Cdf,
-    #[serde(rename = "pdf")]
-    Pdf,
 }
 
 // Get RichSchema object from ledger using RichSchema's ID.
@@ -292,17 +229,6 @@ mod tests {
         GetRichSchemaByMetadataOperation::new(_get_rs_by_metadata())
     }
 
-    fn _rs_schema() -> RichSchema {
-        RichSchema::new(
-            _rich_schema_id(),
-            RSContent(r#"{"json": "ld"; "valid": "object"}"#.to_string()),
-            "test_rich_schema".to_string(),
-            "first_version".to_string(),
-            RS_SCHEMA_TYPE_VALUE.to_string(),
-            "1".to_string(),
-        )
-    }
-
     fn _get_rs_op_by_id() -> GetRichSchemaByIdOperation {
         GetRichSchemaByIdOperation::new(_get_rs_by_id())
     }
@@ -311,16 +237,9 @@ mod tests {
     fn test_check_type_get_rs_by_id_op() {
         assert_eq!(_get_rs_op_by_id()._type, GET_RICH_SCHEMA_BY_ID)
     }
+
     #[test]
     fn test_check_type_get_rs_by_metadata_op() {
         assert_eq!(_get_rs_by_metadata_op()._type, GET_RICH_SCHEMA_BY_METADATA)
-    }
-
-    #[test]
-    fn test_fail_on_wrong_rs_type() {
-        let mut rs_schema = _rs_schema();
-        rs_schema.rs_type = "SomeOtherType".to_string();
-        let err = rs_schema.validate().unwrap_err();
-        assert!(err.to_string().contains("unknown variant `SomeOtherType`"));
     }
 }

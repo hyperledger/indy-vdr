@@ -96,8 +96,14 @@ impl From<VdrErrorKind> for VdrError {
     }
 }
 
-impl From<crate::utils::validation::ValidationError> for VdrError {
-    fn from(err: crate::utils::validation::ValidationError) -> Self {
+impl From<crate::utils::ConversionError> for VdrError {
+    fn from(err: crate::utils::ConversionError) -> Self {
+        VdrError::new(VdrErrorKind::Input, Some(err.to_string()), None)
+    }
+}
+
+impl From<crate::utils::ValidationError> for VdrError {
+    fn from(err: crate::utils::ValidationError) -> Self {
         VdrError::new(VdrErrorKind::Input, Some(err.to_string()), None)
     }
 }
