@@ -5,6 +5,7 @@ mod app;
 mod handlers;
 
 use std::cell::RefCell;
+#[cfg(unix)]
 use std::fs;
 use std::net::IpAddr;
 use std::process::exit;
@@ -21,9 +22,12 @@ use hyper::Client;
 use hyper::Server;
 #[cfg(feature = "fetch")]
 use hyper_tls::HttpsConnector;
+
+#[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
 use tokio::select;
+#[cfg(unix)]
 use tokio::signal::unix::SignalKind;
 
 use indy_vdr::common::error::prelude::*;
@@ -147,6 +151,7 @@ async fn run_pool(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_ref
     }
 }
 
+#[cfg(unix)]
 async fn shutdown_signal() {
     let mut term = tokio::signal::unix::signal(SignalKind::terminate())
         .expect("failed to install SIGTERM handler");
@@ -158,6 +163,13 @@ async fn shutdown_signal() {
             ctlc.expect("failed to install Ctrl-C handler")
         }
     }
+}
+
+#[cfg(not(unix))]
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install Ctrl-C handler")
 }
 
 async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> VdrResult<LocalPool> {
@@ -203,31 +215,32 @@ async fn init_server(config: app::Config) -> Result<(), String> {
             .map_err(|err| format!("Error loading config: {}", err))?,
     ));
 
+    #[cfg(unix)]
     if let Some(socket) = &config.socket {
         fs::remove_file(socket)
             .map_err(|err| format!("Error removing socket: {}", err.to_string()))?;
         let uc: UnixConnector = tokio::net::UnixListener::bind(socket)
             .map_err(|err| format!("Error binding UNIX socket: {}", err.to_string()))?
             .into();
-        run_server(
+        return run_server(
             Server::builder(uc),
             state,
             format!("socket {}", socket),
             config,
         )
-        .await
-    } else {
-        let ip = config
-            .host
-            .as_ref()
-            .unwrap()
-            .parse::<IpAddr>()
-            .map_err(|_| "Error parsing host IP")?;
-        let addr = (ip, config.port.unwrap()).into();
-        let builder = Server::try_bind(&addr)
-            .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
-        run_server(builder, state, format!("http://{}", addr), config).await
+        .await;
     }
+
+    let ip = config
+        .host
+        .as_ref()
+        .unwrap()
+        .parse::<IpAddr>()
+        .map_err(|_| "Error parsing host IP")?;
+    let addr = (ip, config.port.unwrap()).into();
+    let builder = Server::try_bind(&addr)
+        .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
+    run_server(builder, state, format!("http://{}", addr), config).await
 }
 
 async fn run_server<I>(
