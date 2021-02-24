@@ -11,11 +11,17 @@ if __name__ == "__main__":
     setup(
         name=PACKAGE_NAME,
         version=VERSION,
-        url="https://github.com/andrewwhitehead/indy-vdr",
+        author="Hyperledger Aries Contributors",
+        author_email="aries@lists.hyperledger.org",
+        url="https://github.com/hyperledger/indy-vdr",
         packages=find_packages(),
         include_package_data=True,
         package_data={
-            "indy_vdr": ["indy_vdr.dll", "libindy_vdr.dylib", "libindy_vdr.so"]
+            "": [
+                "indy_vdr.dll",
+                "libindy_vdr.dylib",
+                "libindy_vdr.so",
+            ]
         },
         python_requires=">=3.6.3",
         classifiers=[
