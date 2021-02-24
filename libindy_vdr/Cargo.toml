@@ -54,5 +54,5 @@ features = ["bls_bn254", "sha3"]
 [dev-dependencies]
 rstest = "0.6"
 chrono = "0.4"
-indy-data-types = { version = "0.4", default-features = false, features = ["cl_native", "rich_schema"] }
+indy-data-types = { version = "0.4", default-features = false, features = ["rich_schema"] }
 indy-test-utils = { version = "0.1" }

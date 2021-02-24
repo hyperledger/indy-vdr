@@ -3,6 +3,7 @@ use clap::{App, Arg};
 
 pub struct Config {
     pub genesis: String,
+    #[cfg(unix)]
     pub socket: Option<String>,
     pub host: Option<String>,
     pub port: Option<u16>,
@@ -11,7 +12,7 @@ pub struct Config {
 }
 
 pub fn load_config() -> Result<Config, String> {
-    let matches = App::new("indy-vdr-proxy")
+    let mut app = App::new("indy-vdr-proxy")
         .version("0.1.0")
         .about("Proxy requests to a Hyperledger Indy-Node ledger")
         .arg(
@@ -40,14 +41,6 @@ pub fn load_config() -> Result<Config, String> {
                 .help("Sets the local port to listen on")
         )
         .arg(
-            Arg::with_name("socket")
-                .short("s")
-                .long("socket")
-                .takes_value(true)
-                .value_name("SOCKET")
-                .help("Sets the UNIX socket path listen on")
-        )
-        .arg(
             Arg::with_name("no-refresh")
                 .long("no-refresh")
                 .help("Disable initial validator node refresh"),
@@ -59,8 +52,21 @@ pub fn load_config() -> Result<Config, String> {
                 .takes_value(true)
                 .value_name("INTERVAL")
                 .help("Set the interval in minutes between validator node refresh attempts (0 to disable refresh, default 120)"),
-        )
-        .get_matches();
+        );
+
+    #[cfg(unix)]
+    {
+        app = app.arg(
+            Arg::with_name("socket")
+                .short("s")
+                .long("socket")
+                .takes_value(true)
+                .value_name("SOCKET")
+                .help("Sets the UNIX socket path listen on"),
+        );
+    }
+
+    let matches = app.get_matches();
 
     let genesis = matches
         .value_of("genesis")
@@ -77,7 +83,9 @@ pub fn load_config() -> Result<Config, String> {
         }
     }
 
+    #[cfg(unix)]
     let socket = matches.value_of("socket").map(str::to_owned);
+
     let host = matches.value_of("host").map(str::to_owned);
     let port = if let Some(port) = matches.value_of("port") {
         Some(port.parse::<u16>().map_err(|_| "Invalid port number")?)
@@ -93,6 +101,7 @@ pub fn load_config() -> Result<Config, String> {
 
     Ok(Config {
         genesis,
+        #[cfg(unix)]
         socket,
         host,
         port,
