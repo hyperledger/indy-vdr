@@ -60,7 +60,7 @@ func New(genesis io.ReadCloser) (*Client, error) {
 		return nil, fmt.Errorf("formatting json params to indy failed: %w", err)
 	}
 
-	var pool C.u_long
+	var pool C.ulong
 	cparams := C.CString(string(d))
 	result := C.indy_vdr_pool_create(cparams, &pool)
 	C.free(unsafe.Pointer(cparams))
@@ -82,7 +82,7 @@ func (r *Client) Genesis() []byte {
 
 //Close shuts down the connection and frees all resources form the indy distributed ledger
 func (r *Client) Close() error {
-	result := C.indy_vdr_pool_close(C.u_long(r.pool))
+	result := C.indy_vdr_pool_close(C.ulong(r.pool))
 	if result != 0 {
 		return fmt.Errorf("close indy pool failed: (Indy error code: [%v])", result)
 	}
@@ -158,7 +158,7 @@ func (r *Client) GetTxnAuthorAgreement() (*ReadReply, error) {
 func (r *Client) GetAcceptanceMethodList() (*ReadReply, error) {
 	var amlreq C.ulong
 	var none *C.char
-	var zero C.long
+	var zero C.longlong
 	result := C.indy_vdr_build_get_acceptance_mechanisms_request(none, zero, none, &amlreq)
 	if result != 0 {
 		return nil, fmt.Errorf("invalid get aml request: (Indy error code: [%v])", result)
@@ -194,7 +194,7 @@ func (r *Client) RefreshPool() error {
 	refreshLock.Lock()
 	defer refreshLock.Unlock()
 
-	result := C.indy_vdr_pool_refresh(C.u_long(r.pool), C.refreshWrapper(C.refresh))
+	result := C.indy_vdr_pool_refresh(C.ulong(r.pool), C.refreshWrapper(C.refresh))
 	if result != 0 {
 		var errMsg *C.char
 		C.indy_vdr_get_current_error(&errMsg)
