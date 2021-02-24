@@ -1,4 +1,4 @@
-cargo-registry
+Cargo.lock
 target
 node_modules
 .idea
