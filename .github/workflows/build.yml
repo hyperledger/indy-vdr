@@ -1,4 +1,4 @@
-name: "Build and Test"
+name: "Indy-VDR"
 
 on:
   push:
@@ -163,8 +163,33 @@ jobs:
           name: library-${{ runner.os }}
           path: target/release/${{ matrix.lib }}
 
-  test-nodejs:
-    name: Test NodeJS wrapper
+  build-golang:
+    name: Build and Test Go wrapper
+    needs: [build-manylinux]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: "Use Golang 1.14.x+"
+        uses: actions/setup-go@v2
+        with:
+          go-version: "^1.14.0"
+
+      - name: Fetch library artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: library-${{ runner.os }}
+
+      - name: Build and test wrapper
+        run: |
+          sudo cp libindy_vdr.so /usr/lib/
+          cd wrappers/golang
+          go run cmd/demo/demo.go
+
+  build-nodejs:
+    name: Build and Test NodeJS wrapper
     needs: [build-manylinux]
     runs-on: ubuntu-latest
 
@@ -208,7 +233,7 @@ jobs:
         working-directory: wrappers/nodejs
 
   build-py:
-    name: Build Python
+    name: Build and Test Python Wrapper
     needs: [build-manylinux, build-release]
 
     strategy:

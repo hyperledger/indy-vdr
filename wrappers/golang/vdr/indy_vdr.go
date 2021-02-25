@@ -99,7 +99,7 @@ var submitRequestCh = make(chan SubmitResponse, 1)
 var submitRequestLock = sync.Mutex{}
 
 //export submitRequestCb
-func submitRequestCb(err C.ErrorCode, response *C.char) {
+func submitRequestCb(cb_id C.CallbackId, err C.ErrorCode, response *C.char) {
 	msg := SubmitResponse{
 		ErrorCode: int(err),
 		Response:  C.GoString(response),
@@ -158,7 +158,7 @@ func (r *Client) GetTxnAuthorAgreement() (*ReadReply, error) {
 func (r *Client) GetAcceptanceMethodList() (*ReadReply, error) {
 	var amlreq C.ulong
 	var none *C.char
-	var zero C.longlong
+	var zero C.int64_t
 	result := C.indy_vdr_build_get_acceptance_mechanisms_request(none, zero, none, &amlreq)
 	if result != 0 {
 		return nil, fmt.Errorf("invalid get aml request: (Indy error code: [%v])", result)
@@ -181,7 +181,7 @@ var refreshCh = make(chan RefreshResponse, 1)
 var refreshLock = sync.Mutex{}
 
 //export refreshCb
-func refreshCb(err C.ErrorCode) {
+func refreshCb(cb_id C.CallbackId, err C.ErrorCode) {
 	msg := RefreshResponse{
 		ErrorCode: int(err),
 	}
@@ -194,7 +194,7 @@ func (r *Client) RefreshPool() error {
 	refreshLock.Lock()
 	defer refreshLock.Unlock()
 
-	result := C.indy_vdr_pool_refresh(C.ulong(r.pool), C.refreshWrapper(C.refresh))
+	result := C.indy_vdr_pool_refresh(C.ulong(r.pool), C.refreshWrapper(C.refresh), 0)
 	if result != 0 {
 		var errMsg *C.char
 		C.indy_vdr_get_current_error(&errMsg)
@@ -219,7 +219,7 @@ var statusCh = make(chan StatusResponse, 1)
 var statusLock = sync.Mutex{}
 
 //export statusCb
-func statusCb(err C.ErrorCode, response *C.char) {
+func statusCb(cb_id C.CallbackId, err C.ErrorCode, response *C.char) {
 	msg := StatusResponse{
 		ErrorCode: int(err),
 		Response:  C.GoString(response),
@@ -233,7 +233,7 @@ func (r *Client) GetPoolStatus() (*PoolStatus, error) {
 	statusLock.Lock()
 	defer statusLock.Unlock()
 
-	result := C.indy_vdr_pool_get_status(C.ulong(r.pool), C.statusWrapper(C.status))
+	result := C.indy_vdr_pool_get_status(C.ulong(r.pool), C.statusWrapper(C.status), 0)
 	if result != 0 {
 		return nil, fmt.Errorf("get pool status failed: (Indy error code: [%v])", result)
 	}
@@ -335,7 +335,7 @@ func (r *Client) GetTxnTypeAuthRule(typ, action, field string) (*ReadReply, erro
 func (r *Client) submitReadRequest(reqID C.ulong) (*ReadReply, error) {
 	submitRequestLock.Lock()
 	defer submitRequestLock.Unlock()
-	result := C.indy_vdr_pool_submit_request(C.ulong(r.pool), reqID, C.submitRequestWrapper(C.submitRequest))
+	result := C.indy_vdr_pool_submit_request(C.ulong(r.pool), reqID, C.submitRequestWrapper(C.submitRequest), 0)
 	if result != 0 {
 		var errMsg *C.char
 		C.indy_vdr_get_current_error(&errMsg)
@@ -361,7 +361,7 @@ func (r *Client) submitReadRequest(reqID C.ulong) (*ReadReply, error) {
 func (r *Client) submitWriteRequest(reqID C.ulong) (*WriteReply, error) {
 	submitRequestLock.Lock()
 	defer submitRequestLock.Unlock()
-	result := C.indy_vdr_pool_submit_request(C.ulong(r.pool), reqID, C.submitRequestWrapper(C.submitRequest))
+	result := C.indy_vdr_pool_submit_request(C.ulong(r.pool), reqID, C.submitRequestWrapper(C.submitRequest), 0)
 	if result != 0 {
 		var errMsg *C.char
 		C.indy_vdr_get_current_error(&errMsg)
