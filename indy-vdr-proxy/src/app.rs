@@ -12,6 +12,7 @@ pub struct Config {
 }
 
 pub fn load_config() -> Result<Config, String> {
+    #[allow(unused_mut)]
     let mut app = App::new("indy-vdr-proxy")
         .version("0.1.0")
         .about("Proxy requests to a Hyperledger Indy-Node ledger")
