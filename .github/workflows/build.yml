@@ -1,0 +1,269 @@
+name: "Build and Test"
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  check:
+    name: Run Checks
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Cache cargo resources
+        uses: Swatinem/rust-cache@v1
+
+      - name: Cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+      - name: Cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: Debug build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path libindy_vdr/Cargo.toml --features zmq_vendored
+
+  test-suite:
+    name: Run Test Suite
+    needs: [check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Cache cargo resources
+        uses: Swatinem/rust-cache@v1
+
+      - name: Run node pool
+        run: |
+          docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
+          docker network create --subnet=10.0.0.0/8 indy-sdk-network
+          docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool
+
+  build-manylinux:
+    name: Build Library (Manylinux)
+    needs: [check]
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            lib: libindy_vdr.so
+            container: andrewwhitehead/manylinux2014-base
+
+    container: ${{ matrix.container }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Cache cargo resources
+        uses: Swatinem/rust-cache@v1
+
+      - name: Build library
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          BUILD_FEATURES: zmq_vendored
+        run: sh ./build.sh
+
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: library-${{ runner.os }}
+          path: target/release/${{ matrix.lib }}
+
+  build-release:
+    name: Build Library (MacOS/Win)
+    needs: [check]
+
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            lib: libindy_vdr.dylib
+            # target: apple-darwin
+            toolchain: stable #  beta required for aarch64-apple-darwin target
+          - os: windows-latest
+            lib: indy_vdr.dll
+            toolchain: stable
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Cache cargo resources
+        uses: Swatinem/rust-cache@v1
+
+      - name: Build library
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          BUILD_TOOLCHAIN: ${{ matrix.toolchain }}
+          BUILD_FEATURES: zmq_vendored
+        run: sh ./build.sh
+
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: library-${{ runner.os }}
+          path: target/release/${{ matrix.lib }}
+
+  test-nodejs:
+    name: Test NodeJS wrapper
+    needs: [build-manylinux]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+
+      - name: Fetch library artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: library-${{ runner.os }}
+
+      - name: Build and test wrapper
+        run: |
+          sudo cp libindy_vdr.so /usr/lib/
+          cd wrappers/nodejs
+          npm install
+          npm run compile
+          npm run test:unit
+
+      - name: Run NodeJS integration tests against Sovrin Buildernet
+        run: |
+          INDY_NETWORK=SOVRIN_BUILDER_NET npm run test:integration
+        working-directory: wrappers/nodejs
+
+      # - if: |
+      #     (github.event_name == 'release' ||
+      #       (github.event_name == 'workflow_dispatch' &&
+      #        github.event.inputs.publish == 'true'))
+      #   name: Publish npm package
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+      #   run: |
+      #     npm ci
+      #     npm publish
+      #   working-directory: wrappers/nodejs
+
+  build-py:
+    name: Build Python
+    needs: [build-manylinux, build-release]
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [3.6]
+        include:
+          - os: ubuntu-latest
+            plat-name: manylinux2014_x86_64
+          - os: macos-latest
+            plat-name: macosx_10_9_x86_64 # macosx_10_9_universal2
+          - os: windows-latest
+            plat-name: win_amd64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel twine auditwheel
+
+      - name: Fetch library artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: library-${{ runner.os }}
+          path: wrappers/python/indy_vdr/
+
+      - name: Build and test python package
+        shell: sh
+        run: |
+          python setup.py bdist_wheel --python-tag=py3 --plat-name=${{ matrix.plat-name }}
+          pip install dist/*
+          python -m demo.test
+        working-directory: wrappers/python
+
+      - if: "runner.os == 'Linux'"
+        name: Auditwheel
+        run: auditwheel show wrappers/python/dist/*
+
+      - name: Upload python package
+        uses: actions/upload-artifact@v2
+        with:
+          name: python-${{ runner.os }}
+          path: wrappers/python/dist/*
+
+      # - if: |
+      #     (github.event_name == 'release' ||
+      #       (github.event_name == 'workflow_dispatch' &&
+      #        github.event.inputs.publish == 'true'))
+      #   name: Publish python package
+      #   env:
+      #     TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+      #     TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      #   run: |
+      #     twine upload --skip-existing wrappers/python/dist/*
