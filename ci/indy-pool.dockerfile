@@ -7,17 +7,17 @@ RUN apt-get update -y && apt-get install -y \
 	git \
 	wget \
 	python3.5 \
-	python3-pip \
-	python-setuptools \
 	python3-nacl \
+	python3-pip \
+	python3-setuptools \
 	apt-transport-https \
 	ca-certificates \
-	software-properties-common \
-	supervisor
+	software-properties-common
 
 RUN pip3 install -U \
 	"pip~=9.0" \
-	"setuptools~=50.0"
+	"setuptools~=50.0" \
+	"supervisor~=4.2"
 
 RUN add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu xenial main universe" && \
 	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys CE7709D068DB5E88
@@ -112,4 +112,4 @@ RUN generate_indy_pool_transactions --nodes 4 --clients 5 --nodeNum 1 2 3 4 --ip
 
 EXPOSE 9701 9702 9703 9704 9705 9706 9707 9708
 
-CMD ["/usr/bin/supervisord"]
+CMD ["/usr/local/bin/supervisord"]
