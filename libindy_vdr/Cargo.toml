@@ -9,7 +9,6 @@ readme = "../README.md"
 repository = "https://github.com/hyperledger/indy-vdr/"
 categories = ["authentication", "cryptography"]
 keywords = ["hyperledger", "indy", "ssi", "verifiable", "credentials"]
-build = "build.rs"
 
 [lib]
 name = "indy_vdr"
