@@ -94,7 +94,7 @@ fn handle_pool_refresh(
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_refresh(
     pool_handle: usize,
-    cb: Option<extern "C" fn(id: usize, err: ErrorCode)>,
+    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode)>,
     cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
@@ -135,7 +135,7 @@ pub extern "C" fn indy_vdr_pool_refresh(
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_status(
     pool_handle: usize,
-    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
     cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
@@ -166,7 +166,7 @@ pub extern "C" fn indy_vdr_pool_get_status(
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_transactions(
     pool_handle: usize,
-    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
     cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
@@ -196,7 +196,7 @@ pub extern "C" fn indy_vdr_pool_get_transactions(
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_verifiers(
     pool_handle: usize,
-    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
     cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
@@ -251,7 +251,7 @@ pub extern "C" fn indy_vdr_pool_submit_action(
     request_handle: usize,
     nodes: FfiStr, // optional
     timeout: i32,  // -1 for default
-    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
     cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
@@ -282,7 +282,7 @@ pub extern "C" fn indy_vdr_pool_submit_action(
 pub extern "C" fn indy_vdr_pool_submit_request(
     pool_handle: usize,
     request_handle: usize,
-    cb: Option<extern "C" fn(id: usize, err: ErrorCode, response: *const c_char)>,
+    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
     cb_id: usize,
 ) -> ErrorCode {
     catch_err! {
