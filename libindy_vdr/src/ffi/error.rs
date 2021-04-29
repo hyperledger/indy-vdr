@@ -4,10 +4,9 @@ use std::os::raw::c_char;
 use std::sync::RwLock;
 
 use ffi_support::rust_string_to_c;
+use once_cell::sync::Lazy;
 
-lazy_static! {
-    pub static ref LAST_ERROR: RwLock<Option<VdrError>> = RwLock::new(None);
-}
+pub static LAST_ERROR: Lazy<RwLock<Option<VdrError>>> = Lazy::new(|| RwLock::new(None));
 
 #[derive(Debug, PartialEq, Copy, Clone, Serialize)]
 #[repr(usize)]

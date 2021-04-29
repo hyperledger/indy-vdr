@@ -4,3 +4,7 @@ members = [
     "libindy_vdr",
     "indy-vdr-proxy",
 ]
+
+[profile.release]
+lto = true
+codegen-units = 1

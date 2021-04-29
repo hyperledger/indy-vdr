@@ -9,6 +9,7 @@ use std::sync::RwLock;
 use std::thread;
 
 use ffi_support::{rust_string_to_c, FfiStr};
+use once_cell::sync::Lazy;
 
 use super::error::{set_last_error, ErrorCode};
 use super::requests::{RequestHandle, REQUESTS};
@@ -16,9 +17,8 @@ use super::POOL_CONFIG;
 
 new_handle_type!(PoolHandle, FFI_PH_COUNTER);
 
-lazy_static! {
-    pub static ref POOLS: RwLock<BTreeMap<PoolHandle, PoolRunner>> = RwLock::new(BTreeMap::new());
-}
+static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolRunner>>> =
+    Lazy::new(|| RwLock::new(BTreeMap::new()));
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct PoolCreateParams {

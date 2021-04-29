@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use indy_vdr::ledger::constants::{
     RICH_SCHEMA, RICH_SCHEMA_CRED_DEF, RICH_SCHEMA_CTX, RICH_SCHEMA_ENCODING, RICH_SCHEMA_MAPPING,
     RICH_SCHEMA_PRES_DEF, RS_CONTEXT_TYPE_VALUE, RS_CRED_DEF_TYPE_VALUE, RS_ENCODING_TYPE_VALUE,
     RS_MAPPING_TYPE_VALUE, RS_PRES_DEF_TYPE_VALUE, RS_SCHEMA_TYPE_VALUE,
 };
-use std::collections::HashMap;
+use once_cell::sync::Lazy;
 
 pub const TRUSTEE_SEED: [u8; 32] = [
     48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48,
@@ -26,8 +28,8 @@ pub const MY1_DID: &str = "VsKV7grR1BUE29mG2Fm2kX";
 pub const MY1_DID_FQ: &str = "did:sov:VsKV7grR1BUE29mG2Fm2kX";
 pub const MY1_VERKEY: &str = "GjZWsBLgZCR18aL468JAT7w9CZRiBnpxUPPgyQxh4voa";
 
-lazy_static! {
-    pub static ref RS_TYPE_TO_OP: HashMap<&'static str, &'static str> = [
+pub static RS_TYPE_TO_OP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+    [
         (RS_SCHEMA_TYPE_VALUE, RICH_SCHEMA),
         (RS_ENCODING_TYPE_VALUE, RICH_SCHEMA_ENCODING),
         (RS_CONTEXT_TYPE_VALUE, RICH_SCHEMA_CTX),
@@ -37,5 +39,5 @@ lazy_static! {
     ]
     .iter()
     .copied()
-    .collect();
-}
+    .collect()
+});

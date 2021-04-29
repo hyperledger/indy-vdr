@@ -7,9 +7,9 @@ use std::convert::TryFrom;
 use std::os::raw::c_char;
 use std::sync::RwLock;
 
-use serde_json;
-
 use ffi_support::{define_string_destructor, rust_string_to_c, FfiStr};
+use once_cell::sync::Lazy;
+use serde_json;
 
 #[macro_use]
 mod macros;
@@ -19,13 +19,11 @@ mod ledger;
 mod pool;
 mod requests;
 
-use error::{set_last_error, ErrorCode};
+use self::error::{set_last_error, ErrorCode};
 
 define_string_destructor!(indy_vdr_string_free);
 
-lazy_static! {
-    pub static ref POOL_CONFIG: RwLock<PoolConfig> = RwLock::new(PoolConfig::default());
-}
+static POOL_CONFIG: Lazy<RwLock<PoolConfig>> = Lazy::new(|| RwLock::new(PoolConfig::default()));
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_set_config(config: FfiStr) -> ErrorCode {
