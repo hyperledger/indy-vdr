@@ -9,16 +9,15 @@ use std::os::raw::c_char;
 use std::sync::RwLock;
 
 use ffi_support::{rust_string_to_c, FfiStr};
+use once_cell::sync::Lazy;
 
 use super::error::{set_last_error, ErrorCode};
 use super::POOL_CONFIG;
 
 new_handle_type!(RequestHandle, FFI_RH_COUNTER);
 
-lazy_static! {
-    pub static ref REQUESTS: RwLock<BTreeMap<RequestHandle, PreparedRequest>> =
-        RwLock::new(BTreeMap::new());
-}
+pub static REQUESTS: Lazy<RwLock<BTreeMap<RequestHandle, PreparedRequest>>> =
+    Lazy::new(|| RwLock::new(BTreeMap::new()));
 
 pub fn add_request(request: PreparedRequest) -> VdrResult<RequestHandle> {
     let handle = RequestHandle::next();
