@@ -78,10 +78,13 @@ pub fn sign_and_send_full_request(
 }
 
 pub fn rand_string(len: usize) -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(len)
-        .collect()
+    String::from_utf8(
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(len)
+            .collect(),
+    )
+    .unwrap()
 }
 
 fn rand_version() -> String {
