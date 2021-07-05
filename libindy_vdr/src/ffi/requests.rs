@@ -131,6 +131,25 @@ pub extern "C" fn indy_vdr_request_set_endorser(
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_request_set_multi_signature(
+    request_handle: usize,
+    identifier: FfiStr,
+    signature: *const u8,
+    signature_len: usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Set request multi signature: {}", request_handle);
+        let identifier = DidValue::from_str(identifier.as_str())?;
+        let signature = slice_from_c_ptr!(signature, signature_len)?;
+        let mut reqs = write_lock!(REQUESTS)?;
+        let req = reqs.get_mut(&RequestHandle(request_handle))
+            .ok_or_else(|| input_err("Unknown request handle"))?;
+        req.set_multi_signature(&identifier, signature)?;
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_request_set_signature(
     request_handle: usize,
     signature: *const u8,

@@ -59,6 +59,18 @@ class Request:
             raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
         bindings.request_set_endorser(self.handle, endorser)
 
+    def set_multi_signature(self, identifier: str, signature: bytes):
+        """Add a multi-signature entry to a prepared request.
+
+        Args:
+            identifier: The DID of the signer
+            signature: A bytes instance with the ed25519 signature
+                generated over `request.signature_input`
+        """
+        if not self.handle:
+            raise VdrError(VdrErrorCode.WRAPPER, "no request handle")
+        bindings.request_set_multi_signature(self.handle, identifier, signature)
+
     def set_signature(self, signature: bytes):
         """Set the signature on a prepared request.
 

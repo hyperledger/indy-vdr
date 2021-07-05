@@ -16,6 +16,7 @@ from indy_vdr.ledger import (
     build_get_revoc_reg_request,
     build_get_revoc_reg_delta_request,
     build_get_schema_request,
+    # build_revoc_reg_entry_request,
     # build_rich_schema_request,
     # build_get_schema_object_by_id_request,
     # build_get_schema_object_by_metadata_request,
@@ -55,6 +56,11 @@ async def basic_test(transactions_path):
     verifiers = await pool.get_verifiers()
     log("Verifiers:", verifiers)
 
+    #    req =  build_revoc_reg_entry_request(
+    #     "CkTEG6qiypB8TCDS5mxRmy", "CkTEG6qiypB8TCDS5mxRmy:4:CkTEG6qiypB8TCDS5mxRmy:3:CL:67559:default:CL_ACCUM:e3abc098-749f-4c4a-a5f7-4e518035e820", "CL_ACCUM", '{"ver": "1.0", "value": {"accum": "21 117FA38C35FB5D721113285DC65741A227E860EA97195706A8EEEE778DE2A1013 21 137E20CCC0D5E63B79B1A392EBCC93A855EE6F80D95121A1F600F1FE11E5CB005 6 6D00C839527AE3B7E26B32A1AEACCA03A5415FF04A9ADA0D164E64E95AF7DAD0 4 02E046D5BBFC929582E79655B62FEEA65C86DC7EE1D6A7BE0A56E8BBF52FCCEB 6 70809B1DE08116FFDD5F91168EC5B87B2BD12E47A8952B2112A643500AB88D57 4 25AE5E9FEDC0BAC16FE765249B647ED69A5E73C5F956C34ADD0DAC5A4E4B2A95"}}')
+    #     print(req)
+    #     return
+
     test_req = {
         "operation": {"data": 1, "ledgerId": 1, "type": "3"},
         "protocolVersion": 2,
@@ -79,12 +85,13 @@ async def basic_test(transactions_path):
     req = build_get_txn_request(None, 1, 15)
     req.set_txn_author_agreement_acceptance(acceptance)
     req.set_endorser("V4SGRU86Z58d6TV7PBUe6f")
+    req.set_multi_signature("V4SGRU86Z58d6TV7PBUe6f", b"sig")
     log("Request with TAA acceptance and endorser:", req.body)
 
     # req = build_disable_all_txn_author_agreements_request("V4SGRU86Z58d6TV7PBUe6f")
     # log(await pool.submit_request(req))
 
-    txn = await get_txn(pool, 11)
+    txn = await get_txn(pool, 1)
     log(json.dumps(txn, indent=2))
 
     req = build_get_schema_request(
@@ -125,7 +132,7 @@ def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__))
 
 
-def donwload_buildernet_genesis_file():
+def download_buildernet_genesis_file():
     genesis_file_url = (
         "https://raw.githubusercontent.com/sovrin-foundation/"
         "sovrin/master/sovrin/pool_transactions_builder_genesis"
@@ -139,6 +146,6 @@ if __name__ == "__main__":
     log("indy-vdr version:", version())
 
     genesis_path = (
-        sys.argv[1] if len(sys.argv) > 1 else donwload_buildernet_genesis_file()
+        sys.argv[1] if len(sys.argv) > 1 else download_buildernet_genesis_file()
     )
     asyncio.get_event_loop().run_until_complete(basic_test(genesis_path))
