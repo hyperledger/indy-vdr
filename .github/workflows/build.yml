@@ -220,17 +220,17 @@ jobs:
           INDY_NETWORK=SOVRIN_BUILDER_NET npm run test:integration
         working-directory: wrappers/nodejs
 
-      - if: |
-          (github.event_name == 'release' ||
-            (github.event_name == 'workflow_dispatch' &&
-             github.event.inputs.publish == 'true'))
-        name: Publish npm package
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
-        run: |
-          npm ci
-          npm publish
-        working-directory: wrappers/nodejs
+      # - if: |
+      #     (github.event_name == 'release' ||
+      #       (github.event_name == 'workflow_dispatch' &&
+      #        github.event.inputs.publish == 'true'))
+      #   name: Publish npm package
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+      #   run: |
+      #     npm ci
+      #     npm publish
+      #   working-directory: wrappers/nodejs
 
   build-py:
     name: Build and Test Python Wrapper
