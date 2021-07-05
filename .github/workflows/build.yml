@@ -188,49 +188,49 @@ jobs:
           cd wrappers/golang
           go run cmd/demo/demo.go
 
-  build-nodejs:
-    name: Build and Test NodeJS wrapper
-    needs: [build-manylinux]
-    runs-on: ubuntu-latest
+  # build-nodejs:
+  #   name: Build and Test NodeJS wrapper
+  #   needs: [build-manylinux]
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
 
-      - name: Use Node.js 12.x
-        uses: actions/setup-node@v1
-        with:
-          node-version: 12.x
+  #     - name: Use Node.js 12.x
+  #       uses: actions/setup-node@v1
+  #       with:
+  #         node-version: 12.x
 
-      - name: Fetch library artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: library-${{ runner.os }}
+  #     - name: Fetch library artifacts
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: library-${{ runner.os }}
 
-      - name: Build and test wrapper
-        run: |
-          sudo cp libindy_vdr.so /usr/lib/
-          cd wrappers/nodejs
-          npm install
-          npm run compile
-          npm run test:unit
+  #     - name: Build and test wrapper
+  #       run: |
+  #         sudo cp libindy_vdr.so /usr/lib/
+  #         cd wrappers/nodejs
+  #         npm install
+  #         npm run compile
+  #         npm run test:unit
 
-      - name: Run NodeJS integration tests against Sovrin Buildernet
-        run: |
-          INDY_NETWORK=SOVRIN_BUILDER_NET npm run test:integration
-        working-directory: wrappers/nodejs
+  #     - name: Run NodeJS integration tests against Sovrin Buildernet
+  #       run: |
+  #         INDY_NETWORK=SOVRIN_BUILDER_NET npm run test:integration
+  #       working-directory: wrappers/nodejs
 
-      # - if: |
-      #     (github.event_name == 'release' ||
-      #       (github.event_name == 'workflow_dispatch' &&
-      #        github.event.inputs.publish == 'true'))
-      #   name: Publish npm package
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{secrets.npm_token}}
-      #   run: |
-      #     npm ci
-      #     npm publish
-      #   working-directory: wrappers/nodejs
+  #     - if: |
+  #         (github.event_name == 'release' ||
+  #           (github.event_name == 'workflow_dispatch' &&
+  #            github.event.inputs.publish == 'true'))
+  #       name: Publish npm package
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+  #       run: |
+  #         npm ci
+  #         npm publish
+  #       working-directory: wrappers/nodejs
 
   build-py:
     name: Build and Test Python Wrapper
