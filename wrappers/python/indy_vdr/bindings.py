@@ -302,6 +302,17 @@ def request_set_endorser(handle: RequestHandle, endorser_did: str):
     do_call("indy_vdr_request_set_endorser", handle, endorser_p)
 
 
+def request_set_multi_signature(
+    handle: RequestHandle, identifier: str, signature: bytes
+):
+    """Add a multi-signature entry to a prepared request."""
+    identifier = encode_str(identifier)
+    sig_len = len(signature)
+    do_call(
+        "indy_vdr_request_set_multi_signature", handle, identifier, signature, sig_len
+    )
+
+
 def request_set_signature(handle: RequestHandle, signature: bytes):
     """Set the signature on a prepared request."""
     sig_len = len(signature)
