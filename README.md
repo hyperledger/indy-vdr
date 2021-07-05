@@ -3,6 +3,7 @@
 [<img src="https://raw.githubusercontent.com/hyperledger/indy-node/master/collateral/logos/indy-logo.png" width="50%" height="auto">](https://github.com/hyperledger/indy-sdk/)
 
 [![Unit Tests](https://github.com/hyperledger/indy-vdr/workflows/Unit%20Tests/badge.svg)](https://github.com/hyperledger/indy-vdr/actions)
+[![Python Package](https://img.shields.io/pypi/v/indy-vdr.svg)](https://pypi.org/project/indy-vdr/)
 
 - [Introduction](#introduction)
 - [Features](#features)
