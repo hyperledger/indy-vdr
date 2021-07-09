@@ -1,5 +1,3 @@
-extern crate zmq;
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::FromIterator;
 use std::sync::mpsc;

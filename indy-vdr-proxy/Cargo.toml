@@ -21,7 +21,7 @@ log = "0.4.8"
 percent-encoding = "2.1.0"
 serde_json = "1.0.40"
 tokio = { version = "0.2.9", features = ["macros", "rt-util", "signal"] }
-indy-vdr = { version = "0.2", path = "../libindy_vdr", default-features = false, features = ["log"] }
+indy-vdr = { version = "0.3", path = "../libindy_vdr", default-features = false, features = ["log"] }
 
 [target.'cfg(unix)'.dependencies]
 hyper-unix-connector = "0.1.4"
