@@ -4,7 +4,7 @@ use crate::utils::{Validatable, ValidationError};
 use super::constants;
 
 /// Configuration settings for managing validator pool communication
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PoolConfig {
     /// The protocol version used in pool communication
     #[serde(default = "PoolConfig::default_protocol_version")]
@@ -27,6 +27,9 @@ pub struct PoolConfig {
     /// The initial number of nodes to send ledger read requests
     #[serde(default = "PoolConfig::default_request_read_nodes")]
     pub request_read_nodes: usize,
+    /// The socks proxy host name and port for ZMQ (example: proxy1.intranet.company.com:1080)
+    #[serde(default = "PoolConfig::default_socks_proxy")]
+    pub socks_proxy: Option<String>,
 }
 
 impl Validatable for PoolConfig {
@@ -88,6 +91,9 @@ impl PoolConfig {
     pub fn default_request_read_nodes() -> usize {
         constants::DEFAULT_REQUEST_READ_NODES
     }
+
+    /// The default socks proxy is empty / unset
+    pub fn default_socks_proxy() -> Option<String> { None }
 }
 
 impl Default for PoolConfig {
@@ -100,6 +106,7 @@ impl Default for PoolConfig {
             conn_request_limit: Self::default_conn_request_limit(),
             conn_active_timeout: Self::default_conn_active_timeout(),
             request_read_nodes: Self::default_request_read_nodes(),
+            socks_proxy: Self::default_socks_proxy(),
         }
     }
 }
