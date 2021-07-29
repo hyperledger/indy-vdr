@@ -129,7 +129,7 @@ where
     }
 
     fn pool_config(&self) -> PoolConfig {
-        self.pool_setup.as_ref().config
+        self.pool_setup.as_ref().config.clone()
     }
 
     fn send_to_all(&mut self, timeout: i64) -> VdrResult<()> {

@@ -60,6 +60,17 @@ pub extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
 }
 
 #[no_mangle]
+pub extern "C" fn indy_vdr_set_socks_proxy(socks_proxy: FfiStr) -> ErrorCode {
+    catch_err! {
+        let proxy = socks_proxy.into_string();
+        debug!("Setting pool socks proxy: {}", proxy);
+        let mut gcfg = write_lock!(POOL_CONFIG)?;
+        gcfg.socks_proxy = Some(proxy);
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn indy_vdr_version() -> *mut c_char {
     rust_string_to_c(LIB_VERSION.to_owned())
 }

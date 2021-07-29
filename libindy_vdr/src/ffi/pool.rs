@@ -50,7 +50,7 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> 
         };
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            PoolBuilder::from(*gcfg).transactions(txns)?.node_weights(params.node_weights)
+            PoolBuilder::from(gcfg.clone()).transactions(txns)?.node_weights(params.node_weights)
         };
         let pool = builder.into_runner()?;
         let handle = PoolHandle::next();
@@ -74,7 +74,7 @@ fn handle_pool_refresh(
         txns.extend_from_json(&new_txns)?;
         let builder = {
             let gcfg = read_lock!(POOL_CONFIG)?;
-            PoolBuilder::from(*gcfg)
+            PoolBuilder::from(gcfg.clone())
         };
         let pool = builder.transactions(txns)?.into_runner()?;
         let mut pools = write_lock!(POOLS)?;

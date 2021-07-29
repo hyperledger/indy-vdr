@@ -96,8 +96,8 @@ where
     {
         let txn_map = build_node_transaction_map(&merkle_tree, config.protocol_version)?;
         let verifiers = build_verifiers(txn_map)?;
-        let networker = networker_factory.make_networker(config, &verifiers)?;
-        let setup = PoolSetup::new(config, merkle_tree, node_weights, verifiers);
+        let networker = networker_factory.make_networker(config.clone(), &verifiers)?;
+        let setup = PoolSetup::new(config.clone(), merkle_tree, node_weights, verifiers);
         Ok(Self::new(S::from(Box::new(setup)), networker))
     }
 }
