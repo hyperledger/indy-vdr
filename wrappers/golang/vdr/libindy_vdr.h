@@ -201,3 +201,5 @@ ErrorCode indy_vdr_set_default_logger(void);
 ErrorCode indy_vdr_set_protocol_version(uintptr_t version);
 
 char *indy_vdr_version(void);
+
+ErrorCode indy_vdr_set_socks_proxy(FfiStr socks_proxy);
