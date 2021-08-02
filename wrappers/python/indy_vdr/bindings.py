@@ -348,3 +348,7 @@ def version() -> str:
     lib = get_library()
     lib.indy_vdr_version.restype = c_void_p
     return lib_string(lib.indy_vdr_version()).value.decode("utf-8")
+
+def set_socks_proxy(socks_proxy: str):
+    """Set the socks proxy for ZMQ connection pool."""
+    do_call("indy_vdr_set_socks_proxy", encode_str(socks_proxy))
