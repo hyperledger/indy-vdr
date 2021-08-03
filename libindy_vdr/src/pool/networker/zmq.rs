@@ -413,7 +413,7 @@ impl ZMQThread {
                 self.remotes.clone(),
                 self.config.conn_active_timeout,
                 self.config.ack_timeout,
-                self.config.socks_proxy.clone()
+                self.config.socks_proxy.clone(),
             );
             trace!("Created new pool connection");
             conn.init_request(sub_id);
@@ -492,7 +492,7 @@ impl ZMQConnection {
         remotes: Vec<RemoteNode>,
         active_timeout: i64,
         idle_timeout: i64,
-        socks_proxy: Option<String>
+        socks_proxy: Option<String>,
     ) -> Self {
         trace!("ZMQConnection::new: from remotes {:?}", remotes);
 
@@ -512,7 +512,7 @@ impl ZMQConnection {
             req_log: HashSet::new(),
             active_timeout,
             idle_timeout,
-            socks_proxy
+            socks_proxy,
         }
     }
 
@@ -703,7 +703,8 @@ impl ZMQConnection {
     fn _get_socket(&mut self, idx: usize) -> VdrResult<&ZSocket> {
         if self.sockets[idx].is_none() {
             debug!("Open new socket for node {}", &self.remotes[idx].name);
-            let s: ZSocket = self.remotes[idx].connect(&self.ctx, &self.key_pair, self.socks_proxy.clone())?;
+            let s: ZSocket =
+                self.remotes[idx].connect(&self.ctx, &self.key_pair, self.socks_proxy.clone())?;
             self.sockets[idx] = Some(s)
         }
         Ok(self.sockets[idx].as_ref().unwrap())
@@ -719,7 +720,12 @@ struct RemoteNode {
 }
 
 impl RemoteNode {
-    fn connect(&self, ctx: &zmq::Context, key_pair: &zmq::CurveKeyPair, socks_proxy: Option<String>) -> VdrResult<ZSocket> {
+    fn connect(
+        &self,
+        ctx: &zmq::Context,
+        key_pair: &zmq::CurveKeyPair,
+        socks_proxy: Option<String>,
+    ) -> VdrResult<ZSocket> {
         let s = ctx.socket(zmq::SocketType::DEALER)?;
         s.set_identity(base64::encode(&key_pair.public_key).as_bytes())?;
         s.set_curve_secretkey(&key_pair.secret_key)?;
