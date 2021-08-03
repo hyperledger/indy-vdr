@@ -93,7 +93,9 @@ impl PoolConfig {
     }
 
     /// The default socks proxy is empty / unset
-    pub fn default_socks_proxy() -> Option<String> { None }
+    pub fn default_socks_proxy() -> Option<String> {
+        None
+    }
 }
 
 impl Default for PoolConfig {

@@ -40,7 +40,8 @@ impl PoolRunner {
         let worker = thread::spawn(move || {
             // FIXME handle error on build
             let pool =
-                LocalPool::build(config.clone(), merkle_tree, networker_factory, node_weights).unwrap();
+                LocalPool::build(config.clone(), merkle_tree, networker_factory, node_weights)
+                    .unwrap();
             let mut thread = PoolThread::new(pool, receiver);
             thread.run();
             debug!("Pool thread ended")
