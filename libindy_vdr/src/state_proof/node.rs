@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use rlp::{DecoderError as RlpDecoderError, Prototype as RlpPrototype, RlpStream, UntrustedRlp};
-use ursa::hash::sha3;
+use sha3::{
+    digest::{generic_array::GenericArray, Digest, FixedOutput},
+    Sha3_256,
+};
 
 use crate::common::error::prelude::*;
 
@@ -140,21 +143,13 @@ impl rlp::Decodable for Node {
     }
 }
 
-type NodeHash = sha3::digest::generic_array::GenericArray<
-    u8,
-    <sha3::Sha3_256 as sha3::digest::FixedOutput>::OutputSize,
->;
+type NodeHash = GenericArray<u8, <Sha3_256 as FixedOutput>::OutputSize>;
 pub type TrieDB<'a> = HashMap<NodeHash, &'a Node>;
 
 impl Node {
     pub fn get_hash(&self) -> NodeHash {
-        use rlp::encode as rlp_encode;
-        use sha3::digest::FixedOutput;
-        use sha3::Digest;
-        let encoded = rlp_encode(self);
-        let mut hasher = sha3::Sha3_256::default();
-        hasher.input(encoded.to_vec().as_slice());
-        hasher.fixed_result()
+        let encoded = rlp::encode(self);
+        Sha3_256::digest(encoded.to_vec().as_slice())
     }
     pub fn get_str_value<'a, 'b>(
         &'a self,
