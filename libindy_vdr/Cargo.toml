@@ -24,12 +24,12 @@ rich_schema = ["indy-data-types/rich_schema"]
 default = ["ffi", "log", "zmq_vendored"]
 
 [dependencies]
-env_logger = { version = "0.7.1", optional = true }
+env_logger = { version = "0.7", optional = true }
 etcommon-rlp = "0.2.4"
-ffi-support = { version = "0.4.0", optional = true }
-futures-channel = "0.3.5"
-futures-executor = "0.3.5"
-futures-util = "0.3.5"
+ffi-support = { version = "0.4", optional = true }
+futures-channel = "0.3"
+futures-executor = "0.3"
+futures-util = "0.3"
 hex = "0.4"
 indy-data-types = "0.5"
 indy-utils = { version = "0.4.0", default-features = false, features = ["base64", "ed25519", "hash", "txn_signature"] }
@@ -41,9 +41,9 @@ regex = "1.3"
 rmp-serde = "0.13.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sha3 = "0.9"
-thiserror = "1.0.9"
-zmq = "0.9.2"
+sha3 = "0.10"
+thiserror = "1.0"
+zmq = "0.9"
 
 [dependencies.ursa]
 version = "0.3.5"
