@@ -41,9 +41,8 @@ fn main() {
 
     env_logger::init();
 
-    let mut rt = tokio::runtime::Builder::new()
+    let mut rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .basic_scheduler()
         .build()
         .expect("build runtime");
 
@@ -80,10 +79,10 @@ async fn fetch_transactions(genesis: String) -> VdrResult<PoolTransactions> {
             ),
         ));
     };
-    let body = hyper::body::aggregate(res.body_mut())
+    let mut buf = hyper::body::aggregate(res.body_mut())
         .await
-        .with_err_msg(VdrErrorKind::Config, "Error receiving genesis transactions")?
-        .to_bytes();
+        .with_err_msg(VdrErrorKind::Config, "Error receiving genesis transactions")?;
+    let body = buf.copy_to_bytes(buf.remaining());
     let txns = String::from_utf8_lossy(&body);
     PoolTransactions::from_json(&txns)
 }
@@ -189,7 +188,7 @@ async fn refresh_pool(
     delay_mins: u32,
 ) -> VdrResult<Option<LocalPool>> {
     if delay_mins > 0 {
-        tokio::time::delay_for(Duration::from_secs((delay_mins * 60) as u64)).await
+        tokio::time::sleep(Duration::from_secs((delay_mins * 60) as u64)).await
     }
 
     let (txns, _timing) = perform_refresh(pool).await?;

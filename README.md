@@ -58,6 +58,7 @@ Sending prepared requests to the ledger is performed by delivering a POST reques
 - `/rev_reg_delta/{REV_REG_ID}` Fetch a revocation registry delta by its registry identifier
 - `/auth` Fetch all AUTH rules for the ledger
 - `/auth/{TXN_TYPE}/{ADD|EDIT}` Fetch the AUTH rule for a specific transaction type and action
+- `/txn/{SUBLEDGER}/{SEQ_NO}` Fetch a specific transaction by subledger identifier (0-2, or one of `pool`, `domain`, or `config`) and sequence number.
 
 ## Connecting to a Ledger
 

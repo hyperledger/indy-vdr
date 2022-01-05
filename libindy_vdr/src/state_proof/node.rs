@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use rlp::{DecoderError as RlpDecoderError, Prototype as RlpPrototype, RlpStream, UntrustedRlp};
 use sha3::{
-    digest::{generic_array::GenericArray, Digest, FixedOutput},
+    digest::{generic_array::GenericArray, Digest, OutputSizeUser},
     Sha3_256,
 };
 
@@ -143,7 +143,7 @@ impl rlp::Decodable for Node {
     }
 }
 
-type NodeHash = GenericArray<u8, <Sha3_256 as FixedOutput>::OutputSize>;
+type NodeHash = GenericArray<u8, <Sha3_256 as OutputSizeUser>::OutputSize>;
 pub type TrieDB<'a> = HashMap<NodeHash, &'a Node>;
 
 impl Node {
