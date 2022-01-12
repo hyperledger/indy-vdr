@@ -1,10 +1,6 @@
 #[macro_use]
 mod utils;
 
-extern crate chrono;
-
-use chrono::prelude::*;
-
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
@@ -18,7 +14,10 @@ fn empty() {
 }
 
 fn _datetime() -> String {
-    format!("{}-01-25T12:49:05.258870+00:00", Utc::now().year() + 1)
+    format!(
+        "{}-01-25T12:49:05.258870+00:00",
+        time::OffsetDateTime::now_utc().year() + 1
+    )
 }
 
 #[cfg(test)]
