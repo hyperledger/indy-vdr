@@ -8,7 +8,7 @@ use rand::Rng;
 use serde_json::json;
 
 pub fn current_timestamp() -> u64 {
-    chrono::Local::now().timestamp() as u64
+    time::OffsetDateTime::now_utc().unix_timestamp() as u64
 }
 
 pub fn check_request_operation(request: &PreparedRequest, expected_operation: serde_json::Value) {

@@ -1,10 +1,6 @@
 #[macro_use]
 mod utils;
 
-extern crate chrono;
-
-use chrono::prelude::*;
-
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
@@ -19,7 +15,7 @@ fn _empty_schedule() -> Schedule {
 }
 
 fn _schedule() -> Schedule {
-    let next_year = Utc::now().year() + 1;
+    let next_year = time::OffsetDateTime::now_utc().year() + 1;
 
     let mut schedule = Schedule::new();
     schedule.insert(
