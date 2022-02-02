@@ -11,9 +11,15 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
 
   s.platforms    = { :ios => "10.0" }
-  s.source       = { :git => "https://github.com/hyperledger/indy-vdr.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/hyperledger/indy-vdr.git", 
+                     :tag => "#{s.version}" }
 
-  s.source_files = "ios/**/*.{h,m,mm}", "cpp/**/*.{h,cpp}"
+  source_base    = "wrappers/javascript/react-native-indy-vdr/"
+
+  s.source_files = [
+    source_base + "ios/**/*.{h,m,mm}", 
+    source_base + "cpp/**/*.{h,cpp}"
+  ]
 
   s.dependency "React-Core"
 end
