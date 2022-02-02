@@ -1,4 +1,4 @@
-package com.reactnativeindyvdr;
+package org.hyperledger.reactnativeindyvdr;
 
 import androidx.annotation.NonNull;
 

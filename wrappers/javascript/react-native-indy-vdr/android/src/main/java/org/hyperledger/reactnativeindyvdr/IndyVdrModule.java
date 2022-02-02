@@ -1,4 +1,4 @@
-package com.reactnativeindyvdr;
+package org.hyperledger.reactnativeindyvdr;
 
 import androidx.annotation.NonNull;
 
@@ -24,8 +24,7 @@ public class IndyVdrModule extends ReactContextBaseJavaModule {
 
     static {
         try {
-            // Used to load the 'native-lib' library on application startup.
-            System.loadLibrary("cpp");
+            System.loadLibrary("indy-vdr");
         } catch (Exception ignored) {
         }
     }
