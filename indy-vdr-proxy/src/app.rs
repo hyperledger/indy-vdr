@@ -1,5 +1,5 @@
 extern crate clap;
-use clap::{App, Arg};
+use clap::{Arg, Command};
 
 pub struct Config {
     pub genesis: String,
@@ -13,20 +13,20 @@ pub struct Config {
 
 pub fn load_config() -> Result<Config, String> {
     #[allow(unused_mut)]
-    let mut app = App::new("indy-vdr-proxy")
+    let mut app = Command::new("indy-vdr-proxy")
         .version("0.1.0")
         .about("Proxy requests to a Hyperledger Indy-Node ledger")
         .arg(
-            Arg::with_name("genesis")
-                .short("g")
+            Arg::new("genesis")
+                .short('g')
                 .long("genesis")
                 .takes_value(true)
                 .value_name("GENESIS")
                 .help("Path to the ledger genesis transactions")
         )
         .arg(
-            Arg::with_name("host")
-                .short("h")
+            Arg::new("host")
+                .short('h')
                 .long("host")
                 .takes_value(true)
                 .value_name("HOST")
@@ -34,21 +34,20 @@ pub fn load_config() -> Result<Config, String> {
                 .help("Set the local address to listen on")
         )
         .arg(
-            Arg::with_name("port")
-                .short("p")
+            Arg::new("port")
+                .short('p')
                 .long("port")
                 .takes_value(true)
                 .value_name("PORT")
                 .help("Sets the local port to listen on")
         )
         .arg(
-            Arg::with_name("no-refresh")
-                .long("no-refresh")
+            Arg::new("no-refresh")
                 .help("Disable initial validator node refresh"),
         )
         .arg(
-            Arg::with_name("refresh-interval")
-                .short("r")
+            Arg::new("refresh-interval")
+                .short('r')
                 .long("refresh-interval")
                 .takes_value(true)
                 .value_name("INTERVAL")
@@ -58,8 +57,8 @@ pub fn load_config() -> Result<Config, String> {
     #[cfg(unix)]
     {
         app = app.arg(
-            Arg::with_name("socket")
-                .short("s")
+            Arg::new("socket")
+                .short('s')
                 .long("socket")
                 .takes_value(true)
                 .value_name("SOCKET")
