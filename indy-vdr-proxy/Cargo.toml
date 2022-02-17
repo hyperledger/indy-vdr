@@ -1,6 +1,6 @@
 [package]
 name = "indy-vdr-proxy"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
 description = "A basic proxy server exposing indy-vdr functionality over an HTTP interface"
 edition = "2018"
@@ -12,8 +12,8 @@ zmq_vendored = ["indy-vdr/zmq_vendored"]
 default = ["fetch", "zmq_vendored"]
 
 [dependencies]
-clap = "2.33"
-env_logger = "0.7"
+clap = "3.1"
+env_logger = "0.9"
 futures-util = "0.3"
 hyper = { version = "0.14", features = ["http1", "http2"] }
 hyper-tls = { version = "0.5", optional = true }
@@ -21,7 +21,7 @@ log = "0.4.8"
 percent-encoding = "2"
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "signal"] }
-indy-vdr = { version = "0.3", path = "../libindy_vdr", default-features = false, features = ["log"] }
+indy-vdr = { version = "0.4", path = "../libindy_vdr", default-features = false, features = ["log"] }
 
 [target.'cfg(unix)'.dependencies]
 hyper-unix-connector = "0.2"
