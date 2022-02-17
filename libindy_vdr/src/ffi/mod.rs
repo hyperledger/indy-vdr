@@ -21,6 +21,8 @@ mod requests;
 
 use self::error::{set_last_error, ErrorCode};
 
+pub type CallbackId = i64;
+
 define_string_destructor!(indy_vdr_string_free);
 
 static POOL_CONFIG: Lazy<RwLock<PoolConfig>> = Lazy::new(|| RwLock::new(PoolConfig::default()));
@@ -49,10 +51,10 @@ pub extern "C" fn indy_vdr_set_default_logger() -> ErrorCode {
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_set_protocol_version(version: usize) -> ErrorCode {
+pub extern "C" fn indy_vdr_set_protocol_version(version: i64) -> ErrorCode {
     catch_err! {
         debug!("Setting pool protocol version: {}", version);
-        let version = ProtocolVersion::try_from(version as u64)?;
+        let version = ProtocolVersion::try_from(version)?;
         let mut gcfg = write_lock!(POOL_CONFIG)?;
         gcfg.protocol_version = version;
         Ok(ErrorCode::Success)
@@ -74,26 +76,3 @@ pub extern "C" fn indy_vdr_set_socks_proxy(socks_proxy: FfiStr) -> ErrorCode {
 pub extern "C" fn indy_vdr_version() -> *mut c_char {
     rust_string_to_c(LIB_VERSION.to_owned())
 }
-
-/*
-- indy_vdr_get_current_error
-- indy_vdr_set_protocol_version (for new pools) -> error code
-- indy_vdr_set_config (for new pools) -> error code
-- indy_vdr_set_custom_logger(callback) -> error code
-- indy_vdr_pool_create_from_transactions(char[], *pool_handle) -> error code
-- indy_vdr_pool_create_from_genesis_file(char[]) -> error code
-- indy_vdr_pool_get_transactions(pool_handle, char[]*) -> error code
-- indy_vdr_pool_refresh(pool_handle, callback(command_handle, err, new_txns)) -> error code
-- indy_vdr_pool_close(pool_handle) -> error code
-    (^ no more requests allowed on this pool, but existing ones may be completed)
-- indy_vdr_build_{nym, schema, etc}_request(..., *request_handle) -> error code
-- indy_vdr_build_custom_request(char[] json, *request_handle) -> error code
-- indy_vdr_pool_submit_request(pool_handle, request_handle, callback(command_handle, err, result_json)) -> error code
-- indy_vdr_pool_submit_action(pool_handle, request_handle, nodes, timeout, callback(command_handle, err, result_json)) -> error code
-- indy_vdr_request_free(request_handle) -> error code
-    (^ only needed for a request that isn't submitted)
-- indy_vdr_request_get_body(request_handle, *char[]) -> error code
-- indy_vdr_request_get_signature_input(request_handle, *char[]) -> error code
-- indy_vdr_request_set_signature(request_handle, *char[]) -> error code
-- indy_vdr_request_add_multi_signature(request_handle, *char[]) -> error code
-*/

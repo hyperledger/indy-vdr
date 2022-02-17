@@ -41,12 +41,12 @@ use crate::utils::did::{self, DidValue, ShortDidValue};
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Request<T: serde::Serialize> {
-    pub req_id: u64,
+    pub req_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub identifier: Option<ShortDidValue>,
     pub operation: T,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol_version: Option<usize>,
+    pub protocol_version: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,10 +59,10 @@ pub(crate) struct Request<T: serde::Serialize> {
 
 impl<T: serde::Serialize> Request<T> {
     pub fn new(
-        req_id: u64,
+        req_id: i64,
         operation: T,
         identifier: Option<ShortDidValue>,
-        protocol_version: Option<usize>,
+        protocol_version: Option<i64>,
     ) -> Request<T> {
         Request {
             req_id,
@@ -77,10 +77,10 @@ impl<T: serde::Serialize> Request<T> {
     }
 
     pub fn build_request(
-        req_id: u64,
+        req_id: i64,
         operation: T,
         identifier: Option<&DidValue>,
-        protocol_version: Option<usize>,
+        protocol_version: Option<i64>,
     ) -> VdrResult<serde_json::Value> {
         // FIXME - verify that qualified DID is using a known DID method
 
