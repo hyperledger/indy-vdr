@@ -156,11 +156,11 @@ impl PreparedRequest {
         method: Option<RequestMethod>,
     ) -> VdrResult<PreparedRequest> {
         let protocol_version = req_json["protocolVersion"]
-            .as_u64()
+            .as_i64()
             .ok_or(input_err("Invalid request JSON: protocolVersion not found"))
             .and_then(ProtocolVersion::from_id)?;
 
-        let req_id = req_json["reqId"].as_u64();
+        let req_id = req_json["reqId"].as_i64();
         let req_id = if req_id.is_none() {
             if auto_pop {
                 let new_req_id = new_request_id();
