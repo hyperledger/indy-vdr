@@ -130,7 +130,7 @@ jobs:
           - os: macos-11
             lib: libindy_vdr.dylib
             target: apple-darwin
-            toolchain: beta  #  beta required for aarch64-apple-darwin target
+            toolchain: beta #  beta required for aarch64-apple-darwin target
           - os: windows-latest
             lib: indy_vdr.dll
             toolchain: stable
@@ -172,10 +172,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: "Use Golang 1.14.x+"
+      - name: "Use Golang 1.16.x+"
         uses: actions/setup-go@v2
         with:
-          go-version: "^1.14.0"
+          go-version: "^1.16.0"
 
       - name: Fetch library artifacts
         uses: actions/download-artifact@v2
