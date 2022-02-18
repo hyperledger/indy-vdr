@@ -7,7 +7,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-fetch = ["hyper-tls"]
+fetch = ["hyper-tls", "hyper/client"]
 zmq_vendored = ["indy-vdr/zmq_vendored"]
 default = ["fetch", "zmq_vendored"]
 
@@ -15,7 +15,7 @@ default = ["fetch", "zmq_vendored"]
 clap = "3.1"
 env_logger = "0.9"
 futures-util = "0.3"
-hyper = { version = "0.14", features = ["http1", "http2"] }
+hyper = { version = "0.14", features = ["http1", "http2", "server"] }
 hyper-tls = { version = "0.5", optional = true }
 log = "0.4.8"
 percent-encoding = "2"
