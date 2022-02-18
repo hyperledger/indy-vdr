@@ -3,7 +3,7 @@ name = "indy-vdr-proxy"
 version = "0.1.2"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
 description = "A basic proxy server exposing indy-vdr functionality over an HTTP interface"
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
 
 [features]
