@@ -68,6 +68,7 @@ pub mod ledger;
 pub mod pool;
 
 /// did:indy DID URL resolver
+#[cfg(not(feature = "legacy"))]
 pub mod resolver;
 /// State proof verification for ledger read transactions
 pub mod state_proof;
