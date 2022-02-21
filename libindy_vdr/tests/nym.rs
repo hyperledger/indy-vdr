@@ -27,8 +27,28 @@ mod builder {
     mod nym {
         use super::*;
 
+        #[cfg(not(feature = "legacy"))]
         #[rstest]
         fn test_build_nym_request(
+            request_builder: RequestBuilder,
+            trustee_did: DidValue,
+            my_did: DidValue,
+        ) {
+            let nym_request = request_builder
+                .build_nym_request(&trustee_did, &my_did, None, None, None, None)
+                .unwrap();
+
+            let expected_result = json!({
+                "type": constants::NYM,
+                "dest": my_did,
+            });
+
+            helpers::check_request_operation(&nym_request, expected_result);
+        }
+
+        #[cfg(feature = "legacy")]
+        #[rstest]
+        fn test_build_nym_request_legacy(
             request_builder: RequestBuilder,
             trustee_did: DidValue,
             my_did: DidValue,
@@ -45,12 +65,15 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
+        #[cfg(not(feature = "legacy"))]
         #[rstest]
         fn test_build_nym_request_for_optional_fields(
             request_builder: RequestBuilder,
             trustee_did: DidValue,
             identity: Identity,
+            diddoc_content: serde_json::Value, 
         ) {
+            let copy = diddoc_content.clone();
             let nym_request = request_builder
                 .build_nym_request(
                     &trustee_did,
@@ -58,6 +81,7 @@ mod builder {
                     Some(identity.verkey.clone()),
                     Some(ALIAS.to_string()),
                     Some(ROLE.to_string()),
+                    Some(diddoc_content)
                 )
                 .unwrap();
 
@@ -67,11 +91,13 @@ mod builder {
                 "verkey": identity.verkey,
                 "alias": ALIAS,
                 "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+                "diddoc_content": copy,
             });
 
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
+        #[cfg(not(feature = "legacy"))]
         #[rstest]
         fn test_pool_build_nym_request_for_empty_role(
             request_builder: RequestBuilder,
@@ -79,7 +105,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&trustee_did, &my_did, None, None, Some(String::from("")))
+                .build_nym_request(&trustee_did, &my_did, None, None, Some(String::from("")), None)
                 .unwrap();
 
             let expected_result = json!({
@@ -91,6 +117,7 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
+        #[cfg(not(feature = "legacy"))]
         #[rstest]
         fn test_pool_build_nym_request_for_fully_qualified_dids(
             request_builder: RequestBuilder,
@@ -99,7 +126,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&fq_trustee_did, &fq_my_did, None, None, None)
+                .build_nym_request(&fq_trustee_did, &fq_my_did, None, None, None, None)
                 .unwrap();
 
             let expected_result = json!({
@@ -110,6 +137,7 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
+        #[cfg(not(feature = "legacy"))]
         #[rstest]
         fn test_build_nym_request_works_for_invalid_role(
             request_builder: RequestBuilder,
@@ -125,6 +153,7 @@ mod builder {
                     Some(identity.verkey),
                     None,
                     Some(role.to_string()),
+                    None
                 )
                 .unwrap_err();
         }

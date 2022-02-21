@@ -47,6 +47,21 @@ pub fn identity() -> Identity {
 }
 
 #[fixture]
+pub fn diddoc_content() -> serde_json::Value {
+    serde_json::json!({
+    "service": [
+      {
+        "id": "did:indy:sovrin:123456#did-communication",
+        "type": "did-communication",
+        "serviceEndpoint": "https://example.com",
+        "recipientKeys": [ "#verkey" ],
+        "routingKeys": [ ]
+      }
+    ]
+    })
+}
+
+#[fixture]
 pub fn pool() -> TestPool {
     TestPool::new()
 }

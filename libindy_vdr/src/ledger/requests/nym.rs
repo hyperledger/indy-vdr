@@ -6,6 +6,7 @@ use super::did::ShortDidValue;
 use super::{ProtocolVersion, RequestType};
 use crate::ledger::constants::{ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE};
 
+
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {
     #[serde(rename = "type")]
@@ -17,6 +18,8 @@ pub struct NymOperation {
     pub alias: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<::serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diddoc_content: Option<::serde_json::Value>,
 }
 
 impl NymOperation {
@@ -25,6 +28,7 @@ impl NymOperation {
         verkey: Option<String>,
         alias: Option<String>,
         role: Option<::serde_json::Value>,
+        diddoc_content: Option<::serde_json::Value>,
     ) -> NymOperation {
         NymOperation {
             _type: Self::get_txn_type().to_string(),
@@ -32,6 +36,7 @@ impl NymOperation {
             verkey,
             alias,
             role,
+            diddoc_content,
         }
     }
 }
