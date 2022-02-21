@@ -392,6 +392,7 @@ pub extern "C" fn indy_vdr_build_get_validator_info_request(
     }
 }
 
+#[cfg(feature = "legacy")]
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_nym_request(
     submitter_did: FfiStr,
@@ -414,6 +415,36 @@ pub extern "C" fn indy_vdr_build_nym_request(
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[cfg(not(feature = "legacy"))]
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_nym_request(
+    submitter_did: FfiStr,
+    dest: FfiStr,
+    verkey: FfiStr, // optional
+    alias: FfiStr,  // optional
+    role: FfiStr,   // optional
+    diddoc_content: FfiStr, // optional
+    handle_p: *mut usize,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build NYM request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(submitter_did.as_str())?;
+        let dest = DidValue::from_str(dest.as_str())?;
+        let verkey = verkey.into_opt_string();
+        let alias = alias.into_opt_string();
+        let role = role.into_opt_string();
+        let diddoc_content = serde_json::from_str(diddoc_content.as_str()).with_input_err("Error deserializing diddoc_content as JSON")?;
+        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role, diddoc_content)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = *handle;
         }
         Ok(ErrorCode::Success)
     }

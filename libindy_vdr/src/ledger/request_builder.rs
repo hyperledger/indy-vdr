@@ -122,8 +122,23 @@ impl RequestBuilder {
         ))
     }
 
-    /// Build a `NYM` transaction request
-    pub fn build_nym_request(
+    /// Build a new did:indy `NYM` transaction request
+    pub fn build_nym_request_did_indy(
+        &self,
+        identifier: &DidValue,
+        dest: &DidValue,
+        verkey: Option<String>,
+        alias: Option<String>,
+        role: Option<String>,
+        diddoc_content: Option<::serde_json::Value>,
+    ) -> VdrResult<PreparedRequest> {
+        let role = role_to_code(role)?;
+        let operation = NymOperation::new(dest.to_short(), verkey, alias, role, diddoc_content);
+        self.build(operation, Some(identifier))
+    }
+
+    /// Build a legacy `NYM` transaction request
+    pub fn build_nym_request_legacy(
         &self,
         identifier: &DidValue,
         dest: &DidValue,
@@ -132,8 +147,33 @@ impl RequestBuilder {
         role: Option<String>,
     ) -> VdrResult<PreparedRequest> {
         let role = role_to_code(role)?;
-        let operation = NymOperation::new(dest.to_short(), verkey, alias, role);
+        let operation = NymOperation::new(dest.to_short(), verkey, alias, role, None);
         self.build(operation, Some(identifier))
+    }
+
+    #[cfg(feature = "legacy")]
+    pub fn build_nym_request(
+        &self,
+        identifier: &DidValue,
+        dest: &DidValue,
+        verkey: Option<String>,
+        alias: Option<String>,
+        role: Option<String>,
+    ) -> VdrResult<PreparedRequest> {
+        self.build_nym_request_legacy(identifier, dest, verkey, alias, role)
+    }
+
+    #[cfg(not(feature = "legacy"))]
+    pub fn build_nym_request(
+        &self,
+        identifier: &DidValue,
+        dest: &DidValue,
+        verkey: Option<String>,
+        alias: Option<String>,
+        role: Option<String>,
+        diddoc_content: Option<serde_json::Value>,
+    ) -> VdrResult<PreparedRequest> {
+        self.build_nym_request_did_indy(identifier, dest, verkey, alias, role, diddoc_content)
     }
 
     /// Build a `GET_NYM` transaction request
@@ -713,7 +753,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_nym_request(&_identifier(), &_dest(), None, None, None)
+                .build_nym_request_did_indy(&_identifier(), &_dest(), None, None, None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
