@@ -48,6 +48,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha3 = "0.10"
 thiserror = "1.0"
+url = "2.2.2"
 zmq = "0.9"
 
 [dependencies.ursa]
