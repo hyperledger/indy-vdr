@@ -150,7 +150,7 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
-    #[cfg(feature = "legacy")]
+    #[cfg(not(feature = "did_indy"))]
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
@@ -162,7 +162,7 @@ impl RequestBuilder {
         self.build_nym_request_legacy(identifier, dest, verkey, alias, role)
     }
 
-    #[cfg(not(feature = "legacy"))]
+    #[cfg(feature = "did_indy")]
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
