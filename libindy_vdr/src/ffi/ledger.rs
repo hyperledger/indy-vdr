@@ -216,6 +216,8 @@ pub extern "C" fn indy_vdr_build_get_cred_def_request(
 pub extern "C" fn indy_vdr_build_get_nym_request(
     submitter_did: FfiStr, // optional
     dest: FfiStr,
+    seq_no: i32,    // optional
+    timestamp: i64, // optional
     handle_p: *mut usize,
 ) -> ErrorCode {
     catch_err! {
@@ -224,7 +226,8 @@ pub extern "C" fn indy_vdr_build_get_nym_request(
         let builder = get_request_builder()?;
         let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
         let dest = DidValue::from_str(dest.as_str())?;
-        let req = builder.build_get_nym_request(identifier.as_ref(), &dest)?;
+        let timestamp = if timestamp == -1 { None } else { Some(timestamp as u64) };
+        let req = builder.build_get_nym_request(identifier.as_ref(), &dest, Some(seq_no), timestamp)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;
@@ -389,35 +392,6 @@ pub extern "C" fn indy_vdr_build_get_validator_info_request(
     }
 }
 
-#[cfg(not(feature = "did_indy"))]
-#[no_mangle]
-pub extern "C" fn indy_vdr_build_nym_request(
-    submitter_did: FfiStr,
-    dest: FfiStr,
-    verkey: FfiStr, // optional
-    alias: FfiStr,  // optional
-    role: FfiStr,   // optional
-    handle_p: *mut usize,
-) -> ErrorCode {
-    catch_err! {
-        trace!("Build NYM request");
-        check_useful_c_ptr!(handle_p);
-        let builder = get_request_builder()?;
-        let identifier = DidValue::from_str(submitter_did.as_str())?;
-        let dest = DidValue::from_str(dest.as_str())?;
-        let verkey = verkey.into_opt_string();
-        let alias = alias.into_opt_string();
-        let role = role.into_opt_string();
-        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role)?;
-        let handle = add_request(req)?;
-        unsafe {
-            *handle_p = *handle;
-        }
-        Ok(ErrorCode::Success)
-    }
-}
-
-#[cfg(feature = "did_indy")]
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_nym_request(
     submitter_did: FfiStr,

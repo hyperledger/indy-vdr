@@ -38,7 +38,7 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
     // Send NYM
     let mut nym_request = pool
         .request_builder()
-        .build_nym_request_did_indy(
+        .build_nym_request(
             &trustee.did,
             &new_identity.did,
             Some(new_identity.verkey.to_string()),
