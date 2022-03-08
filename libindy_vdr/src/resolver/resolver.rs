@@ -16,6 +16,36 @@ use crate::pool::helpers::perform_ledger_request;
 use crate::pool::{Pool, PreparedRequest, RequestResult, TimingResult};
 use crate::utils::did::DidValue;
 
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum Result {
+    DidDocument(DidDocument),
+    Content(Value),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ContentMetadata {
+    node_response: Value,
+    object_type: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolutionResult {
+    did_resolution_metadata: Option<String>,
+    did_document: Option<Value>,
+    did_document_metadata: Option<ContentMetadata>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DereferencingResult {
+    dereferencing_metadata: Option<String>,
+    content_stream: Option<Value>,
+    content_metadata: Option<ContentMetadata>,
+}
+
 // DID (URL) Resolver for did:indy method
 pub struct Resolver<T: Pool> {
     pool: T,
@@ -26,7 +56,40 @@ impl<T: Pool> Resolver<T> {
         Resolver { pool }
     }
 
+    pub fn dereference(&self, did_url: &str) -> VdrResult<String> {
+        let (data, metadata) = self._resolve(did_url)?;
+
+        let content = match data {
+            Result::Content(c) => Some(c),
+            _ => None,
+        };
+
+        let result = DereferencingResult {
+            dereferencing_metadata: None,
+            content_stream: content,
+            content_metadata: Some(metadata),
+        };
+
+        Ok(serde_json::to_string_pretty(&result).unwrap())
+    }
+
     pub fn resolve(&self, did: &str) -> VdrResult<String> {
+        let (data, metadata) = self._resolve(did)?;
+
+        let diddoc = match data {
+            Result::DidDocument(doc) => Some(doc.to_value()?),
+            _ => None,
+        };
+        let result = ResolutionResult {
+            did_resolution_metadata: None,
+            did_document: diddoc,
+            did_document_metadata: Some(metadata),
+        };
+
+        Ok(serde_json::to_string_pretty(&result).unwrap())
+    }
+
+    pub fn _resolve(&self, did: &str) -> VdrResult<(Result, ContentMetadata)> {
         let did_url = DidUrl::from_str(did)?;
 
         let builder = self.pool.get_request_builder();
@@ -35,7 +98,7 @@ impl<T: Pool> Resolver<T> {
         let ledger_data = handle_request(&self.pool, &request)?;
         let data = parse_ledger_data(&ledger_data)?;
 
-        let result = match request.txn_type.as_str() {
+        let (result, object_type) = match request.txn_type.as_str() {
             constants::GET_NYM => {
                 let get_nym_result: GetNymResultV1 =
                     serde_json::from_str(data.as_str().unwrap())
@@ -55,13 +118,25 @@ impl<T: Pool> Resolver<T> {
                     endpoint,
                     None,
                 );
-                did_document.to_string()?
+                (Result::DidDocument(did_document), String::from("NYM"))
             }
-            // other ledger objects
-            _ => data.to_string(),
+            constants::GET_CRED_DEF => (Result::Content(data), String::from("CRED_DEF")),
+            constants::GET_SCHEMA => (Result::Content(data), String::from("SCHEMA")),
+            constants::GET_REVOC_REG_DEF => (Result::Content(data), String::from("REVOC_REG_DEF")),
+            constants::GET_REVOC_REG_DELTA => {
+                (Result::Content(data), String::from("REVOC_REG_DELTA"))
+            }
+            _ => (Result::Content(data), String::from("UNKOWN")),
         };
 
-        Ok(result)
+        let metadata = ContentMetadata {
+            node_response: serde_json::from_str(&ledger_data).unwrap(),
+            object_type,
+        };
+
+        let result_with_metadata = (result, metadata);
+
+        Ok(result_with_metadata)
     }
 
     fn fetch_legacy_endpoint(&self, did: &DidValue) -> VdrResult<Endpoint> {
@@ -115,25 +190,61 @@ fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<PreparedRe
                 .unwrap(),
             ),
             LedgerObject::RevRegEntry(rev_reg_entry) => {
-                let timestamp = parse_or_now(did.query.get(&QueryParameter::VersionTime))?;
+                // If From or To parameters, return RevRegDelta request
+                if did.query.contains_key(&QueryParameter::From)
+                    || did.query.contains_key(&QueryParameter::To)
+                {
+                    let mut from: Option<i64> = None;
+                    if did.query.contains_key(&QueryParameter::From) {
+                        from = did
+                            .query
+                            .get(&QueryParameter::From)
+                            .and_then(|d| DateTime::parse_from_rfc3339(d).ok())
+                            .and_then(|d| Some(d.timestamp()));
+                    }
 
-                builder.build_get_revoc_reg_request(
-                    None,
-                    &RevocationRegistryId::from_str(
-                        format!(
-                            "{}:4:{}:3:CL:{}:{}:CL_ACCUM:{}",
-                            &did.id,
-                            &did.id,
-                            rev_reg_entry.schema_seq_no,
-                            rev_reg_entry.claim_def_name,
-                            rev_reg_entry.tag
+                    let to = parse_or_now(did.query.get(&QueryParameter::To))?;
+
+                    builder.build_get_revoc_reg_delta_request(
+                        None,
+                        &RevocationRegistryId::from_str(
+                            format!(
+                                "{}:4:{}:3:CL:{}:{}:CL_ACCUM:{}",
+                                &did.id,
+                                &did.id,
+                                rev_reg_entry.schema_seq_no,
+                                rev_reg_entry.claim_def_name,
+                                rev_reg_entry.tag
+                            )
+                            .as_str(),
                         )
-                        .as_str(),
+                        .unwrap(),
+                        from,
+                        to,
                     )
-                    .unwrap(),
-                    timestamp,
-                )
+                // Else return RevRegEntry request
+                } else {
+                    let timestamp = parse_or_now(did.query.get(&QueryParameter::VersionTime))?;
+
+                    builder.build_get_revoc_reg_request(
+                        None,
+                        &RevocationRegistryId::from_str(
+                            format!(
+                                "{}:4:{}:3:CL:{}:{}:CL_ACCUM:{}",
+                                &did.id,
+                                &did.id,
+                                rev_reg_entry.schema_seq_no,
+                                rev_reg_entry.claim_def_name,
+                                rev_reg_entry.tag
+                            )
+                            .as_str(),
+                        )
+                        .unwrap(),
+                        timestamp,
+                    )
+                }
             }
+            // This path is deprecated. Deltas can be retrieved through RevRegEntry
             LedgerObject::RevRegDelta(rev_reg_delta) => {
                 let mut from: Option<i64> = None;
                 if did.query.contains_key(&QueryParameter::From) {
@@ -230,6 +341,8 @@ fn parse_or_now(datetime: Option<&String>) -> VdrResult<i64> {
 #[cfg(test)]
 mod tests {
 
+    use urlencoding::encode;
+
     use super::*;
     use rstest::*;
 
@@ -292,7 +405,7 @@ mod tests {
     fn build_get_revoc_reg_delta_request_with_from_to(request_builder: RequestBuilder) {
         let from_as_str = "2019-12-20T19:17:47Z";
         let to_as_str = "2020-12-20T19:17:47Z";
-        let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DELTA/104/revocable/a4e25e54?from={}&to={}",from_as_str, to_as_str);
+        let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54?from={}&to={}",from_as_str, to_as_str);
         let did_url = DidUrl::from_str(&did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
         assert_eq!(request.txn_type, constants::GET_REVOC_REG_DELTA);
@@ -302,7 +415,7 @@ mod tests {
     fn build_get_revoc_reg_delta_request_with_from_only(request_builder: RequestBuilder) {
         let now = chrono::Utc::now().timestamp();
         let from_as_str = "2019-12-20T19:17:47Z";
-        let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DELTA/104/revocable/a4e25e54?from={}",from_as_str);
+        let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54?from={}",from_as_str);
         let did_url = DidUrl::from_str(&did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
 
@@ -332,5 +445,24 @@ mod tests {
         assert_eq!(request.txn_type, constants::GET_REVOC_REG_DELTA);
         assert!(from.is_none());
         assert!(to >= now);
+    }
+
+    #[rstest]
+    fn build_get_schema_request_with_whitespace(request_builder: RequestBuilder) {
+        let name = "My Schema";
+        let encoded_schema_name = encode(name).to_string();
+        let did_url_string = format!(
+            "did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/SCHEMA/{}/1.0",
+            encoded_schema_name
+        );
+
+        let did_url = DidUrl::from_str(did_url_string.as_str()).unwrap();
+        let request = build_request(&did_url, &request_builder).unwrap();
+        let schema_name = (*(request.req_json).get("operation").unwrap())
+            .get("data")
+            .and_then(|v| v.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap();
+        assert_eq!(schema_name, name);
     }
 }
