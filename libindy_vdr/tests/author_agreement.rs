@@ -323,6 +323,7 @@ mod author_agreement {
                 Some(new_identity.verkey.to_string()),
                 None,
                 None,
+                None,
             )
             .unwrap()
     }
@@ -377,7 +378,7 @@ mod author_agreement {
         // Ensure NYM is written
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &new_identity.did)
+            .build_get_nym_request(None, &new_identity.did, None, None)
             .unwrap();
 
         let _response = pool
