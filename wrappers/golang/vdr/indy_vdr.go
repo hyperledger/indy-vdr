@@ -130,8 +130,10 @@ func (r *Client) Submit(request []byte) (*ReadReply, error) {
 func (r *Client) GetNym(did string) (*ReadReply, error) {
 	var nymreq C.int64_t
 	var none *C.char
+	var zero32 C.int32_t
+	var zero64 C.int64_t
 	cdid := C.CString(did)
-	result := C.indy_vdr_build_get_nym_request(none, cdid, NULL, NULL, &nymreq)
+	result := C.indy_vdr_build_get_nym_request(none, cdid, zero32, zero64, &nymreq)
 	C.free(unsafe.Pointer(cdid))
 	if result != 0 {
 		return nil, fmt.Errorf("invalid get nym request: (Indy error code: [%v])", result)
