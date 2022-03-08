@@ -271,11 +271,12 @@ async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str) -> VdrResult<Respo
     Ok(result.into())
 }
 
+// TODO: Support seq_no and timestamp
 async fn get_nym<T: Pool>(pool: &T, nym: &str) -> VdrResult<ResponseType> {
     let nym = DidValue::from_str(nym)?;
     let request = pool
         .get_request_builder()
-        .build_get_nym_request(None, &nym)?;
+        .build_get_nym_request(None, &nym, None, None)?;
     let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }

@@ -7,8 +7,8 @@ use super::{ProtocolVersion, RequestType};
 use crate::ledger::constants::{ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE};
 
 #[derive(Serialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct NymOperation {
-    #[serde(rename = "type")]
     pub _type: String,
     pub dest: ShortDidValue,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -47,17 +47,27 @@ impl RequestType for NymOperation {
 }
 
 #[derive(Serialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct GetNymOperation {
-    #[serde(rename = "type")]
     pub _type: String,
     pub dest: ShortDidValue,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seq_no: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<u64>,
 }
 
 impl GetNymOperation {
-    pub fn new(dest: ShortDidValue) -> GetNymOperation {
+    pub fn new(
+        dest: ShortDidValue,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
+    ) -> GetNymOperation {
         GetNymOperation {
             _type: Self::get_txn_type().to_string(),
             dest,
+            seq_no,
+            timestamp,
         }
     }
 }

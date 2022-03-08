@@ -1,6 +1,5 @@
-use chrono::{DateTime, Utc};
-
 use crate::utils::Qualifiable;
+use chrono::{DateTime, Utc};
 use futures_executor::block_on;
 use serde_json::Value as SJsonValue;
 
@@ -277,19 +276,18 @@ fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<PreparedRe
             }
         }
     } else {
-        // TODO: Use with new get nym request
-
-        let _seq_no: Option<i64> = did
+        let seq_no: Option<i32> = did
             .query
             .get(&QueryParameter::VersionId)
             .and_then(|v| v.parse().ok());
-        let _timestamp: Option<i64> = did
+        let timestamp: Option<u64> = did
             .query
             .get(&QueryParameter::VersionTime)
             .and_then(|d| DateTime::parse_from_rfc3339(d).ok())
-            .and_then(|d| Some(d.timestamp()));
+            .and_then(|d| Some(d.timestamp()))
+            .and_then(|d| Some(d as u64));
 
-        builder.build_get_nym_request(Option::None, &did.id)
+        builder.build_get_nym_request(Option::None, &did.id, seq_no, timestamp)
     };
     request
 }

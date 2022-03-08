@@ -123,7 +123,7 @@ impl RequestBuilder {
     }
 
     /// Build a new did:indy `NYM` transaction request
-    pub fn build_nym_request_did_indy(
+    pub fn build_nym_request(
         &self,
         identifier: &DidValue,
         dest: &DidValue,
@@ -137,53 +137,16 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
-    /// Build a legacy `NYM` transaction request
-    pub fn build_nym_request_legacy(
-        &self,
-        identifier: &DidValue,
-        dest: &DidValue,
-        verkey: Option<String>,
-        alias: Option<String>,
-        role: Option<String>,
-    ) -> VdrResult<PreparedRequest> {
-        let role = role_to_code(role)?;
-        let operation = NymOperation::new(dest.to_short(), verkey, alias, role, None);
-        self.build(operation, Some(identifier))
-    }
-
-    #[cfg(not(feature = "did_indy"))]
-    pub fn build_nym_request(
-        &self,
-        identifier: &DidValue,
-        dest: &DidValue,
-        verkey: Option<String>,
-        alias: Option<String>,
-        role: Option<String>,
-    ) -> VdrResult<PreparedRequest> {
-        self.build_nym_request_legacy(identifier, dest, verkey, alias, role)
-    }
-
-    #[cfg(feature = "did_indy")]
-    pub fn build_nym_request(
-        &self,
-        identifier: &DidValue,
-        dest: &DidValue,
-        verkey: Option<String>,
-        alias: Option<String>,
-        role: Option<String>,
-        diddoc_content: Option<serde_json::Value>,
-    ) -> VdrResult<PreparedRequest> {
-        self.build_nym_request_did_indy(identifier, dest, verkey, alias, role, diddoc_content)
-    }
-
-    /// Build a `GET_NYM` transaction request
+    /// Build a new did:indy `GET_NYM` transaction request
     pub fn build_get_nym_request(
         &self,
         identifier: Option<&DidValue>,
         dest: &DidValue,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
     ) -> VdrResult<PreparedRequest> {
         let dest = dest.to_short();
-        let operation = GetNymOperation::new(dest);
+        let operation = GetNymOperation::new(dest, seq_no, timestamp);
         self.build(operation, identifier)
     }
 
@@ -753,7 +716,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_nym_request_did_indy(&_identifier(), &_dest(), None, None, None, None)
+                .build_nym_request(&_identifier(), &_dest(), None, None, None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
@@ -765,7 +728,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_get_nym_request(None, &_dest())
+                .build_get_nym_request(None, &_dest(), None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::GET_NYM);
@@ -975,7 +938,7 @@ mod tests {
     )]
     fn test_prepare_request_for_different_protocol_versions(protocol_version: ProtocolVersion) {
         let request = RequestBuilder::new(protocol_version)
-            .build_get_nym_request(None, &_dest())
+            .build_get_nym_request(None, &_dest(), None, None)
             .unwrap();
 
         assert_eq!(request.protocol_version, protocol_version);
