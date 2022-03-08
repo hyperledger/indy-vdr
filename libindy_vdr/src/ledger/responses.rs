@@ -53,7 +53,7 @@ pub struct GetClaimDefResult {
     pub ref_schema_version: String,
 }
 
-#[derive(Clone, Deserialize, Eq, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct Endpoint {
     pub endpoint: HashMap<String, String>,
 }
