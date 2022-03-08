@@ -11,11 +11,13 @@ export class LedgerRequestGetNym extends LedgerRequest {
         super();
     }
 
-    public static create(dest: string, submitterDid?: string): LedgerRequestGetNym {
+    public static create(dest: string, submitterDid?: string, seqNo?: number, timestamp?: number): LedgerRequestGetNym {
         try {
             const request = new LedgerRequestGetNym();
             const submitterDidFfi = submitterDid ? allocCString(submitterDid) : NULL;
-            rustAPI().indy_vdr_build_get_nym_request(submitterDidFfi, allocCString(dest), request._handle);
+            const seqNoFfi = seqNo ? seqNo : NULL;
+            const timestampFfi = timestamp ? timestamp : NULL;
+            rustAPI().indy_vdr_build_get_nym_request(submitterDidFfi, allocCString(dest), seqNoFfi, timestampFfi, request._handle);
             return request;
         } catch (err) {
             throw new VDRInternalError(err);
