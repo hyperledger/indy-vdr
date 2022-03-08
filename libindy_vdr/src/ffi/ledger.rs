@@ -425,9 +425,9 @@ pub extern "C" fn indy_vdr_build_nym_request(
 pub extern "C" fn indy_vdr_build_nym_request(
     submitter_did: FfiStr,
     dest: FfiStr,
-    verkey: FfiStr, // optional
-    alias: FfiStr,  // optional
-    role: FfiStr,   // optional
+    verkey: FfiStr,         // optional
+    alias: FfiStr,          // optional
+    role: FfiStr,           // optional
     diddoc_content: FfiStr, // optional
     handle_p: *mut usize,
 ) -> ErrorCode {

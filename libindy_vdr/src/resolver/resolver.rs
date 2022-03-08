@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 
 use crate::utils::Qualifiable;
 use futures_executor::block_on;
-use serde_json::{Value as SJsonValue};
+use serde_json::Value as SJsonValue;
 
 use super::did::{DidUrl, LedgerObject, QueryParameter};
 use super::did_document::{DidDocument, LEGACY_INDY_SERVICE};
