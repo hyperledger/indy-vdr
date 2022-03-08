@@ -27,7 +27,6 @@ mod builder {
     mod nym {
         use super::*;
 
-   
         #[rstest]
         fn test_build_nym_request(
             request_builder: RequestBuilder,
