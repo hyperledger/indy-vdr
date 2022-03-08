@@ -1,6 +1,6 @@
 use crate::utils::did::DidValue;
 use serde::Deserialize;
-use serde_json::{Value as SJsonValue};
+use serde_json::Value as SJsonValue;
 use std::collections::HashMap;
 
 pub enum ResponseTypes {
