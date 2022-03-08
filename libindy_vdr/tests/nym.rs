@@ -4,7 +4,6 @@ mod utils;
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
-#[cfg(feature = "did_indy")]
 use indy_vdr::ledger::requests::nym::role_to_code;
 use indy_vdr::utils::did::DidValue;
 
