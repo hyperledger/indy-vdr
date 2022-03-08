@@ -131,7 +131,7 @@ func (r *Client) GetNym(did string) (*ReadReply, error) {
 	var nymreq C.int64_t
 	var none *C.char
 	cdid := C.CString(did)
-	result := C.indy_vdr_build_get_nym_request(none, cdid, none, none, &nymreq)
+	result := C.indy_vdr_build_get_nym_request(none, cdid, NULL, NULL, &nymreq)
 	C.free(unsafe.Pointer(cdid))
 	if result != 0 {
 		return nil, fmt.Errorf("invalid get nym request: (Indy error code: [%v])", result)
