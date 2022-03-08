@@ -53,9 +53,10 @@ export interface IFFIEntryPoint {
         verkey: Buffer,
         alias: Buffer,
         role: Buffer,
+        diddocContent: Buffer,
         requestHandle: Buffer,
     ) => rust_err_code;
-    indy_vdr_build_get_nym_request: (submitterDid: Buffer, dest: Buffer, requestHandle: Buffer) => rust_err_code;
+    indy_vdr_build_get_nym_request: (submitterDid: Buffer, dest: Buffer, seqNo: number, timestamp: number, requestHandle: Buffer) => rust_err_code;
     indy_vdr_build_get_validator_info_request: (submitterDid: Buffer, requestHandle: Buffer) => rust_err_code;
     indy_vdr_request_get_body: (requestHandle: number, bodyReturnPtr: number) => rust_err_code;
     // pool
