@@ -18,7 +18,7 @@ crate-type = ["staticlib", "rlib", "cdylib"]
 
 [features]
 ffi = ["ffi-support", "logger"]
-legacy = []
+did_indy = []
 logger = ["env_logger", "log"]
 zmq_vendored = ["zmq/vendored"]
 local_nodes_pool = []

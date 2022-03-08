@@ -4,6 +4,7 @@ mod utils;
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
+#[cfg(feature = "did_indy")]
 use indy_vdr::ledger::requests::nym::role_to_code;
 use indy_vdr::utils::did::DidValue;
 
@@ -27,7 +28,7 @@ mod builder {
     mod nym {
         use super::*;
 
-        #[cfg(not(feature = "legacy"))]
+        #[cfg(feature = "did_indy")]
         #[rstest]
         fn test_build_nym_request(
             request_builder: RequestBuilder,
@@ -46,7 +47,7 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
-        #[cfg(feature = "legacy")]
+        #[cfg(not(feature = "did_indy"))]
         #[rstest]
         fn test_build_nym_request_legacy(
             request_builder: RequestBuilder,
@@ -65,7 +66,7 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
-        #[cfg(not(feature = "legacy"))]
+        #[cfg(feature = "did_indy")]
         #[rstest]
         fn test_build_nym_request_for_optional_fields(
             request_builder: RequestBuilder,
@@ -97,7 +98,7 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
-        #[cfg(not(feature = "legacy"))]
+        #[cfg(feature = "did_indy")]
         #[rstest]
         fn test_pool_build_nym_request_for_empty_role(
             request_builder: RequestBuilder,
@@ -117,7 +118,7 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
-        #[cfg(not(feature = "legacy"))]
+        #[cfg(feature = "did_indy")]
         #[rstest]
         fn test_pool_build_nym_request_for_fully_qualified_dids(
             request_builder: RequestBuilder,
@@ -137,7 +138,7 @@ mod builder {
             helpers::check_request_operation(&nym_request, expected_result);
         }
 
-        #[cfg(not(feature = "legacy"))]
+        #[cfg(feature = "did_indy")]
         #[rstest]
         fn test_build_nym_request_works_for_invalid_role(
             request_builder: RequestBuilder,

@@ -392,7 +392,7 @@ pub extern "C" fn indy_vdr_build_get_validator_info_request(
     }
 }
 
-#[cfg(feature = "legacy")]
+#[cfg(not(feature = "did_indy"))]
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_nym_request(
     submitter_did: FfiStr,
@@ -420,7 +420,7 @@ pub extern "C" fn indy_vdr_build_nym_request(
     }
 }
 
-#[cfg(not(feature = "legacy"))]
+#[cfg(feature = "did_indy")]
 #[no_mangle]
 pub extern "C" fn indy_vdr_build_nym_request(
     submitter_did: FfiStr,
