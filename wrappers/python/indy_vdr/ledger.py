@@ -268,7 +268,7 @@ def build_get_cred_def_request(
     return Request(handle)
 
 
-def build_get_nym_request(submitter_did: Optional[str], dest: str) -> Request:
+def build_get_nym_request(submitter_did: Optional[str], dest: str, seq_no: Optional[int], timestamp: Optional[int]) -> Request:
     """
     Builds a GET_NYM request to get information about a DID (NYM).
 
@@ -276,11 +276,15 @@ def build_get_nym_request(submitter_did: Optional[str], dest: str) -> Request:
         submitter_did: (Optional) DID of the read request sender. If not provided
             then the default Libindy DID will be use)
         target_did: Target DID as base58-encoded string for 16 or 32 bit DID value
+        seq_no: (Optional) Version of NYM as sepecified by txn sequence number
+        timestamp: (Optional) Version of NYM as sepecified by timestamp
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     dest_p = encode_str(dest)
-    do_call("indy_vdr_build_get_nym_request", did_p, dest_p, byref(handle))
+    seq_no_c = c_int32(seq_no),
+    timestamp_c = c_int64(timestamp),
+    do_call("indy_vdr_build_get_nym_request", did_p, dest_p, seq_no_c, timestamp_c, byref(handle))
     return Request(handle)
 
 
@@ -471,6 +475,7 @@ def build_nym_request(
     verkey: str = None,
     alias: str = None,
     role: str = None,
+    diddoc_content: str = None,
 ) -> Request:
     """
     Builds a NYM request to create new DID on the ledger.
@@ -489,6 +494,7 @@ def build_nym_request(
             ENDORSER - equal to TRUST_ANCHOR that will be removed soon
             NETWORK_MONITOR
             empty string to reset role
+        diddoc_content: (Optional) The DIDDoc content
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
@@ -496,6 +502,7 @@ def build_nym_request(
     verkey_p = encode_str(verkey) if verkey else None
     alias_p = encode_str(alias) if alias else None
     role_p = encode_str(role) if role else None
+    diddoc_content_p = encode_str(diddoc_content) if diddoc_content else None
     do_call(
         "indy_vdr_build_nym_request",
         did_p,
@@ -503,6 +510,7 @@ def build_nym_request(
         verkey_p,
         alias_p,
         role_p,
+        diddoc_content_p,
         byref(handle),
     )
     return Request(handle)
