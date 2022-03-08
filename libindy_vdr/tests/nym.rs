@@ -72,7 +72,7 @@ mod builder {
             request_builder: RequestBuilder,
             trustee_did: DidValue,
             identity: Identity,
-            diddoc_content: serde_json::Value, 
+            diddoc_content: serde_json::Value,
         ) {
             let copy = diddoc_content.clone();
             let nym_request = request_builder
@@ -82,7 +82,7 @@ mod builder {
                     Some(identity.verkey.clone()),
                     Some(ALIAS.to_string()),
                     Some(ROLE.to_string()),
-                    Some(diddoc_content)
+                    Some(diddoc_content),
                 )
                 .unwrap();
 
@@ -106,7 +106,14 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&trustee_did, &my_did, None, None, Some(String::from("")), None)
+                .build_nym_request(
+                    &trustee_did,
+                    &my_did,
+                    None,
+                    None,
+                    Some(String::from("")),
+                    None,
+                )
                 .unwrap();
 
             let expected_result = json!({
@@ -154,7 +161,7 @@ mod builder {
                     Some(identity.verkey),
                     None,
                     Some(role.to_string()),
-                    None
+                    None,
                 )
                 .unwrap_err();
         }

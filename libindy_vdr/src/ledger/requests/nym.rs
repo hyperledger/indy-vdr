@@ -6,7 +6,6 @@ use super::did::ShortDidValue;
 use super::{ProtocolVersion, RequestType};
 use crate::ledger::constants::{ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE};
 
-
 #[derive(Serialize, PartialEq, Debug)]
 pub struct NymOperation {
     #[serde(rename = "type")]

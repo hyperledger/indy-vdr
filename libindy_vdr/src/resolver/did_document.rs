@@ -51,7 +51,6 @@ pub enum Service {
     DidCommService(DidCommService),
 }
 
-
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DidDocument {
@@ -218,7 +217,8 @@ mod tests {
         // Need to compare serde value instead of string, since elements might be in
         // different order.
 
-        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_doc: SJsonValue =
+            serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
         let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
@@ -276,7 +276,8 @@ mod tests {
 
         });
 
-        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_doc: SJsonValue =
+            serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
         let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
@@ -346,7 +347,8 @@ mod tests {
 
         });
 
-        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_doc: SJsonValue =
+            serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
         let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
@@ -417,7 +419,8 @@ mod tests {
 
         });
 
-        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_doc: SJsonValue =
+            serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
         let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
@@ -458,7 +461,8 @@ mod tests {
 
         });
 
-        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_doc: SJsonValue =
+            serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
         let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
@@ -484,7 +488,8 @@ mod tests {
             None,
         );
 
-        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_doc: SJsonValue =
+            serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
 
         assert_eq!(2, v_from_doc["service"].as_array().unwrap().len())
     }
