@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 
 use crate::utils::Qualifiable;
 use futures_executor::block_on;
-use serde_json::Value;
+use serde_json::{Value as SJsonValue};
 
 use super::did::{DidUrl, LedgerObject, QueryParameter};
 use super::did_document::{DidDocument, LEGACY_INDY_SERVICE};
@@ -20,13 +20,13 @@ use crate::utils::did::DidValue;
 #[serde(rename_all = "camelCase")]
 pub enum Result {
     DidDocument(DidDocument),
-    Content(Value),
+    Content(SJsonValue),
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ContentMetadata {
-    node_response: Value,
+    node_response: SJsonValue,
     object_type: String,
 }
 
@@ -34,7 +34,7 @@ pub struct ContentMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct ResolutionResult {
     did_resolution_metadata: Option<String>,
-    did_document: Option<Value>,
+    did_document: Option<SJsonValue>,
     did_document_metadata: Option<ContentMetadata>,
 }
 
@@ -42,7 +42,7 @@ pub struct ResolutionResult {
 #[serde(rename_all = "camelCase")]
 pub struct DereferencingResult {
     dereferencing_metadata: Option<String>,
-    content_stream: Option<Value>,
+    content_stream: Option<SJsonValue>,
     content_metadata: Option<ContentMetadata>,
 }
 
@@ -309,11 +309,11 @@ async fn request_transaction<T: Pool>(
     perform_ledger_request(pool, &request).await
 }
 
-fn parse_ledger_data(ledger_data: &str) -> VdrResult<Value> {
-    let v: Value = serde_json::from_str(&ledger_data)
+fn parse_ledger_data(ledger_data: &str) -> VdrResult<SJsonValue> {
+    let v: SJsonValue = serde_json::from_str(&ledger_data)
         .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse ledger response"))?;
-    let data: &Value = &v["result"]["data"];
-    if *data == Value::Null {
+    let data: &SJsonValue = &v["result"]["data"];
+    if *data == SJsonValue::Null {
         Err(err_msg(
             VdrErrorKind::Resolver,
             format!("Empty data in ledger response"),
