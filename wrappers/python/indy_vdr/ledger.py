@@ -268,7 +268,12 @@ def build_get_cred_def_request(
     return Request(handle)
 
 
-def build_get_nym_request(submitter_did: Optional[str], dest: str, seq_no: Optional[int], timestamp: Optional[int]) -> Request:
+def build_get_nym_request(
+    submitter_did: Optional[str],
+    dest: str,
+    seq_no: Optional[int],
+    timestamp: Optional[int],
+) -> Request:
     """
     Builds a GET_NYM request to get information about a DID (NYM).
 
@@ -282,9 +287,16 @@ def build_get_nym_request(submitter_did: Optional[str], dest: str, seq_no: Optio
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     dest_p = encode_str(dest)
-    seq_no_c = c_int32(seq_no),
-    timestamp_c = c_int64(timestamp),
-    do_call("indy_vdr_build_get_nym_request", did_p, dest_p, seq_no_c, timestamp_c, byref(handle))
+    seq_no_c = (c_int32(seq_no),)
+    timestamp_c = (c_int64(timestamp),)
+    do_call(
+        "indy_vdr_build_get_nym_request",
+        did_p,
+        dest_p,
+        seq_no_c,
+        timestamp_c,
+        byref(handle),
+    )
     return Request(handle)
 
 
