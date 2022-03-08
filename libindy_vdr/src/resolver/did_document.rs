@@ -1,7 +1,7 @@
 use crate::common::error::prelude::*;
 use crate::ledger::responses::Endpoint;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{self, Value as SJsonValue};
 
 pub const LEGACY_INDY_SERVICE: &str = "endpoint";
 pub const DID_CORE_CONTEXT: &str = "https://www.w3.org/ns/did/v1";
@@ -59,7 +59,7 @@ pub struct DidDocument {
     id: String,
     verkey: String,
     endpoint: Option<Endpoint>,
-    diddoc_content: Option<Value>,
+    diddoc_content: Option<SJsonValue>,
 }
 
 impl DidDocument {
@@ -68,7 +68,7 @@ impl DidDocument {
         id: &str,
         verkey: &str,
         endpoint: Option<Endpoint>,
-        diddoc_content: Option<Value>,
+        diddoc_content: Option<SJsonValue>,
     ) -> Self {
         DidDocument {
             namespace: namespace.to_string(),
@@ -79,7 +79,7 @@ impl DidDocument {
         }
     }
 
-    pub fn to_value(&self) -> VdrResult<Value> {
+    pub fn to_value(&self) -> VdrResult<SJsonValue> {
         let mut doc = json!({
              "id": format!("did:indy:{}:{}", self.namespace, self.id),
             "verificationMethod": [Ed25519VerificationKey2018 {
@@ -120,8 +120,8 @@ impl DidDocument {
                 services.push(s);
             }
 
-            if let Value::Object(ref mut map) = doc {
-                map.insert("service".to_string(), serde_json::Value::Array(services));
+            if let SJsonValue::Object(ref mut map) = doc {
+                map.insert("service".to_string(), SJsonValue::Array(services));
             }
         }
 
@@ -138,7 +138,7 @@ fn validate_context(context: &str) -> bool {
     context == DID_CORE_CONTEXT
 }
 
-fn validate_diddoc_content(diddoc_content: &Value) -> bool {
+fn validate_diddoc_content(diddoc_content: &SJsonValue) -> bool {
     if diddoc_content.get("id").is_some() {
         false
     } else if diddoc_content.get("@context").is_some() {
@@ -163,16 +163,16 @@ fn validate_diddoc_content(diddoc_content: &Value) -> bool {
     }
 }
 
-fn merge_diddoc(base: &mut Value, content: &Value) {
+fn merge_diddoc(base: &mut SJsonValue, content: &SJsonValue) {
     match (base, content) {
-        (Value::Object(base), Value::Object(content)) => {
+        (SJsonValue::Object(base), SJsonValue::Object(content)) => {
             for (k, v) in content {
                 if k == "authentication" || k == "verificationMethod" {
                     let mut _tmp = base[k].as_array().unwrap().to_owned();
                     _tmp.append(&mut v.as_array().unwrap_or(&vec![v.to_owned()]).to_owned());
-                    base[k] = Value::from(_tmp);
+                    base[k] = SJsonValue::from(_tmp);
                 } else {
-                    merge_diddoc(base.entry(k).or_insert(Value::Null), v);
+                    merge_diddoc(base.entry(k).or_insert(SJsonValue::Null), v);
                 }
             }
         }
@@ -218,8 +218,8 @@ mod tests {
         // Need to compare serde value instead of string, since elements might be in
         // different order.
 
-        let v_from_doc: Value = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
-        let v_from_serialized: Value =
+        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
         assert_eq!(v_from_doc, v_from_serialized)
@@ -276,8 +276,8 @@ mod tests {
 
         });
 
-        let v_from_doc: Value = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
-        let v_from_serialized: Value =
+        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
         assert_eq!(v_from_doc, v_from_serialized)
@@ -346,8 +346,8 @@ mod tests {
 
         });
 
-        let v_from_doc: Value = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
-        let v_from_serialized: Value =
+        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
         assert_eq!(v_from_doc, v_from_serialized)
@@ -417,8 +417,8 @@ mod tests {
 
         });
 
-        let v_from_doc: Value = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
-        let v_from_serialized: Value =
+        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
         assert_eq!(v_from_doc, v_from_serialized)
@@ -458,8 +458,8 @@ mod tests {
 
         });
 
-        let v_from_doc: Value = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
-        let v_from_serialized: Value =
+        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_serialized: SJsonValue =
             serde_json::from_str(serde_json::to_string(&serialized).unwrap().as_str()).unwrap();
 
         assert_eq!(v_from_doc, v_from_serialized)
@@ -484,7 +484,7 @@ mod tests {
             None,
         );
 
-        let v_from_doc: Value = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
+        let v_from_doc: SJsonValue = serde_json::from_str(doc.to_string().unwrap().as_str()).unwrap();
 
         assert_eq!(2, v_from_doc["service"].as_array().unwrap().len())
     }

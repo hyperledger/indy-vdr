@@ -1,6 +1,6 @@
 use crate::utils::did::DidValue;
 use serde::Deserialize;
-use serde_json::value::Value;
+use serde_json::{Value as SJsonValue};
 use std::collections::HashMap;
 
 pub enum ResponseTypes {
@@ -31,7 +31,7 @@ pub struct GetNymResultV1 {
     pub dest: DidValue,
     pub role: Option<String>,
     pub verkey: String,
-    pub diddoc_content: Option<Value>,
+    pub diddoc_content: Option<SJsonValue>,
 }
 
 #[derive(Deserialize, Eq, PartialEq, Debug)]
