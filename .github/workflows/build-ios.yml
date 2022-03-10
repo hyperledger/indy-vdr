@@ -10,7 +10,7 @@ on:
 
 env:
   LIB_NAME: indy_vdr
-  HEADER_FILE: rust_header.h
+  HEADER_FILE: libindy_vdr/include/libindy_vdr.h
   PACKAGE: indy-vdr
 
 jobs:
