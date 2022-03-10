@@ -43,7 +43,7 @@ jobs:
         uses: actions/download-artifact@v3
       - run: >
           lipo -create aarch64-apple-ios-sim/lib${{ env.LIB_NAME }}.a \
-                       x86_64-apple-ios/lib${ env.LIB_NAME{ }}.a \
+                       x86_64-apple-ios/lib${{ env.LIB_NAME }}.a \
                -output sim.a
       - run: >
           xcodebuild -create-xcframework \
