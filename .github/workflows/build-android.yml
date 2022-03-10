@@ -10,6 +10,7 @@ on:
 
 env:
   LIB_NAME: indy_vdr
+  PACKAGE: indy-vdr
 
 jobs:
   build_android:
@@ -25,7 +26,7 @@ jobs:
         with:
           use-cross: true
           command: build
-          args: --target ${{matrix.architecture}} --release --package indy-vdr --all-features
+          args: --target ${{matrix.architecture}} --release --package ${{ env.PACKAGE }} --all-features
       - name: Save library
         uses: actions/upload-artifact@v2
         with:

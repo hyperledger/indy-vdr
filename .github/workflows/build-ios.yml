@@ -11,6 +11,7 @@ on:
 env:
   LIB_NAME: indy_vdr
   HEADER_FILE: rust_header.h
+  PACKAGE: indy-vdr
 
 jobs:
   build_ios:
@@ -25,7 +26,7 @@ jobs:
         with:
           use-cross: true
           command: build
-          args: --target ${{matrix.architecture}} --release
+          args: --target ${{matrix.architecture}} --release --package ${{ env.PACKAGE }} --all-features
       - name: Save static library
         uses: actions/upload-artifact@v3
         with:
