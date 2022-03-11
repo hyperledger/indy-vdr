@@ -430,7 +430,7 @@ impl<'a> PoolRunnerResolver<'a> {
 }
 
 type Callback<R> = Box<dyn (FnOnce(R) -> ()) + Send>;
-type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
+// type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 fn parse_ledger_data(ledger_data: &str) -> VdrResult<SJsonValue> {
     let v: SJsonValue = serde_json::from_str(&ledger_data)
