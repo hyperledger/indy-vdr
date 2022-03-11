@@ -8,11 +8,10 @@ use super::did_document::{DidDocument, LEGACY_INDY_SERVICE};
 use crate::common::error::prelude::*;
 use crate::ledger::responses::{Endpoint, GetNymResultV1};
 
-use crate::ledger::constants;
 use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
-use crate::ledger::RequestBuilder;
+use crate::ledger::{constants, RequestBuilder};
 use crate::pool::helpers::perform_ledger_request;
-use crate::pool::{Pool, PreparedRequest, RequestResult, TimingResult};
+use crate::pool::{Pool, PoolRunner, PreparedRequest, RequestResult, TimingResult};
 use crate::utils::did::DidValue;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -46,13 +45,13 @@ pub struct DereferencingResult {
 }
 
 // DID (URL) Resolver for did:indy method
-pub struct Resolver<T: Pool> {
+pub struct PoolResolver<T: Pool> {
     pool: T,
 }
 
-impl<T: Pool> Resolver<T> {
-    pub fn new(pool: T) -> Resolver<T> {
-        Resolver { pool }
+impl<T: Pool> PoolResolver<T> {
+    pub fn new(pool: T) -> PoolResolver<T> {
+        PoolResolver { pool }
     }
 
     pub fn dereference(&self, did_url: &str) -> VdrResult<String> {
@@ -306,6 +305,132 @@ async fn request_transaction<T: Pool>(
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     perform_ledger_request(pool, &request).await
 }
+
+pub struct PoolRunnerResolver<'a> {
+    runner: &'a PoolRunner,
+}
+
+impl<'a> PoolRunnerResolver<'a> {
+    pub fn new(runner: &'a PoolRunner) -> PoolRunnerResolver {
+        PoolRunnerResolver { runner }
+    }
+
+    // pub fn dereference(&self, did_url: &str, callback: Callback<SendReqResponse>) -> VdrResult<String> {
+    //     let (data, metadata) = self._resolve(did_url)?;
+
+    //     let content = match data {
+    //         Result::Content(c) => Some(c),
+    //         _ => None,
+    //     };
+
+    //     let result = DereferencingResult {
+    //         dereferencing_metadata: None,
+    //         content_stream: content,
+    //         content_metadata: Some(metadata),
+    //     };
+
+    //     Ok(serde_json::to_string_pretty(&result).unwrap())
+    // }
+
+    pub fn resolve(&self, did: &str, callback: Callback<VdrResult<String>>) -> VdrResult<()> {
+        self._resolve(
+            did,
+            Box::new(|result| {
+                let (data, metadata) = result.unwrap();
+                let diddoc = match data {
+                    Result::DidDocument(doc) => Some(doc.to_value().unwrap()),
+                    _ => None,
+                };
+                let result = ResolutionResult {
+                    did_resolution_metadata: None,
+                    did_document: diddoc,
+                    did_document_metadata: Some(metadata),
+                };
+
+                callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
+            }),
+        )
+    }
+
+    fn _resolve(
+        &self,
+        did: &str,
+        callback: Callback<VdrResult<(Result, ContentMetadata)>>,
+    ) -> VdrResult<()> {
+        let did_url = DidUrl::from_str(did)?;
+
+        let builder = RequestBuilder::default();
+        let request = build_request(&did_url, &builder)?;
+        let txn_type = request.txn_type.clone();
+        self.runner.send_request(
+            request,
+            Box::new(
+                move |result: VdrResult<(RequestResult<String>, Option<TimingResult>)>| {
+                    match result {
+                        Ok((res, _)) => {
+                            match res {
+                                RequestResult::Reply(reply_data) => {
+                                    let data = parse_ledger_data(&reply_data).unwrap();
+                                    let (result, object_type) = match txn_type.as_str() {
+                                        constants::GET_NYM => {
+                                            let get_nym_result: GetNymResultV1 =
+                                                serde_json::from_str(data.as_str().unwrap())
+                                                    .unwrap();
+
+                                            let endpoint: Option<Endpoint> =
+                                                if get_nym_result.diddoc_content.is_none() {
+                                                    // Legacy: Try to find an attached ATTRIBUTE transacation with raw endpoint
+                                                    // self.fetch_legacy_endpoint(&did_url.id).ok()
+                                                    None
+                                                } else {
+                                                    None
+                                                };
+
+                                            let did_document = DidDocument::new(
+                                                &did_url.namespace,
+                                                &get_nym_result.dest,
+                                                &get_nym_result.verkey,
+                                                endpoint,
+                                                None,
+                                            );
+                                            (Result::DidDocument(did_document), String::from("NYM"))
+                                        }
+                                        constants::GET_CRED_DEF => {
+                                            (Result::Content(data), String::from("CRED_DEF"))
+                                        }
+                                        constants::GET_SCHEMA => {
+                                            (Result::Content(data), String::from("SCHEMA"))
+                                        }
+                                        constants::GET_REVOC_REG_DEF => {
+                                            (Result::Content(data), String::from("REVOC_REG_DEF"))
+                                        }
+                                        constants::GET_REVOC_REG_DELTA => {
+                                            (Result::Content(data), String::from("REVOC_REG_DELTA"))
+                                        }
+                                        _ => (Result::Content(data), String::from("UNKOWN")),
+                                    };
+
+                                    let metadata = ContentMetadata {
+                                        node_response: serde_json::from_str(&reply_data).unwrap(),
+                                        object_type,
+                                    };
+
+                                    let result_with_metadata = (result, metadata);
+                                    callback(Ok(result_with_metadata));
+                                }
+                                RequestResult::Failed(err) => callback(Err(err)),
+                            }
+                        }
+                        Err(err) => callback(Err(err)),
+                    }
+                },
+            ),
+        )
+    }
+}
+
+type Callback<R> = Box<dyn (FnOnce(R) -> ()) + Send>;
+type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 fn parse_ledger_data(ledger_data: &str) -> VdrResult<SJsonValue> {
     let v: SJsonValue = serde_json::from_str(&ledger_data)
