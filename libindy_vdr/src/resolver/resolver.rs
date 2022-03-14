@@ -87,7 +87,7 @@ impl<T: Pool> PoolResolver<T> {
         Ok(serde_json::to_string_pretty(&result).unwrap())
     }
 
-    pub fn _resolve(&self, did: &str) -> VdrResult<(Result, ContentMetadata)> {
+    fn _resolve(&self, did: &str) -> VdrResult<(Result, ContentMetadata)> {
         let did_url = DidUrl::from_str(did)?;
 
         let builder = self.pool.get_request_builder();
@@ -311,31 +311,43 @@ pub struct PoolRunnerResolver<'a> {
 }
 
 impl<'a> PoolRunnerResolver<'a> {
-    pub fn new(runner: &'a PoolRunner) -> PoolRunnerResolver {
+    pub fn new(runner: &'a PoolRunner) -> PoolRunnerResolver<'a> {
         PoolRunnerResolver { runner }
     }
 
-    // pub fn dereference(&self, did_url: &str, callback: Callback<SendReqResponse>) -> VdrResult<String> {
-    //     let (data, metadata) = self._resolve(did_url)?;
+    pub fn dereference(
+        &'a self,
+        did_url: &str,
+        callback: Callback<VdrResult<String>>,
+    ) -> VdrResult<()> {
+        self._resolve(
+            did_url,
+            Box::new(move |result| {
+                let (data, metadata) = result.unwrap();
+                let content = match data {
+                    Result::Content(c) => Some(c),
+                    _ => None,
+                };
 
-    //     let content = match data {
-    //         Result::Content(c) => Some(c),
-    //         _ => None,
-    //     };
+                let result = DereferencingResult {
+                    dereferencing_metadata: None,
+                    content_stream: content,
+                    content_metadata: Some(metadata),
+                };
 
-    //     let result = DereferencingResult {
-    //         dereferencing_metadata: None,
-    //         content_stream: content,
-    //         content_metadata: Some(metadata),
-    //     };
+                callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
+            }),
+        )
+    }
 
-    //     Ok(serde_json::to_string_pretty(&result).unwrap())
-    // }
-
-    pub fn resolve(&self, did: &str, callback: Callback<VdrResult<String>>) -> VdrResult<()> {
+    pub fn resolve(
+        &'a self,
+        did: &str,
+        callback: Callback<VdrResult<String>>,
+    ) -> VdrResult<()> {
         self._resolve(
             did,
-            Box::new(|result| {
+            Box::new(move |result| {
                 let (data, metadata) = result.unwrap();
                 let diddoc = match data {
                     Result::DidDocument(doc) => Some(doc.to_value().unwrap()),
@@ -353,7 +365,7 @@ impl<'a> PoolRunnerResolver<'a> {
     }
 
     fn _resolve(
-        &self,
+        &'a self,
         did: &str,
         callback: Callback<VdrResult<(Result, ContentMetadata)>>,
     ) -> VdrResult<()> {
@@ -367,56 +379,99 @@ impl<'a> PoolRunnerResolver<'a> {
             Box::new(
                 move |result: VdrResult<(RequestResult<String>, Option<TimingResult>)>| {
                     match result {
-                        Ok((res, _)) => {
-                            match res {
+                        Ok((reply, _)) => {
+                            match reply {
                                 RequestResult::Reply(reply_data) => {
                                     let data = parse_ledger_data(&reply_data).unwrap();
-                                    let (result, object_type) = match txn_type.as_str() {
-                                        constants::GET_NYM => {
-                                            let get_nym_result: GetNymResultV1 =
-                                                serde_json::from_str(data.as_str().unwrap())
-                                                    .unwrap();
+                                    if txn_type.as_str() == constants::GET_NYM {
+                                        let get_nym_result: GetNymResultV1 =
+                                            serde_json::from_str(data.as_str().unwrap()).unwrap();
 
-                                            let endpoint: Option<Endpoint> =
-                                                if get_nym_result.diddoc_content.is_none() {
-                                                    // Legacy: Try to find an attached ATTRIBUTE transacation with raw endpoint
-                                                    // self.fetch_legacy_endpoint(&did_url.id).ok()
-                                                    None
-                                                } else {
-                                                    None
-                                                };
+                                        // let did = did_url.id.clone();
+                                        if get_nym_result.diddoc_content.is_none() {
+                                            // Legacy: Try to find an attached ATTRIBUTE transacation with raw endpoint
+                                            // self.fetch_legacy_endpoint(
+                                            //     &did,
+                                            //     Box::new(move |result| {
+                                            //         let did_document = DidDocument::new(
+                                            //             &did_url.namespace,
+                                            //             &get_nym_result.dest,
+                                            //             &get_nym_result.verkey,
+                                            //             result.ok(),
+                                            //             None,
+                                            //         );
 
+                                            //         let metadata = ContentMetadata {
+                                            //             node_response: serde_json::from_str(
+                                            //                 &reply_data,
+                                            //             )
+                                            //             .unwrap(),
+                                            //             object_type: String::from("NYM"),
+                                            //         };
+
+                                            //         let result =
+                                            //             Some(Result::DidDocument(did_document));
+
+                                            //         let result_with_metadata =
+                                            //             (result.unwrap(), metadata);
+                                            //         callback(Ok(result_with_metadata));
+                                            //     }),
+                                            // );
+                                        } else {
                                             let did_document = DidDocument::new(
                                                 &did_url.namespace,
                                                 &get_nym_result.dest,
                                                 &get_nym_result.verkey,
-                                                endpoint,
+                                                None,
                                                 None,
                                             );
-                                            (Result::DidDocument(did_document), String::from("NYM"))
-                                        }
-                                        constants::GET_CRED_DEF => {
-                                            (Result::Content(data), String::from("CRED_DEF"))
-                                        }
-                                        constants::GET_SCHEMA => {
-                                            (Result::Content(data), String::from("SCHEMA"))
-                                        }
-                                        constants::GET_REVOC_REG_DEF => {
-                                            (Result::Content(data), String::from("REVOC_REG_DEF"))
-                                        }
-                                        constants::GET_REVOC_REG_DELTA => {
-                                            (Result::Content(data), String::from("REVOC_REG_DELTA"))
-                                        }
-                                        _ => (Result::Content(data), String::from("UNKOWN")),
-                                    };
 
-                                    let metadata = ContentMetadata {
-                                        node_response: serde_json::from_str(&reply_data).unwrap(),
-                                        object_type,
-                                    };
+                                            let metadata = ContentMetadata {
+                                                node_response: serde_json::from_str(&reply_data)
+                                                    .unwrap(),
+                                                object_type: String::from("NYM"),
+                                            };
 
-                                    let result_with_metadata = (result, metadata);
-                                    callback(Ok(result_with_metadata));
+                                            let result = Some(Result::DidDocument(did_document));
+
+                                            let result_with_metadata = (result.unwrap(), metadata);
+                                            callback(Ok(result_with_metadata));
+                                        }
+                                    } else {
+                                        let (result, object_type) = match txn_type.as_str() {
+                                            constants::GET_CRED_DEF => (
+                                                Some(Result::Content(data)),
+                                                String::from("CRED_DEF"),
+                                            ),
+                                            constants::GET_SCHEMA => (
+                                                Some(Result::Content(data)),
+                                                String::from("SCHEMA"),
+                                            ),
+                                            constants::GET_REVOC_REG_DEF => (
+                                                Some(Result::Content(data)),
+                                                String::from("REVOC_REG_DEF"),
+                                            ),
+                                            constants::GET_REVOC_REG_DELTA => (
+                                                Some(Result::Content(data)),
+                                                String::from("REVOC_REG_DELTA"),
+                                            ),
+                                            _ => (
+                                                Some(Result::Content(data)),
+                                                String::from("UNKOWN"),
+                                            ),
+                                        };
+
+                                        let metadata = ContentMetadata {
+                                            node_response: serde_json::from_str(&reply_data)
+                                                .unwrap(),
+                                            object_type,
+                                        };
+
+                                        if result.is_some() {
+                                            let result_with_metadata = (result.unwrap(), metadata);
+                                            callback(Ok(result_with_metadata));
+                                        }
+                                    }
                                 }
                                 RequestResult::Failed(err) => callback(Err(err)),
                             }
@@ -427,10 +482,39 @@ impl<'a> PoolRunnerResolver<'a> {
             ),
         )
     }
+
+    fn fetch_legacy_endpoint(
+        &'a self,
+        did: &DidValue,
+        cb: Callback<VdrResult<Endpoint>>
+    ) -> VdrResult<()> {
+        let builder = RequestBuilder::default();
+        let request = builder.build_get_attrib_request(
+            None,
+            did,
+            Some(String::from(LEGACY_INDY_SERVICE)),
+            None,
+            None,
+        )?;
+        self.runner.send_request(
+            request,
+            Box::new(move |result| match result {
+                Ok((res, _)) => match res {
+                    RequestResult::Reply(reply_data) => {
+                        let endpoint_data = parse_ledger_data(&reply_data).unwrap();
+                        let endpoint_data: Endpoint =
+                            serde_json::from_str(endpoint_data.as_str().unwrap()).unwrap();
+                        cb(Ok(endpoint_data));
+                    }
+                    RequestResult::Failed(err) => cb(Err(err)),
+                },
+                Err(err) => cb(Err(err)),
+            }),
+        )
+    }
 }
 
 type Callback<R> = Box<dyn (FnOnce(R) -> ()) + Send>;
-// type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 fn parse_ledger_data(ledger_data: &str) -> VdrResult<SJsonValue> {
     let v: SJsonValue = serde_json::from_str(&ledger_data)

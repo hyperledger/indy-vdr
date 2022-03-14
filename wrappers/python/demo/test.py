@@ -33,6 +33,7 @@ from indy_vdr.ledger import (
     LedgerType,
 )
 from indy_vdr.pool import Pool, open_pool
+from indy_vdr.resolver import Resolver
 
 
 def log(*args):
@@ -187,8 +188,15 @@ async def basic_test(transactions_path):
     req = build_get_frozen_ledgers_request(identifier)
     log("Get Frozen Ledgers request:", req.body)
 
-    req = build_pool_upgrade_request(identifier, 'up', '2.0.0', 'start', 'abc', None, {}, None, False, False, None)
+    req = build_pool_upgrade_request(
+        identifier, "up", "2.0.0", "start", "abc", None, {}, None, False, False, None
+    )
     log("Pool Upgrade request:", req.body)
+
+    resolver = Resolver(pool.handle)
+    doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
+
+    log(json.dumps(doc, indent=2))
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"
