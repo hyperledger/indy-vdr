@@ -264,12 +264,23 @@ def resolver_create(pool_handle: PoolHandle) -> ResolverHandle:
     return handle
 
 
-def resolve(resolver_handle: ResolverHandle, did_url: str) -> asyncio.Future:
-    """Resovle a DID to retrieve a DID Doc."""
+def resolve(resolver_handle: ResolverHandle, did: str) -> asyncio.Future:
+    """Resolve a DID to retrieve a DID Doc."""
     return do_call_async(
         "indy_vdr_resolve",
         resolver_handle,
-        did_url,
+        encode_str(did),
+        return_type=lib_string,
+        post_process=str,
+    )
+
+
+def dereference(pool_handle: PoolHandle, did_url: str) -> asyncio.Future:
+    """Dereference a DID Urk to retrieve a ledger object."""
+    return do_call_async(
+        "indy_vdr_dereference",
+        pool_handle,
+        encode_str(did_url),
         return_type=lib_string,
         post_process=str,
     )

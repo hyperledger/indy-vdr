@@ -4,9 +4,9 @@ from . import bindings
 class Resolver:
     """did:indy compliant resolver interface for a specific network."""
 
-    def __init__(self, handle: bindings.ResolverHandle):
+    def __init__(self, pool_handle: bindings.PoolHandle):
         """Initialize the pool instance."""
-        self.handle = handle
+        self.handle = pool_handle
 
     async def resolve(self, did: str) -> dict:
         """Resolve a DID to retrieve a DID Doc."""
