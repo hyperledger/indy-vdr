@@ -15,7 +15,11 @@ use crate::utils::Qualifiable;
 use super::error::{set_last_error, ErrorCode};
 use super::POOL_CONFIG;
 
-new_sequence_handle!(RequestHandle, FFI_RH_COUNTER);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct RequestHandle(pub i64);
+
+impl_sequence_handle!(RequestHandle, FFI_RH_COUNTER);
 
 pub static REQUESTS: Lazy<RwLock<BTreeMap<RequestHandle, PreparedRequest>>> =
     Lazy::new(|| RwLock::new(BTreeMap::new()));

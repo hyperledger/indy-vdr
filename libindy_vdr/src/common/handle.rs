@@ -6,13 +6,10 @@ pub trait ResourceHandle: Copy + Ord + From<i64> {
     fn next() -> Self;
 }
 
+#[cfg(feature = "ffi")]
 /// Derive a new handle type having an atomically increasing sequence number
-macro_rules! new_sequence_handle (($newtype:ident, $counter:ident) => (
+macro_rules! impl_sequence_handle (($newtype:ident, $counter:ident) => (
     static $counter: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    #[repr(transparent)]
-    pub struct $newtype(pub i64);
 
     impl $crate::common::handle::ResourceHandle for $newtype {
         fn next() -> $newtype {

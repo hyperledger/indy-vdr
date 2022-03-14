@@ -16,7 +16,11 @@ use super::error::{set_last_error, ErrorCode};
 use super::requests::{RequestHandle, REQUESTS};
 use super::{CallbackId, POOL_CONFIG};
 
-new_sequence_handle!(PoolHandle, FFI_PH_COUNTER);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct PoolHandle(pub i64);
+
+impl_sequence_handle!(PoolHandle, FFI_PH_COUNTER);
 
 static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolRunner>>> =
     Lazy::new(|| RwLock::new(BTreeMap::new()));
