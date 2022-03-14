@@ -17,7 +17,7 @@ use super::POOL_CONFIG;
 
 new_handle_type!(PoolHandle, FFI_PH_COUNTER);
 
-static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolRunner>>> =
+pub static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolRunner>>> =
     Lazy::new(|| RwLock::new(BTreeMap::new()));
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

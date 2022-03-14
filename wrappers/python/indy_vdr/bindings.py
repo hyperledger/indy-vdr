@@ -212,29 +212,23 @@ def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
     return handle
 
 
-def resolver_create(pool_handle: PoolHandle) -> ResolverHandle:
-    """Create a new resolver instance."""
-    do_call("indy_vdr_resolver_create", pool_handle, byref(handle))
-    return handle
-
-
-def resolve(resolver_handle: ResolverHandle, did: str) -> asyncio.Future:
+def resolve(pool_handle: PoolHandle, did: str) -> asyncio.Future:
     """Resovle a DID to retrieve a DID Doc."""
-    return do_call_asnyc(
+    return do_call_async(
         "indy_vdr_resolve",
-        resolver_handle,
-        did,
+        pool_handle,
+        encode_str(did),
         return_type=lib_string,
         post_process=str,
     )
 
 
-def resolve(resolver_handle: ResolverHandle, did_url: str) -> asyncio.Future:
+def dereference(pool_handle: PoolHandle, did_url: str) -> asyncio.Future:
     """Dereference a DID Urk to retrieve a ledger object."""
-    return do_call_asnyc(
+    return do_call_async(
         "indy_vdr_dereference",
-        resolver_handle,
-        did_url,
+        pool_handle,
+        encode_str(did_url),
         return_type=lib_string,
         post_process=str,
     )
