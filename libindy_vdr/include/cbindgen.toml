@@ -54,7 +54,7 @@ usize_is_size_t = true
 # "target_os = freebsd" = "DEFINE_FREEBSD"
 # "feature = serde" = "DEFINE_SERDE"
 "feature = rich_schema" = "DEFINE_RICH_SCHEMA"
-
+"test" = "DEFINE_TEST"
 
 [export]
 include = []
@@ -136,8 +136,8 @@ bitflags = false
 ############## Options for How Your Rust library Should Be Parsed ##############
 
 [parse]
-parse_deps = false
-# include = ["ffi-support"]
+parse_deps = true
+include = ["ffi-support"]
 exclude = []
 clean = false
 extra_bindings = []
