@@ -52,7 +52,7 @@ mod builder {
             identity: Identity,
             diddoc_content: serde_json::Value,
         ) {
-            let copy = diddoc_content.clone();
+            // let copy = diddoc_content.clone();
             let nym_request = request_builder
                 .build_nym_request(
                     &trustee_did,
@@ -60,7 +60,7 @@ mod builder {
                     Some(identity.verkey.clone()),
                     Some(ALIAS.to_string()),
                     Some(ROLE.to_string()),
-                    Some(diddoc_content),
+                    Some(&diddoc_content),
                     None,
                 )
                 .unwrap();
@@ -71,7 +71,7 @@ mod builder {
                 "verkey": identity.verkey,
                 "alias": ALIAS,
                 "role": role_to_code(Some(String::from(ROLE))).unwrap(),
-                "diddocContent": copy,
+                "diddocContent": diddoc_content.to_string(),
             });
 
             helpers::check_request_operation(&nym_request, expected_result);
@@ -192,7 +192,7 @@ mod builder {
 mod send {
     use super::*;
     use crate::utils::pool::TestPool;
-    use indy_vdr::ledger::constants::ROLE_REMOVE;
+    use indy_vdr::ledger::{constants::ROLE_REMOVE, responses::GetNymResultV1};
 
     #[rstest]
     fn test_pool_send_nym_request(pool: TestPool, trustee: Identity, identity: Identity) {
@@ -270,6 +270,60 @@ mod send {
             "role": role_to_code(Some(String::from(ROLE))).unwrap(),
         });
         assert_eq!(expected_data, parse_get_nym_response(&response));
+    }
+
+    #[cfg(feature = "local_nodes_pool_did_indy")]
+    #[rstest]
+    fn test_pool_send_nym_request_with_diddoc_content(
+        pool: TestPool,
+        trustee: Identity,
+        identity: Identity,
+        diddoc_content: serde_json::Value,
+    ) {
+        // Send NYM
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(
+                &trustee.did,
+                &identity.did,
+                Some(identity.verkey.to_string()),
+                Some(ALIAS.to_string()),
+                Some(ROLE.to_string()),
+                Some(&diddoc_content),
+                None,
+            )
+            .unwrap();
+
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+
+        // Get NYM
+        let get_nym_request = pool
+            .request_builder()
+            .build_get_nym_request(None, &identity.did, None, None)
+            .unwrap();
+
+        let response = pool
+            .send_request_with_retries(&get_nym_request, &nym_response)
+            .unwrap();
+
+        let expected_data = json!({
+            "identifier": &trustee.did,
+            "dest": &identity.did,
+            "verkey": &identity.verkey,
+            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "diddocContent": &diddoc_content.to_string()
+        });
+
+        let data: GetNymResultV1 = serde_json::from_str(
+            helpers::get_response_data(&response)
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(expected_data, serde_json::to_value(data).unwrap());
     }
 
     #[rstest(

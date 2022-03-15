@@ -131,7 +131,7 @@ impl RequestBuilder {
         verkey: Option<String>,
         alias: Option<String>,
         role: Option<String>,
-        diddoc_content: Option<::serde_json::Value>,
+        diddoc_content: Option<&SJsonValue>,
         version: Option<i32>,
     ) -> VdrResult<PreparedRequest> {
         let role = role_to_code(role)?;
@@ -140,7 +140,7 @@ impl RequestBuilder {
             verkey,
             alias,
             role,
-            diddoc_content,
+            diddoc_content.map(SJsonValue::to_string),
             version,
         );
         self.build(operation, Some(identifier))

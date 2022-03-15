@@ -1,6 +1,5 @@
 use crate::utils::did::DidValue;
 use serde::Deserialize;
-use serde_json::Value as SJsonValue;
 use std::collections::HashMap;
 
 pub enum ResponseTypes {
@@ -16,7 +15,7 @@ pub enum GetNymResult {
     GetNymResultV1(GetNymResultV1),
 }
 
-#[derive(Deserialize, Eq, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct GetNymResultV0 {
     pub identifier: Option<DidValue>,
     pub dest: DidValue,
@@ -24,14 +23,16 @@ pub struct GetNymResultV0 {
     pub verkey: String,
 }
 
-#[derive(Deserialize, Eq, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GetNymResultV1 {
     pub identifier: Option<DidValue>,
     pub dest: DidValue,
     pub role: Option<String>,
     pub verkey: String,
-    pub diddoc_content: Option<SJsonValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diddoc_content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<i32>,
 }
 

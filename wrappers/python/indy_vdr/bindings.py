@@ -276,7 +276,7 @@ def resolve(resolver_handle: ResolverHandle, did: str) -> asyncio.Future:
 
 
 def dereference(pool_handle: PoolHandle, did_url: str) -> asyncio.Future:
-    """Dereference a DID Urk to retrieve a ledger object."""
+    """Dereference a DID Url to retrieve a ledger object."""
     return do_call_async(
         "indy_vdr_dereference",
         pool_handle,
