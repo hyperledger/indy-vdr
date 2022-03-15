@@ -46,7 +46,7 @@ pub struct DereferencingResult {
     content_metadata: Option<ContentMetadata>,
 }
 
-// DID (URL) Resolver interface for a pool compliant with did:indy method spec
+/// DID (URL) Resolver interface for a pool compliant with did:indy method spec
 pub struct PoolResolver<T: Pool> {
     pool: T,
 }
@@ -56,7 +56,7 @@ impl<T: Pool> PoolResolver<T> {
         PoolResolver { pool }
     }
 
-    // Dereference a DID Url and return a serialized `DereferencingResult`
+    /// Dereference a DID Url and return a serialized `DereferencingResult`
     pub fn dereference(&self, did_url: &str) -> VdrResult<String> {
         debug!("PoolResolver: Dereference DID Url {}", did_url);
         let (data, metadata) = self._resolve(did_url)?;
@@ -75,7 +75,7 @@ impl<T: Pool> PoolResolver<T> {
         Ok(serde_json::to_string_pretty(&result).unwrap())
     }
 
-    // Resolve a DID and return a serialized `ResolutionResult`
+    /// Resolve a DID and return a serialized `ResolutionResult`
     pub fn resolve(&self, did: &str) -> VdrResult<String> {
         debug!("PoolResolver: Resolve DID {}", did);
         let (data, metadata) = self._resolve(did)?;
@@ -176,7 +176,7 @@ impl<T: Pool> PoolResolver<T> {
     }
 }
 
-// DID (URL) Resolver interface using callbacks for a PoolRunner compliant with did:indy method spec
+/// DID (URL) Resolver interface using callbacks for a PoolRunner compliant with did:indy method spec
 pub struct PoolRunnerResolver<'a> {
     runner: &'a PoolRunner,
 }
@@ -186,7 +186,7 @@ impl<'a> PoolRunnerResolver<'a> {
         PoolRunnerResolver { runner }
     }
 
-    // Dereference a DID Url and return a serialized `DereferencingResult`
+    /// Dereference a DID Url and return a serialized `DereferencingResult`
     pub fn dereference(
         &self,
         did_url: &str,
@@ -212,7 +212,7 @@ impl<'a> PoolRunnerResolver<'a> {
         )
     }
 
-    // Resolve a DID and return a serialized `ResolutionResult`
+    /// Resolve a DID and return a serialized `ResolutionResult`
     pub fn resolve(&self, did: &str, callback: Callback<VdrResult<String>>) -> VdrResult<()> {
         self._resolve(
             did,
@@ -233,6 +233,7 @@ impl<'a> PoolRunnerResolver<'a> {
         )
     }
 
+    // TODO: Refactor
     fn _resolve(
         &self,
         did: &str,
@@ -287,26 +288,26 @@ impl<'a> PoolRunnerResolver<'a> {
                                             //         callback(Ok(result_with_metadata));
                                             //     }),
                                             // );
-                                        } else {
-                                            let did_document = DidDocument::new(
-                                                &did_url.namespace,
-                                                &get_nym_result.dest,
-                                                &get_nym_result.verkey,
-                                                None,
-                                                None,
-                                            );
-
-                                            let metadata = ContentMetadata {
-                                                node_response: serde_json::from_str(&reply_data)
-                                                    .unwrap(),
-                                                object_type: String::from("NYM"),
-                                            };
-
-                                            let result = Some(Result::DidDocument(did_document));
-
-                                            let result_with_metadata = (result.unwrap(), metadata);
-                                            callback(Ok(result_with_metadata));
                                         }
+
+                                        let did_document = DidDocument::new(
+                                            &did_url.namespace,
+                                            &get_nym_result.dest,
+                                            &get_nym_result.verkey,
+                                            None,
+                                            None,
+                                        );
+
+                                        let metadata = ContentMetadata {
+                                            node_response: serde_json::from_str(&reply_data)
+                                                .unwrap(),
+                                            object_type: String::from("NYM"),
+                                        };
+
+                                        let result = Some(Result::DidDocument(did_document));
+
+                                        let result_with_metadata = (result.unwrap(), metadata);
+                                        callback(Ok(result_with_metadata));
                                     } else {
                                         let (result, object_type) = match txn_type.as_str() {
                                             constants::GET_CRED_DEF => (

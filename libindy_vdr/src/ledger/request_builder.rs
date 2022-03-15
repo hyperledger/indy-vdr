@@ -122,7 +122,8 @@ impl RequestBuilder {
         ))
     }
 
-    /// Build a new did:indy `NYM` transaction request
+    /// Build a `NYM` transaction request
+    /// diddoc_content is only supported for did:indy compliant ledgers
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
@@ -137,7 +138,9 @@ impl RequestBuilder {
         self.build(operation, Some(identifier))
     }
 
-    /// Build a new did:indy `GET_NYM` transaction request
+    /// Build a `GET_NYM` transaction request
+    /// seq_no and timestamp are only supported for did:indy compliant ledgers
+    /// Use only one of seq_no and timestamp
     pub fn build_get_nym_request(
         &self,
         identifier: Option<&DidValue>,
