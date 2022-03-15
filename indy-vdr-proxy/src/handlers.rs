@@ -403,14 +403,14 @@ pub async fn handle_request<T: Pool>(
         });
     let query = req.uri().query();
     let query_params: HashMap<String, String> = req
-    .uri()
-    .query()
-    .map(|v| {
-        url::form_urlencoded::parse(v.as_bytes())
-            .into_owned()
-            .collect()
-    })
-    .unwrap_or_else(HashMap::new);
+        .uri()
+        .query()
+        .map(|v| {
+            url::form_urlencoded::parse(v.as_bytes())
+                .into_owned()
+                .collect()
+        })
+        .unwrap_or_else(HashMap::new);
     let format = if query == Some("html") {
         ResponseFormat::Html
     } else if query == Some("raw") {
