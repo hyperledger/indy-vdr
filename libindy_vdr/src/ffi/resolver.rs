@@ -6,7 +6,6 @@ use super::pool::{PoolHandle, POOLS};
 use crate::ffi::c_char;
 use ffi_support::{rust_string_to_c, FfiStr};
 
-
 #[no_mangle]
 pub extern "C" fn indy_vdr_resolve(
     pool_handle: usize,
@@ -36,11 +35,9 @@ pub extern "C" fn indy_vdr_resolve(
                 }),
             )?;
 
-
         Ok(ErrorCode::Success)
     }
 }
-
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_dereference(
