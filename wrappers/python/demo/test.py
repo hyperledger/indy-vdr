@@ -193,6 +193,7 @@ async def basic_test(transactions_path):
     )
     log("Pool Upgrade request:", req.body)
 
+    log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
     resolver = Resolver(pool.handle)
     doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
 
