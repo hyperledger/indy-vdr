@@ -5,7 +5,18 @@ import json
 import logging
 import os
 import sys
-from ctypes import CDLL, CFUNCTYPE, byref, c_char_p, c_size_t, c_void_p, c_int32
+from ctypes import (
+    CDLL,
+    CFUNCTYPE,
+    POINTER,
+    Structure,
+    byref,
+    c_char_p,
+    c_int32,
+    c_int64,
+    c_ubyte,
+    c_void_p,
+)
 from ctypes.util import find_library
 from typing import Optional, Sequence, Union
 
@@ -17,7 +28,7 @@ LIB: CDLL = None
 LOGGER = logging.getLogger(__name__)
 
 
-class PoolHandle(c_size_t):
+class PoolHandle(c_int64):
     """Index of an active Pool instance."""
 
     def __repr__(self) -> str:
@@ -25,12 +36,21 @@ class PoolHandle(c_size_t):
         return f"{self.__class__.__name__}({self.value})"
 
 
-class RequestHandle(c_size_t):
+class RequestHandle(c_int64):
     """Index of an active Request instance."""
 
     def __repr__(self) -> str:
         """Format request handle as a string."""
         return f"{self.__class__.__name__}({self.value})"
+
+
+class FfiByteBuffer(Structure):
+    """A byte buffer allocated by python."""
+
+    _fields_ = [
+        ("len", c_int64),
+        ("value", POINTER(c_ubyte)),
+    ]
 
 
 class lib_string(c_char_p):
@@ -127,6 +147,7 @@ def _create_callback(cb_type: CFUNCTYPE, fut: asyncio.Future, post_process=None)
 def do_call(fn_name, *args):
     """Perform a synchronous library function call."""
     lib_fn = getattr(get_library(), fn_name)
+    lib_fn.restype = c_int64
     result = lib_fn(*args)
     if result:
         raise get_current_error(True)
@@ -135,16 +156,17 @@ def do_call(fn_name, *args):
 def do_call_async(fn_name, *args, return_type=None, post_process=None):
     """Perform an asynchronous library function call."""
     lib_fn = getattr(get_library(), fn_name)
+    lib_fn.restype = c_int64
     loop = asyncio.get_event_loop()
     fut = loop.create_future()
-    cf_args = [None, c_size_t, c_size_t]
+    cf_args = [None, c_int64, c_int64]
     if return_type:
         cf_args.append(return_type)
     cb_type = CFUNCTYPE(*cf_args)  # could be cached
     cb_res = _create_callback(cb_type, fut, post_process)
     # keep a reference to the callback function to avoid it being freed
     CALLBACKS[fut] = (loop, cb_res)
-    result = lib_fn(*args, cb_res, c_size_t(0))  # not making use of callback ID
+    result = lib_fn(*args, cb_res, c_int64(0))  # not making use of callback ID
     if result:
         # callback will not be executed
         del CALLBACKS[fut]
@@ -167,6 +189,29 @@ def encode_str(arg: Optional[Union[str, bytes]]) -> c_char_p:
     if isinstance(arg, bytes):
         return c_char_p(arg)
     return c_char_p(arg.encode("utf-8"))
+
+
+def encode_bytes(arg: Optional[Union[str, bytes, FfiByteBuffer]]) -> FfiByteBuffer:
+    if isinstance(arg, FfiByteBuffer):
+        return arg
+    buf = FfiByteBuffer()
+    if isinstance(arg, memoryview):
+        buf.len = arg.nbytes
+        if arg.contiguous and not arg.readonly:
+            buf.value = (c_ubyte * buf.len).from_buffer(arg.obj)
+        else:
+            buf.value = (c_ubyte * buf.len).from_buffer_copy(arg.obj)
+    elif isinstance(arg, bytearray):
+        buf.len = len(arg)
+        if buf.len > 0:
+            buf.value = (c_ubyte * buf.len).from_buffer(arg)
+    elif arg is not None:
+        if isinstance(arg, str):
+            arg = arg.encode("utf-8")
+        buf.len = len(arg)
+        if buf.len > 0:
+            buf.value = (c_ubyte * buf.len).from_buffer_copy(arg)
+    return buf
 
 
 def get_current_error(expect: bool = False) -> VdrError:
@@ -325,20 +370,28 @@ def request_set_endorser(handle: RequestHandle, endorser_did: str):
 
 
 def request_set_multi_signature(
-    handle: RequestHandle, identifier: str, signature: bytes
+    handle: RequestHandle, identifier: str, signature: Union[bytes, FfiByteBuffer]
 ):
     """Add a multi-signature entry to a prepared request."""
     identifier = encode_str(identifier)
     sig_len = len(signature)
     do_call(
-        "indy_vdr_request_set_multi_signature", handle, identifier, signature, sig_len
+        "indy_vdr_request_set_multi_signature",
+        handle,
+        identifier,
+        encode_bytes(signature),
     )
 
 
-def request_set_signature(handle: RequestHandle, signature: bytes):
+def request_set_signature(
+    handle: RequestHandle, signature: Union[bytes, FfiByteBuffer]
+):
     """Set the signature on a prepared request."""
-    sig_len = len(signature)
-    do_call("indy_vdr_request_set_signature", handle, signature, sig_len)
+    do_call(
+        "indy_vdr_request_set_signature",
+        handle,
+        encode_bytes(signature),
+    )
 
 
 def request_set_txn_author_agreement_acceptance(
@@ -362,7 +415,12 @@ def set_config(config: dict):
 
 def set_protocol_version(version: int):
     """Set the library protocol version."""
-    do_call("indy_vdr_set_protocol_version", c_size_t(version))
+    do_call("indy_vdr_set_protocol_version", c_int64(version))
+
+
+def set_socks_proxy(socks_proxy: str):
+    """Set the socks proxy for ZMQ connection pool."""
+    do_call("indy_vdr_set_socks_proxy", encode_str(socks_proxy))
 
 
 def version() -> str:
@@ -370,8 +428,3 @@ def version() -> str:
     lib = get_library()
     lib.indy_vdr_version.restype = c_void_p
     return lib_string(lib.indy_vdr_version()).value.decode("utf-8")
-
-
-def set_socks_proxy(socks_proxy: str):
-    """Set the socks proxy for ZMQ connection pool."""
-    do_call("indy_vdr_set_socks_proxy", encode_str(socks_proxy))

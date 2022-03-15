@@ -35,7 +35,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Handle C.ulong
+type Handle C.int64_t
 
 type Client struct {
 	pool        Handle
@@ -60,7 +60,7 @@ func New(genesis io.ReadCloser) (*Client, error) {
 		return nil, fmt.Errorf("formatting json params to indy failed: %w", err)
 	}
 
-	var pool C.ulong
+	var pool C.int64_t
 	cparams := C.CString(string(d))
 	result := C.indy_vdr_pool_create(cparams, &pool)
 	C.free(unsafe.Pointer(cparams))
@@ -82,7 +82,7 @@ func (r *Client) Genesis() []byte {
 
 //Close shuts down the connection and frees all resources form the indy distributed ledger
 func (r *Client) Close() error {
-	result := C.indy_vdr_pool_close(C.ulong(r.pool))
+	result := C.indy_vdr_pool_close(C.int64_t(r.pool))
 	if result != 0 {
 		return fmt.Errorf("close indy pool failed: (Indy error code: [%v])", result)
 	}
@@ -111,7 +111,7 @@ func submitRequestCb(cb_id C.CallbackId, err C.ErrorCode, response *C.char) {
 //Submit is used to send prepared read requests to the ledger where the request parameter is the JSON-formatted payload.
 func (r *Client) Submit(request []byte) (*ReadReply, error) {
 
-	var cusreq C.ulong
+	var cusreq C.int64_t
 	cjson := C.CString(string(request))
 	result := C.indy_vdr_build_custom_request(cjson, &cusreq)
 	C.free(unsafe.Pointer(cjson))
@@ -128,7 +128,7 @@ func (r *Client) Submit(request []byte) (*ReadReply, error) {
 
 //GetNym fetches the NYM transaction associated with a DID
 func (r *Client) GetNym(did string) (*ReadReply, error) {
-	var nymreq C.ulong
+	var nymreq C.int64_t
 	var none *C.char
 	var zero32 C.int32_t
 	var zero64 C.int64_t
@@ -145,7 +145,7 @@ func (r *Client) GetNym(did string) (*ReadReply, error) {
 
 //GetTxnAuthorAgreement fetches the current ledger Transaction Author Agreement
 func (r *Client) GetTxnAuthorAgreement() (*ReadReply, error) {
-	var taareq C.ulong
+	var taareq C.int64_t
 	var none *C.char
 	result := C.indy_vdr_build_get_txn_author_agreement_request(none, none, &taareq)
 	if result != 0 {
@@ -158,7 +158,7 @@ func (r *Client) GetTxnAuthorAgreement() (*ReadReply, error) {
 
 //GetAcceptanceMethodList fetches the current ledger Acceptance Methods List (for the TAA)
 func (r *Client) GetAcceptanceMethodList() (*ReadReply, error) {
-	var amlreq C.ulong
+	var amlreq C.int64_t
 	var none *C.char
 	var zero C.int64_t
 	result := C.indy_vdr_build_get_acceptance_mechanisms_request(none, zero, none, &amlreq)
@@ -196,7 +196,7 @@ func (r *Client) RefreshPool() error {
 	refreshLock.Lock()
 	defer refreshLock.Unlock()
 
-	result := C.indy_vdr_pool_refresh(C.ulong(r.pool), C.refreshWrapper(C.refresh), 0)
+	result := C.indy_vdr_pool_refresh(C.int64_t(r.pool), C.refreshWrapper(C.refresh), 0)
 	if result != 0 {
 		var errMsg *C.char
 		C.indy_vdr_get_current_error(&errMsg)
@@ -235,7 +235,7 @@ func (r *Client) GetPoolStatus() (*PoolStatus, error) {
 	statusLock.Lock()
 	defer statusLock.Unlock()
 
-	result := C.indy_vdr_pool_get_status(C.ulong(r.pool), C.statusWrapper(C.status), 0)
+	result := C.indy_vdr_pool_get_status(C.int64_t(r.pool), C.statusWrapper(C.status), 0)
 	if result != 0 {
 		return nil, fmt.Errorf("get pool status failed: (Indy error code: [%v])", result)
 	}
@@ -273,7 +273,7 @@ func (r *Client) GetAttrib(did, raw string) (*ReadReply, error) {
 
 //GetSchema returns the schema definition defined by schemaID on the Indy distributed ledger
 func (r *Client) GetSchema(schemaID string) (*ReadReply, error) {
-	var schemareq C.ulong
+	var schemareq C.int64_t
 	var none *C.char
 	cschema := C.CString(schemaID)
 	result := C.indy_vdr_build_get_schema_request(none, cschema, &schemareq)
@@ -289,7 +289,7 @@ func (r *Client) GetSchema(schemaID string) (*ReadReply, error) {
 
 //GetCredDef returns the credential definition defined by credDefID on the Indy distributed ledger
 func (r *Client) GetCredDef(credDefID string) (*ReadReply, error) {
-	var credDefReqNo C.ulong
+	var credDefReqNo C.int64_t
 	var none *C.char
 	cschema := C.CString(credDefID)
 	result := C.indy_vdr_build_get_cred_def_request(none, cschema, &credDefReqNo)
@@ -334,10 +334,10 @@ func (r *Client) GetTxnTypeAuthRule(typ, action, field string) (*ReadReply, erro
 	return response, nil
 }
 
-func (r *Client) submitReadRequest(reqID C.ulong) (*ReadReply, error) {
+func (r *Client) submitReadRequest(reqID C.int64_t) (*ReadReply, error) {
 	submitRequestLock.Lock()
 	defer submitRequestLock.Unlock()
-	result := C.indy_vdr_pool_submit_request(C.ulong(r.pool), reqID, C.submitRequestWrapper(C.submitRequest), 0)
+	result := C.indy_vdr_pool_submit_request(C.int64_t(r.pool), reqID, C.submitRequestWrapper(C.submitRequest), 0)
 	if result != 0 {
 		var errMsg *C.char
 		C.indy_vdr_get_current_error(&errMsg)
@@ -360,10 +360,10 @@ func (r *Client) submitReadRequest(reqID C.ulong) (*ReadReply, error) {
 	return rply, nil
 }
 
-func (r *Client) submitWriteRequest(reqID C.ulong) (*WriteReply, error) {
+func (r *Client) submitWriteRequest(reqID C.int64_t) (*WriteReply, error) {
 	submitRequestLock.Lock()
 	defer submitRequestLock.Unlock()
-	result := C.indy_vdr_pool_submit_request(C.ulong(r.pool), reqID, C.submitRequestWrapper(C.submitRequest), 0)
+	result := C.indy_vdr_pool_submit_request(C.int64_t(r.pool), reqID, C.submitRequestWrapper(C.submitRequest), 0)
 	if result != 0 {
 		var errMsg *C.char
 		C.indy_vdr_get_current_error(&errMsg)
@@ -409,7 +409,7 @@ func (r *Client) SubmitWrite(req *Request, signer Signer) (*WriteReply, error) {
 		return nil, errors.Wrap(err, "unable to marshal write request")
 	}
 
-	var cusreq C.ulong
+	var cusreq C.int64_t
 	cjson := C.CString(string(request))
 	result := C.indy_vdr_build_custom_request(cjson, &cusreq)
 	C.free(unsafe.Pointer(cjson))

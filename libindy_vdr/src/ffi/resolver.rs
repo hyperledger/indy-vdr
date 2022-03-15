@@ -8,7 +8,7 @@ use ffi_support::{rust_string_to_c, FfiStr};
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_resolve(
-    pool_handle: usize,
+    pool_handle: PoolHandle,
     did: FfiStr,
     cb: Option<extern "C" fn(cb_id: i64, err: ErrorCode, response: *const c_char)>,
     cb_id: i64,
@@ -17,7 +17,7 @@ pub extern "C" fn indy_vdr_resolve(
     trace!("Resolve DID: {:#?}", did);
     let cb = cb.ok_or_else(|| input_err("No callback provided")).unwrap();
     let pools = read_lock!(POOLS)?;
-    let pool = pools.get(&PoolHandle(pool_handle)).ok_or_else(|| input_err("Unknown pool handle"))?;
+    let pool = pools.get(&pool_handle).ok_or_else(|| input_err("Unknown pool handle"))?;
     let resolver = Resolver::new(pool);
         resolver
             .resolve(
@@ -41,7 +41,7 @@ pub extern "C" fn indy_vdr_resolve(
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_dereference(
-    pool_handle: usize,
+    pool_handle: PoolHandle,
     did_url: FfiStr,
     cb: Option<extern "C" fn(cb_id: i64, err: ErrorCode, response: *const c_char)>,
     cb_id: i64,
@@ -50,7 +50,7 @@ pub extern "C" fn indy_vdr_dereference(
     trace!("Dereference DID Url: {:#?}", did_url);
     let cb = cb.ok_or_else(|| input_err("No callback provided")).unwrap();
     let pools = read_lock!(POOLS)?;
-    let pool = pools.get(&PoolHandle(pool_handle)).ok_or_else(|| input_err("Unknown pool handle"))?;
+    let pool = pools.get(&pool_handle).ok_or_else(|| input_err("Unknown pool handle"))?;
     let resolver = Resolver::new(pool);
         resolver
             .dereference(

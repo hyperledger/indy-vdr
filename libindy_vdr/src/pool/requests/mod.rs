@@ -13,11 +13,11 @@ mod prepared_request;
 pub use prepared_request::{PreparedRequest, RequestMethod};
 
 /// Get a new unique request ID
-pub fn new_request_id() -> u64 {
+pub fn new_request_id() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Time has gone backwards")
-        .as_nanos() as u64
+        .as_nanos() as i64
 }
 
 /// Events received by `Request` instances as pending dispatches are resolved

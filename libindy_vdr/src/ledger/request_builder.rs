@@ -109,7 +109,7 @@ impl RequestBuilder {
             req_id,
             operation,
             identifier,
-            Some(self.protocol_version as usize),
+            Some(self.protocol_version as i64),
         )?;
         trace!("Prepared request: {} {}", req_id, body);
         Ok(PreparedRequest::new(
@@ -637,7 +637,7 @@ mod tests {
         DidValue(String::from("VsKV7grR1BUE29mG2Fm2kX"))
     }
 
-    fn _protocol_version() -> usize {
+    fn _protocol_version() -> i64 {
         ProtocolVersion::Node1_4.to_id()
     }
 

@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 pub static LAST_ERROR: Lazy<RwLock<Option<VdrError>>> = Lazy::new(|| RwLock::new(None));
 
 #[derive(Debug, PartialEq, Copy, Clone, Serialize)]
-#[repr(usize)]
+#[repr(i64)]
 pub enum ErrorCode {
     Success = 0,
     Config = 1,
@@ -67,7 +67,7 @@ pub extern "C" fn indy_vdr_get_current_error(error_json_p: *mut *const c_char) -
 pub fn get_current_error_json() -> String {
     if let Some(err) = LAST_ERROR.write().unwrap().take() {
         let message = err.to_string();
-        let code = ErrorCode::from(err.kind()) as usize;
+        let code = ErrorCode::from(err.kind()) as i64;
         let extra = err.extra();
         json!({"code": code, "message": message, "extra": extra}).to_string()
     } else {

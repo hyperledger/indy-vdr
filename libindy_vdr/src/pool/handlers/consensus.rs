@@ -4,12 +4,10 @@ use futures_util::stream::StreamExt;
 
 use serde_json::Value as SJsonValue;
 
-use ursa::bls::Generator;
-
 use crate::common::error::prelude::*;
 use crate::config::constants::DEFAULT_GENERATOR;
 use crate::state_proof::{check_state_proof, result_without_state_proof, BoxedSPParser};
-use crate::utils::{base58, base64};
+use crate::utils::base64;
 
 use super::types::Message;
 use super::{
@@ -32,13 +30,6 @@ pub async fn handle_consensus_request<R: PoolRequest>(
     let mut replies = ReplyState::new();
     let mut consensus = ConsensusState::new();
     let mut fail_consensus = ConsensusState::new();
-    let generator: Generator =
-        Generator::from_bytes(&base58::decode(DEFAULT_GENERATOR)?).map_err(|err| {
-            err_msg(
-                VdrErrorKind::Resource,
-                format!("Error loading generator: {}", err.to_string()),
-            )
-        })?;
 
     let request_with_state_proof = state_proof_key.is_some() || custom_state_proof_parser.is_some();
 
@@ -86,7 +77,7 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                                 && check_state_proof(
                                     &result,
                                     f,
-                                    &generator,
+                                    &*DEFAULT_GENERATOR,
                                     &node_keys,
                                     &raw_msg,
                                     state_proof_key.as_ref().map(Vec::as_slice),
@@ -96,6 +87,11 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                                     custom_state_proof_parser,
                                 ))
                         {
+                            debug!(
+                                "State proof verification succeeded for node: {}, sp_key: '{}'",
+                                node_alias,
+                                base64::encode(state_proof_key.as_ref().unwrap()),
+                            );
                             return Ok((
                                 RequestResult::Reply(if cnt > f { soonest } else { raw_msg }),
                                 request.get_timing(),

@@ -17,7 +17,7 @@ class LedgerType(IntEnum):
     CONFIG = 2
 
     @classmethod
-    def from_value(cls, val: [int, str, "LedgerType"]) -> "LedgerType":
+    def from_value(cls, val: Union[int, str, "LedgerType"]) -> "LedgerType":
         """Initialize a `LedgerType` from an integer or string."""
         if isinstance(val, str):
             if val.isdigit():

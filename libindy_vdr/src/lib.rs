@@ -55,6 +55,7 @@ extern crate indy_utils;
 pub mod utils;
 
 /// Common data types and error handling
+#[macro_use]
 pub mod common;
 /// Configuration data types and defaults
 pub mod config;
