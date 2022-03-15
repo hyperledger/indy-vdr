@@ -14,6 +14,7 @@ use crate::utils::{base58, keys::build_full_verkey};
 
 /// The Indy Node communication protocol version
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
+#[repr(i64)]
 pub enum ProtocolVersion {
     Node1_3 = 1,
     Node1_4 = 2,
@@ -27,37 +28,37 @@ impl ProtocolVersion {
         }
     }
 
-    pub fn from_id(value: u64) -> VdrResult<Self> {
+    pub fn from_id(value: i64) -> VdrResult<Self> {
         value.try_into()
     }
 
     pub fn from_str(value: &str) -> VdrResult<Self> {
         let value = value
-            .parse::<u64>()
+            .parse::<i64>()
             .map_input_err(|| format!("Invalid protocol version: {}", value))?;
         Self::from_id(value)
     }
 
-    pub fn to_id(&self) -> usize {
-        *self as usize
+    pub fn to_id(&self) -> i64 {
+        *self as i64
     }
 }
 
-impl TryFrom<u64> for ProtocolVersion {
+impl TryFrom<i64> for ProtocolVersion {
     type Error = VdrError;
 
-    fn try_from(value: u64) -> VdrResult<Self> {
+    fn try_from(value: i64) -> VdrResult<Self> {
         match value {
-            x if x == Self::Node1_3 as u64 => Ok(Self::Node1_3),
-            x if x == Self::Node1_4 as u64 => Ok(Self::Node1_4),
+            x if x == Self::Node1_3 as i64 => Ok(Self::Node1_3),
+            x if x == Self::Node1_4 as i64 => Ok(Self::Node1_4),
             _ => Err(input_err(format!("Unknown protocol version: {}", value))),
         }
     }
 }
 
-impl PartialEq<usize> for ProtocolVersion {
-    fn eq(&self, other: &usize) -> bool {
-        (*self as usize) == *other
+impl PartialEq<i64> for ProtocolVersion {
+    fn eq(&self, other: &i64) -> bool {
+        (*self as i64) == *other
     }
 }
 

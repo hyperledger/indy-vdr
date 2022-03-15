@@ -1,4 +1,5 @@
 use crate::common::error::prelude::*;
+use crate::common::handle::ResourceHandle;
 use crate::pool::{
     PoolBuilder, PoolRunner, PoolTransactions, RequestMethod, RequestResult, TimingResult,
 };
@@ -13,9 +14,13 @@ use once_cell::sync::Lazy;
 
 use super::error::{set_last_error, ErrorCode};
 use super::requests::{RequestHandle, REQUESTS};
-use super::POOL_CONFIG;
+use super::{CallbackId, POOL_CONFIG};
 
-new_handle_type!(PoolHandle, FFI_PH_COUNTER);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct PoolHandle(pub i64);
+
+impl_sequence_handle!(PoolHandle, FFI_PH_COUNTER);
 
 static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolRunner>>> =
     Lazy::new(|| RwLock::new(BTreeMap::new()));
@@ -31,7 +36,7 @@ struct PoolCreateParams {
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> ErrorCode {
+pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut PoolHandle) -> ErrorCode {
     catch_err! {
         trace!("Create pool");
         check_useful_c_ptr!(handle_p);
@@ -57,7 +62,7 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut usize) -> 
         let mut pools = write_lock!(POOLS)?;
         pools.insert(handle, pool);
         unsafe {
-            *handle_p = *handle;
+            *handle_p = handle;
         }
         Ok(ErrorCode::Success)
     }
@@ -93,15 +98,15 @@ fn handle_pool_refresh(
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_refresh(
-    pool_handle: usize,
-    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode)>,
-    cb_id: usize,
+    pool_handle: PoolHandle,
+    cb: Option<extern "C" fn(cb_id: CallbackId, err: ErrorCode)>,
+    cb_id: CallbackId,
 ) -> ErrorCode {
     catch_err! {
         trace!("Refresh pool");
         let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
         let pools = read_lock!(POOLS)?;
-        let pool = pools.get(&PoolHandle(pool_handle))
+        let pool = pools.get(&pool_handle)
             .ok_or_else(|| input_err("Unknown pool handle"))?;
         pool.refresh(Box::new(
             move |result| {
@@ -112,7 +117,7 @@ pub extern "C" fn indy_vdr_pool_refresh(
                             // is being run in the PoolRunner's thread, and if we drop
                             // the instance now it will create a deadlock
                             thread::spawn(move || {
-                                let result = handle_pool_refresh(PoolHandle(pool_handle), old_txns, new_txns);
+                                let result = handle_pool_refresh(pool_handle, old_txns, new_txns);
                                 cb(cb_id, result)
                             });
                             return
@@ -134,15 +139,15 @@ pub extern "C" fn indy_vdr_pool_refresh(
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_status(
-    pool_handle: usize,
-    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
-    cb_id: usize,
+    pool_handle: PoolHandle,
+    cb: Option<extern "C" fn(cb_id: CallbackId, err: ErrorCode, response: *const c_char)>,
+    cb_id: CallbackId,
 ) -> ErrorCode {
     catch_err! {
         trace!("Get pool status: {}", pool_handle);
         let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
         let pools = read_lock!(POOLS)?;
-        let pool = pools.get(&PoolHandle(pool_handle))
+        let pool = pools.get(&pool_handle)
             .ok_or_else(|| input_err("Unknown pool handle"))?;
         pool.get_status(Box::new(
             move |result| {
@@ -165,15 +170,15 @@ pub extern "C" fn indy_vdr_pool_get_status(
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_transactions(
-    pool_handle: usize,
-    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
-    cb_id: usize,
+    pool_handle: PoolHandle,
+    cb: Option<extern "C" fn(cb_id: CallbackId, err: ErrorCode, response: *const c_char)>,
+    cb_id: CallbackId,
 ) -> ErrorCode {
     catch_err! {
         trace!("Get pool transactions");
         let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
         let pools = read_lock!(POOLS)?;
-        let pool = pools.get(&PoolHandle(pool_handle))
+        let pool = pools.get(&pool_handle)
             .ok_or_else(|| input_err("Unknown pool handle"))?;
         pool.get_transactions(Box::new(
             move |result| {
@@ -195,15 +200,15 @@ pub extern "C" fn indy_vdr_pool_get_transactions(
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_get_verifiers(
-    pool_handle: usize,
-    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
-    cb_id: usize,
+    pool_handle: PoolHandle,
+    cb: Option<extern "C" fn(cb_id: CallbackId, err: ErrorCode, response: *const c_char)>,
+    cb_id: CallbackId,
 ) -> ErrorCode {
     catch_err! {
         trace!("Get pool verifiers");
         let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
         let pools = read_lock!(POOLS)?;
-        let pool = pools.get(&PoolHandle(pool_handle))
+        let pool = pools.get(&pool_handle)
             .ok_or_else(|| input_err("Unknown pool handle"))?;
         pool.get_verifiers(Box::new(
             move |result| {
@@ -247,22 +252,22 @@ fn handle_request_result(
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_submit_action(
-    pool_handle: usize,
-    request_handle: usize,
+    pool_handle: PoolHandle,
+    request_handle: RequestHandle,
     nodes: FfiStr, // optional
     timeout: i32,  // -1 for default
-    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
-    cb_id: usize,
+    cb: Option<extern "C" fn(cb_id: CallbackId, err: ErrorCode, response: *const c_char)>,
+    cb_id: CallbackId,
 ) -> ErrorCode {
     catch_err! {
         trace!("Submit action: {} {} {:?} {}", pool_handle, request_handle, nodes, timeout);
         let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
         let pools = read_lock!(POOLS)?;
-        let pool = pools.get(&PoolHandle(pool_handle))
+        let pool = pools.get(&pool_handle)
             .ok_or_else(|| input_err("Unknown pool handle"))?;
         let mut req = {
             let mut reqs = write_lock!(REQUESTS)?;
-            reqs.remove(&RequestHandle(request_handle))
+            reqs.remove(&request_handle)
                 .ok_or_else(|| input_err("Unknown request handle"))?
         };
         let node_aliases = nodes.as_opt_str().map(serde_json::from_str::<Vec<String>>)
@@ -280,20 +285,20 @@ pub extern "C" fn indy_vdr_pool_submit_action(
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_pool_submit_request(
-    pool_handle: usize,
-    request_handle: usize,
-    cb: Option<extern "C" fn(cb_id: usize, err: ErrorCode, response: *const c_char)>,
-    cb_id: usize,
+    pool_handle: PoolHandle,
+    request_handle: RequestHandle,
+    cb: Option<extern "C" fn(cb_id: CallbackId, err: ErrorCode, response: *const c_char)>,
+    cb_id: CallbackId,
 ) -> ErrorCode {
     catch_err! {
         trace!("Submit request: {} {}", pool_handle, request_handle);
         let cb = cb.ok_or_else(|| input_err("No callback provided"))?;
         let pools = read_lock!(POOLS)?;
-        let pool = pools.get(&PoolHandle(pool_handle))
+        let pool = pools.get(&pool_handle)
             .ok_or_else(|| input_err("Unknown pool handle"))?;
         let req = {
             let mut reqs = write_lock!(REQUESTS)?;
-            reqs.remove(&RequestHandle(request_handle))
+            reqs.remove(&request_handle)
                 .ok_or_else(|| input_err("Unknown request handle"))?
         };
         pool.send_request(req, Box::new(
@@ -310,10 +315,10 @@ pub extern "C" fn indy_vdr_pool_submit_request(
 // reference to the pool here. Maybe an optional callback for when
 // the close has completed?
 #[no_mangle]
-pub extern "C" fn indy_vdr_pool_close(pool_handle: usize) -> ErrorCode {
+pub extern "C" fn indy_vdr_pool_close(pool_handle: PoolHandle) -> ErrorCode {
     catch_err! {
         let mut pools = write_lock!(POOLS)?;
-        pools.remove(&PoolHandle(pool_handle))
+        pools.remove(&pool_handle)
             .ok_or_else(|| input_err("Unknown pool handle"))?;
         Ok(ErrorCode::Success)
     }
