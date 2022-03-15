@@ -1,11 +1,11 @@
 use super::did::DidUrl;
-use super::types::*;
-use super::utils::*;
-
 use crate::common::error::prelude::*;
 
 use crate::ledger::RequestBuilder;
 use crate::pool::{Pool, PoolRunner, RequestResult, TimingResult};
+
+use super::types::*;
+use super::utils::*;
 
 /// DID (URL) Resolver interface for a pool compliant with did:indy method spec
 pub struct PoolResolver<T: Pool> {
