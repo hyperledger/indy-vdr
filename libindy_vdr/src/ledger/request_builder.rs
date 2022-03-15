@@ -132,9 +132,17 @@ impl RequestBuilder {
         alias: Option<String>,
         role: Option<String>,
         diddoc_content: Option<::serde_json::Value>,
+        version: Option<i32>,
     ) -> VdrResult<PreparedRequest> {
         let role = role_to_code(role)?;
-        let operation = NymOperation::new(dest.to_short(), verkey, alias, role, diddoc_content);
+        let operation = NymOperation::new(
+            dest.to_short(),
+            verkey,
+            alias,
+            role,
+            diddoc_content,
+            version,
+        );
         self.build(operation, Some(identifier))
     }
 
@@ -719,7 +727,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_nym_request(&_identifier(), &_dest(), None, None, None, None)
+                .build_nym_request(&_identifier(), &_dest(), None, None, None, None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
