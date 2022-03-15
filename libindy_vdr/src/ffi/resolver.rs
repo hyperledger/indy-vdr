@@ -1,5 +1,5 @@
 use crate::common::error::prelude::*;
-use crate::resolver::resolver::PoolRunnerResolver as Resolver;
+use crate::resolver::PoolRunnerResolver as Resolver;
 
 use super::error::{set_last_error, ErrorCode};
 use super::pool::{PoolHandle, POOLS};
