@@ -272,7 +272,6 @@ async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str) -> VdrResult<Respo
     Ok(result.into())
 }
 
-// TODO: Support seq_no and timestamp
 async fn get_nym<T: Pool>(
     pool: &T,
     nym: &str,
