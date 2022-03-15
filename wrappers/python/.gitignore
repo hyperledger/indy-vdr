@@ -1,5 +1,6 @@
 build
 dist
+github
 .pytest_cache
 __pycache__
 *.dll

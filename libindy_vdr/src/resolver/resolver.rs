@@ -25,6 +25,13 @@ pub enum Result {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
+pub enum Metadata {
+    DidDocumentMetadata(DidDocumentMetadata),
+    ContentMetadata(ContentMetadata),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ContentMetadata {
     node_response: SJsonValue,
     object_type: String,
@@ -32,10 +39,18 @@ pub struct ContentMetadata {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct DidDocumentMetadata {
+    node_response: SJsonValue,
+    object_type: String,
+    self_certification_version: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolutionResult {
     did_resolution_metadata: Option<String>,
     did_document: Option<SJsonValue>,
-    did_document_metadata: Option<ContentMetadata>,
+    did_document_metadata: Option<DidDocumentMetadata>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -66,10 +81,16 @@ impl<T: Pool> PoolResolver<T> {
             _ => None,
         };
 
+        let md = if let Metadata::ContentMetadata(md) = metadata {
+            Some(md)
+        } else {
+            None
+        };
+
         let result = DereferencingResult {
             dereferencing_metadata: None,
             content_stream: content,
-            content_metadata: Some(metadata),
+            content_metadata: md,
         };
 
         Ok(serde_json::to_string_pretty(&result).unwrap())
@@ -84,17 +105,24 @@ impl<T: Pool> PoolResolver<T> {
             Result::DidDocument(doc) => Some(doc.to_value()?),
             _ => None,
         };
+
+        let md = if let Metadata::DidDocumentMetadata(md) = metadata {
+            Some(md)
+        } else {
+            None
+        };
+
         let result = ResolutionResult {
             did_resolution_metadata: None,
             did_document: diddoc,
-            did_document_metadata: Some(metadata),
+            did_document_metadata: md,
         };
 
         Ok(serde_json::to_string_pretty(&result).unwrap())
     }
 
     // Internal method to resolve and dereference
-    fn _resolve(&self, did: &str) -> VdrResult<(Result, ContentMetadata)> {
+    fn _resolve(&self, did: &str) -> VdrResult<(Result, Metadata)> {
         let did_url = DidUrl::from_str(did)?;
 
         let builder = self.pool.get_request_builder();
@@ -103,7 +131,7 @@ impl<T: Pool> PoolResolver<T> {
         let ledger_data = self.handle_request(&request)?;
         let data = parse_ledger_data(&ledger_data)?;
 
-        let (result, object_type) = match request.txn_type.as_str() {
+        let (result, metadata) = match request.txn_type.as_str() {
             constants::GET_NYM => {
                 let get_nym_result: GetNymResultV1 =
                     serde_json::from_str(data.as_str().unwrap())
@@ -123,20 +151,50 @@ impl<T: Pool> PoolResolver<T> {
                     endpoint,
                     None,
                 );
-                (Result::DidDocument(did_document), String::from("NYM"))
-            }
-            constants::GET_CRED_DEF => (Result::Content(data), String::from("CRED_DEF")),
-            constants::GET_SCHEMA => (Result::Content(data), String::from("SCHEMA")),
-            constants::GET_REVOC_REG_DEF => (Result::Content(data), String::from("REVOC_REG_DEF")),
-            constants::GET_REVOC_REG_DELTA => {
-                (Result::Content(data), String::from("REVOC_REG_DELTA"))
-            }
-            _ => (Result::Content(data), String::from("UNKOWN")),
-        };
 
-        let metadata = ContentMetadata {
-            node_response: serde_json::from_str(&ledger_data).unwrap(),
-            object_type,
+                let metadata = Metadata::DidDocumentMetadata(DidDocumentMetadata {
+                    node_response: serde_json::from_str(&ledger_data).unwrap(),
+                    object_type: String::from("NYM"),
+                    self_certification_version: get_nym_result.version,
+                });
+
+                (Result::DidDocument(did_document), metadata)
+            }
+            constants::GET_CRED_DEF => (
+                Result::Content(data),
+                Metadata::ContentMetadata(ContentMetadata {
+                    node_response: serde_json::from_str(&ledger_data).unwrap(),
+                    object_type: String::from("CRED_DEF"),
+                }),
+            ),
+            constants::GET_SCHEMA => (
+                Result::Content(data),
+                Metadata::ContentMetadata(ContentMetadata {
+                    node_response: serde_json::from_str(&ledger_data).unwrap(),
+                    object_type: String::from("SCHEMA"),
+                }),
+            ),
+            constants::GET_REVOC_REG_DEF => (
+                Result::Content(data),
+                Metadata::ContentMetadata(ContentMetadata {
+                    node_response: serde_json::from_str(&ledger_data).unwrap(),
+                    object_type: String::from("REVOC_REG_DEF"),
+                }),
+            ),
+            constants::GET_REVOC_REG_DELTA => (
+                Result::Content(data),
+                Metadata::ContentMetadata(ContentMetadata {
+                    node_response: serde_json::from_str(&ledger_data).unwrap(),
+                    object_type: String::from("REVOC_REG_DELTA"),
+                }),
+            ),
+            _ => (
+                Result::Content(data),
+                Metadata::ContentMetadata(ContentMetadata {
+                    node_response: serde_json::from_str(&ledger_data).unwrap(),
+                    object_type: String::from("REVOC_REG_DELTA"),
+                }),
+            ),
         };
 
         let result_with_metadata = (result, metadata);
@@ -201,10 +259,16 @@ impl<'a> PoolRunnerResolver<'a> {
                     _ => None,
                 };
 
+                let md = if let Metadata::ContentMetadata(md) = metadata {
+                    Some(md)
+                } else {
+                    None
+                };
+
                 let result = DereferencingResult {
                     dereferencing_metadata: None,
                     content_stream: content,
-                    content_metadata: Some(metadata),
+                    content_metadata: md,
                 };
 
                 callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
@@ -222,10 +286,17 @@ impl<'a> PoolRunnerResolver<'a> {
                     Result::DidDocument(doc) => Some(doc.to_value().unwrap()),
                     _ => None,
                 };
+
+                let md = if let Metadata::DidDocumentMetadata(md) = metadata {
+                    Some(md)
+                } else {
+                    None
+                };
+
                 let result = ResolutionResult {
                     did_resolution_metadata: None,
                     did_document: diddoc,
-                    did_document_metadata: Some(metadata),
+                    did_document_metadata: md,
                 };
 
                 callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
@@ -234,10 +305,11 @@ impl<'a> PoolRunnerResolver<'a> {
     }
 
     // TODO: Refactor
+    // TODO: Adapt according to PoolResolver.
     fn _resolve(
         &self,
         did: &str,
-        callback: Box<dyn (FnOnce(VdrResult<(Result, ContentMetadata)>) -> ()) + Send + 'static>,
+        callback: Callback<VdrResult<(Result, Metadata)>>,
     ) -> VdrResult<()> {
         let did_url = DidUrl::from_str(did)?;
 
@@ -298,50 +370,74 @@ impl<'a> PoolRunnerResolver<'a> {
                                             None,
                                         );
 
-                                        let metadata = ContentMetadata {
-                                            node_response: serde_json::from_str(&reply_data)
-                                                .unwrap(),
-                                            object_type: String::from("NYM"),
-                                        };
+                                        let metadata =
+                                            Metadata::DidDocumentMetadata(DidDocumentMetadata {
+                                                node_response: serde_json::from_str(&reply_data)
+                                                    .unwrap(),
+                                                object_type: String::from("NYM"),
+                                                self_certification_version: get_nym_result.version,
+                                            });
 
                                         let result = Some(Result::DidDocument(did_document));
 
                                         let result_with_metadata = (result.unwrap(), metadata);
                                         callback(Ok(result_with_metadata));
                                     } else {
-                                        let (result, object_type) = match txn_type.as_str() {
+                                        let (result, metadata) = match txn_type.as_str() {
                                             constants::GET_CRED_DEF => (
-                                                Some(Result::Content(data)),
-                                                String::from("CRED_DEF"),
+                                                Result::Content(data),
+                                                Metadata::ContentMetadata(ContentMetadata {
+                                                    node_response: serde_json::from_str(
+                                                        &reply_data,
+                                                    )
+                                                    .unwrap(),
+                                                    object_type: String::from("CRED_DEF"),
+                                                }),
                                             ),
                                             constants::GET_SCHEMA => (
-                                                Some(Result::Content(data)),
-                                                String::from("SCHEMA"),
+                                                Result::Content(data),
+                                                Metadata::ContentMetadata(ContentMetadata {
+                                                    node_response: serde_json::from_str(
+                                                        &reply_data,
+                                                    )
+                                                    .unwrap(),
+                                                    object_type: String::from("SCHEMA"),
+                                                }),
                                             ),
                                             constants::GET_REVOC_REG_DEF => (
-                                                Some(Result::Content(data)),
-                                                String::from("REVOC_REG_DEF"),
+                                                Result::Content(data),
+                                                Metadata::ContentMetadata(ContentMetadata {
+                                                    node_response: serde_json::from_str(
+                                                        &reply_data,
+                                                    )
+                                                    .unwrap(),
+                                                    object_type: String::from("REVOC_REG_DEF"),
+                                                }),
                                             ),
                                             constants::GET_REVOC_REG_DELTA => (
-                                                Some(Result::Content(data)),
-                                                String::from("REVOC_REG_DELTA"),
+                                                Result::Content(data),
+                                                Metadata::ContentMetadata(ContentMetadata {
+                                                    node_response: serde_json::from_str(
+                                                        &reply_data,
+                                                    )
+                                                    .unwrap(),
+                                                    object_type: String::from("REVOC_REG_DELTA"),
+                                                }),
                                             ),
                                             _ => (
-                                                Some(Result::Content(data)),
-                                                String::from("UNKOWN"),
+                                                Result::Content(data),
+                                                Metadata::ContentMetadata(ContentMetadata {
+                                                    node_response: serde_json::from_str(
+                                                        &reply_data,
+                                                    )
+                                                    .unwrap(),
+                                                    object_type: String::from("REVOC_REG_DELTA"),
+                                                }),
                                             ),
                                         };
 
-                                        let metadata = ContentMetadata {
-                                            node_response: serde_json::from_str(&reply_data)
-                                                .unwrap(),
-                                            object_type,
-                                        };
-
-                                        if result.is_some() {
-                                            let result_with_metadata = (result.unwrap(), metadata);
-                                            callback(Ok(result_with_metadata));
-                                        }
+                                        let result_with_metadata = (result, metadata);
+                                        callback(Ok(result_with_metadata));
                                     }
                                 }
                                 RequestResult::Failed(err) => callback(Err(err)),

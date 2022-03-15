@@ -6,9 +6,9 @@ env:
 
 on:
   push:
-    branches: [main]
+    branches: [main, did-indy, integration_test]
   pull_request:
-    branches: [main]
+    branches: [main, did-indy]
   release:
     types: [created]
   workflow_dispatch:
@@ -83,12 +83,12 @@ jobs:
 
       - name: Run local node pool
         run: |
-          docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
+          docker build -f ci/did-indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
           docker network create --subnet=10.0.0.0/8 indy-sdk-network
           docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
 
       - name: Run tests
-        run: cargo test --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool
+        run: cargo test --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool,local_nodes_pool_did_indy
 
   build-release:
     name: Build library

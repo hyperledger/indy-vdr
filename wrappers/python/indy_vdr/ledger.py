@@ -488,7 +488,7 @@ def build_nym_request(
     alias: str = None,
     role: str = None,
     diddoc_content: str = None,
-    version: Optional[int] = None,
+    version: int = None,
 ) -> Request:
     """
     Builds a NYM request to create new DID on the ledger.
@@ -520,7 +520,7 @@ def build_nym_request(
     alias_p = encode_str(alias)
     role_p = encode_str(role)
     diddoc_content_p = encode_str(diddoc_content)
-    version = c_int32(version if version is not None else -1)
+    version_c = c_int32(version if version is not None else -1)
     do_call(
         "indy_vdr_build_nym_request",
         did_p,
@@ -529,7 +529,7 @@ def build_nym_request(
         alias_p,
         role_p,
         diddoc_content_p,
-        version,
+        version_c,
         byref(handle),
     )
     return Request(handle)

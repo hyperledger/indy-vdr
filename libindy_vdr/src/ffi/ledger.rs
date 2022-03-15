@@ -445,9 +445,15 @@ pub extern "C" fn indy_vdr_build_nym_request(
         let verkey = verkey.into_opt_string();
         let alias = alias.into_opt_string();
         let role = role.into_opt_string();
-        let diddoc_content = serde_json::from_str(diddoc_content.as_str()).with_input_err("Error deserializing diddoc_content as JSON")?;
+        let diddoc_content = match diddoc_content.as_opt_str() {
+            Some(s) => {
+                let js = serde_json::from_str(s).with_input_err("Error deserializing raw value as JSON")?;
+                Some(js)
+            }
+            None => None,
+        };
         let version = if version == -1 { None } else { Some(version) };
-        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role, diddoc_content, version)?;
+        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role, diddoc_content.as_ref(), version)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = *handle;
