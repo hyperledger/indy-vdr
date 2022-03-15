@@ -1,12 +1,14 @@
 extern crate percent_encoding;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::rc::Rc;
 use std::time::UNIX_EPOCH;
 
 use hyper::{Body, Method, Request, Response, StatusCode};
 use percent_encoding::percent_decode_str;
+use url::Url;
 
 use super::AppState;
 use indy_vdr::common::error::prelude::*;
@@ -272,11 +274,16 @@ async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str) -> VdrResult<Respo
 }
 
 // TODO: Support seq_no and timestamp
-async fn get_nym<T: Pool>(pool: &T, nym: &str) -> VdrResult<ResponseType> {
+async fn get_nym<T: Pool>(
+    pool: &T,
+    nym: &str,
+    seq_no: Option<i32>,
+    timestamp: Option<u64>,
+) -> VdrResult<ResponseType> {
     let nym = DidValue::from_str(nym)?;
     let request = pool
         .get_request_builder()
-        .build_get_nym_request(None, &nym, None, None)?;
+        .build_get_nym_request(None, &nym, seq_no, timestamp)?;
     let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
 }
@@ -396,6 +403,11 @@ pub async fn handle_request<T: Pool>(
                 .filter(|p| !p.is_empty())
         });
     let query = req.uri().query();
+    let query_pairs: HashMap<_, _> = Url::parse(req.uri().to_string().as_str())
+        .unwrap()
+        .query_pairs()
+        .into_owned()
+        .collect();
     let format = if query == Some("html") {
         ResponseFormat::Html
     } else if query == Some("raw") {
@@ -481,7 +493,13 @@ pub async fn handle_request<T: Pool>(
         }
         (&Method::GET, "nym") => {
             if let Some(nym) = parts.next() {
-                get_nym(pool, &*nym).await
+                let seq_no: Option<i32> = query_pairs
+                    .get("seq_no")
+                    .and_then(|seq_no| seq_no.as_str().parse().ok());
+                let timestamp: Option<u64> = query_pairs
+                    .get("timestamp")
+                    .and_then(|ts| ts.as_str().parse().ok());
+                get_nym(pool, &*nym, seq_no, timestamp).await
             } else {
                 http_status(StatusCode::NOT_FOUND)
             }
