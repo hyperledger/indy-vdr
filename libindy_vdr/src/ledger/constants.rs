@@ -103,7 +103,15 @@ pub const RS_MAPPING_TYPE_VALUE: &str = "map";
 pub const RS_CRED_DEF_TYPE_VALUE: &str = "cdf";
 pub const RS_PRES_DEF_TYPE_VALUE: &str = "pdf";
 
+
 pub const ROLES: [&str; 4] = [TRUSTEE, STEWARD, ENDORSER, NETWORK_MONITOR];
+
+// Method/version of self-certification
+pub const DEFAULT: i32 = 0; // No (enforced) self-certification
+pub const DID_SOV: i32 = 1; // Legacy self-certification
+pub const DID_INDY: i32 = 2; // Self-certification based on did:indy method spec 
+
+pub const SELF_CERT_VERSIONS: [i32; 3] = [DEFAULT, DID_SOV, DID_INDY];
 
 pub fn txn_name_to_code(txn: &str) -> Option<&str> {
     if REQUESTS.contains(&txn) {
