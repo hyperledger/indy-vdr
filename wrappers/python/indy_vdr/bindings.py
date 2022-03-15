@@ -33,14 +33,6 @@ class RequestHandle(c_size_t):
         return f"{self.__class__.__name__}({self.value})"
 
 
-class ResolverHandle(c_size_t):
-    """Index of an active Resolver instance."""
-
-    def __repr__(self) -> str:
-        """Format resolver handle as a string."""
-        return f"{self.__class__.__name__}({self.value})"
-
-
 class lib_string(c_char_p):
     """A string allocated by the library."""
 
