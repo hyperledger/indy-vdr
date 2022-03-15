@@ -51,7 +51,7 @@ pub extern "C" fn indy_vdr_dereference(
     let cb = cb.ok_or_else(|| input_err("No callback provided")).unwrap();
     let pools = read_lock!(POOLS)?;
     let pool = pools.get(&PoolHandle(pool_handle)).ok_or_else(|| input_err("Unknown pool handle"))?;
-    let resolver =Resolver::new(pool);
+    let resolver = Resolver::new(pool);
         resolver
             .dereference(
                 did_url.as_str(),

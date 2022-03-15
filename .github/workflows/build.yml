@@ -2,7 +2,7 @@ name: "Indy-VDR"
 
 on:
   push:
-    branches: [main, did-indy-only, ffi-resolver]
+    branches: [main]
   pull_request:
     branches: [main]
   release:
