@@ -32,6 +32,7 @@ pub struct GetNymResultV1 {
     pub role: Option<String>,
     pub verkey: String,
     pub diddoc_content: Option<SJsonValue>,
+    pub version: Option<i32>,
 }
 
 #[derive(Deserialize, Eq, PartialEq, Debug)]

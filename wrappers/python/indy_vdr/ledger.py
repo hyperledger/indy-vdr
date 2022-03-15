@@ -1,5 +1,6 @@
 """Methods for generating and working with pool ledger requests."""
 
+from copyreg import add_extension
 from ctypes import byref, c_int32, c_int64, c_uint64
 from datetime import datetime, date
 from enum import IntEnum
@@ -287,8 +288,8 @@ def build_get_nym_request(
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     dest_p = encode_str(dest)
-    seq_no_c = (c_int32(seq_no),)
-    timestamp_c = (c_int64(timestamp),)
+    seq_no_c =  c_int32(seq_no if seq_no is not None else -1)
+    timestamp_c = c_int64(timestamp if timestamp is not None else -1)
     do_call(
         "indy_vdr_build_get_nym_request",
         did_p,
@@ -488,6 +489,7 @@ def build_nym_request(
     alias: str = None,
     role: str = None,
     diddoc_content: str = None,
+    version: Optional[int] = None,
 ) -> Request:
     """
     Builds a NYM request to create new DID on the ledger.
@@ -507,6 +509,10 @@ def build_nym_request(
             NETWORK_MONITOR
             empty string to reset role
         diddoc_content: (Optional) The DIDDoc content
+        version: (Optional) Version/method of self-certification
+            0 - no self-certification enforced by the ledger
+            1 - legacy self-certification
+            2 - self-certification according to did:indy method spec 
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
@@ -515,6 +521,7 @@ def build_nym_request(
     alias_p = encode_str(alias) if alias else None
     role_p = encode_str(role) if role else None
     diddoc_content_p = encode_str(diddoc_content) if diddoc_content else None
+    version = c_int32(version if version is not None else -1)
     do_call(
         "indy_vdr_build_nym_request",
         did_p,
@@ -523,6 +530,7 @@ def build_nym_request(
         alias_p,
         role_p,
         diddoc_content_p,
+        version,
         byref(handle),
     )
     return Request(handle)

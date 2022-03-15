@@ -19,6 +19,8 @@ pub struct NymOperation {
     pub role: Option<::serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diddoc_content: Option<::serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<i32>,
 }
 
 impl NymOperation {
@@ -28,6 +30,7 @@ impl NymOperation {
         alias: Option<String>,
         role: Option<::serde_json::Value>,
         diddoc_content: Option<::serde_json::Value>,
+        version: Option<i32>,
     ) -> NymOperation {
         NymOperation {
             _type: Self::get_txn_type().to_string(),
@@ -36,6 +39,7 @@ impl NymOperation {
             alias,
             role,
             diddoc_content,
+            version,
         }
     }
 }
