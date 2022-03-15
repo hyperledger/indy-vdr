@@ -8,7 +8,6 @@ use std::time::UNIX_EPOCH;
 
 use hyper::{Body, Method, Request, Response, StatusCode};
 use percent_encoding::percent_decode_str;
-use url::Url;
 
 use super::AppState;
 use indy_vdr::common::error::prelude::*;
@@ -403,11 +402,15 @@ pub async fn handle_request<T: Pool>(
                 .filter(|p| !p.is_empty())
         });
     let query = req.uri().query();
-    let query_pairs: HashMap<_, _> = Url::parse(req.uri().to_string().as_str())
-        .unwrap()
-        .query_pairs()
-        .into_owned()
-        .collect();
+    let query_params: HashMap<String, String> = req
+    .uri()
+    .query()
+    .map(|v| {
+        url::form_urlencoded::parse(v.as_bytes())
+            .into_owned()
+            .collect()
+    })
+    .unwrap_or_else(HashMap::new);
     let format = if query == Some("html") {
         ResponseFormat::Html
     } else if query == Some("raw") {
@@ -493,10 +496,10 @@ pub async fn handle_request<T: Pool>(
         }
         (&Method::GET, "nym") => {
             if let Some(nym) = parts.next() {
-                let seq_no: Option<i32> = query_pairs
+                let seq_no: Option<i32> = query_params
                     .get("seq_no")
                     .and_then(|seq_no| seq_no.as_str().parse().ok());
-                let timestamp: Option<u64> = query_pairs
+                let timestamp: Option<u64> = query_params
                     .get("timestamp")
                     .and_then(|ts| ts.as_str().parse().ok());
                 get_nym(pool, &*nym, seq_no, timestamp).await
