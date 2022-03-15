@@ -324,6 +324,7 @@ mod author_agreement {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap()
     }

@@ -206,6 +206,7 @@ mod send {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
 
@@ -245,6 +246,7 @@ mod send {
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
                 Some(ROLE.to_string()),
+                None,
                 None,
             )
             .unwrap();
@@ -295,6 +297,7 @@ mod send {
                 None,
                 Some(role.to_string()),
                 None,
+                None,
             )
             .unwrap();
 
@@ -335,6 +338,7 @@ mod send {
                 None,
                 Some(ROLE.to_string()),
                 None,
+                None,
             )
             .unwrap();
 
@@ -367,6 +371,7 @@ mod send {
                 None,
                 None,
                 Some(ROLE_REMOVE.to_string()),
+                None,
                 None,
             )
             .unwrap();
@@ -408,6 +413,7 @@ mod send {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
 
@@ -420,7 +426,7 @@ mod send {
         // Send NYM
         let mut nym_request = pool
             .request_builder()
-            .build_nym_request(&identity.did, &identity.did, None, None, None, None)
+            .build_nym_request(&identity.did, &identity.did, None, None, None, None, None)
             .unwrap();
 
         identity.sign_request(&mut nym_request);
@@ -441,6 +447,7 @@ mod send {
                 &identity.did,
                 &new_identity.did,
                 Some(new_identity.verkey),
+                None,
                 None,
                 None,
                 None,
