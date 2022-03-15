@@ -117,7 +117,7 @@ async def basic_test(transactions_path):
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
 
-    
+    log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
     resolver = Resolver(pool.handle)
     doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
 
