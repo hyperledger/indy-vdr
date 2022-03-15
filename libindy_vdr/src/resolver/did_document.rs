@@ -39,16 +39,10 @@ impl DidCommService {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct GenericService {
+struct GenericService {
     pub id: String,
     pub type_: String,
     pub service_endpoint: String,
-}
-
-#[derive(Serialize, PartialEq, Debug)]
-pub enum Service {
-    GenericService(GenericService),
-    DidCommService(DidCommService),
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
