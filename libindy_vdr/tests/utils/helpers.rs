@@ -45,6 +45,7 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
             None,
             role,
             None,
+            None,
         )
         .unwrap();
 

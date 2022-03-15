@@ -15,8 +15,8 @@ export class LedgerRequestGetNym extends LedgerRequest {
         try {
             const request = new LedgerRequestGetNym();
             const submitterDidFfi = submitterDid ? allocCString(submitterDid) : NULL;
-            const seqNoFfi = seqNo ? seqNo : NULL;
-            const timestampFfi = timestamp ? timestamp : NULL;
+            const seqNoFfi = seqNo ? seqNo : -1;
+            const timestampFfi = timestamp ? timestamp : -1;
             rustAPI().indy_vdr_build_get_nym_request(submitterDidFfi, allocCString(dest), seqNoFfi, timestampFfi, request._handle);
             return request;
         } catch (err) {

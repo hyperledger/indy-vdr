@@ -19,6 +19,7 @@ export class LedgerRequestNym extends LedgerRequest {
         alias?: string,
         role?: string,
         diddocContent?: string,
+        version?: number,
     ): LedgerRequestNym {
         try {
             const request = new LedgerRequestNym();
@@ -26,6 +27,7 @@ export class LedgerRequestNym extends LedgerRequest {
             const aliasFfi = alias ? allocCString(alias) : NULL;
             const roleFfi = role ? allocCString(role) : NULL;
             const diddocContentFfi = diddocContent ? allocCString(diddocContent) : NULL;
+            const versionFfi = version ? version : -1;
             rustAPI().indy_vdr_build_nym_request(
                 allocCString(submitterDid),
                 allocCString(dest),
@@ -33,6 +35,7 @@ export class LedgerRequestNym extends LedgerRequest {
                 aliasFfi,
                 roleFfi,
                 diddocContentFfi,
+                versionFfi,
                 request._handle,
             );
             return request;

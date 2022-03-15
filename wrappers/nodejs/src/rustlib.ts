@@ -16,6 +16,8 @@ export const FFI_ERROR_CODE = 'int';
 export const FFI_BOOL = 'bool';
 export const FFI_HANDLE = 'uint32';
 export const FFI_REQUEST_HANDLE = 'uint32';
+export const FFI_SIGNED_INT = 'int32';
+export const FFI_SIGNED_LONG = 'int64';
 export const FFI_UNSIGNED_INT = 'uint32';
 export const FFI_UNSIGNED_LONG = 'uint64';
 export const FFI_UNSIGNED_INT_PTR = FFI_USIZE;
@@ -54,6 +56,7 @@ export interface IFFIEntryPoint {
         alias: Buffer,
         role: Buffer,
         diddocContent: Buffer,
+        version: number,
         requestHandle: Buffer,
     ) => rust_err_code;
     indy_vdr_build_get_nym_request: (submitterDid: Buffer, dest: Buffer, seqNo: number, timestamp: number, requestHandle: Buffer) => rust_err_code;
@@ -80,10 +83,10 @@ export const FFIConfiguration: { [Key in keyof IFFIEntryPoint]: any } = {
     indy_vdr_build_get_txn_request: [FFI_ERROR_CODE, [FFI_USIZE_PTR, FFI_USIZE, FFI_USIZE, FFI_USIZE_PTR]],
     indy_vdr_build_nym_request: [
         FFI_ERROR_CODE,
-        [FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR],
+        [FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_SIGNED_INT, FFI_USIZE_PTR],
     ],
     indy_vdr_build_get_schema_request: [FFI_ERROR_CODE, [FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR]],
-    indy_vdr_build_get_nym_request: [FFI_ERROR_CODE, [FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_USIZE_PTR]],
+    indy_vdr_build_get_nym_request: [FFI_ERROR_CODE, [FFI_USIZE_PTR, FFI_USIZE_PTR, FFI_SIGNED_INT, FFI_SIGNED_LONG, FFI_USIZE_PTR]],
     indy_vdr_build_get_validator_info_request: [FFI_ERROR_CODE, [FFI_USIZE_PTR, FFI_USIZE_PTR]],
     indy_vdr_request_get_body: [FFI_ERROR_CODE, [FFI_USIZE, FFI_USIZE]],
     // pool

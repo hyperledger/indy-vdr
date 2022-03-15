@@ -34,7 +34,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&trustee_did, &my_did, None, None, None, None)
+                .build_nym_request(&trustee_did, &my_did, None, None, None, None, None)
                 .unwrap();
 
             let expected_result = json!({
@@ -61,6 +61,7 @@ mod builder {
                     Some(ALIAS.to_string()),
                     Some(ROLE.to_string()),
                     Some(diddoc_content),
+                    None,
                 )
                 .unwrap();
 
@@ -90,6 +91,7 @@ mod builder {
                     None,
                     Some(String::from("")),
                     None,
+                    None,
                 )
                 .unwrap();
 
@@ -110,7 +112,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&fq_trustee_did, &fq_my_did, None, None, None, None)
+                .build_nym_request(&fq_trustee_did, &fq_my_did, None, None, None, None, None)
                 .unwrap();
 
             let expected_result = json!({
@@ -136,6 +138,7 @@ mod builder {
                     Some(identity.verkey),
                     None,
                     Some(role.to_string()),
+                    None,
                     None,
                 )
                 .unwrap_err();
