@@ -311,12 +311,12 @@ pub struct PoolRunnerResolver<'a> {
 }
 
 impl<'a> PoolRunnerResolver<'a> {
-    pub fn new(runner: &'a PoolRunner) -> PoolRunnerResolver<'a> {
+    pub fn new(runner: &'a PoolRunner) -> PoolRunnerResolver {
         PoolRunnerResolver { runner }
     }
 
     pub fn dereference(
-        &'a self,
+        &self,
         did_url: &str,
         callback: Callback<VdrResult<String>>,
     ) -> VdrResult<()> {
@@ -340,11 +340,7 @@ impl<'a> PoolRunnerResolver<'a> {
         )
     }
 
-    pub fn resolve(
-        &'a self,
-        did: &str,
-        callback: Callback<VdrResult<String>>,
-    ) -> VdrResult<()> {
+    pub fn resolve(&self, did: &str, callback: Callback<VdrResult<String>>) -> VdrResult<()> {
         self._resolve(
             did,
             Box::new(move |result| {
@@ -365,9 +361,9 @@ impl<'a> PoolRunnerResolver<'a> {
     }
 
     fn _resolve(
-        &'a self,
+        &self,
         did: &str,
-        callback: Callback<VdrResult<(Result, ContentMetadata)>>,
+        callback: Box<dyn (FnOnce(VdrResult<(Result, ContentMetadata)>) -> ()) + Send + 'static>,
     ) -> VdrResult<()> {
         let did_url = DidUrl::from_str(did)?;
 
@@ -390,7 +386,7 @@ impl<'a> PoolRunnerResolver<'a> {
                                         // let did = did_url.id.clone();
                                         if get_nym_result.diddoc_content.is_none() {
                                             // Legacy: Try to find an attached ATTRIBUTE transacation with raw endpoint
-                                            // self.fetch_legacy_endpoint(
+                                            // self._fetch_legacy_endpoint(
                                             //     &did,
                                             //     Box::new(move |result| {
                                             //         let did_document = DidDocument::new(
@@ -483,10 +479,10 @@ impl<'a> PoolRunnerResolver<'a> {
         )
     }
 
-    fn fetch_legacy_endpoint(
-        &'a self,
+    fn _fetch_legacy_endpoint(
+        &self,
         did: &DidValue,
-        cb: Callback<VdrResult<Endpoint>>
+        callback: Callback<VdrResult<Endpoint>>,
     ) -> VdrResult<()> {
         let builder = RequestBuilder::default();
         let request = builder.build_get_attrib_request(
@@ -504,11 +500,11 @@ impl<'a> PoolRunnerResolver<'a> {
                         let endpoint_data = parse_ledger_data(&reply_data).unwrap();
                         let endpoint_data: Endpoint =
                             serde_json::from_str(endpoint_data.as_str().unwrap()).unwrap();
-                        cb(Ok(endpoint_data));
+                        callback(Ok(endpoint_data));
                     }
-                    RequestResult::Failed(err) => cb(Err(err)),
+                    RequestResult::Failed(err) => callback(Err(err)),
                 },
-                Err(err) => cb(Err(err)),
+                Err(err) => callback(Err(err)),
             }),
         )
     }
