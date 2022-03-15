@@ -2,6 +2,8 @@ use crate::utils::Qualifiable;
 use chrono::{DateTime, Utc};
 use futures_executor::block_on;
 use serde_json::Value as SJsonValue;
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 
 use super::did::{DidUrl, LedgerObject, QueryParameter};
 use super::did_document::{DidDocument, LEGACY_INDY_SERVICE};
@@ -197,8 +199,8 @@ fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<PreparedRe
                         from = did
                             .query
                             .get(&QueryParameter::From)
-                            .and_then(|d| DateTime::parse_from_rfc3339(d).ok())
-                            .and_then(|d| Some(d.timestamp()));
+                            .and_then(|d| OffsetDateTime::parse(d, &Rfc3339).ok())
+                            .and_then(|d| Some(d.unix_timestamp()));
                     }
 
                     let to = parse_or_now(did.query.get(&QueryParameter::To))?;
@@ -249,8 +251,8 @@ fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<PreparedRe
                     from = did
                         .query
                         .get(&QueryParameter::From)
-                        .and_then(|d| DateTime::parse_from_rfc3339(d).ok())
-                        .and_then(|d| Some(d.timestamp()));
+                        .and_then(|d| OffsetDateTime::parse(d, &Rfc3339).ok())
+                        .and_then(|d| Some(d.unix_timestamp()));
                 }
 
                 let to = parse_or_now(did.query.get(&QueryParameter::To))?;
@@ -282,8 +284,8 @@ fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<PreparedRe
         let timestamp: Option<u64> = did
             .query
             .get(&QueryParameter::VersionTime)
-            .and_then(|d| DateTime::parse_from_rfc3339(d).ok())
-            .and_then(|d| Some(d.timestamp()))
+            .and_then(|d| OffsetDateTime::parse(d, &Rfc3339).ok())
+            .and_then(|d| Some(d.unix_timestamp()))
             .and_then(|d| Some(d as u64));
 
         builder.build_get_nym_request(Option::None, &did.id, seq_no, timestamp)
@@ -529,15 +531,15 @@ fn parse_ledger_data(ledger_data: &str) -> VdrResult<SJsonValue> {
 fn parse_or_now(datetime: Option<&String>) -> VdrResult<i64> {
     match datetime {
         Some(datetime) => {
-            let dt = DateTime::parse_from_rfc3339(datetime).map_err(|_| {
+            let dt = OffsetDateTime::parse(datetime, &Rfc3339).map_err(|_| {
                 err_msg(
                     VdrErrorKind::Resolver,
                     format!("Could not parse datetime {}", datetime),
                 )
             })?;
-            Ok(dt.timestamp())
+            Ok(dt.unix_timestamp())
         }
-        None => Ok(Utc::now().timestamp()),
+        None => Ok(OffsetDateTime::now_utc().unix_timestamp()),
     }
 }
 
@@ -570,16 +572,16 @@ mod tests {
         assert_eq!(constants::GET_REVOC_REG, request.txn_type);
 
         assert_eq!(
-            DateTime::parse_from_rfc3339(datetime_as_str)
+            OffsetDateTime::parse(datetime_as_str, &Rfc3339)
                 .unwrap()
-                .timestamp(),
+                .unix_timestamp(),
             timestamp
         );
     }
 
     #[rstest]
     fn build_get_revoc_reg_without_version_time(request_builder: RequestBuilder) {
-        let now = chrono::Utc::now().timestamp();
+        let now = OffsetDateTime::now_utc().unix_timestamp();
 
         let did_url_as_str = "did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54";
         let did_url = DidUrl::from_str(did_url_as_str).unwrap();
@@ -616,7 +618,7 @@ mod tests {
 
     #[rstest]
     fn build_get_revoc_reg_delta_request_with_from_only(request_builder: RequestBuilder) {
-        let now = chrono::Utc::now().timestamp();
+        let now = OffsetDateTime::now_utc().unix_timestamp();
         let from_as_str = "2019-12-20T19:17:47Z";
         let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54?from={}",from_as_str);
         let did_url = DidUrl::from_str(&did_url_as_str).unwrap();
@@ -633,7 +635,7 @@ mod tests {
 
     #[rstest]
     fn build_get_revoc_reg_delta_request_without_parameter(request_builder: RequestBuilder) {
-        let now = chrono::Utc::now().timestamp();
+        let now = OffsetDateTime::now_utc().unix_timestamp();
         let did_url_as_str = "did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DELTA/104/revocable/a4e25e54";
         let did_url = DidUrl::from_str(did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
