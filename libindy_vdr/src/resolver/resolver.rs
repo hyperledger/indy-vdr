@@ -58,6 +58,7 @@ impl<T: Pool> PoolResolver<T> {
 
     // Dereference a DID Url and return a serialized `DereferencingResult`
     pub fn dereference(&self, did_url: &str) -> VdrResult<String> {
+        debug!("PoolResolver: Dereference DID Url {}", did_url);
         let (data, metadata) = self._resolve(did_url)?;
 
         let content = match data {
@@ -76,6 +77,7 @@ impl<T: Pool> PoolResolver<T> {
 
     // Resolve a DID and return a serialized `ResolutionResult`
     pub fn resolve(&self, did: &str) -> VdrResult<String> {
+        debug!("PoolResolver: Resolve DID {}", did);
         let (data, metadata) = self._resolve(did)?;
 
         let diddoc = match data {
