@@ -2,7 +2,7 @@ extern crate clap;
 use clap::{Arg, Command};
 
 pub struct Config {
-    pub genesis: Option<String>,
+    pub ledgers: Option<String>,
     #[cfg(unix)]
     pub socket: Option<String>,
     pub host: Option<String>,
@@ -17,12 +17,12 @@ pub fn load_config() -> Result<Config, String> {
         .version("0.2.0")
         .about("Proxy requests to a Hyperledger Indy-Node ledger")
         .arg(
-            Arg::new("genesis")
-                .short('g')
-                .long("genesis")
+            Arg::new("ledgers")
+                .short('l')
+                .long("ledgers")
                 .takes_value(true)
-                .value_name("GENESIS")
-                .help("Path to the ledger genesis transactions")
+                .value_name("LEDGERS")
+                .help("Path to Indy networks Github repo or local folder")
         )
         .arg(
             Arg::new("host")
@@ -68,7 +68,7 @@ pub fn load_config() -> Result<Config, String> {
 
     let matches = app.get_matches();
 
-    let genesis = matches.value_of("genesis").map(str::to_owned);
+    let ledgers = matches.value_of("ledgers").map(str::to_owned);
 
     if matches.occurrences_of("socket") > 0 {
         if matches.occurrences_of("host") > 0 {
@@ -97,7 +97,7 @@ pub fn load_config() -> Result<Config, String> {
         .unwrap_or(120);
 
     Ok(Config {
-        genesis,
+        ledgers,
         #[cfg(unix)]
         socket,
         host,

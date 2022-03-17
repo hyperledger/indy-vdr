@@ -71,7 +71,7 @@ pub mod pool;
 pub mod resolver;
 /// State proof verification for ledger read transactions
 pub mod state_proof;
-/// Indy VDR implementation for multiple ledgers and DID resolution/derefrence support
+/// Indy VDR implementation for multiple ledgers and DID resolution/dereference support
 pub mod vdr;
 
 #[cfg(test)]

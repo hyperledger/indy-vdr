@@ -136,7 +136,7 @@ async fn refresh_pools(state: Rc<RefCell<AppState>>, delay_mins: u32) {
 
 async fn init_server(config: app::Config) -> Result<(), String> {
     let state = Rc::new(RefCell::new(
-        init_app_state(config.genesis.clone())
+        init_app_state(config.ledgers.clone())
             .await
             .map_err(|err| format!("Error loading config: {}", err))?,
     ));
