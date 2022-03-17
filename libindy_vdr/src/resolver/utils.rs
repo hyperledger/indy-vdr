@@ -3,9 +3,13 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 use super::did::{DidUrl, LedgerObject, QueryParameter};
+use super::did_document::DidDocument;
+use super::resolver::*;
 
 use crate::common::error::prelude::*;
+use crate::ledger::constants;
 use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
+use crate::ledger::responses::GetNymResultV1;
 use crate::ledger::RequestBuilder;
 use crate::pool::PreparedRequest;
 use crate::utils::Qualifiable;
@@ -145,6 +149,71 @@ pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<Prepar
         builder.build_get_nym_request(Option::None, &did.id, seq_no, timestamp)
     };
     request
+}
+
+pub fn handle_resolution_result(
+    did_url: &DidUrl,
+    ledger_data: &str,
+    txn_type: &str,
+) -> VdrResult<(Result, Metadata)> {
+    let data = parse_ledger_data(&ledger_data)?;
+    Ok(match txn_type {
+        constants::GET_NYM => {
+            let get_nym_result: GetNymResultV1 = serde_json::from_str(data.as_str().unwrap())
+                .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse NYM data"))?;
+
+            let did_document = DidDocument::new(
+                &did_url.namespace,
+                &get_nym_result.dest,
+                &get_nym_result.verkey,
+                None,
+                get_nym_result.diddoc_content,
+            );
+
+            let metadata = Metadata::DidDocumentMetadata(DidDocumentMetadata {
+                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                object_type: String::from("NYM"),
+                self_certification_version: get_nym_result.version,
+            });
+
+            (Result::DidDocument(did_document), metadata)
+        }
+        constants::GET_CRED_DEF => (
+            Result::Content(data),
+            Metadata::ContentMetadata(ContentMetadata {
+                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                object_type: String::from("CRED_DEF"),
+            }),
+        ),
+        constants::GET_SCHEMA => (
+            Result::Content(data),
+            Metadata::ContentMetadata(ContentMetadata {
+                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                object_type: String::from("SCHEMA"),
+            }),
+        ),
+        constants::GET_REVOC_REG_DEF => (
+            Result::Content(data),
+            Metadata::ContentMetadata(ContentMetadata {
+                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                object_type: String::from("REVOC_REG_DEF"),
+            }),
+        ),
+        constants::GET_REVOC_REG_DELTA => (
+            Result::Content(data),
+            Metadata::ContentMetadata(ContentMetadata {
+                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                object_type: String::from("REVOC_REG_DELTA"),
+            }),
+        ),
+        _ => (
+            Result::Content(data),
+            Metadata::ContentMetadata(ContentMetadata {
+                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                object_type: String::from("REVOC_REG_DELTA"),
+            }),
+        ),
+    })
 }
 
 pub fn parse_ledger_data(ledger_data: &str) -> VdrResult<SJsonValue> {

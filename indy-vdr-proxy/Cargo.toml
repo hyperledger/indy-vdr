@@ -1,6 +1,6 @@
 [package]
 name = "indy-vdr-proxy"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
 description = "A basic proxy server exposing indy-vdr functionality over an HTTP interface"
 edition = "2021"
@@ -20,6 +20,7 @@ hyper = { version = "0.14", features = ["http1", "http2", "server"] }
 hyper-tls = { version = "0.5", optional = true }
 log = "0.4.8"
 percent-encoding = "2"
+regex = "1.5.4"
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "signal"] }
 url = "2.2.2"

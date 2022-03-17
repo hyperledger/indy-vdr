@@ -1,17 +1,17 @@
 use git2::Repository;
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
 use crate::common::error::prelude::*;
-use crate::ledger::constants;
-use crate::ledger::responses::{Endpoint, GetNymResultV1};
+use crate::ledger::responses::Endpoint;
 use crate::pool::genesis::PoolTransactions;
 use crate::pool::helpers::{perform_ledger_request, perform_refresh};
 use crate::pool::{Pool, PoolBuilder, PreparedRequest, RequestResult, SharedPool, TimingResult};
 use crate::resolver::did::DidUrl;
-use crate::resolver::did_document::{DidDocument, LEGACY_INDY_SERVICE};
+use crate::resolver::did_document::LEGACY_INDY_SERVICE;
 use crate::resolver::resolver::*;
 use crate::resolver::utils::*;
 use crate::utils::did::DidValue;
@@ -79,6 +79,7 @@ impl Vdr {
         }
         Vdr::new(networks)
     }
+
     /// Initialize VDR from a GitHub repo containing Indy network genesis files
     /// Default repo is https://github.com/IDunion/indy-did-networks
     pub fn from_github(repo_url: Option<&str>) -> VdrResult<Vdr> {
@@ -108,18 +109,27 @@ impl Vdr {
     }
 
     /// Add a new ledger to the VDR
-    pub fn add_ledger(mut self, namespace: String, pool: SharedPool) {
-        self.pools.insert(namespace, pool);
+    pub fn add_ledger(&mut self, namespace: &str, pool: SharedPool) {
+        self.pools.insert(String::from(namespace), pool);
     }
 
     /// Remove a ledger from the VDR
-    pub fn remove_ledger(mut self, namespace: &str) {
+    pub fn remove_ledger(&mut self, namespace: &str) {
         self.pools.remove(namespace);
     }
 
+    /// Get names of all ledgers
+    pub fn get_ledgers(&self) -> VdrResult<Vec<String>> {
+        Ok(self.pools.keys().cloned().collect::<Vec<String>>())
+    }
+
+    /// Get a validator pool reference
+    pub fn get_pool(&self, namespace: &str) -> Option<&SharedPool> {
+        self.borrow().pools.get(namespace)
+    }
     /// Send a prepared request to a specific network
     pub async fn send_request(
-        self,
+        &self,
         namespace: &str,
         req: PreparedRequest,
     ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
@@ -132,8 +142,9 @@ impl Vdr {
 
     /// Dereference a DID Url and return a serialized `DereferencingResult`
     pub async fn dereference(&self, did_url: &str) -> VdrResult<String> {
-        debug!("PoolResolver: Dereference DID Url {}", did_url);
-        let (data, metadata) = self._resolve(did_url).await?;
+        debug!("VDR: Dereference DID Url {}", did_url);
+        let did_url = DidUrl::from_str(did_url)?;
+        let (data, metadata) = self._resolve(&did_url).await?;
 
         let content = match data {
             Result::Content(c) => Some(c),
@@ -157,11 +168,22 @@ impl Vdr {
 
     /// Resolve a DID and return a serialized `ResolutionResult`
     pub async fn resolve(&self, did: &str) -> VdrResult<String> {
-        debug!("PoolResolver: Resolve DID {}", did);
-        let (data, metadata) = self._resolve(did).await?;
+        debug!("VDR Resolve DID {}", did);
+        let did = DidUrl::from_str(did)?;
+        let (data, metadata) = self._resolve(&did).await?;
 
         let diddoc = match data {
-            Result::DidDocument(doc) => Some(doc.to_value()?),
+            Result::DidDocument(mut doc) => {
+                // Try to find legacy endpoint if diddoc_content is none
+                if doc.diddoc_content.is_none() {
+                    let pool = self
+                        .pools
+                        .get(&did.namespace)
+                        .ok_or(err_msg(VdrErrorKind::Resolver, "Unkown namespace"))?;
+                    doc.endpoint = fetch_legacy_endpoint(pool, &did.id).await.ok();
+                }
+                Some(doc.to_value()?)
+            }
             _ => None,
         };
 
@@ -181,8 +203,7 @@ impl Vdr {
     }
 
     // Internal method to resolve and dereference
-    async fn _resolve(&self, did: &str) -> VdrResult<(Result, Metadata)> {
-        let did_url = DidUrl::from_str(did)?;
+    async fn _resolve(&self, did_url: &DidUrl) -> VdrResult<(Result, Metadata)> {
         let pool = self
             .pools
             .get(&did_url.namespace)
@@ -192,101 +213,14 @@ impl Vdr {
         let request = build_request(&did_url, &builder)?;
 
         let ledger_data = handle_request(pool, &request).await?;
-        let data = parse_ledger_data(&ledger_data)?;
+        let txn_type = &request.txn_type.as_str();
+        let result = handle_resolution_result(&did_url, &ledger_data, txn_type)?;
 
-        let (result, metadata) = match request.txn_type.as_str() {
-            constants::GET_NYM => {
-                let get_nym_result: GetNymResultV1 =
-                    serde_json::from_str(data.as_str().unwrap())
-                        .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse NYM data"))?;
-
-                let endpoint: Option<Endpoint> = if get_nym_result.diddoc_content.is_none() {
-                    // Legacy: Try to find an attached ATTRIBUTE transacation with raw endpoint
-                    self.fetch_legacy_endpoint(pool, &did_url.id).await.ok()
-                } else {
-                    None
-                };
-
-                let did_document = DidDocument::new(
-                    &did_url.namespace,
-                    &get_nym_result.dest,
-                    &get_nym_result.verkey,
-                    endpoint,
-                    None,
-                );
-
-                let metadata = Metadata::DidDocumentMetadata(DidDocumentMetadata {
-                    node_response: serde_json::from_str(&ledger_data).unwrap(),
-                    object_type: String::from("NYM"),
-                    self_certification_version: get_nym_result.version,
-                });
-
-                (Result::DidDocument(did_document), metadata)
-            }
-            constants::GET_CRED_DEF => (
-                Result::Content(data),
-                Metadata::ContentMetadata(ContentMetadata {
-                    node_response: serde_json::from_str(&ledger_data).unwrap(),
-                    object_type: String::from("CRED_DEF"),
-                }),
-            ),
-            constants::GET_SCHEMA => (
-                Result::Content(data),
-                Metadata::ContentMetadata(ContentMetadata {
-                    node_response: serde_json::from_str(&ledger_data).unwrap(),
-                    object_type: String::from("SCHEMA"),
-                }),
-            ),
-            constants::GET_REVOC_REG_DEF => (
-                Result::Content(data),
-                Metadata::ContentMetadata(ContentMetadata {
-                    node_response: serde_json::from_str(&ledger_data).unwrap(),
-                    object_type: String::from("REVOC_REG_DEF"),
-                }),
-            ),
-            constants::GET_REVOC_REG_DELTA => (
-                Result::Content(data),
-                Metadata::ContentMetadata(ContentMetadata {
-                    node_response: serde_json::from_str(&ledger_data).unwrap(),
-                    object_type: String::from("REVOC_REG_DELTA"),
-                }),
-            ),
-            _ => (
-                Result::Content(data),
-                Metadata::ContentMetadata(ContentMetadata {
-                    node_response: serde_json::from_str(&ledger_data).unwrap(),
-                    object_type: String::from("REVOC_REG_DELTA"),
-                }),
-            ),
-        };
-
-        let result_with_metadata = (result, metadata);
-
-        Ok(result_with_metadata)
+        Ok(result)
     }
 
-    /// Fetch legacy service endpoint using ATTRIB tx
-    async fn fetch_legacy_endpoint(
-        &self,
-        pool: &SharedPool,
-        did: &DidValue,
-    ) -> VdrResult<Endpoint> {
-        let builder = pool.get_request_builder();
-        let request = builder.build_get_attrib_request(
-            None,
-            did,
-            Some(String::from(LEGACY_INDY_SERVICE)),
-            None,
-            None,
-        )?;
-        let ledger_data = handle_request(pool, &request).await?;
-        let endpoint_data = parse_ledger_data(&ledger_data)?;
-        let endpoint_data: Endpoint = serde_json::from_str(endpoint_data.as_str().unwrap())
-            .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse endpoint data"))?;
-        Ok(endpoint_data)
-    }
-
-    pub async fn refresh_all(mut self) -> VdrResult<()> {
+    /// Refresh validator pools for all networks
+    pub async fn refresh_all(&mut self) -> VdrResult<()> {
         let keys: Vec<String> = self.pools.keys().cloned().collect();
 
         for k in keys.iter() {
@@ -309,7 +243,8 @@ impl Vdr {
         Ok(())
     }
 
-    pub async fn refresh(mut self, namespace: &str) -> VdrResult<()> {
+    /// Refresh the validator pool of a particular network
+    pub async fn refresh(&mut self, namespace: &str) -> VdrResult<()> {
         let pool = self
             .pools
             .get_mut(namespace)
@@ -348,4 +283,21 @@ async fn request_transaction(
     request: &PreparedRequest,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
     perform_ledger_request(pool, &request).await
+}
+
+/// Fetch legacy service endpoint using ATTRIB tx
+async fn fetch_legacy_endpoint(pool: &SharedPool, did: &DidValue) -> VdrResult<Endpoint> {
+    let builder = pool.get_request_builder();
+    let request = builder.build_get_attrib_request(
+        None,
+        did,
+        Some(String::from(LEGACY_INDY_SERVICE)),
+        None,
+        None,
+    )?;
+    let ledger_data = handle_request(pool, &request).await?;
+    let endpoint_data = parse_ledger_data(&ledger_data)?;
+    let endpoint_data: Endpoint = serde_json::from_str(endpoint_data.as_str().unwrap())
+        .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse endpoint data"))?;
+    Ok(endpoint_data)
 }

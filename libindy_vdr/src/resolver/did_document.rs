@@ -48,11 +48,11 @@ struct GenericService {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DidDocument {
-    namespace: String,
-    id: String,
-    verkey: String,
-    endpoint: Option<Endpoint>,
-    diddoc_content: Option<SJsonValue>,
+    pub namespace: String,
+    pub id: String,
+    pub verkey: String,
+    pub endpoint: Option<Endpoint>,
+    pub diddoc_content: Option<SJsonValue>,
 }
 
 impl DidDocument {

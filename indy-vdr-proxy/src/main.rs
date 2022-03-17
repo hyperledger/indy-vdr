@@ -8,30 +8,26 @@ use std::cell::RefCell;
 #[cfg(unix)]
 use std::fs;
 use std::net::IpAddr;
+use std::path::PathBuf;
 use std::process::exit;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 
 use futures_util::FutureExt;
 
-#[cfg(feature = "fetch")]
-use hyper::body::Buf;
 use hyper::service::{make_service_fn, service_fn};
-#[cfg(feature = "fetch")]
-use hyper::Client;
 use hyper::Server;
-#[cfg(feature = "fetch")]
-use hyper_tls::HttpsConnector;
 
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
+use indy_vdr::pool::SharedPool;
 use tokio::select;
 #[cfg(unix)]
 use tokio::signal::unix::SignalKind;
 
 use indy_vdr::common::error::prelude::*;
-use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolBuilder, PoolTransactions};
+use indy_vdr::vdr::Vdr;
 
 fn main() {
     let config = app::load_config().unwrap_or_else(|err| {
@@ -54,90 +50,45 @@ fn main() {
 }
 
 pub struct AppState {
-    pool: Option<LocalPool>,
+    vdr: Vdr,
     last_refresh: Option<SystemTime>,
-    transactions: PoolTransactions,
 }
 
-#[cfg(feature = "fetch")]
-async fn fetch_transactions(genesis: String) -> VdrResult<PoolTransactions> {
-    let https = HttpsConnector::new();
-    let client = Client::builder().build::<_, hyper::Body>(https);
-    let mut res = client
-        .get(genesis.parse().with_err_msg(
-            VdrErrorKind::Config,
-            format!("Error parsing genesis URL: {}", genesis),
-        )?)
-        .await
-        .with_err_msg(VdrErrorKind::Config, "Error fetching genesis transactions")?;
-    if res.status() != 200 {
-        return Err(err_msg(
-            VdrErrorKind::Config,
-            format!(
-                "Unexpected HTTP status for genesis transactions: {}",
-                res.status()
-            ),
-        ));
+async fn init_app_state(genesis: Option<String>) -> VdrResult<AppState> {
+    let vdr = match genesis {
+        Some(genesis) => {
+            if genesis.starts_with("http:") || genesis.starts_with("https:") {
+                Vdr::from_github(Some(genesis.as_str()))?
+            } else {
+                Vdr::from_folder(PathBuf::from(genesis), None)?
+            }
+        }
+        None => Vdr::from_github(None)?,
     };
-    let mut buf = hyper::body::aggregate(res.body_mut())
-        .await
-        .with_err_msg(VdrErrorKind::Config, "Error receiving genesis transactions")?;
-    let body = buf.copy_to_bytes(buf.remaining());
-    let txns = String::from_utf8_lossy(&body);
-    PoolTransactions::from_json(&txns)
-}
 
-#[cfg(not(feature = "fetch"))]
-async fn fetch_transactions(_genesis: String) -> VdrResult<PoolTransactions> {
-    Err(err_msg(
-        VdrErrorKind::Config,
-        "This application is not compiled with HTTP(S) request support",
-    ))
-}
-
-async fn init_app_state(genesis: String) -> VdrResult<AppState> {
-    let transactions = if genesis.starts_with("http:") || genesis.starts_with("https:") {
-        fetch_transactions(genesis).await?
-    } else {
-        PoolTransactions::from_json_file(genesis.as_str())?
-    };
     let state = AppState {
-        pool: None,
+        vdr,
         last_refresh: None,
-        transactions,
     };
     Ok(state)
 }
 
 async fn run_pool(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_refresh: u32) {
-    let mut pool = match create_pool(state.clone(), init_refresh).await {
-        Ok(pool) => {
-            state.borrow_mut().pool.replace(pool.clone());
-            pool
+    if init_refresh {
+        state.borrow_mut().last_refresh.replace(SystemTime::now());
+        if let Err(err) = state.borrow_mut().vdr.refresh_all().await {
+            eprintln!("Could not refresh validator pool with err: {:?}", err);
         }
-        Err(err) => {
-            eprintln!("Error initializing pool: {}", err);
-            return;
-        }
-    };
+    }
     let shutdown = shutdown_signal().fuse().shared();
     if interval_refresh > 0 {
         loop {
             select! {
-                refresh_result = refresh_pool(state.clone(), &pool, interval_refresh) => {
-                    match refresh_result {
-                        Ok(Some(upd_pool)) => {
-                            state.borrow_mut().pool.replace(upd_pool.clone());
-                            pool = upd_pool;
+
+                _ = refresh_pools(state.clone(), interval_refresh) => {
+
                             log::info!("Refreshed validator pool");
-                        }
-                        Ok(None) => {
-                            log::debug!("Refreshed validator pool, no change");
-                        }
-                        Err(err) => {
-                            log::error!("Error refreshing validator pool: {}", err);
-                        }
-                    }
+
                 }
                 _ = shutdown.clone() => {
                     println!("Shutting down");
@@ -171,39 +122,15 @@ async fn shutdown_signal() {
         .expect("failed to install Ctrl-C handler")
 }
 
-async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> VdrResult<LocalPool> {
-    let builder = PoolBuilder::default().transactions(state.borrow().transactions.clone())?;
-    let pool = builder.into_local()?;
-    let refresh_pool = if refresh {
-        refresh_pool(state, &pool, 0).await?
-    } else {
-        None
-    };
-    Ok(refresh_pool.unwrap_or(pool))
-}
-
-async fn refresh_pool(
-    state: Rc<RefCell<AppState>>,
-    pool: &LocalPool,
-    delay_mins: u32,
-) -> VdrResult<Option<LocalPool>> {
+async fn refresh_pools(state: Rc<RefCell<AppState>>, delay_mins: u32) {
     if delay_mins > 0 {
         tokio::time::sleep(Duration::from_secs((delay_mins * 60) as u64)).await
     }
 
-    let (txns, _timing) = perform_refresh(pool).await?;
-
     state.borrow_mut().last_refresh.replace(SystemTime::now());
 
-    if let Some(txns) = txns {
-        let builder = {
-            let pool_txns = &mut state.borrow_mut().transactions;
-            pool_txns.extend_from_json(&txns)?;
-            PoolBuilder::default().transactions(pool_txns.clone())?
-        };
-        Ok(Some(builder.into_local()?))
-    } else {
-        Ok(None)
+    if let Err(err) = state.borrow_mut().vdr.refresh_all().await {
+        eprintln!("Could not refresh validator pool with err: {:?}", err);
     }
 }
 
@@ -259,7 +186,7 @@ where
         async move {
             let state = state.clone();
             Ok::<_, hyper::Error>(service_fn(move |req| {
-                handlers::handle_request::<LocalPool>(req, state.to_owned())
+                handlers::handle_request::<SharedPool>(req, state.to_owned())
             }))
         }
     });

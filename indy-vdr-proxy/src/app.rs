@@ -2,7 +2,7 @@ extern crate clap;
 use clap::{Arg, Command};
 
 pub struct Config {
-    pub genesis: String,
+    pub genesis: Option<String>,
     #[cfg(unix)]
     pub socket: Option<String>,
     pub host: Option<String>,
@@ -14,7 +14,7 @@ pub struct Config {
 pub fn load_config() -> Result<Config, String> {
     #[allow(unused_mut)]
     let mut app = Command::new("indy-vdr-proxy")
-        .version("0.1.0")
+        .version("0.2.0")
         .about("Proxy requests to a Hyperledger Indy-Node ledger")
         .arg(
             Arg::new("genesis")
@@ -68,10 +68,7 @@ pub fn load_config() -> Result<Config, String> {
 
     let matches = app.get_matches();
 
-    let genesis = matches
-        .value_of("genesis")
-        .unwrap_or("genesis.txn")
-        .to_owned();
+    let genesis = matches.value_of("genesis").map(str::to_owned);
 
     if matches.occurrences_of("socket") > 0 {
         if matches.occurrences_of("host") > 0 {
