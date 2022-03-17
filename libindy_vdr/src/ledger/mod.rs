@@ -19,6 +19,9 @@ pub mod identifiers {
 #[macro_use]
 pub mod requests;
 
+/// Types for data of ledger responses
+pub mod responses;
+
 /// Helpers for constructing ledger requests
 mod request_builder;
 

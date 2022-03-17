@@ -34,7 +34,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&trustee_did, &my_did, None, None, None)
+                .build_nym_request(&trustee_did, &my_did, None, None, None, None, None)
                 .unwrap();
 
             let expected_result = json!({
@@ -50,7 +50,9 @@ mod builder {
             request_builder: RequestBuilder,
             trustee_did: DidValue,
             identity: Identity,
+            diddoc_content: serde_json::Value,
         ) {
+            let copy = diddoc_content.clone();
             let nym_request = request_builder
                 .build_nym_request(
                     &trustee_did,
@@ -58,6 +60,8 @@ mod builder {
                     Some(identity.verkey.clone()),
                     Some(ALIAS.to_string()),
                     Some(ROLE.to_string()),
+                    Some(diddoc_content),
+                    None,
                 )
                 .unwrap();
 
@@ -67,6 +71,7 @@ mod builder {
                 "verkey": identity.verkey,
                 "alias": ALIAS,
                 "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+                "diddocContent": copy,
             });
 
             helpers::check_request_operation(&nym_request, expected_result);
@@ -79,7 +84,15 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&trustee_did, &my_did, None, None, Some(String::from("")))
+                .build_nym_request(
+                    &trustee_did,
+                    &my_did,
+                    None,
+                    None,
+                    Some(String::from("")),
+                    None,
+                    None,
+                )
                 .unwrap();
 
             let expected_result = json!({
@@ -99,7 +112,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_nym_request(&fq_trustee_did, &fq_my_did, None, None, None)
+                .build_nym_request(&fq_trustee_did, &fq_my_did, None, None, None, None, None)
                 .unwrap();
 
             let expected_result = json!({
@@ -125,6 +138,8 @@ mod builder {
                     Some(identity.verkey),
                     None,
                     Some(role.to_string()),
+                    None,
+                    None,
                 )
                 .unwrap_err();
         }
@@ -140,7 +155,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_get_nym_request(Some(&trustee_did), &my_did)
+                .build_get_nym_request(Some(&trustee_did), &my_did, None, None)
                 .unwrap();
 
             let expected_result = json!({
@@ -159,7 +174,7 @@ mod builder {
             my_did: DidValue,
         ) {
             let nym_request = request_builder
-                .build_get_nym_request(Some(&fq_trustee_did), &fq_my_did)
+                .build_get_nym_request(Some(&fq_trustee_did), &fq_my_did, None, None)
                 .unwrap();
 
             let expected_result = json!({
@@ -190,6 +205,8 @@ mod send {
                 Some(identity.verkey.to_string()),
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap();
 
@@ -199,7 +216,7 @@ mod send {
         // Get NYM
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &identity.did)
+            .build_get_nym_request(None, &identity.did, None, None)
             .unwrap();
 
         let response = pool
@@ -229,6 +246,8 @@ mod send {
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
                 Some(ROLE.to_string()),
+                None,
+                None,
             )
             .unwrap();
 
@@ -238,7 +257,7 @@ mod send {
         // Get NYM
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &identity.did)
+            .build_get_nym_request(None, &identity.did, None, None)
             .unwrap();
 
         let response = pool
@@ -277,6 +296,8 @@ mod send {
                 Some(new_identity.verkey.to_string()),
                 None,
                 Some(role.to_string()),
+                None,
+                None,
             )
             .unwrap();
 
@@ -286,7 +307,7 @@ mod send {
         // Get NYM
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &new_identity.did)
+            .build_get_nym_request(None, &new_identity.did, None, None)
             .unwrap();
 
         let response = pool
@@ -316,6 +337,8 @@ mod send {
                 Some(identity.verkey.to_string()),
                 None,
                 Some(ROLE.to_string()),
+                None,
+                None,
             )
             .unwrap();
 
@@ -325,7 +348,7 @@ mod send {
         // Get NYM to ensure role is TRUSTEE
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &identity.did)
+            .build_get_nym_request(None, &identity.did, None, None)
             .unwrap();
 
         let response = pool
@@ -348,6 +371,8 @@ mod send {
                 None,
                 None,
                 Some(ROLE_REMOVE.to_string()),
+                None,
+                None,
             )
             .unwrap();
 
@@ -357,7 +382,7 @@ mod send {
         // Get NYM to ensure role was reset
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &identity.did)
+            .build_get_nym_request(None, &identity.did, None, None)
             .unwrap();
 
         let response = pool
@@ -387,6 +412,8 @@ mod send {
                 Some(identity.verkey.to_string()),
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap();
 
@@ -399,7 +426,7 @@ mod send {
         // Send NYM
         let mut nym_request = pool
             .request_builder()
-            .build_nym_request(&identity.did, &identity.did, None, None, None)
+            .build_nym_request(&identity.did, &identity.did, None, None, None, None, None)
             .unwrap();
 
         identity.sign_request(&mut nym_request);
@@ -422,6 +449,8 @@ mod send {
                 Some(new_identity.verkey),
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap();
 
@@ -434,7 +463,7 @@ mod send {
         // Get NYM
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &identity.did)
+            .build_get_nym_request(None, &identity.did, None, None)
             .unwrap();
 
         let response = pool.send_request(&get_nym_request).unwrap();

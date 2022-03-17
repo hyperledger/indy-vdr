@@ -22,7 +22,7 @@ pub struct PoolHandle(pub i64);
 
 impl_sequence_handle!(PoolHandle, FFI_PH_COUNTER);
 
-static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolRunner>>> =
+pub static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolRunner>>> =
     Lazy::new(|| RwLock::new(BTreeMap::new()));
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

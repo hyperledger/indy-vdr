@@ -249,6 +249,28 @@ def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
     return handle
 
 
+def resolve(pool_handle: PoolHandle, did: str) -> asyncio.Future:
+    """Resovle a DID to retrieve a DID Doc."""
+    return do_call_async(
+        "indy_vdr_resolve",
+        pool_handle,
+        encode_str(did),
+        return_type=lib_string,
+        post_process=str,
+    )
+
+
+def dereference(pool_handle: PoolHandle, did_url: str) -> asyncio.Future:
+    """Dereference a DID Urk to retrieve a ledger object."""
+    return do_call_async(
+        "indy_vdr_dereference",
+        pool_handle,
+        encode_str(did_url),
+        return_type=lib_string,
+        post_process=str,
+    )
+
+
 def pool_get_status(pool_handle: PoolHandle) -> asyncio.Future:
     """Get the status of an opened pool instance."""
     return do_call_async(

@@ -24,6 +24,7 @@ from indy_vdr.ledger import (
     LedgerType,
 )
 from indy_vdr.pool import Pool, open_pool
+from indy_vdr.resolver import Resolver
 
 
 def log(*args):
@@ -115,6 +116,12 @@ async def basic_test(transactions_path):
 
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
+
+    log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
+    resolver = Resolver(pool.handle)
+    doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
+
+    log(json.dumps(doc, indent=2))
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"

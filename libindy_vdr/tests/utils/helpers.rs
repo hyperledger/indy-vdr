@@ -44,6 +44,8 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
             Some(new_identity.verkey.to_string()),
             None,
             role,
+            None,
+            None,
         )
         .unwrap();
 

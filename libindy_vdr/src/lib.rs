@@ -66,6 +66,9 @@ mod ffi;
 pub mod ledger;
 /// Handling of verifier pool instances and communication
 pub mod pool;
+
+/// did:indy DID URL resolver
+pub mod resolver;
 /// State proof verification for ledger read transactions
 pub mod state_proof;
 

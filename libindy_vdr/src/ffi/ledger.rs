@@ -216,6 +216,8 @@ pub extern "C" fn indy_vdr_build_get_cred_def_request(
 pub extern "C" fn indy_vdr_build_get_nym_request(
     submitter_did: FfiStr, // optional
     dest: FfiStr,
+    seq_no: i32,    // optional, -1 for None
+    timestamp: i64, // optional, -1 for None
     handle_p: *mut RequestHandle,
 ) -> ErrorCode {
     catch_err! {
@@ -224,7 +226,9 @@ pub extern "C" fn indy_vdr_build_get_nym_request(
         let builder = get_request_builder()?;
         let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
         let dest = DidValue::from_str(dest.as_str())?;
-        let req = builder.build_get_nym_request(identifier.as_ref(), &dest)?;
+        let seq_no = if seq_no == -1 { None } else { Some(seq_no) };
+        let timestamp = if timestamp == -1 { None } else { Some(timestamp as u64) };
+        let req = builder.build_get_nym_request(identifier.as_ref(), &dest, seq_no, timestamp)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
@@ -393,9 +397,11 @@ pub extern "C" fn indy_vdr_build_get_validator_info_request(
 pub extern "C" fn indy_vdr_build_nym_request(
     submitter_did: FfiStr,
     dest: FfiStr,
-    verkey: FfiStr, // optional
-    alias: FfiStr,  // optional
-    role: FfiStr,   // optional
+    verkey: FfiStr,         // optional
+    alias: FfiStr,          // optional
+    role: FfiStr,           // optional
+    diddoc_content: FfiStr, // optional
+    version: i32,           // optional, -1 for none
     handle_p: *mut RequestHandle,
 ) -> ErrorCode {
     catch_err! {
@@ -407,7 +413,9 @@ pub extern "C" fn indy_vdr_build_nym_request(
         let verkey = verkey.into_opt_string();
         let alias = alias.into_opt_string();
         let role = role.into_opt_string();
-        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role)?;
+        let diddoc_content = serde_json::from_str(diddoc_content.as_str()).with_input_err("Error deserializing diddoc_content as JSON")?;
+        let version = if version == -1 { None } else { Some(version) };
+        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role, diddoc_content, version)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;

@@ -122,6 +122,7 @@ impl RequestBuilder {
     }
 
     /// Build a `NYM` transaction request
+    /// diddoc_content is only supported for did:indy compliant ledgers
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
@@ -129,20 +130,33 @@ impl RequestBuilder {
         verkey: Option<String>,
         alias: Option<String>,
         role: Option<String>,
+        diddoc_content: Option<::serde_json::Value>,
+        version: Option<i32>,
     ) -> VdrResult<PreparedRequest> {
         let role = role_to_code(role)?;
-        let operation = NymOperation::new(dest.to_short(), verkey, alias, role);
+        let operation = NymOperation::new(
+            dest.to_short(),
+            verkey,
+            alias,
+            role,
+            diddoc_content,
+            version,
+        );
         self.build(operation, Some(identifier))
     }
 
     /// Build a `GET_NYM` transaction request
+    /// seq_no and timestamp are only supported for did:indy compliant ledgers
+    /// Use only one of seq_no and timestamp
     pub fn build_get_nym_request(
         &self,
         identifier: Option<&DidValue>,
         dest: &DidValue,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
     ) -> VdrResult<PreparedRequest> {
         let dest = dest.to_short();
-        let operation = GetNymOperation::new(dest.clone());
+        let operation = GetNymOperation::new(dest.clone(), seq_no, timestamp);
         self.build(operation, identifier)
     }
 
@@ -699,7 +713,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_nym_request(&_identifier(), &_dest(), None, None, None)
+                .build_nym_request(&_identifier(), &_dest(), None, None, None, None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
@@ -711,7 +725,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_get_nym_request(None, &_dest())
+                .build_get_nym_request(None, &_dest(), None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::GET_NYM);
@@ -921,7 +935,7 @@ mod tests {
     )]
     fn test_prepare_request_for_different_protocol_versions(protocol_version: ProtocolVersion) {
         let request = RequestBuilder::new(protocol_version.clone())
-            .build_get_nym_request(None, &_dest())
+            .build_get_nym_request(None, &_dest(), None, None)
             .unwrap();
 
         assert_eq!(request.protocol_version, protocol_version.clone());
