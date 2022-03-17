@@ -67,10 +67,12 @@ pub mod ledger;
 /// Handling of verifier pool instances and communication
 pub mod pool;
 
-/// did:indy DID URL resolver
+/// did:indy DID URL resolver for a specific pool
 pub mod resolver;
 /// State proof verification for ledger read transactions
 pub mod state_proof;
+/// Indy VDR implementation for multiple ledgers and DID resolution/derefrence support
+pub mod vdr;
 
 #[cfg(test)]
 #[macro_use]

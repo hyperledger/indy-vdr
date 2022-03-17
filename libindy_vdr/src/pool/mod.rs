@@ -1,5 +1,5 @@
 mod builder;
-mod genesis;
+pub mod genesis;
 /// Transaction request handlers
 pub(crate) mod handlers;
 /// Methods for performing requests against the verifier pool
