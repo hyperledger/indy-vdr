@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 
 use super::did::{DidUrl, LedgerObject, QueryParameter};
 use super::did_document::{DidDocument, LEGACY_INDY_SERVICE};
-use super::resolver::*;
+use super::types::*;
 
 use crate::common::error::prelude::*;
 use crate::ledger::constants;

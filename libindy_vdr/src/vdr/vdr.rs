@@ -13,7 +13,7 @@ use crate::pool::{
     Pool, PoolBuilder, PoolRunner, PreparedRequest, RequestResult, SharedPool, TimingResult,
 };
 use crate::resolver::did::DidUrl;
-use crate::resolver::resolver::*;
+use crate::resolver::types::*;
 use crate::resolver::utils::*;
 
 const INDY_NETWORKS_GITHUB: &str = "https://github.com/IDunion/indy-did-networks";
