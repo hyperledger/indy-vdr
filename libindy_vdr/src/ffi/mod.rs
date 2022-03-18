@@ -19,6 +19,7 @@ mod ledger;
 mod pool;
 mod requests;
 mod resolver;
+mod vdr;
 
 use self::error::{set_last_error, ErrorCode};
 
