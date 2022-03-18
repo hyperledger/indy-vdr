@@ -213,8 +213,9 @@ impl Vdr {
         let request = build_request(&did_url, &builder)?;
 
         let ledger_data = handle_request(pool, &request).await?;
-        let txn_type = &request.txn_type.as_str();
-        let result = handle_resolution_result(&did_url, &ledger_data, txn_type)?;
+        let txn_type = request.txn_type.as_str();
+        let namespace = did_url.namespace.clone();
+        let result = handle_resolution_result(namespace.as_str(), &ledger_data, txn_type)?;
 
         Ok(result)
     }
@@ -550,9 +551,14 @@ impl RunnerVdr {
                     }
                     .unwrap();
 
-                    let result =
-                        handle_resolution_result(&did_url, &ledger_data, txn_type.as_str())
-                            .unwrap();
+                    let namespace = did_url.namespace.clone();
+
+                    let result = handle_resolution_result(
+                        namespace.as_str(),
+                        &ledger_data,
+                        txn_type.as_str(),
+                    )
+                    .unwrap();
                     callback(Ok(result))
                 },
             ),

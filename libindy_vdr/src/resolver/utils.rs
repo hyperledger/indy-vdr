@@ -16,8 +16,6 @@ use crate::pool::{Pool, PoolRunner, PreparedRequest, RequestResult, TimingResult
 use crate::utils::did::DidValue;
 use crate::utils::Qualifiable;
 
-pub type Callback<R> = Box<dyn (FnOnce(R) -> ()) + Send>;
-
 pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<PreparedRequest> {
     let request = if did.path.is_some() {
         match LedgerObject::from_str(did.path.as_ref().unwrap().as_str())? {
@@ -156,7 +154,7 @@ pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<Prepar
 }
 
 pub fn handle_resolution_result(
-    did_url: &DidUrl,
+    namespace: &str,
     ledger_data: &str,
     txn_type: &str,
 ) -> VdrResult<(Result, Metadata)> {
@@ -167,7 +165,7 @@ pub fn handle_resolution_result(
                 .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse NYM data"))?;
 
             let did_document = DidDocument::new(
-                &did_url.namespace,
+                namespace,
                 &get_nym_result.dest,
                 &get_nym_result.verkey,
                 None,

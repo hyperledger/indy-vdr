@@ -81,8 +81,9 @@ impl<T: Pool> PoolResolver<T> {
         let request = build_request(&did_url, &builder)?;
 
         let ledger_data = handle_request(&self.pool, &request).await?;
-        let txn_type = &request.txn_type.as_str();
-        let result = handle_resolution_result(&did_url, &ledger_data, txn_type)?;
+        let txn_type = request.txn_type.as_str();
+        let namespace = did_url.namespace.clone();
+        let result = handle_resolution_result(namespace.as_str(), &ledger_data, txn_type)?;
 
         Ok(result)
     }
@@ -104,8 +105,9 @@ impl<'a> PoolRunnerResolver<'a> {
         did_url: &str,
         callback: Callback<VdrResult<String>>,
     ) -> VdrResult<()> {
+        let did_url = DidUrl::from_str(did_url)?;
         self._resolve(
-            did_url,
+            &did_url,
             Box::new(move |result| {
                 let (data, metadata) = result.unwrap();
                 let content = match data {
@@ -132,9 +134,10 @@ impl<'a> PoolRunnerResolver<'a> {
 
     /// Resolve a DID and return a serialized `ResolutionResult`
     pub fn resolve(&self, did: &str, callback: Callback<VdrResult<String>>) -> VdrResult<()> {
+        let did = DidUrl::from_str(did)?;
         self._resolve(
-            did,
-            Box::new(|result| {
+            &did,
+            Box::new(move |result| {
                 match result {
                     Ok((data, metadata)) => {
                         match data {
@@ -142,36 +145,32 @@ impl<'a> PoolRunnerResolver<'a> {
                             Result::DidDocument(doc) => {
                                 // Try to find legacy endpoint using a GET_ATTRIB txn if diddoc_content is none
                                 if doc.diddoc_content.is_none() {
-                                    //     let pool = self
-                                    //         .pools
-                                    //         .get(&did.namespace)
-                                    //         .ok_or(err_msg(VdrErrorKind::Resolver, "Unkown namespace"))
-                                    //         .unwrap();
-                                    //     fetch_legacy_endpoint_with_runner(
-                                    //         pool,
-                                    //         &did.id,
-                                    //         Box::new(|result| {
-                                    //             doc.endpoint = result.ok();
-                                    //             let diddoc = Some(doc.to_value().unwrap());
-                                    //             let md = if let Metadata::DidDocumentMetadata(md) =
-                                    //                 metadata
-                                    //             {
-                                    //                 Some(md)
-                                    //             } else {
-                                    //                 None
-                                    //             };
+                                    // let did_copy = did.id.clone();
+                                    // fetch_legacy_endpoint_with_runner(
+                                    //     self.runner,
+                                    //     &did_copy,
+                                    //     Box::new(|result| {
+                                    //         doc.endpoint = result.ok();
+                                    //         let diddoc = Some(doc.to_value().unwrap());
+                                    //         let md = if let Metadata::DidDocumentMetadata(md) =
+                                    //             metadata
+                                    //         {
+                                    //             Some(md)
+                                    //         } else {
+                                    //             None
+                                    //         };
 
-                                    //             let result = ResolutionResult {
-                                    //                 did_resolution_metadata: None,
-                                    //                 did_document: diddoc,
-                                    //                 did_document_metadata: md,
-                                    //             };
+                                    //         let result = ResolutionResult {
+                                    //             did_resolution_metadata: None,
+                                    //             did_document: diddoc,
+                                    //             did_document_metadata: md,
+                                    //         };
 
-                                    //             callback(Ok(
-                                    //                 serde_json::to_string_pretty(&result).unwrap()
-                                    //             ))
-                                    //         }),
-                                    //     );
+                                    //         callback(Ok(
+                                    //             serde_json::to_string_pretty(&result).unwrap()
+                                    //         ))
+                                    //     }),
+                                    // );
                                 } else {
                                     // let diddoc = Some(doc.to_value().unwrap());
                                     // let md = if let Metadata::DidDocumentMetadata(md) = metadata {
@@ -217,13 +216,12 @@ impl<'a> PoolRunnerResolver<'a> {
         Ok(())
     }
 
-    // TODO: Refactor
     fn _resolve(
         &self,
-        did: &str,
+        did_url: &DidUrl,
         callback: Callback<VdrResult<(Result, Metadata)>>,
     ) -> VdrResult<()> {
-        let did_url = DidUrl::from_str(did)?;
+        let namespace = did_url.namespace.clone();
 
         let builder = RequestBuilder::default();
         let request = build_request(&did_url, &builder)?;
@@ -242,9 +240,12 @@ impl<'a> PoolRunnerResolver<'a> {
                     }
                     .unwrap();
 
-                    let result =
-                        handle_resolution_result(&did_url, &ledger_data, txn_type.as_str())
-                            .unwrap();
+                    let result = handle_resolution_result(
+                        namespace.as_str(),
+                        &ledger_data,
+                        txn_type.as_str(),
+                    )
+                    .unwrap();
                     callback(Ok(result))
                 },
             ),

@@ -2,6 +2,8 @@ use serde_json::Value as SJsonValue;
 
 use super::did_document::DidDocument;
 
+pub type Callback<R> = Box<dyn (FnOnce(R) -> ()) + Send>;
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum Result {
