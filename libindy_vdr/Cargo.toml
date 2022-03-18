@@ -21,6 +21,7 @@ logger = ["env_logger", "log"]
 zmq_vendored = ["zmq/vendored"]
 local_nodes_pool = []
 rich_schema = ["indy-data-types/rich_schema"]
+git = ["git2"]
 default = ["ffi", "log", "zmq_vendored"]
 
 [dependencies]
@@ -30,7 +31,7 @@ ffi-support = { version = "0.4", optional = true }
 futures-channel = "0.3"
 futures-executor = "0.3"
 futures-util = "0.3"
-git2 = "0.14.2"
+git2 = { version = "0.14.2", optional = true }
 hex = "0.4"
 hex-literal = "0.3.4"
 indy-data-types = "0.5"

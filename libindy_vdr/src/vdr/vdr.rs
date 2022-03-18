@@ -80,6 +80,7 @@ impl Vdr {
         Vdr::new(networks)
     }
 
+    #[cfg(feature = "git")]
     /// Initialize VDR from a GitHub repo containing Indy network genesis files
     /// Default repo is https://github.com/IDunion/indy-did-networks
     pub fn from_github(repo_url: Option<&str>) -> VdrResult<Vdr> {
@@ -331,6 +332,7 @@ impl RunnerVdr {
         RunnerVdr::new(networks)
     }
 
+    #[cfg(feature = "git")]
     /// Initialize VDR from a GitHub repo containing Indy network genesis files
     /// Default repo is https://github.com/IDunion/indy-did-networks
     pub fn from_github(repo_url: Option<&str>) -> VdrResult<RunnerVdr> {
