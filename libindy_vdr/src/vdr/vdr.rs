@@ -1,3 +1,4 @@
+#[cfg(feature = "git")]
 use git2::Repository;
 
 use std::borrow::Borrow;
