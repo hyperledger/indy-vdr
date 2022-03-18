@@ -7,6 +7,8 @@ import urllib.request
 from indy_vdr.bindings import version
 from indy_vdr.ledger import (
     build_custom_request,
+    build_nym_request,
+    build_get_nym_request,
     build_get_txn_request,
     build_get_acceptance_mechanisms_request,
     build_get_txn_author_agreement_request,
@@ -117,11 +119,68 @@ async def basic_test(transactions_path):
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
 
+    
     log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
     resolver = Resolver(pool.handle)
     doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
 
     log(json.dumps(doc, indent=2))
+
+
+    req = build_nym_request(
+        "6qnvgJtqwK44D8LFYnV5Yf", # submitter_did
+        "6qnvgJtqwK44D8LFYnV5Yf", # dest
+        None, # verkey
+        None, # alias
+        None, # role
+        '{"some": "json"}', # diddoc_content
+        0 # self-certification version
+    )
+
+    log("NYM request with diddoc content:", req.body) 
+
+
+    req = build_nym_request(
+        "6qnvgJtqwK44D8LFYnV5Yf", # submitter_did
+        "6qnvgJtqwK44D8LFYnV5Yf", # dest
+        None, # verkey
+        None, # alias
+        None, # role
+        None, # diddoc_content
+        None # self-certification version
+    )
+
+    log("NYM request without diddoc content:", req.body) 
+
+    
+    req = build_get_nym_request(
+        None, # submitter_did
+        "6qnvgJtqwK44D8LFYnV5Yf", # dest
+        None, # seq_no,
+        None, # timestamp
+    )
+
+    log("GET_NYM request without seq_no or timestamp:", req.body) 
+
+    
+    req = build_get_nym_request(
+        None, # submitter_did
+        "6qnvgJtqwK44D8LFYnV5Yf", # dest
+        6, # seq_no,
+        None, # timestamp
+    )
+
+    log("GET_NYM request with seq_np", req.body) 
+
+
+    req = build_get_nym_request(
+        None, # submitter_did
+        "6qnvgJtqwK44D8LFYnV5Yf", # dest
+        None, # seq_no,
+        1647602534, # timestamp
+    )
+
+    log("GET_NYM request with timestamp", req.body) 
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"

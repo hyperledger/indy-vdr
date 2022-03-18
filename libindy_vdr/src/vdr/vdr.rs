@@ -475,21 +475,39 @@ impl RunnerVdr {
                                     //         }),
                                     //     );
                                 } else {
-                                    let diddoc = Some(doc.to_value().unwrap());
-                                    let md = if let Metadata::DidDocumentMetadata(md) = metadata {
-                                        Some(md)
-                                    } else {
-                                        None
-                                    };
+                                    // let diddoc = Some(doc.to_value().unwrap());
+                                    // let md = if let Metadata::DidDocumentMetadata(md) = metadata {
+                                    //     Some(md)
+                                    // } else {
+                                    //     None
+                                    // };
 
-                                    let result = ResolutionResult {
-                                        did_resolution_metadata: None,
-                                        did_document: diddoc,
-                                        did_document_metadata: md,
-                                    };
-                                    if !doc.diddoc_content.is_none() {
-                                        callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
-                                    }
+                                    // let result = ResolutionResult {
+                                    //     did_resolution_metadata: None,
+                                    //     did_document: diddoc,
+                                    //     did_document_metadata: md,
+                                    // };
+                                    // if !doc.diddoc_content.is_none() {
+                                    //     callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
+                                    // }
+                                }
+
+                                // For now, until if/else above is used
+
+                                let diddoc = Some(doc.to_value().unwrap());
+                                let md = if let Metadata::DidDocumentMetadata(md) = metadata {
+                                    Some(md)
+                                } else {
+                                    None
+                                };
+
+                                let result = ResolutionResult {
+                                    did_resolution_metadata: None,
+                                    did_document: diddoc,
+                                    did_document_metadata: md,
+                                };
+                                if !doc.diddoc_content.is_none() {
+                                    callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
                                 }
                             }
                             _ => {}
