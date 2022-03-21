@@ -28,6 +28,8 @@ from indy_vdr.ledger import (
 from indy_vdr.pool import Pool, open_pool
 from indy_vdr.resolver import Resolver
 
+from indy_vdr.vdr import Vdr, init_from_github
+
 
 def log(*args):
     print(*args, "\n")
@@ -122,9 +124,9 @@ async def basic_test(transactions_path):
     
     log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
     resolver = Resolver(pool.handle)
-    doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
+    # doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
 
-    log(json.dumps(doc, indent=2))
+    # log(json.dumps(doc, indent=2))
 
 
     req = build_nym_request(
@@ -180,7 +182,13 @@ async def basic_test(transactions_path):
         1647602534, # timestamp
     )
 
-    log("GET_NYM request with timestamp", req.body) 
+    log("GET_NYM request with timestamp", req.body)
+
+
+    # Indy VDR with general indy DID resolution
+    vdr = init_from_github()
+    doc = await vdr.resolve("did:indy:idunion:TUyWgaU7pCG4FQyvrXapf2")
+    log(json.dumps(doc, indent=2))
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"

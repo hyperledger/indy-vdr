@@ -7,7 +7,7 @@ use crate::ffi::c_char;
 use ffi_support::{rust_string_to_c, FfiStr};
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_resolve(
+pub extern "C" fn indy_vdr_pool_resolve(
     pool_handle: PoolHandle,
     did: FfiStr,
     cb: Option<extern "C" fn(cb_id: i64, err: ErrorCode, response: *const c_char)>,
@@ -40,7 +40,7 @@ pub extern "C" fn indy_vdr_resolve(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_dereference(
+pub extern "C" fn indy_vdr_pool_dereference(
     pool_handle: PoolHandle,
     did_url: FfiStr,
     cb: Option<extern "C" fn(cb_id: i64, err: ErrorCode, response: *const c_char)>,

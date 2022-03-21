@@ -44,6 +44,14 @@ class RequestHandle(c_int64):
         return f"{self.__class__.__name__}({self.value})"
 
 
+class VdrHandle(c_int64):
+    """Index of an active Pool instance."""
+
+    def __repr__(self) -> str:
+        """Format vdr handle as a string."""
+        return f"{self.__class__.__name__}({self.value})"
+
+
 class FfiByteBuffer(Structure):
     """A byte buffer allocated by python."""
 
@@ -249,10 +257,55 @@ def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
     return handle
 
 
-def resolve(pool_handle: PoolHandle, did: str) -> asyncio.Future:
+def vdr_create_from_github() -> VdrHandle:
+    """Create a new vdr instance by retrieving namespaces and genesis files
+    from a Github repo
+    """
+    handle = VdrHandle()
+    
+    do_call("indy_vdr_create_from_github", byref(handle))
+    return handle
+
+
+def vdr_create_from_folder(path: str, genesis_filename: Optional[str]) -> VdrHandle:
+    """Create a new vdr instance by retrieving namespaces and genesis files
+    from a local folder
+
+    Args:
+        path: The path to the folder
+    """
+    handle = VdrHandle()
+
+    path_p = encode_str(path)
+    genesis_p = endode_str(genesis_filename)
+    
+    do_call("indy_vdr_create_from_folder", path_p, genesis_p, byref(handle))
+    return handle
+
+# FIXME: Not yet implemented
+# def vdr_refresh(vdr_handle: VdrHandle) -> asynco.Future:
+#     """Refresh all validator pools".""""
+#     do_call_async(
+#         "indy_vdr_refresh"
+#     )
+
+
+def vdr_resolve(vdr_handle: VdrHandle, did: str) -> asyncio.Future:
     """Resovle a DID to retrieve a DID Doc."""
     return do_call_async(
         "indy_vdr_resolve",
+        vdr_handle,
+        encode_str(did),
+        return_type=lib_string,
+        post_process=str,
+    )
+
+
+
+def pool_resolve(pool_handle: PoolHandle, did: str) -> asyncio.Future:
+    """Resovle a DID to retrieve a DID Doc."""
+    return do_call_async(
+        "indy_vdr_pool_resolve",
         pool_handle,
         encode_str(did),
         return_type=lib_string,
@@ -260,10 +313,10 @@ def resolve(pool_handle: PoolHandle, did: str) -> asyncio.Future:
     )
 
 
-def dereference(pool_handle: PoolHandle, did_url: str) -> asyncio.Future:
+def pool_dereference(pool_handle: PoolHandle, did_url: str) -> asyncio.Future:
     """Dereference a DID Urk to retrieve a ledger object."""
     return do_call_async(
-        "indy_vdr_dereference",
+        "indy_vdr_pool_dereference",
         pool_handle,
         encode_str(did_url),
         return_type=lib_string,

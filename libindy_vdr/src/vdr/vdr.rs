@@ -17,6 +17,7 @@ use crate::resolver::did::DidUrl;
 use crate::resolver::types::*;
 use crate::resolver::utils::*;
 
+#[cfg(feature = "git")]
 const INDY_NETWORKS_GITHUB: &str = "https://github.com/IDunion/indy-did-networks";
 const GENESIS_FILENAME: &str = "pool_transactions_genesis.json";
 
@@ -510,9 +511,8 @@ impl RunnerVdr {
                                     did_document: diddoc,
                                     did_document_metadata: md,
                                 };
-                                if !doc.diddoc_content.is_none() {
-                                    callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
-                                }
+
+                                callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
                             }
                             _ => {}
                         };

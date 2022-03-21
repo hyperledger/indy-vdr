@@ -10,10 +10,10 @@ class Resolver:
 
     async def resolve(self, did: str) -> dict:
         """Resolve a DID to retrieve a DID Doc."""
-        result = await bindings.resolve(self.handle, did)
+        result = await bindings.pool_resolve(self.handle, did)
         return result
 
     async def dereference(self, did_url: str) -> dict:
         """Dereference a DID Url to retrieve a ledger object."""
-        result = await bindings.dereference(self.handle, did_url)
+        result = await bindings.pool_dereference(self.handle, did_url)
         return result
