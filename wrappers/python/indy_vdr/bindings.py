@@ -259,7 +259,7 @@ def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
 
 def vdr_create_from_github() -> VdrHandle:
     """Create a new vdr instance by retrieving namespaces and genesis files
-    from a Github repo
+    from a Github repo. Only available if indy vdr is compiled with feature git
     """
     handle = VdrHandle()
     

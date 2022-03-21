@@ -186,9 +186,10 @@ async def basic_test(transactions_path):
 
 
     # Indy VDR with general indy DID resolution
-    vdr = init_from_github()
-    doc = await vdr.resolve("did:indy:idunion:TUyWgaU7pCG4FQyvrXapf2")
-    log(json.dumps(doc, indent=2))
+    # vdr = init_from_github() # Works only if indy vdr is compiled with feature git
+    # vdr = init_from_folder(path_to_folder)
+    # doc = await vdr.resolve("did:indy:idunion:TUyWgaU7pCG4FQyvrXapf2")
+    # log(json.dumps(doc, indent=2))
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"

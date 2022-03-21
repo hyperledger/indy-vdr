@@ -21,7 +21,10 @@ class Vdr:
 
 
 def init_from_github() -> Vdr:
-    """Initialize indy vdr with standard networks."""
+    """Initialize indy vdr with standard networks.
+    This is only available if indy vdr is compiled with
+    feature git.
+    """
     vdr = Vdr(bindings.vdr_create_from_github())
     return vdr
 
