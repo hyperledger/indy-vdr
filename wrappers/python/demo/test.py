@@ -121,7 +121,9 @@ async def basic_test(transactions_path):
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
 
-    
+
+    # The pool resolver interface is bound to a specfic network anddoes not check the DID namespace
+    # The client has to take care of mapping the namespace to the correct pool resolver
     log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
     resolver = Resolver(pool.handle)
     # doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
@@ -192,8 +194,8 @@ async def basic_test(transactions_path):
     # log(json.dumps(doc, indent=2))
 
     # Get connected ledgers
-    ledgers = vdr.get_ledgers()
-    log("Ledgers", ledgers)
+    #ledgers = vdr.get_ledgers()
+    #log("Ledgers", ledgers)
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"
