@@ -58,12 +58,12 @@ async fn init_app_state(genesis: Option<String>) -> VdrResult<AppState> {
     let vdr = match genesis {
         Some(genesis) => {
             if genesis.starts_with("http:") || genesis.starts_with("https:") {
-                Vdr::from_github(Some(genesis.as_str()))?
+                Vdr::from_github(Some(genesis.as_str()), None, None)?
             } else {
-                Vdr::from_folder(PathBuf::from(genesis), None)?
+                Vdr::from_folder(PathBuf::from(genesis), None, None)?
             }
         }
-        None => Vdr::from_github(None)?,
+        None => Vdr::from_github(None, None, None)?,
     };
 
     let state = AppState {

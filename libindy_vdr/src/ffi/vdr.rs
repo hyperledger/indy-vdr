@@ -32,7 +32,7 @@ pub extern "C" fn indy_vdr_create_from_github(handle_p: *mut VdrHandle) -> Error
         trace!("Create VDR from github");
         check_useful_c_ptr!(handle_p);
 
-        let vdr = Vdr::from_github(None)?;
+        let vdr = Vdr::from_github(None, None, None)?;
         let handle = VdrHandle::next();
         let mut vdrs = write_lock!(VDRS)?;
         vdrs.insert(handle, vdr);
@@ -56,7 +56,7 @@ pub extern "C" fn indy_vdr_create_from_folder(
         let path = PathBuf::from(path.as_str());
         let genesis_filename = genesis_filename.as_opt_str();
 
-        let vdr = Vdr::from_folder(path, genesis_filename)?;
+        let vdr = Vdr::from_folder(path, genesis_filename, None)?;
         let handle = VdrHandle::next();
         let mut vdrs = write_lock!(VDRS)?;
         vdrs.insert(handle, vdr);

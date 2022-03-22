@@ -3,10 +3,10 @@ use git2::Repository;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
 
 use crate::common::error::prelude::*;
+use crate::config::PoolConfig;
 use crate::ledger::RequestBuilder;
 use crate::pool::genesis::PoolTransactions;
 use crate::pool::helpers::{perform_ledger_request, perform_refresh};
@@ -17,9 +17,17 @@ use crate::resolver::did::DidUrl;
 use crate::resolver::types::*;
 use crate::resolver::utils::*;
 
+use super::utils::*;
+
 #[cfg(feature = "git")]
 const INDY_NETWORKS_GITHUB: &str = "https://github.com/IDunion/indy-did-networks";
-const GENESIS_FILENAME: &str = "pool_transactions_genesis.json";
+pub const GENESIS_FILENAME: &str = "pool_transactions_genesis.json";
+
+#[derive(Clone, Debug)]
+pub struct PoolTxnAndConfig {
+    pub txn: PoolTransactions,
+    pub config: Option<PoolConfig>,
+}
 
 pub struct Vdr {
     pools: HashMap<String, SharedPool>,
@@ -30,80 +38,76 @@ impl Vdr {
     /// <namespace>/<sub-namespace>/<genesis_file_name>
     /// Default for genesis_filename is pool_transactions_genesis.json
     /// Example: sovrin/staging/pool_transactions_genesis.json
-    pub fn from_folder(path: PathBuf, genesis_filename: Option<&str>) -> VdrResult<Vdr> {
+    pub fn from_folder(
+        path: PathBuf,
+        genesis_filename: Option<&str>,
+        default_config: Option<PoolConfig>,
+    ) -> VdrResult<Vdr> {
         debug!("Loading networks from local folder: {:?}", path);
 
-        let mut networks = HashMap::new();
+        let networks = folder_to_networks(path, genesis_filename, default_config)?;
 
-        let genesis_filename = genesis_filename.or(Some(GENESIS_FILENAME)).unwrap();
-
-        let entries = fs::read_dir(path).map_err(|err| {
-            err_msg(
-                VdrErrorKind::FileSystem(err),
-                "Could not read local networks folder",
-            )
-        })?;
-
-        for entry in entries {
-            let entry = entry.unwrap();
-            // filter hidden directories starting with "." and files
-            if !entry.file_name().to_str().unwrap().starts_with(".")
-                && entry.metadata().unwrap().is_dir()
-            {
-                let namespace = entry.path().file_name().unwrap().to_owned();
-                let sub_entries = fs::read_dir(entry.path()).unwrap();
-                for sub_entry in sub_entries {
-                    let sub_entry_path = sub_entry.unwrap().path();
-                    let sub_namespace = if sub_entry_path.is_dir() {
-                        sub_entry_path.file_name()
-                    } else {
-                        None
-                    };
-                    let (ledger_prefix, genesis_txns) = match sub_namespace {
-                        Some(sub_namespace) => (
-                            format!(
-                                "{}:{}",
-                                namespace.to_str().unwrap(),
-                                sub_namespace.to_str().unwrap()
-                            ),
-                            PoolTransactions::from_json_file(
-                                sub_entry_path.join(genesis_filename),
-                            )?,
-                        ),
-                        None => (
-                            String::from(namespace.to_str().unwrap()),
-                            PoolTransactions::from_json_file(entry.path().join(genesis_filename))?,
-                        ),
-                    };
-                    networks.insert(ledger_prefix, genesis_txns);
-                }
-            }
-        }
         Vdr::new(networks)
     }
 
     #[cfg(feature = "git")]
     /// Initialize VDR from a GitHub repo containing Indy network genesis files
     /// Default repo is https://github.com/IDunion/indy-did-networks
-    pub fn from_github(repo_url: Option<&str>) -> VdrResult<Vdr> {
+    pub fn from_github(
+        repo_url: Option<&str>,
+        force_clone: Option<bool>,
+        default_config: Option<PoolConfig>,
+    ) -> VdrResult<Vdr> {
         let repo_url = repo_url.or(Some(INDY_NETWORKS_GITHUB)).unwrap();
         debug!("Obtaining network information from {}", repo_url);
-        // Delete folder if it exists and reclone repo
-        fs::remove_dir_all("github").ok();
-        let repo = Repository::clone(INDY_NETWORKS_GITHUB, "github")
-            .map_err(|_err| err_msg(VdrErrorKind::Unexpected, "Could not clone networks repo"))?;
+
+        let mut cloned = false;
+
+        let repo = if force_clone.is_some() && force_clone.unwrap() {
+            cloned = true;
+            clone_repo(repo_url)?
+        } else {
+            git2::Repository::discover("github").or_else(|_| -> VdrResult<Repository> {
+                cloned = true;
+                clone_repo(repo_url)
+            })?
+        };
+
+        // Fetch remote if not cloned just now
+        if !cloned {
+            let mut origin_remote = repo.find_remote("origin").map_err(|_err| {
+                err_msg(
+                    VdrErrorKind::Unexpected,
+                    "Networks repo has no remote origin",
+                )
+            })?;
+
+            origin_remote.fetch(&["main"], None, None).map_err(|_err| {
+                err_msg(
+                    VdrErrorKind::Unexpected,
+                    "Could not fetch from remote networks repo",
+                )
+            })?;
+        }
 
         let path = repo.path().parent().unwrap().to_owned();
 
-        Vdr::from_folder(path, None)
+        Vdr::from_folder(path, None, default_config)
     }
 
     /// Create a new VDR instance from a map of namespaces and genesis transactions
-    pub fn new(networks: HashMap<String, PoolTransactions>) -> VdrResult<Vdr> {
+    pub fn new(networks: HashMap<String, PoolTxnAndConfig>) -> VdrResult<Vdr> {
         let mut pools = HashMap::new();
 
-        for (namespace, txns) in networks {
-            let pool_builder = PoolBuilder::default().transactions(txns.to_owned())?;
+        for (namespace, cfg) in networks {
+            let txn = cfg.txn;
+            let config = cfg.config;
+
+            let pool_builder = if config.is_some() {
+                PoolBuilder::new(config.unwrap(), None, None).transactions(txn.to_owned())?
+            } else {
+                PoolBuilder::default().transactions(txn.to_owned())?
+            };
             let pool = pool_builder.into_shared()?;
             pools.insert(namespace.to_string(), pool);
         }
@@ -282,84 +286,76 @@ impl RunnerVdr {
     /// <namespace>/<sub-namespace>/<genesis_file_name>
     /// Default for genesis_filename is pool_transactions_genesis.json
     /// Example: sovrin/staging/pool_transactions_genesis.json
-    pub fn from_folder(path: PathBuf, genesis_filename: Option<&str>) -> VdrResult<RunnerVdr> {
+    pub fn from_folder(
+        path: PathBuf,
+        genesis_filename: Option<&str>,
+        default_config: Option<PoolConfig>,
+    ) -> VdrResult<RunnerVdr> {
         debug!("Loading networks from local folder: {:?}", path);
-
-        let mut networks = HashMap::new();
-
-        let genesis_filename = genesis_filename.or(Some(GENESIS_FILENAME)).unwrap();
-
-        let entries = fs::read_dir(path).map_err(|err| {
-            err_msg(
-                VdrErrorKind::FileSystem(err),
-                "Could not read local networks folder",
-            )
-        })?;
-
-        for entry in entries {
-            let entry = entry.unwrap();
-            // filter hidden directories starting with "." and files
-            if !entry.file_name().to_str().unwrap().starts_with(".")
-                && entry.metadata().unwrap().is_dir()
-            {
-                let namespace = entry.path().file_name().unwrap().to_owned();
-                let sub_entries = fs::read_dir(entry.path()).unwrap();
-                for sub_entry in sub_entries {
-                    let sub_entry_path = sub_entry.unwrap().path();
-                    let sub_namespace = if sub_entry_path.is_dir() {
-                        sub_entry_path.file_name()
-                    } else {
-                        None
-                    };
-                    let (ledger_prefix, genesis_txns) = match sub_namespace {
-                        Some(sub_namespace) => (
-                            format!(
-                                "{}:{}",
-                                namespace.to_str().unwrap(),
-                                sub_namespace.to_str().unwrap()
-                            ),
-                            PoolTransactions::from_json_file(
-                                sub_entry_path.join(genesis_filename),
-                            )?,
-                        ),
-                        None => (
-                            String::from(namespace.to_str().unwrap()),
-                            PoolTransactions::from_json_file(entry.path().join(genesis_filename))?,
-                        ),
-                    };
-                    networks.insert(ledger_prefix, genesis_txns);
-                }
-            }
-        }
+        let networks = folder_to_networks(path, genesis_filename, default_config)?;
         RunnerVdr::new(networks)
     }
 
     #[cfg(feature = "git")]
     /// Initialize VDR from a GitHub repo containing Indy network genesis files
     /// Default repo is https://github.com/IDunion/indy-did-networks
-    pub fn from_github(repo_url: Option<&str>) -> VdrResult<RunnerVdr> {
+    pub fn from_github(
+        repo_url: Option<&str>,
+        force_clone: Option<bool>,
+        default_config: Option<PoolConfig>,
+    ) -> VdrResult<RunnerVdr> {
         let repo_url = repo_url.or(Some(INDY_NETWORKS_GITHUB)).unwrap();
         debug!("Obtaining network information from {}", repo_url);
-        // Delete folder if it exists and reclone repo
-        fs::remove_dir_all("github").ok();
-        let repo = Repository::clone(INDY_NETWORKS_GITHUB, "github")
-            .map_err(|_err| err_msg(VdrErrorKind::Unexpected, "Could not clone networks repo"))?;
+        let mut cloned = false;
+
+        let repo = if force_clone.is_some() && force_clone.unwrap() {
+            cloned = true;
+            clone_repo(repo_url)?
+        } else {
+            git2::Repository::discover("github").or_else(|_| -> VdrResult<Repository> {
+                cloned = true;
+                clone_repo(repo_url)
+            })?
+        };
+
+        // Fetch remote if not cloned just now
+        if !cloned {
+            let mut origin_remote = repo.find_remote("origin").map_err(|_err| {
+                err_msg(
+                    VdrErrorKind::Unexpected,
+                    "Networks repo has no remote origin",
+                )
+            })?;
+
+            origin_remote.fetch(&["main"], None, None).map_err(|_err| {
+                err_msg(
+                    VdrErrorKind::Unexpected,
+                    "Could not fetch from remote networks repo",
+                )
+            })?;
+        }
 
         let path = repo.path().parent().unwrap().to_owned();
 
-        RunnerVdr::from_folder(path, None)
+        RunnerVdr::from_folder(path, None, default_config)
     }
 
     /// Create a new VDR instance from a map of namespaces and genesis transactions
-    pub fn new(networks: HashMap<String, PoolTransactions>) -> VdrResult<RunnerVdr> {
+    pub fn new(networks: HashMap<String, PoolTxnAndConfig>) -> VdrResult<RunnerVdr> {
         let mut pools = HashMap::new();
 
-        for (namespace, txns) in networks {
-            let pool_builder = PoolBuilder::default().transactions(txns.to_owned())?;
+        for (namespace, cfg) in networks {
+            let txn = cfg.txn;
+            let config = cfg.config;
+
+            let pool_builder = if config.is_some() {
+                PoolBuilder::new(config.unwrap(), None, None).transactions(txn.to_owned())?
+            } else {
+                PoolBuilder::default().transactions(txn.to_owned())?
+            };
             let pool = pool_builder.into_runner()?;
             pools.insert(namespace.to_string(), pool);
         }
-
         Ok(RunnerVdr { pools })
     }
 
