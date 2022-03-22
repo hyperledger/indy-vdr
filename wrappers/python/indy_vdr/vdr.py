@@ -1,5 +1,6 @@
 from . import bindings
-from .error import VdrError, VdrErrorCode
+
+from typing import List
 
 class Vdr:
     """An opened vdr instance."""
@@ -7,17 +8,20 @@ class Vdr:
     def __init__(self, handle: bindings.VdrHandle):
         """Initialize the vdr instance."""
         self.handle = handle
+
+    def get_ledgers(self) -> List[str]:
+        result = bindings.vdr_get_ledgers(self.handle)
+        return result
     
     async def resolve(self, did: str) -> dict:
         """Resolve a DID to retrieve a DID Doc."""
         result = await bindings.vdr_resolve(self.handle, did)
         return result
 
-    # FIXME: Not yet implemented
-    # async def refresh_all(self) -> dict:
-    #     """Refresh all validator pools."""
-    #     result = await bindings.vdr_refresh(self.handle)
-    #     return result
+
+    async def refresh(self, ledger: str):
+        """Refresh a validator pool."""
+        await bindings.vdr_refresh(self.handle, ledger)
 
 
 def init_from_github() -> Vdr:

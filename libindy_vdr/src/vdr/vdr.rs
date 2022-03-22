@@ -1,7 +1,7 @@
 #[cfg(feature = "git")]
 use git2::Repository;
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -382,6 +382,10 @@ impl RunnerVdr {
     pub fn get_pool(&self, namespace: &str) -> Option<&PoolRunner> {
         self.borrow().pools.get(namespace)
     }
+
+    pub fn set_pool(&mut self, namespace: String, pool: PoolRunner) {
+        self.borrow_mut().pools.insert(namespace, pool);
+    }
     /// Send a prepared request to a specific network
     // pub async fn send_request(
     //     &self,
@@ -566,46 +570,5 @@ impl RunnerVdr {
                 },
             ),
         )
-    }
-
-    // Refresh validator pools for all networks
-    // pub async fn refresh_all(&mut self) -> VdrResult<()> {
-    //     let keys: Vec<String> = self.pools.keys().cloned().collect();
-
-    //     for k in keys.iter() {
-    //         let pool = self.pools.get_mut(k).unwrap();
-    //         let (txns, _) = perform_refresh(pool).await?;
-    //         let p = if let Some(txns) = txns {
-    //             let builder = {
-    //                 let mut current_txns =
-    //                     PoolTransactions::from_json_transactions(pool.get_json_transactions()?)
-    //                         .unwrap();
-    //                 current_txns.extend_from_json(&txns)?;
-    //                 PoolBuilder::default().transactions(current_txns.clone())?
-    //             };
-    //             builder.into_shared()?
-    //         } else {
-    //             pool.to_owned()
-    //         };
-    //         *pool = p;
-    //     }
-    //     Ok(())
-    // }
-
-    /// Refresh the validator pool of a particular network
-    pub fn refresh(
-        &mut self,
-        namespace: &str,
-        callback: Callback<VdrResult<(Vec<String>, Option<Vec<String>>, Option<TimingResult>)>>,
-    ) -> VdrResult<()> {
-        let runner = self
-            .pools
-            .get_mut(namespace)
-            .ok_or("Unkown namespace")
-            .map_err(|err| err_msg(VdrErrorKind::Resolver, err))?;
-
-        runner.refresh(callback)?;
-
-        Ok(())
     }
 }

@@ -18,7 +18,7 @@ from ctypes import (
     c_void_p,
 )
 from ctypes.util import find_library
-from typing import Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 from .error import VdrError, VdrErrorCode
 
@@ -49,6 +49,15 @@ class VdrHandle(c_int64):
 
     def __repr__(self) -> str:
         """Format vdr handle as a string."""
+        return f"{self.__class__.__name__}({self.value})"
+
+
+
+class ResultHandle(c_int64):
+    """Index of an active Pool instance."""
+
+    def __repr__(self) -> str:
+        """Format result handle as a string."""
         return f"{self.__class__.__name__}({self.value})"
 
 
@@ -267,6 +276,25 @@ def vdr_create_from_github() -> VdrHandle:
     return handle
 
 
+def vdr_get_ledgers(vdr_handle) -> List[str]:
+
+    ledgers = lib_string()
+    do_call("indy_vdr_get_ledgers", vdr_handle, byref(ledgers))
+
+    return str(ledgers).split(";")
+
+
+def vdr_refresh(vdr_handle: VdrHandle, ledger: str) -> asyncio.Future:
+    """Refresh a single validator pool."""
+    return do_call_async(
+        "indy_vdr_refresh_all",
+        vdr_handle,
+        encode_str(ledger),
+        return_type=lib_string,
+        post_process=str
+    )
+
+
 def vdr_create_from_folder(path: str, genesis_filename: Optional[str]) -> VdrHandle:
     """Create a new vdr instance by retrieving namespaces and genesis files
     from a local folder
@@ -277,17 +305,10 @@ def vdr_create_from_folder(path: str, genesis_filename: Optional[str]) -> VdrHan
     handle = VdrHandle()
 
     path_p = encode_str(path)
-    genesis_p = endode_str(genesis_filename)
+    genesis_p = encode_str(genesis_filename)
     
     do_call("indy_vdr_create_from_folder", path_p, genesis_p, byref(handle))
     return handle
-
-# FIXME: Not yet implemented
-# def vdr_refresh(vdr_handle: VdrHandle) -> asynco.Future:
-#     """Refresh all validator pools".""""
-#     do_call_async(
-#         "indy_vdr_refresh"
-#     )
 
 
 def vdr_resolve(vdr_handle: VdrHandle, did: str) -> asyncio.Future:

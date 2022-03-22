@@ -191,6 +191,10 @@ async def basic_test(transactions_path):
     # doc = await vdr.resolve("did:indy:idunion:TUyWgaU7pCG4FQyvrXapf2")
     # log(json.dumps(doc, indent=2))
 
+    # Get connected ledgers
+    ledgers = vdr.get_ledgers()
+    log("Ledgers", ledgers)
+
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"
     # )
