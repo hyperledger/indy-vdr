@@ -175,7 +175,7 @@ async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_re
                 PoolState {
                     pool: pool.clone(),
                     last_refresh: pool_state.last_refresh.clone(),
-                    transactions: pool_state.transactions.clone()
+                    transactions: pool_state.transactions.clone(),
                 }
             }
             Err(err) => {
@@ -183,18 +183,15 @@ async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_re
                 PoolState {
                     pool: None,
                     last_refresh: pool_state.last_refresh.clone(),
-                    transactions: pool_state.transactions.clone()
+                    transactions: pool_state.transactions.clone(),
                 }
             }
         };
 
         pool_states.insert(namespace.to_owned(), pool_state);
-
     }
 
     state.borrow_mut().pool_states = pool_states;
-
-
 
     let shutdown = shutdown_signal().fuse().shared();
     if interval_refresh > 0 {
