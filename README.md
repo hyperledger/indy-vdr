@@ -55,8 +55,8 @@ The structure needs to be as follows `<NAMESPACE>/OPTIONAL<SUB_NAMESPACE>/pool_t
 Responses can be formatted in either HTML or JSON formats. HTML formatting is selected when the `text/html` content type is requested according to the Accept header (as sent by web browsers) or the request query string is set to `?html`. JSON formatting is selected otherwise, and may be explitly selected by using the query string `?raw`. For most ledger requests, JSON responses include information regarding which nodes were contacted is returned in the `X-Requests` header.
 
 Sending prepared requests to the ledger is performed by delivering a POST request to the `{LEDGER}/submit` endpoint, where the body of the request is the JSON-formatted payload. Additional endpoints are provided as shortcuts for ledger read transactions:
-
-- `{LEDGER}/` The root path shows basic status information about the server and the ledger pool
+- `/` Return configured ledgers 
+- `{LEDGER}/` Basic status information about the server and the ledger pool
 - `{LEDGER}/genesis` Return the current set of genesis transactions
 - `{LEDGER}/taa` Fetch the current ledger Transaction Author Agreement
 - `{LEDGER}/aml` Fetch the current ledger Acceptance Methods List (for the TAA)
