@@ -13,7 +13,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::process::exit;
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use futures_util::future::FutureExt;
 use git2::Repository;
@@ -179,7 +179,7 @@ async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_re
                 }
             }
             Err(err) => {
-                eprintln!("Error initializing pool: {}", err);
+                eprintln!("Error initializing pool {} with error : {}", namespace, err);
                 PoolState {
                     pool: None,
                     last_refresh: pool_state.last_refresh.clone(),
@@ -200,21 +200,17 @@ async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_re
     if interval_refresh > 0 {
         loop {
             select! {
-                // refresh_result = refresh_pool(state.clone(), namespace, &pool, interval_refresh) => {
-                //     match refresh_result {
-                //         Ok(Some(upd_pool)) => {
-                //             state.borrow_mut().pool.replace(upd_pool.clone());
-                //             pool = upd_pool;
-                //             log::info!("Refreshed validator pool");
-                //         }
-                //         Ok(None) => {
-                //             log::debug!("Refreshed validator pool, no change");
-                //         }
-                //         Err(err) => {
-                //             log::error!("Error refreshing validator pool: {}", err);
-                //         }
-                //     }
-                // }
+                refresh_result = refresh_pools(state.clone(), interval_refresh) => {
+                    match refresh_result {
+                        Ok(upd_pool_states) => {
+                            state.borrow_mut().pool_states = upd_pool_states;
+                            log::info!("Refreshed validator pools");
+                        },
+                        Err(err) => {
+                            log::error!("Error refreshing validator pool: {}", err);
+                        }
+                    }
+                }
                 _ = shutdown.clone() => {
                     println!("Shutting down");
                     break;
@@ -264,14 +260,47 @@ async fn create_pool(
     Ok(refresh_pool.unwrap_or(pool))
 }
 
+async fn refresh_pools(
+    state: Rc<RefCell<AppState>>,
+    // pool_states: HashMap<String, PoolState>,
+    delay_mins: u32,
+) -> VdrResult<HashMap<String, PoolState>> {
+    let mut upd_pool_states = HashMap::new();
+    let pool_states = &state.borrow().pool_states;
+    for (namespace, pool_state) in pool_states {
+        if let Some(pool) = &pool_state.pool {
+            let upd_pool = match refresh_pool(state.clone(), &namespace, &pool, delay_mins).await {
+                Ok(p) => p,
+                Err(err) => {
+                    eprintln!(
+                        "Error refreshing validator pool {} with error {}",
+                        namespace, err
+                    );
+                    None
+                }
+            };
+            let upd_pool_state = PoolState {
+                pool: upd_pool.or(Some(pool.clone())),
+                last_refresh: Some(SystemTime::now()),
+                transactions: pool_state.transactions.clone(),
+            };
+
+            upd_pool_states.insert(namespace.to_owned(), upd_pool_state);
+        }
+    }
+
+    Ok(upd_pool_states)
+}
+
 async fn refresh_pool(
     state: Rc<RefCell<AppState>>,
     namespace: &str,
     pool: &LocalPool,
     delay_mins: u32,
 ) -> VdrResult<Option<LocalPool>> {
+    let n_pools = state.borrow().pool_states.len() as u32;
     if delay_mins > 0 {
-        tokio::time::sleep(Duration::from_secs((delay_mins * 60) as u64)).await
+        tokio::time::sleep(Duration::from_secs((delay_mins * 60 / n_pools) as u64)).await
     }
 
     let (txns, _timing) = perform_refresh(pool).await?;
