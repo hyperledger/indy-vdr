@@ -249,11 +249,23 @@ async fn get_pool_genesis<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
     Ok(ResponseType::Genesis(txns.join("\n")))
 }
 
+fn get_ledgers(state: Rc<RefCell<AppState>>) -> VdrResult<ResponseType> {
+    Ok(ResponseType::Json(
+        state
+            .borrow()
+            .pool_states
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>()
+            .join("\n"),
+    ))
+}
+
 fn get_pool_status(state: Rc<RefCell<AppState>>, namespace: &str) -> VdrResult<ResponseType> {
     let pool_states = &state.borrow().pool_states;
     let opt_pool = &pool_states
         .get(namespace)
-        .ok_or(err_msg(VdrErrorKind::Input, "Unkown ledger"))?
+        .ok_or(err_msg(VdrErrorKind::Input, format!("Unkown ledger: {}", namespace)))?
         .pool;
     let (status, mt_root, mt_size, nodes) = if let Some(pool) = opt_pool {
         let (mt_root, mt_size) = pool.get_merkle_tree_info();
@@ -462,9 +474,6 @@ pub async fn handle_request<T: Pool>(
     let fst = parts.next().unwrap_or_else(|| "".to_owned());
 
     let req_method = req.method();
-    if (req_method, fst.is_empty()) == (&Method::GET, true) {
-        return format_result(get_pool_status(state.clone(), &namespace), format);
-    }
 
     let resolver_regex = Regex::new("/1.0/identifiers/(.*)").unwrap();
 
@@ -476,13 +485,32 @@ pub async fn handle_request<T: Pool>(
     };
 
     if did.is_some() {
-        // FIXME: Handle error
-        namespace = DidUrl::from_str(did.unwrap()).unwrap().namespace;
+        namespace = match DidUrl::from_str(did.unwrap()) {
+            Ok(did_url) => did_url.namespace,
+            Err(_) => {
+                return format_result(http_status(StatusCode::BAD_REQUEST), format);
+            }
+        };
+    } else {
+        if (req_method, fst.is_empty()) == (&Method::GET, true) {
+            if namespace == "" {
+                return format_result(get_ledgers(state.clone()), format);
+            } else {
+                return format_result(get_pool_status(state.clone(), &namespace), format);
+            }
+        }
     }
 
     let pool_states = &state.borrow().pool_states;
-    // FIXME: Handle error
-    let pool_state = pool_states.get(&namespace).unwrap();
+    let pool_state = match pool_states.get(&namespace) {
+        Some(ps) => ps,
+        None => {
+            return format_result(
+                http_status_msg(StatusCode::BAD_REQUEST, "Unknown ledger"),
+                format,
+            );
+        }
+    };
 
     let opt_pool = pool_state.pool.clone();
     let pool = match opt_pool {
@@ -510,9 +538,6 @@ pub async fn handle_request<T: Pool>(
 
     // No DID resolution
     } else {
-        if (req_method, fst.is_empty()) == (&Method::GET, true) {
-            return format_result(get_pool_status(state.clone(), &namespace), format);
-        }
         match (req_method, fst.as_str()) {
             // (&Method::GET, "status") => test_get_validator_info(pool, pretty).await.make_response(),
             (&Method::GET, "submit") => http_status(StatusCode::METHOD_NOT_ALLOWED),
