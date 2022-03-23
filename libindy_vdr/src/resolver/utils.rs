@@ -169,7 +169,9 @@ pub fn handle_resolution_result(
                 &get_nym_result.dest,
                 &get_nym_result.verkey,
                 None,
-                get_nym_result.diddoc_content.map(|v| serde_json::from_str(&v).unwrap()),
+                get_nym_result
+                    .diddoc_content
+                    .map(|v| serde_json::from_str(&v).unwrap()),
             );
 
             let metadata = Metadata::DidDocumentMetadata(DidDocumentMetadata {
