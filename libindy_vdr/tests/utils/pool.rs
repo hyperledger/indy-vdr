@@ -9,7 +9,7 @@ use indy_vdr::pool::{
 use futures_executor::block_on;
 
 pub struct TestPool {
-    pool: SharedPool,
+    pub pool: SharedPool,
 }
 
 impl TestPool {

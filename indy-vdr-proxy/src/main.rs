@@ -3,16 +3,20 @@ extern crate serde_json;
 
 mod app;
 mod handlers;
+mod utils;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 #[cfg(unix)]
 use std::fs;
 use std::net::IpAddr;
+use std::path::PathBuf;
 use std::process::exit;
 use std::rc::Rc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
-use futures_util::FutureExt;
+use futures_util::future::FutureExt;
+use git2::Repository;
 
 #[cfg(feature = "fetch")]
 use hyper::body::Buf;
@@ -33,6 +37,10 @@ use tokio::signal::unix::SignalKind;
 use indy_vdr::common::error::prelude::*;
 use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolBuilder, PoolTransactions};
 
+use crate::utils::{
+    init_pool_state_from_folder_structure, AppState, PoolState, INDY_NETWORKS_GITHUB,
+};
+
 fn main() {
     let config = app::load_config().unwrap_or_else(|err| {
         eprintln!("{}", err);
@@ -51,12 +59,6 @@ fn main() {
         eprintln!("{}", err);
         exit(1);
     }
-}
-
-pub struct AppState {
-    pool: Option<LocalPool>,
-    last_refresh: Option<SystemTime>,
-    transactions: PoolTransactions,
 }
 
 #[cfg(feature = "fetch")]
@@ -95,50 +97,124 @@ async fn fetch_transactions(_genesis: String) -> VdrResult<PoolTransactions> {
     ))
 }
 
-async fn init_app_state(genesis: String) -> VdrResult<AppState> {
-    let transactions = if genesis.starts_with("http:") || genesis.starts_with("https:") {
-        fetch_transactions(genesis).await?
+async fn init_app_state(
+    genesis: Option<String>,
+    namespace: String,
+    is_multiple: bool,
+) -> VdrResult<AppState> {
+    let mut pool_states: HashMap<String, PoolState> = HashMap::new();
+
+    let state = if !is_multiple {
+        let genesis = genesis.unwrap_or(String::from("genesis.txn"));
+        let transactions = if genesis.starts_with("http:") || genesis.starts_with("https:") {
+            fetch_transactions(genesis).await?
+        } else {
+            PoolTransactions::from_json_file(genesis.as_str())?
+        };
+        let pool_state = PoolState {
+            pool: None,
+            last_refresh: None,
+            transactions,
+        };
+        pool_states.insert(namespace, pool_state);
+        AppState {
+            is_multiple,
+            pool_states,
+        }
     } else {
-        PoolTransactions::from_json_file(genesis.as_str())?
-    };
-    let state = AppState {
-        pool: None,
-        last_refresh: None,
-        transactions,
+        let genesis = genesis.unwrap_or(String::from(INDY_NETWORKS_GITHUB));
+        let pool_states = if genesis.starts_with("https:") {
+            let repo_url = genesis;
+            let mut just_cloned = false;
+            let repo =
+                git2::Repository::discover("github").or_else(|_| -> VdrResult<Repository> {
+                    just_cloned = true;
+                    Repository::clone(&repo_url, "github").map_err(|_err| {
+                        err_msg(VdrErrorKind::Unexpected, "Could not clone networks repo")
+                    })
+                })?;
+
+            // Fetch remote if not cloned just now
+            if !just_cloned {
+                let mut origin_remote = repo.find_remote("origin").map_err(|_err| {
+                    err_msg(
+                        VdrErrorKind::Unexpected,
+                        "Networks repo has no remote origin",
+                    )
+                })?;
+
+                origin_remote.fetch(&["main"], None, None).map_err(|_err| {
+                    err_msg(
+                        VdrErrorKind::Unexpected,
+                        "Could not fetch from remote networks repo",
+                    )
+                })?;
+            }
+
+            let path = repo.path().parent().unwrap().to_owned();
+
+            init_pool_state_from_folder_structure(PathBuf::from(path))?
+        } else {
+            init_pool_state_from_folder_structure(PathBuf::from(genesis))?
+        };
+        AppState {
+            is_multiple,
+            pool_states,
+        }
     };
     Ok(state)
 }
 
-async fn run_pool(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_refresh: u32) {
-    let mut pool = match create_pool(state.clone(), init_refresh).await {
-        Ok(pool) => {
-            state.borrow_mut().pool.replace(pool.clone());
-            pool
-        }
-        Err(err) => {
-            eprintln!("Error initializing pool: {}", err);
-            return;
-        }
-    };
+async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_refresh: u32) {
+    let mut pool_states = HashMap::new();
+
+    for (namespace, pool_state) in &state.clone().borrow().pool_states {
+        let pool_state = match create_pool(state.clone(), namespace.as_str(), init_refresh).await {
+            Ok(pool) => {
+                let pool = Some(pool.clone());
+                PoolState {
+                    pool: pool.clone(),
+                    last_refresh: pool_state.last_refresh.clone(),
+                    transactions: pool_state.transactions.clone()
+                }
+            }
+            Err(err) => {
+                eprintln!("Error initializing pool: {}", err);
+                PoolState {
+                    pool: None,
+                    last_refresh: pool_state.last_refresh.clone(),
+                    transactions: pool_state.transactions.clone()
+                }
+            }
+        };
+
+        pool_states.insert(namespace.to_owned(), pool_state);
+
+    }
+
+    state.borrow_mut().pool_states = pool_states;
+
+
+
     let shutdown = shutdown_signal().fuse().shared();
     if interval_refresh > 0 {
         loop {
             select! {
-                refresh_result = refresh_pool(state.clone(), &pool, interval_refresh) => {
-                    match refresh_result {
-                        Ok(Some(upd_pool)) => {
-                            state.borrow_mut().pool.replace(upd_pool.clone());
-                            pool = upd_pool;
-                            log::info!("Refreshed validator pool");
-                        }
-                        Ok(None) => {
-                            log::debug!("Refreshed validator pool, no change");
-                        }
-                        Err(err) => {
-                            log::error!("Error refreshing validator pool: {}", err);
-                        }
-                    }
-                }
+                // refresh_result = refresh_pool(state.clone(), namespace, &pool, interval_refresh) => {
+                //     match refresh_result {
+                //         Ok(Some(upd_pool)) => {
+                //             state.borrow_mut().pool.replace(upd_pool.clone());
+                //             pool = upd_pool;
+                //             log::info!("Refreshed validator pool");
+                //         }
+                //         Ok(None) => {
+                //             log::debug!("Refreshed validator pool, no change");
+                //         }
+                //         Err(err) => {
+                //             log::error!("Error refreshing validator pool: {}", err);
+                //         }
+                //     }
+                // }
                 _ = shutdown.clone() => {
                     println!("Shutting down");
                     break;
@@ -171,11 +247,17 @@ async fn shutdown_signal() {
         .expect("failed to install Ctrl-C handler")
 }
 
-async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> VdrResult<LocalPool> {
-    let builder = PoolBuilder::default().transactions(state.borrow().transactions.clone())?;
+async fn create_pool(
+    state: Rc<RefCell<AppState>>,
+    namespace: &str,
+    refresh: bool,
+) -> VdrResult<LocalPool> {
+    let pool_states = &state.borrow().pool_states;
+    let pool_state = pool_states.get(namespace).unwrap();
+    let builder = PoolBuilder::default().transactions(pool_state.transactions.clone())?;
     let pool = builder.into_local()?;
     let refresh_pool = if refresh {
-        refresh_pool(state, &pool, 0).await?
+        refresh_pool(state.clone(), namespace, &pool, 0).await?
     } else {
         None
     };
@@ -184,6 +266,7 @@ async fn create_pool(state: Rc<RefCell<AppState>>, refresh: bool) -> VdrResult<L
 
 async fn refresh_pool(
     state: Rc<RefCell<AppState>>,
+    namespace: &str,
     pool: &LocalPool,
     delay_mins: u32,
 ) -> VdrResult<Option<LocalPool>> {
@@ -193,11 +276,14 @@ async fn refresh_pool(
 
     let (txns, _timing) = perform_refresh(pool).await?;
 
-    state.borrow_mut().last_refresh.replace(SystemTime::now());
+    let cloned_state = state.clone();
+    let pool_states = &cloned_state.borrow().pool_states;
+    let pool_state = pool_states.get(namespace).unwrap();
+
+    let pool_txns = &mut pool_state.transactions.to_owned();
 
     if let Some(txns) = txns {
         let builder = {
-            let pool_txns = &mut state.borrow_mut().transactions;
             pool_txns.extend_from_json(&txns)?;
             PoolBuilder::default().transactions(pool_txns.clone())?
         };
@@ -209,9 +295,13 @@ async fn refresh_pool(
 
 async fn init_server(config: app::Config) -> Result<(), String> {
     let state = Rc::new(RefCell::new(
-        init_app_state(config.genesis.clone())
-            .await
-            .map_err(|err| format!("Error loading config: {}", err))?,
+        init_app_state(
+            config.genesis.clone(),
+            config.namespace.clone(),
+            config.is_multiple,
+        )
+        .await
+        .map_err(|err| format!("Error loading config: {}", err))?,
     ));
 
     #[cfg(unix)]
@@ -253,7 +343,7 @@ where
     I::Conn: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
     I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
-    let until_done = run_pool(state.clone(), config.init_refresh, config.interval_refresh);
+    let until_done = run_pools(state.clone(), config.init_refresh, config.interval_refresh);
     let svc = make_service_fn(move |_| {
         let state = state.clone();
         async move {

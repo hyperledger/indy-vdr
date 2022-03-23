@@ -8,12 +8,15 @@ use std::time::UNIX_EPOCH;
 
 use hyper::{Body, Method, Request, Response, StatusCode};
 use percent_encoding::percent_decode_str;
+use regex::Regex;
 
 use super::AppState;
 use indy_vdr::common::error::prelude::*;
 use indy_vdr::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
 use indy_vdr::pool::{LedgerType, Pool, PreparedRequest, RequestResult, TimingResult};
+use indy_vdr::resolver::did::DidUrl;
+use indy_vdr::resolver::PoolResolver as Resolver;
 use indy_vdr::utils::did::DidValue;
 use indy_vdr::utils::Qualifiable;
 
@@ -29,6 +32,7 @@ enum ResponseType {
     RequestReply(String, Option<TimingResult>),
     RequestFailed(VdrError, Option<TimingResult>),
     Status(StatusCode, String),
+    Resolver(String),
 }
 
 impl<T> From<(RequestResult<T>, Option<TimingResult>)> for ResponseType
@@ -219,6 +223,10 @@ fn format_result(
             format_text(msg, format, errcode, timing)
         }
         ResponseType::Status(code, msg) => format_text(msg, format, code, None),
+        ResponseType::Resolver(reply) => {
+            let reply = format_json_reply(reply, pretty);
+            format_text(reply, format, StatusCode::OK, None)
+        }
     };
     Ok(response)
 }
@@ -241,8 +249,12 @@ async fn get_pool_genesis<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
     Ok(ResponseType::Genesis(txns.join("\n")))
 }
 
-fn get_pool_status(state: Rc<RefCell<AppState>>) -> VdrResult<ResponseType> {
-    let opt_pool = &state.borrow().pool;
+fn get_pool_status(state: Rc<RefCell<AppState>>, namespace: &str) -> VdrResult<ResponseType> {
+    let pool_states = &state.borrow().pool_states;
+    let opt_pool = &pool_states
+        .get(namespace)
+        .ok_or(err_msg(VdrErrorKind::Input, "Unkown ledger"))?
+        .pool;
     let (status, mt_root, mt_size, nodes) = if let Some(pool) = opt_pool {
         let (mt_root, mt_size) = pool.get_merkle_tree_info();
         let nodes = pool.get_node_aliases();
@@ -250,7 +262,12 @@ fn get_pool_status(state: Rc<RefCell<AppState>>) -> VdrResult<ResponseType> {
     } else {
         ("init", None, None, None)
     };
-    let last_refresh = &state.borrow().last_refresh;
+    let last_refresh = state
+        .borrow()
+        .pool_states
+        .get(namespace)
+        .unwrap()
+        .last_refresh;
     let last_refresh = last_refresh.map(|tm| tm.elapsed().map(|d| d.as_secs()).ok());
 
     let result = json!({"status": status, "pool_mt_root": mt_root, "pool_mt_size": mt_size, "pool_nodes": nodes, "last_refresh": last_refresh});
@@ -434,121 +451,173 @@ pub async fn handle_request<T: Pool>(
             ResponseFormat::Raw
         }
     };
+
+    let mut namespace = if state.borrow().is_multiple {
+        parts.next().unwrap_or_else(|| "".to_owned())
+    } else {
+        let pool_states = &state.borrow().pool_states;
+        let (ns, _) = pool_states.into_iter().next().unwrap();
+        ns.to_owned()
+    };
     let fst = parts.next().unwrap_or_else(|| "".to_owned());
+
     let req_method = req.method();
     if (req_method, fst.is_empty()) == (&Method::GET, true) {
-        return format_result(get_pool_status(state.clone()), format);
+        return format_result(get_pool_status(state.clone(), &namespace), format);
     }
-    let opt_pool = &state.borrow().pool;
+
+    let resolver_regex = Regex::new("/1.0/identifiers/(.*)").unwrap();
+
+    let captures = resolver_regex.captures(req.uri().path());
+    let did = if let Some(cap) = captures {
+        Some(cap.get(1).unwrap().as_str())
+    } else {
+        None
+    };
+
+    if did.is_some() {
+        // FIXME: Handle error
+        namespace = DidUrl::from_str(did.unwrap()).unwrap().namespace;
+    }
+
+    let pool_states = &state.borrow().pool_states;
+    // FIXME: Handle error
+    let pool_state = pool_states.get(&namespace).unwrap();
+
+    let opt_pool = pool_state.pool.clone();
     let pool = match opt_pool {
         None => {
             return format_result(http_status(StatusCode::SERVICE_UNAVAILABLE), format);
         }
         Some(pool) => pool,
     };
-    let result = match (req_method, fst.as_str()) {
-        // (&Method::GET, "status") => test_get_validator_info(pool, pretty).await.make_response(),
-        (&Method::GET, "submit") => http_status(StatusCode::METHOD_NOT_ALLOWED),
-        (&Method::POST, "submit") => {
-            let body_bytes = hyper::body::to_bytes(req.into_body()).await?;
-            let body = body_bytes.iter().cloned().collect::<Vec<u8>>();
-            if !body.is_empty() {
-                submit_request(pool, body).await
-            } else {
-                http_status(StatusCode::BAD_REQUEST)
+
+    let result = if did.is_some() {
+        let did = did.unwrap();
+        let resolver = Resolver::new(pool);
+        // is   DID Url
+        if did.find("/").is_some() {
+            match resolver.dereference(did).await {
+                Ok(result) => Ok(ResponseType::Resolver(result)),
+                Err(err) => http_status_msg(StatusCode::BAD_REQUEST, err.to_string()),
+            }
+        } else {
+            match resolver.resolve(did).await {
+                Ok(result) => Ok(ResponseType::Resolver(result)),
+                Err(err) => http_status_msg(StatusCode::BAD_REQUEST, err.to_string()),
             }
         }
-        (&Method::GET, "genesis") => get_pool_genesis(pool).await,
-        (&Method::GET, "taa") => get_taa(pool).await,
-        (&Method::GET, "aml") => get_aml(pool).await,
-        (&Method::GET, "attrib") => {
-            if let (Some(dest), Some(attrib)) = (parts.next(), parts.next()) {
-                // NOTE: 'endpoint' is currently the only supported attribute
-                get_attrib(pool, &*dest, &*attrib).await
-            } else {
-                http_status(StatusCode::NOT_FOUND)
-            }
+
+    // No DID resolution
+    } else {
+        if (req_method, fst.is_empty()) == (&Method::GET, true) {
+            return format_result(get_pool_status(state.clone(), &namespace), format);
         }
-        (&Method::GET, "auth") => {
-            if let Some(auth_type) = parts.next() {
-                if let Some(auth_action) = parts.next() {
-                    get_auth_rule(
-                        pool,
-                        Some(auth_type.to_owned()),
-                        Some(auth_action.to_owned()),
-                        Some("*".to_owned()),
-                    )
-                    .await
+        match (req_method, fst.as_str()) {
+            // (&Method::GET, "status") => test_get_validator_info(pool, pretty).await.make_response(),
+            (&Method::GET, "submit") => http_status(StatusCode::METHOD_NOT_ALLOWED),
+            (&Method::POST, "submit") => {
+                let body_bytes = hyper::body::to_bytes(req.into_body()).await?;
+                let body = body_bytes.iter().cloned().collect::<Vec<u8>>();
+                if !body.is_empty() {
+                    submit_request(&pool, body).await
+                } else {
+                    http_status(StatusCode::BAD_REQUEST)
+                }
+            }
+            (&Method::GET, "genesis") => get_pool_genesis(&pool).await,
+            (&Method::GET, "taa") => get_taa(&pool).await,
+            (&Method::GET, "aml") => get_aml(&pool).await,
+            (&Method::GET, "attrib") => {
+                if let (Some(dest), Some(attrib)) = (parts.next(), parts.next()) {
+                    // NOTE: 'endpoint' is currently the only supported attribute
+                    get_attrib(&pool, &*dest, &*attrib).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
-            } else {
-                get_auth_rule(pool, None, None, None).await // get all
             }
-        }
-        (&Method::GET, "cred_def") => {
-            if let Some(cred_def_id) = parts.next() {
-                get_cred_def(pool, &*cred_def_id).await
-            } else {
-                http_status(StatusCode::NOT_FOUND)
+            (&Method::GET, "auth") => {
+                if let Some(auth_type) = parts.next() {
+                    if let Some(auth_action) = parts.next() {
+                        get_auth_rule(
+                            &pool,
+                            Some(auth_type.to_owned()),
+                            Some(auth_action.to_owned()),
+                            Some("*".to_owned()),
+                        )
+                        .await
+                    } else {
+                        http_status(StatusCode::NOT_FOUND)
+                    }
+                } else {
+                    get_auth_rule(&pool, None, None, None).await // get all
+                }
             }
-        }
-        (&Method::GET, "nym") => {
-            if let Some(nym) = parts.next() {
-                let seq_no: Option<i32> = query_params
-                    .get("seq_no")
-                    .and_then(|seq_no| seq_no.as_str().parse().ok());
-                let timestamp: Option<u64> = query_params
-                    .get("timestamp")
-                    .and_then(|ts| ts.as_str().parse().ok());
-                get_nym(pool, &*nym, seq_no, timestamp).await
-            } else {
-                http_status(StatusCode::NOT_FOUND)
-            }
-        }
-        (&Method::GET, "rev_reg_def") => {
-            if let Some(rev_reg_def_id) = parts.next() {
-                get_revoc_reg_def(pool, &*rev_reg_def_id).await
-            } else {
-                http_status(StatusCode::NOT_FOUND)
-            }
-        }
-        (&Method::GET, "rev_reg") => {
-            if let Some(rev_reg_def_id) = parts.next() {
-                get_revoc_reg(pool, &*rev_reg_def_id).await
-            } else {
-                http_status(StatusCode::NOT_FOUND)
-            }
-        }
-        (&Method::GET, "rev_reg_delta") => {
-            if let Some(rev_reg_def_id) = parts.next() {
-                get_revoc_reg_delta(pool, &*rev_reg_def_id).await
-            } else {
-                http_status(StatusCode::NOT_FOUND)
-            }
-        }
-        (&Method::GET, "schema") => {
-            if let Some(schema_id) = parts.next() {
-                get_schema(pool, &*schema_id).await
-            } else {
-                http_status(StatusCode::NOT_FOUND)
-            }
-        }
-        (&Method::GET, "txn") => {
-            if let (Some(ledger), Some(txn)) = (parts.next(), parts.next()) {
-                if let (Ok(ledger), Ok(txn)) =
-                    (LedgerType::try_from(ledger.as_str()), txn.parse::<i32>())
-                {
-                    get_txn(pool, ledger, txn).await
+            (&Method::GET, "cred_def") => {
+                if let Some(cred_def_id) = parts.next() {
+                    get_cred_def(&pool, &*cred_def_id).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
-            } else {
-                http_status(StatusCode::NOT_FOUND)
             }
+            (&Method::GET, "nym") => {
+                if let Some(nym) = parts.next() {
+                    let seq_no: Option<i32> = query_params
+                        .get("seq_no")
+                        .and_then(|seq_no| seq_no.as_str().parse().ok());
+                    let timestamp: Option<u64> = query_params
+                        .get("timestamp")
+                        .and_then(|ts| ts.as_str().parse().ok());
+                    get_nym(&pool, &*nym, seq_no, timestamp).await
+                } else {
+                    http_status(StatusCode::NOT_FOUND)
+                }
+            }
+            (&Method::GET, "rev_reg_def") => {
+                if let Some(rev_reg_def_id) = parts.next() {
+                    get_revoc_reg_def(&pool, &*rev_reg_def_id).await
+                } else {
+                    http_status(StatusCode::NOT_FOUND)
+                }
+            }
+            (&Method::GET, "rev_reg") => {
+                if let Some(rev_reg_def_id) = parts.next() {
+                    get_revoc_reg(&pool, &*rev_reg_def_id).await
+                } else {
+                    http_status(StatusCode::NOT_FOUND)
+                }
+            }
+            (&Method::GET, "rev_reg_delta") => {
+                if let Some(rev_reg_def_id) = parts.next() {
+                    get_revoc_reg_delta(&pool, &*rev_reg_def_id).await
+                } else {
+                    http_status(StatusCode::NOT_FOUND)
+                }
+            }
+            (&Method::GET, "schema") => {
+                if let Some(schema_id) = parts.next() {
+                    get_schema(&pool, &*schema_id).await
+                } else {
+                    http_status(StatusCode::NOT_FOUND)
+                }
+            }
+            (&Method::GET, "txn") => {
+                if let (Some(ledger), Some(txn)) = (parts.next(), parts.next()) {
+                    if let (Ok(ledger), Ok(txn)) =
+                        (LedgerType::try_from(ledger.as_str()), txn.parse::<i32>())
+                    {
+                        get_txn(&pool, ledger, txn).await
+                    } else {
+                        http_status(StatusCode::NOT_FOUND)
+                    }
+                } else {
+                    http_status(StatusCode::NOT_FOUND)
+                }
+            }
+            (&Method::GET, _) => http_status(StatusCode::NOT_FOUND),
+            _ => http_status(StatusCode::METHOD_NOT_ALLOWED),
         }
-        (&Method::GET, _) => http_status(StatusCode::NOT_FOUND),
-        _ => http_status(StatusCode::METHOD_NOT_ALLOWED),
     };
+
     format_result(result, format)
 }
