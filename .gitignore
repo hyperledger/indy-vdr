@@ -10,3 +10,5 @@ Podfile.lock
 .vscode
 coverage
 github
+networks
+libindy_vdr/networks

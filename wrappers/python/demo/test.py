@@ -6,7 +6,7 @@ import urllib.request
 
 from indy_vdr.error import VdrError
 from indy_vdr.bindings import version
-from indy_vdr.ledger import (  # build_revoc_reg_entry_request,; build_rich_schema_request,; build_get_schema_object_by_id_request,; build_get_schema_object_by_metadata_request,
+from indy_vdr.ledger import (
     LedgerType,
     build_custom_request,
     build_get_acceptance_mechanisms_request,
@@ -20,7 +20,7 @@ from indy_vdr.ledger import (  # build_revoc_reg_entry_request,; build_rich_sche
     build_get_validator_info_request,
     prepare_txn_author_agreement_acceptance,
 )
-from indy_vdr.pool import Pool, open_pool, open_pools
+from indy_vdr.pool import Pool, open_pool
 from indy_vdr.resolver import Resolver
 
 
@@ -114,10 +114,24 @@ async def basic_test(transactions_path):
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
 
+    ###################################################################################
+    ###                                                                             ###
+    ### DID Resolution                                                              ###
+    ###                                                                             ###
+    ###################################################################################
+
+    ## DID resolver can be initialized with a dict containing namespaces and pool instances
+    
     # pool_map = await open_pools(ledgers=["idunion", "sovrin:builder"])
+    # resolver = Resolver(pool_map)
+    
+    ## In addtion the the DID resolver can be started with autopilot = True.
+    ## Then it will try to fetch a genesis file from the did indy networks Github repo
+    ## for the given did:indy namespace
+
+    resolver = Resolver(autopilot=True)
 
     log("Resolve DID did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
-    resolver = Resolver(autopilot=True)
     doc = await resolver.resolve("did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
     log(json.dumps(doc, indent=2))
 

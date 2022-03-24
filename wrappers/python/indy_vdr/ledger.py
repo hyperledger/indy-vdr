@@ -1,6 +1,5 @@
 """Methods for generating and working with pool ledger requests."""
 
-from copyreg import add_extension
 from ctypes import byref, c_int32, c_int64, c_uint64
 from datetime import date, datetime
 from enum import IntEnum
