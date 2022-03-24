@@ -121,10 +121,10 @@ async def basic_test(transactions_path):
     ###################################################################################
 
     ## DID resolver can be initialized with a dict containing namespaces and pool instances
-    
+
     # pool_map = await open_pools(ledgers=["idunion", "sovrin:builder"])
     # resolver = Resolver(pool_map)
-    
+
     ## In addtion the the DID resolver can be started with autopilot = True.
     ## Then it will try to fetch a genesis file from the did indy networks Github repo
     ## for the given did:indy namespace

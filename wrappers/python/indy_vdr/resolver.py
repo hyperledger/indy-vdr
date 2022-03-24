@@ -14,7 +14,7 @@ DID_PATTERN = re.compile(f"^{DID_INDY_PREFIX}:{NAMESPACE_PATTERN}:(.*)")
 
 
 class Resolver:
-    """did:indy compliant resolver interface
+    """did:indy compliant resolver interface.
 
     Args:
         pool_map: Dict mapping ledger namespaces to pool instances
@@ -29,11 +29,11 @@ class Resolver:
         self.autopilot = autopilot
 
     def add_ledger(self, namespace: str, pool: Pool):
-        """Add a ledger to the resolver"""
+        """Add a ledger to the resolver."""
         self.pool_map[namespace] = pool
 
     def remove_ledger(self, namespace: str):
-        """Remove a ledger from the resolver"""
+        """Remove a ledger from the resolver."""
         try:
             del self.pool_map[namespace]
         except KeyError:
