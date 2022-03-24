@@ -60,7 +60,7 @@ Sending prepared requests to the ledger is performed by delivering a POST reques
 - `{LEDGER}/genesis` Return the current set of genesis transactions
 - `{LEDGER}/taa` Fetch the current ledger Transaction Author Agreement
 - `{LEDGER}/aml` Fetch the current ledger Acceptance Methods List (for the TAA)
-- `{LEDGER}/nym/{DID}` Fetch the NYM transaction associated with an unqualified DID
+- `{LEDGER}/nym/{DID}` Fetch the NYM transaction associated with an unqualified DID. Can be used with `timestamp` or `seq_no` query parameters to fetch specific versions
 - `{LEDGER}/attrib/{DID}/endpoint` Fetch the registered endpoint for an unqualified DID
 - `{LEDGER}/schema/{SCHEMA_ID}` Fetch a schema by its identifier
 - `{LEDGER}/cred_def/{CRED_DEF_ID}` Fetch a credential definition by its identifier
