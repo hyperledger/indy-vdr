@@ -2,7 +2,7 @@
 
 from copyreg import add_extension
 from ctypes import byref, c_int32, c_int64, c_uint64
-from datetime import datetime, date
+from datetime import date, datetime
 from enum import IntEnum
 from typing import Optional, Union
 
@@ -288,7 +288,7 @@ def build_get_nym_request(
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     dest_p = encode_str(dest)
-    seq_no_c =  c_int32(seq_no if seq_no is not None else -1)
+    seq_no_c = c_int32(seq_no if seq_no is not None else -1)
     timestamp_c = c_int64(timestamp if timestamp is not None else -1)
     do_call(
         "indy_vdr_build_get_nym_request",
@@ -512,7 +512,7 @@ def build_nym_request(
         version: (Optional) Version/method of self-certification
             0 - no self-certification enforced by the ledger
             1 - legacy self-certification
-            2 - self-certification according to did:indy method spec 
+            2 - self-certification according to did:indy method spec
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
