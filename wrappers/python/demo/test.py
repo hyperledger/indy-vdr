@@ -1,20 +1,19 @@
 import asyncio
 import json
-import sys
 import os
+import sys
 import urllib.request
 
+from indy_vdr.error import VdrError
 from indy_vdr.bindings import version
 from indy_vdr.ledger import (
+    LedgerType,
     build_custom_request,
-    build_get_txn_request,
     build_get_acceptance_mechanisms_request,
-    build_get_txn_author_agreement_request,
-    build_get_validator_info_request,
     build_get_cred_def_request,
     build_get_revoc_reg_def_request,
-    build_get_revoc_reg_request,
     build_get_revoc_reg_delta_request,
+    build_get_revoc_reg_request,
     build_get_schema_request,
     build_node_request,
     build_pool_config_request,
@@ -29,8 +28,10 @@ from indy_vdr.ledger import (
     # build_rich_schema_request,
     # build_get_schema_object_by_id_request,
     # build_get_schema_object_by_metadata_request,
+    build_get_txn_author_agreement_request,
+    build_get_txn_request,
+    build_get_validator_info_request,
     prepare_txn_author_agreement_acceptance,
-    LedgerType,
 )
 from indy_vdr.pool import Pool, open_pool
 from indy_vdr.resolver import Resolver
@@ -196,8 +197,17 @@ async def basic_test(transactions_path):
     log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
     resolver = Resolver(pool.handle)
     doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
+    # pool_map = await open_pools(ledgers=["idunion", "sovrin:builder"])
 
+    log("Resolve DID did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
+    resolver = Resolver(autopilot=True)
+    doc = await resolver.resolve("did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
     log(json.dumps(doc, indent=2))
+
+    try:
+        doc = await resolver.resolve("did:indy:test:ELMkCtYoz86qnJKeQqrL1M")
+    except VdrError as err:
+        print(err)
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"

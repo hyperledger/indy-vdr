@@ -1,6 +1,7 @@
 """Module setup."""
 
 import runpy
+
 from setuptools import find_packages, setup
 
 PACKAGE_NAME = "indy_vdr"
@@ -23,6 +24,7 @@ if __name__ == "__main__":
                 "libindy_vdr.so",
             ]
         },
+        extras_require={"fetch_indy_networks": ["git"]},
         python_requires=">=3.6.3",
         classifiers=[
             "Programming Language :: Python :: 3",
