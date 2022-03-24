@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 
 from .error import VdrError, VdrErrorCode
 
-
 CALLBACKS = {}
 LIB: CDLL = None
 LOGGER = logging.getLogger(__name__)

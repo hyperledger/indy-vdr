@@ -4,15 +4,11 @@ import logging
 import os
 import sys
 import time
-
+import urllib.request
 from asyncio import Event, Task
 from typing import List, NamedTuple
-import urllib.request
 
-from indy_vdr.ledger import (
-    build_get_txn_request,
-    LedgerType,
-)
+from indy_vdr.ledger import LedgerType, build_get_txn_request
 from indy_vdr.pool import Pool, open_pool
 
 MAX_PENDING = 25

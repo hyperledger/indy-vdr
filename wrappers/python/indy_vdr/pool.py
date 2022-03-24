@@ -7,6 +7,7 @@ from typing import Mapping, Sequence, Union
 from . import bindings
 from .error import VdrError, VdrErrorCode
 from .ledger import Request, build_custom_request
+from .utils import get_genesis_txns_from_did_indy_repo_by_name
 
 
 class Pool:
@@ -176,3 +177,30 @@ async def open_pool(
     if not no_refresh:
         await pool.refresh()
     return pool
+
+
+async def open_pools(
+    genesis_map: dict = None,
+    ledgers: list = None,
+    no_refresh: bool = False,
+    socks_proxy: str = None,
+) -> dict:
+
+    pool_map = dict()
+
+    if not (bool(genesis_map) ^ bool(ledgers)):
+        raise VdrError(
+            VdrErrorCode.WRAPPER,
+            "Must provide one of genesis_map or ledgers",
+        )
+
+    if not genesis_map:
+        genesis_map = get_genesis_txns_from_did_indy_repo_by_name(ledgers)
+
+    print(genesis_map)
+    for namespace, genesis_txn_path in genesis_map.items():
+
+        pool = await open_pool(genesis_txn_path, None, None, no_refresh, socks_proxy)
+        pool_map[namespace] = pool
+
+    return pool_map
