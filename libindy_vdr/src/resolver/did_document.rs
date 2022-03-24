@@ -9,20 +9,20 @@ pub const DID_CORE_CONTEXT: &str = "https://www.w3.org/ns/did/v1";
 #[derive(Serialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Ed25519VerificationKey2018 {
-    pub id: String,
-    pub type_: String,
-    pub controller: String,
-    pub public_key_base58: String,
+    id: String,
+    type_: String,
+    controller: String,
+    public_key_base58: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DidCommService {
-    pub id: String,
-    pub type_: String,
-    pub recipient_keys: Vec<String>,
-    pub routing_keys: Vec<String>,
-    pub priority: u8,
+    id: String,
+    type_: String,
+    recipient_keys: Vec<String>,
+    routing_keys: Vec<String>,
+    priority: u8,
 }
 
 impl DidCommService {
@@ -40,9 +40,9 @@ impl DidCommService {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GenericService {
-    pub id: String,
-    pub type_: String,
-    pub service_endpoint: String,
+    id: String,
+    type_: String,
+    service_endpoint: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -51,8 +51,8 @@ pub struct DidDocument {
     namespace: String,
     id: String,
     verkey: String,
-    endpoint: Option<Endpoint>,
-    diddoc_content: Option<SJsonValue>,
+    pub endpoint: Option<Endpoint>,
+    pub diddoc_content: Option<SJsonValue>,
 }
 
 impl DidDocument {
