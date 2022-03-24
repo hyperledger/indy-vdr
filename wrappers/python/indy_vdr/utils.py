@@ -12,7 +12,7 @@ GENESIS_FILENAME = "pool_transactions_genesis.json"
 def get_genesis_txns_from_did_indy_folder(
     path: str, genesis_filename: str = None
 ) -> Dict[str, str]:
-    """Retrieves mapping from local folder
+    """Retrieves mapping from local folder.
 
     Expects a path to a folder with the following structure:
     <namespace>/<sub-namespace>/<genesis_file_name>
@@ -62,7 +62,7 @@ def get_genesis_txns_from_did_indy_folder(
 def get_genesis_txns_from_did_indy_repo_by_name(
     namespaces: List[str], genesis_filename: str = None
 ) -> Dict[str, str]:
-    """Retrieves genesis txn from standard indy networks repo given their names"""
+    """Retrieves genesis txn from standard indy networks repo given their names."""
     genesis_map = dict()
 
     genesis_filename = genesis_filename if genesis_filename else GENESIS_FILENAME

@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime
-from typing import Mapping, Sequence, Union
+from typing import Dict, Mapping, Sequence, Union
 
 from . import bindings
 from .error import VdrError, VdrErrorCode
@@ -185,7 +185,23 @@ async def open_pools(
     ledgers: list = None,
     no_refresh: bool = False,
     socks_proxy: str = None,
-) -> dict:
+) -> Dict[str, Pool]:
+    """Create a map of new ledger pool instances.
+
+    Either `genesis_map` or `ledgers` must be specified, but not both.
+
+    Args:
+        genesis_map: A dict mapping namespaces to ledger genesis files
+        ledgers: A list of ledger namespaces. Genesis files will be fetched from
+            did indy networks Github repo
+        no_refresh: Disable the initial verifier pool refresh
+        socks_proxy: The socks proxy host name and port for ZMQ
+            (example: proxy1.intranet.company.com:1080)
+
+    Returns:
+        A dict of namespace to `Pool` instance mappings which may be used to
+        initialize a DID resolver.
+    """
 
     pool_map = dict()
 
