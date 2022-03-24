@@ -214,7 +214,6 @@ async def open_pools(
     if not genesis_map:
         genesis_map = get_genesis_txns_from_did_indy_repo_by_name(ledgers)
 
-    print(genesis_map)
     for namespace, genesis_txn_path in genesis_map.items():
 
         pool = await open_pool(genesis_txn_path, None, None, no_refresh, socks_proxy)
