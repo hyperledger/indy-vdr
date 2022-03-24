@@ -34,14 +34,13 @@ def get_genesis_txns_from_did_indy_folder(
     )
 
     for entry in filtered_entries:
-
         entry_p = os.path.join(path, entry)
-
         namespace = entry
 
         sub_entries = os.listdir(os.path.join(path, entry))
 
         for sub_entry in sub_entries:
+ 
             sub_entry_p = os.path.join(entry_p, sub_entry)
             sub_namespace = sub_entry if os.path.isdir(sub_entry_p) else None
 
@@ -50,12 +49,10 @@ def get_genesis_txns_from_did_indy_folder(
                 file_p = os.path.join(sub_entry_p, GENESIS_FILENAME)
                 if os.path.isfile(file_p):
                     genesis_map[_namespace] = file_p
-
             else:
                 file_p = os.path.join(entry_p, GENESIS_FILENAME)
                 if os.path.isfile(file_p):
                     genesis_map[namespace] = file_p
-
     return genesis_map
 
 
