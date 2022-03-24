@@ -197,10 +197,25 @@ async def basic_test(transactions_path):
     log("Resolve DID did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
     resolver = Resolver(pool.handle)
     doc = await resolver.resolve("did:indy:sovrin:XvSeT51zDWVTXatLWPknWb")
+
+    ###################################################################################
+    ###                                                                             ###
+    ### DID Resolution                                                              ###
+    ###                                                                             ###
+    ###################################################################################
+
+    ## DID resolver can be initialized with a dict containing namespaces and pool instances
+
     # pool_map = await open_pools(ledgers=["idunion", "sovrin:builder"])
+    # resolver = Resolver(pool_map)
+
+    ## In addtion the the DID resolver can be started with autopilot = True.
+    ## Then it will try to fetch a genesis file from the did indy networks Github repo
+    ## for the given did:indy namespace
+
+    resolver = Resolver(autopilot=True)
 
     log("Resolve DID did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
-    resolver = Resolver(autopilot=True)
     doc = await resolver.resolve("did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
     log(json.dumps(doc, indent=2))
 

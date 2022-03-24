@@ -156,7 +156,8 @@ async def open_pool(
             node a higher probability of being selected. A weight of zero means the
             node will never be selected.
         no_refresh: Disable the initial verifier pool refresh
-        socks_proxy: The socks proxy host name and port for ZMQ (example: proxy1.intranet.company.com:1080)
+        socks_proxy: The socks proxy host name and port for ZMQ
+            (example: proxy1.intranet.company.com:1080)
 
     Returns:
         A new `Pool` instance which may be used to submit ledger requests

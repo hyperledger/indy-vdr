@@ -2,8 +2,6 @@ import os
 from typing import Dict, List
 import urllib.request
 
-from .error import VdrError, VdrErrorCode
-
 
 INDY_NETWORKS_GITHUB_RAW_BASE = (
     "https://raw.githubusercontent.com/IDunion/indy-did-networks/main"
@@ -20,6 +18,7 @@ def get_genesis_txns_from_did_indy_folder(
     <namespace>/<sub-namespace>/<genesis_file_name>
     Default for genesis_filename is pool_transactions_genesis.json
     Example: sovrin/staging/pool_transactions_genesis.json
+
     """
     genesis_map = dict()
 
