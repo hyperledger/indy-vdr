@@ -12,3 +12,5 @@ coverage
 *.tgz
 *.so
 .npmrc
+github
+**/networks
