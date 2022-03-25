@@ -4,6 +4,7 @@ from typing import Dict
 
 from . import bindings
 from .error import VdrError, VdrErrorCode
+from .ledger import build_get_attrib_request
 from .pool import Pool, open_pool
 from .utils import get_genesis_txns_from_did_indy_repo_by_name
 
@@ -59,8 +60,46 @@ class Resolver:
                     VdrErrorCode.WRAPPER, f"Unknown DID namespace: {namespace}"
                 )
         pool_handle = getattr(pool, "handle")
-        result = await bindings.resolve(pool_handle, did)
-        return json.loads(result)
+        result = json.loads(await bindings.resolve(pool_handle, did))
+        
+        reply_data = json.loads(result["didDocumentMetadata"]["nodeResponse"]["result"]["data"])
+        diddoc_content = reply_data.get("diddocContent", None)
+
+        # Handle legacy case, where diddocContent is not present and we want to check for
+        # associated ATTRIB endpoints. We can't handle in this in libindy_vdr directly. 
+        if not diddoc_content:
+            unqualified_did = reply_data["dest"]
+            req = build_get_attrib_request(None, unqualified_did, "endpoint", None, None)
+            res = await pool.submit_request(req)
+            data = res.get("data", None)
+            if data:
+                data = json.loads(data)
+                endpoints = data.get("endpoint", None)
+
+                if endpoints:
+                    services = []
+                    for (service_type, service_endpoint) in endpoints.items():
+                        if service_type == "endpoint":
+
+                            services.append({
+                            "id": f"did:indy:{namespace}:{unqualified_did}#did-communication",
+                            "type": "did-communication",
+                            "recipientKeys": [f"did:indy:{namespace}:{unqualified_did}#verkey"] ,
+                            "routingKeys": [],
+                            "priority": 0
+                            })
+                        
+                        else:
+
+                            services.append({
+                            "id": f"did:indy:{namespace}:{unqualified_did}#{service_type}",
+                            "type": service_type,
+                            "serviceEndpoint": service_endpoint 
+
+                            })
+                    result["didDocument"]["services"] = services;
+                    
+        return result
 
     async def dereference(self, did_url: str) -> Dict:
         """Dereference a DID Url to retrieve a ledger object."""

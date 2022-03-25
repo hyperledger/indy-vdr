@@ -81,9 +81,8 @@ impl<T: Pool> PoolResolver<T> {
         let request = build_request(&did_url, &builder)?;
 
         let ledger_data = handle_request(&self.pool, &request).await?;
-        let txn_type = request.txn_type.as_str();
         let namespace = did_url.namespace.clone();
-        let result = handle_resolution_result(namespace.as_str(), &ledger_data, txn_type)?;
+        let result = handle_internal_resolution_result(namespace.as_str(), &ledger_data)?;
 
         Ok(result)
     }
@@ -102,153 +101,74 @@ impl<'a> PoolRunnerResolver<'a> {
     /// Dereference a DID Url and return a serialized `DereferencingResult`
     pub fn dereference(
         &self,
-        did_url: &str,
-        callback: Callback<VdrResult<String>>,
+        did_url: String,
+        callback: Callback<SendReqResponse>,
     ) -> VdrResult<()> {
-        let did_url = DidUrl::from_str(did_url)?;
-        self._resolve(
-            &did_url,
-            Box::new(move |result| {
-                let (data, metadata) = result.unwrap();
-                let content = match data {
-                    Result::Content(c) => Some(c),
-                    _ => None,
-                };
-
-                let md = if let Metadata::ContentMetadata(md) = metadata {
-                    Some(md)
-                } else {
-                    None
-                };
-
-                let result = DereferencingResult {
-                    dereferencing_metadata: None,
-                    content_stream: content,
-                    content_metadata: md,
-                };
-
-                callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
-            }),
-        )
-    }
-
-    /// Resolve a DID and return a serialized `ResolutionResult`
-    pub fn resolve(&self, did: &str, callback: Callback<VdrResult<String>>) -> VdrResult<()> {
-        let did = DidUrl::from_str(did)?;
-        self._resolve(
-            &did,
-            Box::new(move |result| {
-                match result {
-                    Ok((data, metadata)) => {
-                        match data {
-                            // TODO: Doc needs to be mutable, when we uncomment
-                            Result::DidDocument(doc) => {
-                                // Try to find legacy endpoint using a GET_ATTRIB txn if diddoc_content is none
-                                if doc.diddoc_content.is_none() {
-                                    // let did_copy = did.id.clone();
-                                    // fetch_legacy_endpoint_with_runner(
-                                    //     self.runner,
-                                    //     &did_copy,
-                                    //     Box::new(|result| {
-                                    //         doc.endpoint = result.ok();
-                                    //         let diddoc = Some(doc.to_value().unwrap());
-                                    //         let md = if let Metadata::DidDocumentMetadata(md) =
-                                    //             metadata
-                                    //         {
-                                    //             Some(md)
-                                    //         } else {
-                                    //             None
-                                    //         };
-
-                                    //         let result = ResolutionResult {
-                                    //             did_resolution_metadata: None,
-                                    //             did_document: diddoc,
-                                    //             did_document_metadata: md,
-                                    //         };
-
-                                    //         callback(Ok(
-                                    //             serde_json::to_string_pretty(&result).unwrap()
-                                    //         ))
-                                    //     }),
-                                    // );
-                                } else {
-                                    // let diddoc = Some(doc.to_value().unwrap());
-                                    // let md = if let Metadata::DidDocumentMetadata(md) = metadata {
-                                    //     Some(md)
-                                    // } else {
-                                    //     None
-                                    // };
-
-                                    // let result = ResolutionResult {
-                                    //     did_resolution_metadata: None,
-                                    //     did_document: diddoc,
-                                    //     did_document_metadata: md,
-                                    // };
-
-                                    //     callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
-                                }
-
-                                // For now, until if/else above is used
-
-                                let diddoc = Some(doc.to_value().unwrap());
-                                let md = if let Metadata::DidDocumentMetadata(md) = metadata {
-                                    Some(md)
-                                } else {
-                                    None
-                                };
-
-                                let result = ResolutionResult {
-                                    did_resolution_metadata: None,
-                                    did_document: diddoc,
-                                    did_document_metadata: md,
-                                };
-
-                                callback(Ok(serde_json::to_string_pretty(&result).unwrap()))
-                            }
-                            _ => {}
-                        };
-                    }
-                    // TODO: How to handle errors?
-                    Err(_err) => {}
-                }
-            }),
-        )?;
+        let did_url = DidUrl::from_str(did_url.as_str())?;
+        self._resolve(&did_url, callback)?;
         Ok(())
     }
 
-    fn _resolve(
-        &self,
-        did_url: &DidUrl,
-        callback: Callback<VdrResult<(Result, Metadata)>>,
-    ) -> VdrResult<()> {
-        let namespace = did_url.namespace.clone();
+    /// Resolve a DID and return a serialized `ResolutionResult`
+    pub fn resolve(&self, did: String, callback: Callback<SendReqResponse>) -> VdrResult<()> {
+        let did = DidUrl::from_str(did.as_str())?;
+        self._resolve(&did, callback)?;
+        Ok(())
+    }
+
+    fn _resolve(&self, did_url: &DidUrl, callback: Callback<SendReqResponse>) -> VdrResult<()> {
+        // let namespace = did_url.namespace.clone();
 
         let builder = RequestBuilder::default();
         let request = build_request(&did_url, &builder)?;
-        let txn_type = request.txn_type.clone();
+        // let txn_type = request.txn_type.clone();
 
-        self.runner.send_request(
-            request,
-            Box::new(
-                move |result: VdrResult<(RequestResult<String>, Option<TimingResult>)>| {
-                    let ledger_data = match result {
-                        Ok((reply, _)) => match reply {
-                            RequestResult::Reply(reply_data) => Ok(reply_data),
-                            RequestResult::Failed(err) => Err(err),
-                        },
-                        Err(err) => Err(err),
-                    }
-                    .unwrap();
+        self.runner.send_request(request, callback)
+    }
+}
 
-                    let result = handle_resolution_result(
-                        namespace.as_str(),
-                        &ledger_data,
-                        txn_type.as_str(),
-                    )
-                    .unwrap();
-                    callback(Ok(result))
-                },
-            ),
-        )
+type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
+
+pub fn handle_resolution_result(result: SendReqResponse, did_url: String) -> VdrResult<String> {
+    let did = DidUrl::from_str(did_url.as_str())?;
+    let (req_result, _timing_result) = result?;
+
+    let ledger_data = match req_result {
+        RequestResult::Reply(reply_data) => Ok(reply_data),
+        RequestResult::Failed(err) => Err(err),
+    }?;
+
+    println!("{:#?}", ledger_data);
+
+    let namespace = did.namespace;
+
+    let (data, metadata) = handle_internal_resolution_result(namespace.as_str(), &ledger_data)?;
+
+    let content = match data {
+        Result::Content(c) => Some(c),
+        Result::DidDocument(doc) => doc.to_value().ok(),
+    };
+
+    match metadata {
+        Metadata::ContentMetadata(md) => {
+            let result = DereferencingResult {
+                dereferencing_metadata: None,
+                content_stream: content,
+                content_metadata: Some(md),
+            };
+
+            serde_json::to_string_pretty(&result)
+                .map_err(|err| err_msg(VdrErrorKind::Unexpected, err))
+        }
+        Metadata::DidDocumentMetadata(md) => {
+            let result = ResolutionResult {
+                did_resolution_metadata: None,
+                did_document: content,
+                did_document_metadata: Some(md),
+            };
+
+            serde_json::to_string_pretty(&result)
+                .map_err(|err| err_msg(VdrErrorKind::Unexpected, err))
+        }
     }
 }
