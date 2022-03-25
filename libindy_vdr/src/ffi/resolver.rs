@@ -1,5 +1,5 @@
 use crate::common::error::prelude::*;
-use crate::resolver::PoolRunnerResolver as Resolver;
+use crate::resolver::{handle_resolution_result, PoolRunnerResolver as Resolver};
 
 use super::error::{set_last_error, ErrorCode};
 use super::pool::{PoolHandle, POOLS};
@@ -18,23 +18,26 @@ pub extern "C" fn indy_vdr_resolve(
     let cb = cb.ok_or_else(|| input_err("No callback provided")).unwrap();
     let pools = read_lock!(POOLS)?;
     let pool = pools.get(&pool_handle).ok_or_else(|| input_err("Unknown pool handle"))?;
+    let did = did.as_str().to_owned();
     let resolver = Resolver::new(pool);
-        resolver
-            .resolve(
-                did.as_str(),
-                Box::new(move |result| {
-                    let (errcode, reply) = match result {
-                        Ok(status) => (ErrorCode::Success, status),
-                        Err(err) => {
-                            let code = ErrorCode::from(err.kind());
-                            set_last_error(Some(err));
-                            (code, String::new())
-                        }
-                    };
-                    cb(cb_id, errcode, rust_string_to_c(reply))
-                }),
-            )?;
+    resolver
+    .dereference(
+        did.clone(),
+        Box::new(move |ledger_reply| {
 
+            let (errcode, reply) = match handle_resolution_result(ledger_reply, did) {
+                Ok(result) => (ErrorCode::Success, result),
+                Err(err) => {
+
+                    let code = ErrorCode::from(err.kind());
+                    set_last_error(Some(err));
+                    (code, String::new())
+
+                }
+            };
+            cb(cb_id, errcode, rust_string_to_c(reply))
+        }),
+    )?;
         Ok(ErrorCode::Success)
     }
 }
@@ -51,24 +54,26 @@ pub extern "C" fn indy_vdr_dereference(
     let cb = cb.ok_or_else(|| input_err("No callback provided")).unwrap();
     let pools = read_lock!(POOLS)?;
     let pool = pools.get(&pool_handle).ok_or_else(|| input_err("Unknown pool handle"))?;
+    let did_url = did_url.as_str().to_owned();
     let resolver = Resolver::new(pool);
         resolver
             .dereference(
-                did_url.as_str(),
-                Box::new(move |result| {
-                    let (errcode, reply) = match result {
-                        Ok(status) => (ErrorCode::Success, status),
+                did_url.clone(),
+                Box::new(move |ledger_reply| {
+
+                    let (errcode, reply) = match handle_resolution_result(ledger_reply, did_url) {
+                        Ok(result) => (ErrorCode::Success, result),
                         Err(err) => {
+
                             let code = ErrorCode::from(err.kind());
                             set_last_error(Some(err));
                             (code, String::new())
+
                         }
                     };
                     cb(cb_id, errcode, rust_string_to_c(reply))
                 }),
             )?;
-
-
         Ok(ErrorCode::Success)
     }
 }

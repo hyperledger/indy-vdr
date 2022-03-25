@@ -215,12 +215,12 @@ async def basic_test(transactions_path):
 
     resolver = Resolver(autopilot=True)
 
-    log("Resolve DID did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
-    doc = await resolver.resolve("did:indy:idunion:ELMkCtYoz86qnJKeQqrL1M")
+    log("Resolve DID did:indy:idunion:APs6Xd2GH8FNwCaXDw6Qm2")
+    doc = await resolver.resolve("did:indy:idunion:Fhbr2wQrJeB1UcZeFKpG5F")
     log(json.dumps(doc, indent=2))
 
     try:
-        doc = await resolver.resolve("did:indy:test:ELMkCtYoz86qnJKeQqrL1M")
+        doc = await resolver.resolve("did:indy:idunion:APs6Xd2GH8FNwCaXDw6Qm2")
     except VdrError as err:
         print(err)
 

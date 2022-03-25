@@ -5,4 +5,4 @@ pub mod did_document;
 pub mod types;
 pub mod utils;
 
-pub use self::resolver::{PoolResolver, PoolRunnerResolver};
+pub use self::resolver::{handle_resolution_result, PoolResolver, PoolRunnerResolver};
