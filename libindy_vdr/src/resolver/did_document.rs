@@ -87,11 +87,11 @@ impl DidDocument {
         if self.diddoc_content.is_some() {
             let is_valid = validate_diddoc_content(&(self.diddoc_content.as_ref().unwrap()));
 
-            if is_valid {
-                merge_diddoc(&mut doc, self.diddoc_content.as_ref().unwrap());
-            } else {
-                return Err(err_msg(VdrErrorKind::Resolver, "Invalid DIDdoc Content"));
+            if !is_valid {
+                debug!("Invalid DIDdoc Content, but validation won't be enforced.");
             }
+
+            merge_diddoc(&mut doc, self.diddoc_content.as_ref().unwrap());
 
             // Handling of legacy services
         } else if self.endpoint.is_some() {
