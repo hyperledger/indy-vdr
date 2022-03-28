@@ -267,11 +267,11 @@ impl LedgerObject {
         if let Some(cap) = captures {
             let object_family_str = cap
                 .get(1)
-                .ok_or_else(|| err_msg(VdrErrorKind::Resolver, "Invalid DID URL path".to_string()))?
+                .ok_or_else(|| err_msg(VdrErrorKind::Resolver, "Invalid DID URL path"))?
                 .as_str();
             let version = cap
                 .get(2)
-                .ok_or_else(|| err_msg(VdrErrorKind::Resolver, "Invalid DID URL path".to_string()))?
+                .ok_or_else(|| err_msg(VdrErrorKind::Resolver, "Invalid DID URL path"))?
                 .as_str();
 
             let object_family = ObjectFamily::parse(object_family_str)?;
