@@ -8,6 +8,10 @@ use super::types::*;
 use super::utils::*;
 
 /// DID (URL) Resolver interface for a pool compliant with did:indy method spec
+/// The resolver interface is bound to a specific indy network and does not evaluate
+/// the namespace part of the DID. You need to create a resolver instance for each
+/// indy network you want to support.
+/// The `PoolResolver` uses async/await.
 pub struct PoolResolver<T: Pool> {
     pool: T,
 }
@@ -20,7 +24,7 @@ impl<T: Pool> PoolResolver<T> {
     /// Dereference a DID Url and return a serialized `DereferencingResult`
     pub async fn dereference(&self, did_url: &str) -> VdrResult<String> {
         debug!("PoolResolver: Dereference DID Url {}", did_url);
-        let did_url = DidUrl::from_str(did_url)?;
+        let did_url = DidUrl::parse(did_url)?;
         let (data, metadata) = self._resolve(&did_url).await?;
 
         let content = match data {
@@ -46,7 +50,7 @@ impl<T: Pool> PoolResolver<T> {
     /// Resolve a DID and return a serialized `ResolutionResult`
     pub async fn resolve(&self, did: &str) -> VdrResult<String> {
         debug!("PoolResolver: Resolve DID {}", did);
-        let did = DidUrl::from_str(did)?;
+        let did = DidUrl::parse(did)?;
         let (data, metadata) = self._resolve(&did).await?;
 
         let diddoc = match data {
@@ -78,7 +82,7 @@ impl<T: Pool> PoolResolver<T> {
     // Internal method to resolve and dereference
     async fn _resolve(&self, did_url: &DidUrl) -> VdrResult<(Result, Metadata)> {
         let builder = self.pool.get_request_builder();
-        let request = build_request(&did_url, &builder)?;
+        let request = build_request(did_url, &builder)?;
 
         let ledger_data = handle_request(&self.pool, &request).await?;
         let namespace = did_url.namespace.clone();
@@ -89,6 +93,10 @@ impl<T: Pool> PoolResolver<T> {
 }
 
 /// DID (URL) Resolver interface using callbacks for a PoolRunner compliant with did:indy method spec
+/// The PoolRunnerResolver is used for the FFI.
+/// Note that the PoolRunnerResolver does not fetch an ATTRIB txn for legacy endpoint resolution. 
+/// If you need to use the PoolRunnerResolver, please have a look at the Python wrapper to see how
+/// legacy endpoints can be resolved.
 pub struct PoolRunnerResolver<'a> {
     runner: &'a PoolRunner,
 }
@@ -104,25 +112,21 @@ impl<'a> PoolRunnerResolver<'a> {
         did_url: String,
         callback: Callback<SendReqResponse>,
     ) -> VdrResult<()> {
-        let did_url = DidUrl::from_str(did_url.as_str())?;
+        let did_url = DidUrl::parse(did_url.as_str())?;
         self._resolve(&did_url, callback)?;
         Ok(())
     }
 
     /// Resolve a DID and return a serialized `ResolutionResult`
     pub fn resolve(&self, did: String, callback: Callback<SendReqResponse>) -> VdrResult<()> {
-        let did = DidUrl::from_str(did.as_str())?;
+        let did = DidUrl::parse(did.as_str())?;
         self._resolve(&did, callback)?;
         Ok(())
     }
 
     fn _resolve(&self, did_url: &DidUrl, callback: Callback<SendReqResponse>) -> VdrResult<()> {
-        // let namespace = did_url.namespace.clone();
-
         let builder = RequestBuilder::default();
-        let request = build_request(&did_url, &builder)?;
-        // let txn_type = request.txn_type.clone();
-
+        let request = build_request(did_url, &builder)?;
         self.runner.send_request(request, callback)
     }
 }
@@ -130,15 +134,13 @@ impl<'a> PoolRunnerResolver<'a> {
 type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
 
 pub fn handle_resolution_result(result: SendReqResponse, did_url: String) -> VdrResult<String> {
-    let did = DidUrl::from_str(did_url.as_str())?;
+    let did = DidUrl::parse(did_url.as_str())?;
     let (req_result, _timing_result) = result?;
 
     let ledger_data = match req_result {
         RequestResult::Reply(reply_data) => Ok(reply_data),
         RequestResult::Failed(err) => Err(err),
     }?;
-
-    println!("{:#?}", ledger_data);
 
     let namespace = did.namespace;
 

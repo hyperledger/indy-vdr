@@ -488,7 +488,7 @@ pub async fn handle_request<T: Pool>(
     };
 
     if did.is_some() {
-        namespace = match DidUrl::from_str(did.unwrap()) {
+        namespace = match DidUrl::parse(did.unwrap()) {
             Ok(did_url) => did_url.namespace,
             Err(_) => {
                 return format_result(http_status(StatusCode::BAD_REQUEST), format);

@@ -31,7 +31,7 @@ pub enum QueryParameter {
 }
 
 impl QueryParameter {
-    pub fn from_str(input: &str) -> VdrResult<QueryParameter> {
+    pub fn parse(input: &str) -> VdrResult<QueryParameter> {
         match input {
             "versionId" => Ok(QueryParameter::VersionId),
             "versionTime" => Ok(QueryParameter::VersionTime),
@@ -51,7 +51,7 @@ pub enum ObjectFamily {
 }
 
 impl ObjectFamily {
-    fn from_str(input: &str) -> VdrResult<ObjectFamily> {
+    fn parse(input: &str) -> VdrResult<ObjectFamily> {
         match input {
             "anoncreds" => Ok(ObjectFamily::Anoncreds),
             _ => Err(err_msg(
@@ -68,7 +68,7 @@ pub enum Anoncreds {
 }
 
 impl Anoncreds {
-    fn from_str(input: &str) -> VdrResult<Anoncreds> {
+    fn parse(input: &str) -> VdrResult<Anoncreds> {
         match input {
             "v0" => Ok(Anoncreds::AnoncredsV0),
             _ => Err(err_msg(
@@ -90,7 +90,7 @@ impl Schema {
         Self { name, version }
     }
 
-    fn from_str(input: &str) -> VdrResult<Schema> {
+    fn parse(input: &str) -> VdrResult<Schema> {
         let re =
             Regex::new(format!(r"^{}/{}", CLIENT_DEFINED_NAME_PATTERN, VERSION_PATTERN).as_str())
                 .unwrap();
@@ -100,17 +100,21 @@ impl Schema {
         match captures {
             Some(cap) => Ok(Schema::new(
                 cap.get(1)
-                    .ok_or(err_msg(
-                        VdrErrorKind::Resolver,
-                        format!("Invalid DID URL path for schema {}", input),
-                    ))?
+                    .ok_or_else(|| {
+                        err_msg(
+                            VdrErrorKind::Resolver,
+                            format!("Invalid DID URL path for schema {}", input),
+                        )
+                    })?
                     .as_str()
                     .to_string(),
                 cap.get(2)
-                    .ok_or(err_msg(
-                        VdrErrorKind::Resolver,
-                        format!("Invalid DID URL path for schema {}", input),
-                    ))?
+                    .ok_or_else(|| {
+                        err_msg(
+                            VdrErrorKind::Resolver,
+                            format!("Invalid DID URL path for schema {}", input),
+                        )
+                    })?
                     .as_str()
                     .to_string(),
             )),
@@ -136,7 +140,7 @@ impl ClaimDef {
         }
     }
 
-    fn from_str(input: &str) -> VdrResult<ClaimDef> {
+    fn parse(input: &str) -> VdrResult<ClaimDef> {
         let re =
             Regex::new(format!(r"^{}/{}", SEQ_NO_PATTERN, CLIENT_DEFINED_NAME_PATTERN).as_str())
                 .unwrap();
@@ -146,19 +150,23 @@ impl ClaimDef {
         match captures {
             Some(cap) => Ok(ClaimDef::new(
                 cap.get(1)
-                    .ok_or(err_msg(
-                        VdrErrorKind::Resolver,
-                        format!("Invalid DID URL path for claim def {}", input),
-                    ))?
+                    .ok_or_else(|| {
+                        err_msg(
+                            VdrErrorKind::Resolver,
+                            format!("Invalid DID URL path for claim def {}", input),
+                        )
+                    })?
                     .as_str()
                     .to_string()
                     .parse::<u32>()
                     .unwrap(),
                 cap.get(2)
-                    .ok_or(err_msg(
-                        VdrErrorKind::Resolver,
-                        format!("Invalid DID URL path for claim def {}", input),
-                    ))?
+                    .ok_or_else(|| {
+                        err_msg(
+                            VdrErrorKind::Resolver,
+                            format!("Invalid DID URL path for claim def {}", input),
+                        )
+                    })?
                     .as_str()
                     .to_string(),
             )),
@@ -186,7 +194,7 @@ impl RevReg {
         }
     }
 
-    fn from_str(input: &str) -> VdrResult<RevReg> {
+    fn parse(input: &str) -> VdrResult<RevReg> {
         let re = Regex::new(
             format!(r"^{}/{}/{1}", SEQ_NO_PATTERN, CLIENT_DEFINED_NAME_PATTERN).as_str(),
         )
@@ -197,26 +205,32 @@ impl RevReg {
         match captures {
             Some(cap) => Ok(RevReg::new(
                 cap.get(1)
-                    .ok_or(err_msg(
-                        VdrErrorKind::Resolver,
-                        format!("Invalid DID URL path for revocation registry {}", input),
-                    ))?
+                    .ok_or_else(|| {
+                        err_msg(
+                            VdrErrorKind::Resolver,
+                            format!("Invalid DID URL path for revocation registry {}", input),
+                        )
+                    })?
                     .as_str()
                     .to_string()
                     .parse::<u32>()
                     .unwrap(),
                 cap.get(2)
-                    .ok_or(err_msg(
-                        VdrErrorKind::Resolver,
-                        format!("Invalid DID URL path for revocation registry {}", input),
-                    ))?
+                    .ok_or_else(|| {
+                        err_msg(
+                            VdrErrorKind::Resolver,
+                            format!("Invalid DID URL path for revocation registry {}", input),
+                        )
+                    })?
                     .as_str()
                     .to_string(),
                 cap.get(3)
-                    .ok_or(err_msg(
-                        VdrErrorKind::Resolver,
-                        format!("Invalid DID URL path for revocation registry {}", input),
-                    ))?
+                    .ok_or_else(|| {
+                        err_msg(
+                            VdrErrorKind::Resolver,
+                            format!("Invalid DID URL path for revocation registry {}", input),
+                        )
+                    })?
                     .as_str()
                     .to_string(),
             )),
@@ -238,7 +252,7 @@ pub enum LedgerObject {
 }
 
 impl LedgerObject {
-    pub fn from_str(input: &str) -> VdrResult<LedgerObject> {
+    pub fn parse(input: &str) -> VdrResult<LedgerObject> {
         let re = Regex::new(
             format!(
                 r"{}/{}/{}/(.+)?",
@@ -253,54 +267,46 @@ impl LedgerObject {
         if let Some(cap) = captures {
             let object_family_str = cap
                 .get(1)
-                .ok_or(err_msg(
-                    VdrErrorKind::Resolver,
-                    format!("Invalid DID URL path"),
-                ))?
+                .ok_or_else(|| err_msg(VdrErrorKind::Resolver, "Invalid DID URL path".to_string()))?
                 .as_str();
             let version = cap
                 .get(2)
-                .ok_or(err_msg(
-                    VdrErrorKind::Resolver,
-                    format!("Invalid DID URL path"),
-                ))?
+                .ok_or_else(|| err_msg(VdrErrorKind::Resolver, "Invalid DID URL path".to_string()))?
                 .as_str();
 
-            let object_family = ObjectFamily::from_str(object_family_str)?;
+            let object_family = ObjectFamily::parse(object_family_str)?;
 
             match object_family {
                 ObjectFamily::Anoncreds => {
-                    let object_family_versioned = Anoncreds::from_str(version)?;
+                    let object_family_versioned = Anoncreds::parse(version)?;
                     match object_family_versioned {
                         Anoncreds::AnoncredsV0 => {
                             let ledger_object_type_str = cap
                                 .get(3)
-                                .ok_or(err_msg(
-                                    VdrErrorKind::Resolver,
-                                    format!("Invalid DID URL path"),
-                                ))?
+                                .ok_or_else(|| {
+                                    err_msg(VdrErrorKind::Resolver, "Invalid DID URL path")
+                                })?
                                 .as_str();
                             let ledger_object_type_specific_str = cap
                                 .get(4)
-                                .ok_or(err_msg(
-                                    VdrErrorKind::Resolver,
-                                    format!("Invalid DID URL path"),
-                                ))?
+                                .ok_or_else(|| {
+                                    err_msg(VdrErrorKind::Resolver, "Invalid DID URL path")
+                                })?
                                 .as_str();
                             match ledger_object_type_str {
-                                "SCHEMA" => Ok(LedgerObject::Schema(Schema::from_str(
+                                "SCHEMA" => Ok(LedgerObject::Schema(Schema::parse(
                                     ledger_object_type_specific_str,
                                 )?)),
-                                "CLAIM_DEF" => Ok(LedgerObject::ClaimDef(ClaimDef::from_str(
+                                "CLAIM_DEF" => Ok(LedgerObject::ClaimDef(ClaimDef::parse(
                                     ledger_object_type_specific_str,
                                 )?)),
-                                "REV_REG_DEF" => Ok(LedgerObject::RevRegDef(RevReg::from_str(
+                                "REV_REG_DEF" => Ok(LedgerObject::RevRegDef(RevReg::parse(
                                     ledger_object_type_specific_str,
                                 )?)),
-                                "REV_REG_ENTRY" => Ok(LedgerObject::RevRegEntry(RevReg::from_str(
+                                "REV_REG_ENTRY" => Ok(LedgerObject::RevRegEntry(RevReg::parse(
                                     ledger_object_type_specific_str,
                                 )?)),
-                                "REV_REG_DELTA" => Ok(LedgerObject::RevRegDelta(RevReg::from_str(
+                                "REV_REG_DELTA" => Ok(LedgerObject::RevRegDelta(RevReg::parse(
                                     ledger_object_type_specific_str,
                                 )?)),
 
@@ -335,7 +341,7 @@ pub struct DidUrl {
 }
 
 impl DidUrl {
-    pub fn from_str(input: &str) -> VdrResult<DidUrl> {
+    pub fn parse(input: &str) -> VdrResult<DidUrl> {
         let did_regex = Regex::new(
             format!(
                 r"{}:{}:{}([^\?]+)?(?:\?(.+))?$",
@@ -351,7 +357,7 @@ impl DidUrl {
         let _query_pairs: HashMap<_, _> = url.query_pairs().into_owned().collect();
 
         for (k, v) in _query_pairs.iter() {
-            let qp = QueryParameter::from_str(k)?;
+            let qp = QueryParameter::parse(k)?;
 
             query_pairs.insert(qp, v.to_string());
         }
@@ -384,23 +390,23 @@ mod tests {
 
     #[test]
     fn parse_unknown_ledger_object_fails() {
-        let _err = LedgerObject::from_str("/anoncreds/v0/PANTS/npdb/4.3.4").unwrap_err();
+        let _err = LedgerObject::parse("/anoncreds/v0/PANTS/npdb/4.3.4").unwrap_err();
     }
 
     #[test]
     fn parse_unknown_object_family_fails() {
-        let _err = LedgerObject::from_str("/othercreds/v0/SCHEMA/npdb/4.3.4").unwrap_err();
+        let _err = LedgerObject::parse("/othercreds/v0/SCHEMA/npdb/4.3.4").unwrap_err();
     }
 
     #[test]
     fn parse_unknown_anoncreds_version_fails() {
-        let _err = LedgerObject::from_str("/anoncreds/v5/SCHEMA/npdb/4.3.4").unwrap_err();
+        let _err = LedgerObject::parse("/anoncreds/v5/SCHEMA/npdb/4.3.4").unwrap_err();
     }
 
     #[test]
     fn parse_to_schema() {
         assert_eq!(
-            LedgerObject::from_str("/anoncreds/v0/SCHEMA/npdb/4.3.4").unwrap(),
+            LedgerObject::parse("/anoncreds/v0/SCHEMA/npdb/4.3.4").unwrap(),
             LedgerObject::Schema(Schema::new(String::from("npdb"), String::from("4.3.4")))
         )
     }
@@ -408,7 +414,7 @@ mod tests {
     #[test]
     fn parse_to_schema_two_point_seperated_version() {
         assert_eq!(
-            LedgerObject::from_str("/anoncreds/v0/SCHEMA/npdb/4.3").unwrap(),
+            LedgerObject::parse("/anoncreds/v0/SCHEMA/npdb/4.3").unwrap(),
             LedgerObject::Schema(Schema::new(String::from("npdb"), String::from("4.3")))
         )
     }
@@ -416,43 +422,43 @@ mod tests {
     #[test]
     fn parse_to_schema_two_digit_version() {
         assert_eq!(
-            LedgerObject::from_str("/anoncreds/v0/SCHEMA/npdb/11.3").unwrap(),
+            LedgerObject::parse("/anoncreds/v0/SCHEMA/npdb/11.3").unwrap(),
             LedgerObject::Schema(Schema::new(String::from("npdb"), String::from("11.3")))
         )
     }
 
     #[test]
     fn parse_to_schema_without_version_fails() {
-        let _err = LedgerObject::from_str("/anoncreds/v0/SCHEMA/npdb").unwrap_err();
+        let _err = LedgerObject::parse("/anoncreds/v0/SCHEMA/npdb").unwrap_err();
     }
 
     #[test]
     fn parse_to_schema_with_one_digit_version_fails() {
-        let _err = LedgerObject::from_str("/anoncreds/v0/SCHEMA/npdb/4").unwrap_err();
+        let _err = LedgerObject::parse("/anoncreds/v0/SCHEMA/npdb/4").unwrap_err();
     }
 
     #[test]
     fn parse_to_claim_def() {
         assert_eq!(
-            LedgerObject::from_str("/anoncreds/v0/CLAIM_DEF/23452/npdb").unwrap(),
+            LedgerObject::parse("/anoncreds/v0/CLAIM_DEF/23452/npdb").unwrap(),
             LedgerObject::ClaimDef(ClaimDef::new(23452, String::from("npdb")))
         )
     }
 
     #[test]
     fn parse_to_claim_def_without_seq_no_fails() {
-        let _err = LedgerObject::from_str("/anoncreds/v0/CLAIM_DEF/npdb").unwrap_err();
+        let _err = LedgerObject::parse("/anoncreds/v0/CLAIM_DEF/npdb").unwrap_err();
     }
 
     #[test]
     fn parse_to_claim_def_with_seq_no_as_string_fails() {
-        let _err = LedgerObject::from_str("/anoncreds/v0/CLAIM_DEF/myseqno/npdb").unwrap_err();
+        let _err = LedgerObject::parse("/anoncreds/v0/CLAIM_DEF/myseqno/npdb").unwrap_err();
     }
 
     #[test]
     fn parse_to_rev_reg_entry() {
         assert_eq!(
-            LedgerObject::from_str("/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54").unwrap(),
+            LedgerObject::parse("/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54").unwrap(),
             LedgerObject::RevRegEntry(RevReg::new(
                 104,
                 String::from("revocable"),
@@ -464,7 +470,7 @@ mod tests {
     #[test]
     fn parse_to_rev_reg_def() {
         assert_eq!(
-            LedgerObject::from_str(
+            LedgerObject::parse(
                 "/anoncreds/v0/REV_REG_DEF/104/revocable/a4e25e54-e028-462b-a4d6-b1d1712d51a1"
             )
             .unwrap(),
@@ -482,10 +488,10 @@ mod tests {
 
         #[test]
         fn did_syntax_tests() {
-            let _err = DidUrl::from_str("did:indy:onlynamespace").unwrap_err();
+            let _err = DidUrl::parse("did:indy:onlynamespace").unwrap_err();
 
             assert_eq!(
-                DidUrl::from_str("did:indy:idunion:BDrEcHc8Tb4Lb2VyQZWEDE").unwrap(),
+                DidUrl::parse("did:indy:idunion:BDrEcHc8Tb4Lb2VyQZWEDE").unwrap(),
                 DidUrl {
                     namespace: String::from("idunion"),
                     id: DidValue::new("BDrEcHc8Tb4Lb2VyQZWEDE", None),
@@ -496,7 +502,7 @@ mod tests {
             );
 
             assert_eq!(
-                DidUrl::from_str("did:indy:sovrin:staging:6cgbu8ZPoWTnR5Rv5JcSMB").unwrap(),
+                DidUrl::parse("did:indy:sovrin:staging:6cgbu8ZPoWTnR5Rv5JcSMB").unwrap(),
                 DidUrl {
                     namespace: String::from("sovrin:staging"),
                     id: DidValue::new("6cgbu8ZPoWTnR5Rv5JcSMB", None),
@@ -506,21 +512,21 @@ mod tests {
                 }
             );
 
-            let _err = DidUrl::from_str("did:indy:illegal:third:namespace:1111111111111111111111")
+            let _err = DidUrl::parse("did:indy:illegal:third:namespace:1111111111111111111111")
                 .unwrap_err();
 
-            let _err = DidUrl::from_str("did:indy:test:12345678901234567890").unwrap_err();
-            let _err = DidUrl::from_str("did:indy:test:12345678901234567890123").unwrap_err();
+            let _err = DidUrl::parse("did:indy:test:12345678901234567890").unwrap_err();
+            let _err = DidUrl::parse("did:indy:test:12345678901234567890123").unwrap_err();
 
             // fails because contains characters not in base58
             // 0
-            let _err = DidUrl::from_str("did:indy:test:0cgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
+            let _err = DidUrl::parse("did:indy:test:0cgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
             // O
-            let _err = DidUrl::from_str("did:indy:test:Ocgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
+            let _err = DidUrl::parse("did:indy:test:Ocgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
             // I
-            let _err = DidUrl::from_str("did:indy:test:Icgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
+            let _err = DidUrl::parse("did:indy:test:Icgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
             // l
-            let _err = DidUrl::from_str("did:indy:test:lcgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
+            let _err = DidUrl::parse("did:indy:test:lcgbu8ZPoWTnR5Rv5JcSMB").unwrap_err();
         }
 
         #[test]
@@ -529,7 +535,7 @@ mod tests {
             q.insert(QueryParameter::VersionId, String::from("1"));
 
             assert_eq!(
-                DidUrl::from_str("did:indy:idunion:BDrEcHc8Tb4Lb2VyQZWEDE?versionId=1").unwrap(),
+                DidUrl::parse("did:indy:idunion:BDrEcHc8Tb4Lb2VyQZWEDE?versionId=1").unwrap(),
                 DidUrl {
                     namespace: String::from("idunion"),
                     id: DidValue::new("BDrEcHc8Tb4Lb2VyQZWEDE", None),
@@ -542,14 +548,14 @@ mod tests {
 
         #[test]
         fn parse_did_url_fails_with_arbitrary_query_parameter() {
-            let _err = DidUrl::from_str("did:indy:idunion:BDrEcHc8Tb4Lb2VyQZWEDE?hello=world")
-                .unwrap_err();
+            let _err =
+                DidUrl::parse("did:indy:idunion:BDrEcHc8Tb4Lb2VyQZWEDE?hello=world").unwrap_err();
         }
 
         #[test]
         fn parse_did_url_with_path() {
             assert_eq!(
-                DidUrl::from_str("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DEF/104/revocable/a4e25e54-e028-462b-a4d6-b1d1712d51a1")
+                DidUrl::parse("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DEF/104/revocable/a4e25e54-e028-462b-a4d6-b1d1712d51a1")
                     .unwrap(),
                 DidUrl {
                     namespace: String::from("idunion"),
@@ -569,7 +575,7 @@ mod tests {
             q.insert(QueryParameter::VersionTime, String::from("someXmlDateTime"));
 
             assert_eq!(
-                DidUrl::from_str("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DEF/104/revocable/a4e25e54-e028-462b-a4d6-b1d1712d51a1?versionTime=someXmlDateTime")
+                DidUrl::parse("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DEF/104/revocable/a4e25e54-e028-462b-a4d6-b1d1712d51a1?versionTime=someXmlDateTime")
                     .unwrap(),
                 DidUrl {
                     namespace: String::from("idunion"),

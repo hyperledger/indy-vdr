@@ -42,14 +42,18 @@ At a later stage it should be possible to install a precompiled 'wheel' package 
 The `indy-vdr-proxy` executable can be used to provide a simple REST API for interacting with one or more Indy ledgers. Command line options can be inspected by running `indy-vdr-proxy --help`.
 
 To start the proxy server for a single ledger use the following command:
-`indy-vdr-proxy -p <PORT> (-g <OPTIONAL_PATH_TO_GENESIS_FILE>)`
+```
+indy-vdr-proxy -p <PORT> (-g <OPTIONAL_PATH_TO_GENESIS_FILE>)
+```
 
 To start the proxy server with the standard configuration of indy ledgers use the following command:
 `indy-vdr-proxy -p <PORT> --multiple-ledgers`
 This will get the ledger configuration from `https://github.com/IDunion/indy-did-networks`
 
 A custom ledger configuration can be provided either by specificing a Github repo or a local folder:
-`indy-vdr-proxy -p <PORT> --multiple-ledgers -g <GITHUB_URL or PATH_TO_FOLDER>`
+```
+indy-vdr-proxy -p <PORT> --multiple-ledgers -g <GITHUB_URL or PATH_TO_FOLDER>
+```
 The structure needs to be as follows `<NAMESPACE>/OPTIONAL<SUB_NAMESPACE>/pool_transactions_genesis.json`, e.g. `/sovrin/staging/pool_transactions_genesis.json`
 
 Responses can be formatted in either HTML or JSON formats. HTML formatting is selected when the `text/html` content type is requested according to the Accept header (as sent by web browsers) or the request query string is set to `?html`. JSON formatting is selected otherwise, and may be explitly selected by using the query string `?raw`. For most ledger requests, JSON responses include information regarding which nodes were contacted is returned in the `X-Requests` header.
