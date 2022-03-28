@@ -77,15 +77,15 @@ impl DidDocument {
              "id": format!("did:indy:{}:{}", self.namespace, self.id),
             "verificationMethod": [Ed25519VerificationKey2018 {
                 id: format!("did:indy:{}:{}#verkey", self.namespace, self.id),
-                type_: format!("Ed25519VerificationKey2018"),
+                type_: "Ed25519VerificationKey2018".to_string(),
                 controller: format!("did:indy:{}:{}", self.namespace, self.id),
-                public_key_base58: format!("{}", self.verkey),
+                public_key_base58: self.verkey.to_string(),
             }],
             "authentication": [format!("did:indy:{}:{}#verkey", self.namespace, self.id)],
         });
 
         if self.diddoc_content.is_some() {
-            let is_valid = validate_diddoc_content(&(self.diddoc_content.as_ref().unwrap()));
+            let is_valid = validate_diddoc_content(self.diddoc_content.as_ref().unwrap());
 
             if !is_valid {
                 debug!("Invalid DIDdoc Content, but validation won't be enforced.");
@@ -174,8 +174,8 @@ fn merge_diddoc(base: &mut SJsonValue, content: &SJsonValue) {
 }
 
 fn expand_verkey(id: &str, verkey: &str) -> String {
-    if verkey.starts_with('~') {
-        format!("{}{}", id, &verkey[1..])
+    if let Some(stripped) = verkey.strip_prefix('~') {
+        format!("{}{}", id, stripped)
     } else {
         verkey.to_string()
     }
