@@ -94,7 +94,7 @@ impl<T: Pool> PoolResolver<T> {
 
 /// DID (URL) Resolver interface using callbacks for a PoolRunner compliant with did:indy method spec
 /// The PoolRunnerResolver is used for the FFI.
-/// Note that the PoolRunnerResolver does not fetch an ATTRIB txn for legacy endpoint resolution. 
+/// Note that the PoolRunnerResolver does not fetch an ATTRIB txn for legacy endpoint resolution.
 /// If you need to use the PoolRunnerResolver, please have a look at the Python wrapper to see how
 /// legacy endpoints can be resolved.
 pub struct PoolRunnerResolver<'a> {
