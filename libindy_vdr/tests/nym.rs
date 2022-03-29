@@ -326,7 +326,7 @@ mod send {
         assert_eq!(expected_data, serde_json::to_value(data).unwrap());
     }
 
-    // #[cfg(feature = "local_nodes_pool_did_indy")]
+    #[cfg(feature = "local_nodes_pool_did_indy")]
     #[rstest]
     fn test_pool_send_nym_request_with_version_2_fails(
         pool: TestPool,
