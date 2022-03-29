@@ -50,7 +50,7 @@ pub fn identity() -> Identity {
     Identity::new(None, None)
 }
 
-// FIXME: Use commented method, as soon as indy-utils is updated
+// FIXME: Uncomment as soon as indy-utils is updated
 // #[fixture]
 // // did:indy self-certified DID
 // pub fn identity_v2() -> Identity {
