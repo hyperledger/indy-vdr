@@ -188,7 +188,7 @@ mod builder {
 }
 
 #[cfg(test)]
-#[cfg(feature = "local_nodes_pool")]
+// #[cfg(feature = "local_nodes_pool")]
 mod send {
     use super::*;
     use crate::utils::pool::TestPool;
@@ -326,6 +326,190 @@ mod send {
         assert_eq!(expected_data, serde_json::to_value(data).unwrap());
     }
 
+    // #[cfg(feature = "local_nodes_pool_did_indy")]
+    #[rstest]
+    fn test_pool_send_nym_request_with_version_2_fails(
+        pool: TestPool,
+        trustee: Identity,
+        identity: Identity,
+    ) {
+        // Send NYM
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(
+                &trustee.did,
+                &identity.did, // Self-cert version 1 identifier
+                Some(identity.verkey.to_string()),
+                Some(ALIAS.to_string()),
+                Some(ROLE.to_string()),
+                None,
+                Some(2), // Claim Self-cert version 2
+            )
+            .unwrap();
+
+        let _err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap_err();
+    }
+
+    #[cfg(feature = "local_nodes_pool_did_indy")]
+    #[rstest]
+    fn test_pool_send_nym_request_with_non_self_cert_did_fails(
+        pool: TestPool,
+        trustee: Identity,
+        non_self_cert_identity: Identity,
+    ) {
+        // Send NYM
+        let identity = non_self_cert_identity;
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(
+                &trustee.did,
+                &identity.did, // Non self-cert identifier
+                Some(identity.verkey.to_string()),
+                Some(ALIAS.to_string()),
+                Some(ROLE.to_string()),
+                None,
+                Some(2), // Claim Self-cert version 2
+            )
+            .unwrap();
+
+        let _err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap_err();
+    }
+
+    #[rstest]
+    fn test_pool_send_nym_request_with_non_self_cert_did_works(
+        pool: TestPool,
+        trustee: Identity,
+        non_self_cert_identity: Identity,
+    ) {
+        // Send NYM
+        let identity = non_self_cert_identity;
+        println!("DID: {}", identity.did);
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(
+                &trustee.did,
+                &identity.did, // Non self-cert identifier
+                Some(identity.verkey.to_string()),
+                Some(ALIAS.to_string()),
+                Some(ROLE.to_string()),
+                None,
+                None,
+            )
+            .unwrap();
+
+        let _err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+    }
+
+    #[cfg(feature = "local_nodes_pool_did_indy")]
+    #[rstest]
+    fn test_pool_send_nym_request_with_version_0_works(
+        pool: TestPool,
+        trustee: Identity,
+        identity: Identity,
+    ) {
+        // Send NYM
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(
+                &trustee.did,
+                &identity.did, // Self-cert version 1 identifier
+                Some(identity.verkey.to_string()),
+                Some(ALIAS.to_string()),
+                Some(ROLE.to_string()),
+                None,
+                Some(0), // Claim Self-cert version 0
+            )
+            .unwrap();
+
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+
+        // Get NYM
+        let get_nym_request = pool
+            .request_builder()
+            .build_get_nym_request(None, &identity.did, None, None)
+            .unwrap();
+
+        let response = pool
+            .send_request_with_retries(&get_nym_request, &nym_response)
+            .unwrap();
+
+        let expected_data = json!({
+            "identifier": &trustee.did,
+            "dest": &identity.did,
+            "verkey": &identity.verkey,
+            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "version": 0,
+        });
+
+        let data: GetNymResultV1 = serde_json::from_str(
+            helpers::get_response_data(&response)
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(expected_data, serde_json::to_value(data).unwrap());
+    }
+
+    // FIXME: Uncomment as soon as indy-utils is updated
+    // #[cfg(feature = "local_nodes_pool_did_indy")]
+    // #[rstest]
+    // fn test_pool_send_nym_request_with_version_2_works(
+    //     pool: TestPool,
+    //     trustee: Identity,
+    //     identity_v2: Identity,
+    //     diddoc_content: serde_json::Value,
+    // ) {
+    //     // Send NYM
+    //     let identity = identity_v2;
+    //     let mut nym_request = pool
+    //         .request_builder()
+    //         .build_nym_request(
+    //             &trustee.did,
+    //             &identity.did,
+    //             Some(identity.verkey.to_string()),
+    //             Some(ALIAS.to_string()),
+    //             Some(ROLE.to_string()),
+    //             Some(&diddoc_content),
+    //             Some(2),
+    //         )
+    //         .unwrap();
+
+    //     let nym_response =
+    //         helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+
+    //     // Get NYM
+    //     let get_nym_request = pool
+    //         .request_builder()
+    //         .build_get_nym_request(None, &identity.did, None, None)
+    //         .unwrap();
+
+    //     let response = pool
+    //         .send_request_with_retries(&get_nym_request, &nym_response)
+    //         .unwrap();
+
+    //     let expected_data = json!({
+    //         "identifier": &trustee.did,
+    //         "dest": &identity.did,
+    //         "verkey": &identity.verkey,
+    //         "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+    //         "diddocContent": &diddoc_content.to_string(),
+    //         "version": 2,
+    //     });
+
+    //     let data: GetNymResultV1 = serde_json::from_str(
+    //         helpers::get_response_data(&response)
+    //             .unwrap()
+    //             .as_str()
+    //             .unwrap(),
+    //     )
+    //     .unwrap();
+
+    //     assert_eq!(expected_data, serde_json::to_value(data).unwrap());
+    // }
+
     #[rstest(
         role,
         case("STEWARD"),
@@ -339,7 +523,7 @@ mod send {
         trustee: Identity,
         role: &str,
     ) {
-        let new_identity = Identity::new(None);
+        let new_identity = Identity::new(None, None);
 
         // Send NYM
         let mut nym_request = pool
@@ -492,7 +676,7 @@ mod send {
     #[rstest]
     fn test_pool_send_nym_request_for_wrong_signer_role(pool: TestPool) {
         let identity = helpers::new_ledger_identity(&pool, None);
-        let new_identity = Identity::new(None);
+        let new_identity = Identity::new(None, None);
 
         // Send NYM
         let mut nym_request = pool
