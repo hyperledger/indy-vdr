@@ -75,8 +75,9 @@ RUN gem install --no-document rake fpm
 RUN apt-get -y autoremove \
     && rm -rf /var/lib/apt/lists/*
 
-# Download, build and install indy-node
-RUN git clone --single-branch --branch feature/did-indy-new https://github.com/indicio-tech/indy-node && \
+# Download, build and install indy-node. Will invalidate cache if new HEAD
+ADD https://api.github.com/repos/domwoe/indy-node/git/refs/heads/feature/did-indy-new version.json
+RUN git clone --single-branch -b feature/did-indy-new https://github.com/domwoe/indy-node.git && \
     pip install -e indy-node
 
 
@@ -140,7 +141,9 @@ GENESIS_DIR = '/var/lib/indy'\n\
 BACKUP_DIR = '/var/lib/indy/backup'\n\
 PLUGINS_DIR = '/var/lib/indy/plugins'\n\
 NODE_INFO_DIR = '/var/lib/indy'\n\
-NETWORK_NAME = 'sandbox'\n"\
+NETWORK_NAME = 'sandbox'\n\
+LOG_LEVEL = 'DEBUG'\n\
+logLevel = 'DEBUG'\n"\
 >> /etc/indy/indy_config.py
 
 ARG pool_ip=127.0.0.1
