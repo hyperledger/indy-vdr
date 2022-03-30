@@ -53,21 +53,45 @@ impl<T: Pool> PoolResolver<T> {
         let did = DidUrl::parse(did)?;
         let (data, metadata) = self._resolve(&did).await?;
 
-        let diddoc = match data {
-            Result::DidDocument(mut doc) => {
-                // Try to find legacy endpoint using a GET_ATTRIB txn if diddoc_content is none
-                if doc.diddoc_content.is_none() {
-                    doc.endpoint = fetch_legacy_endpoint(&self.pool, &did.id).await.ok();
-                }
-                Some(doc.to_value()?)
-            }
-            _ => None,
-        };
-
         let md = if let Metadata::DidDocumentMetadata(md) = metadata {
             Some(md)
         } else {
             None
+        };
+
+        let diddoc = match data {
+            Result::DidDocument(mut doc) => {
+                // Try to find legacy endpoint using a GET_ATTRIB txn if diddoc_content is none
+                if doc.diddoc_content.is_none() {
+                    let (seq_no, timestamp) = if let Some(md) = &md {
+                        let j_seq_no = &md.node_response["result"]["seqNo"];
+                        let j_timestamp = &md.node_response["result"]["timestamp"];
+
+                        let mut seq_no = None;
+                        let mut timestamp = None;
+
+                        if *j_seq_no != serde_json::Value::Null {
+                            seq_no = j_seq_no.as_u64().map(|v| v as i32);
+                        }
+
+                        if *j_timestamp != serde_json::Value::Null {
+                            timestamp = j_timestamp.as_u64();
+                            // Use timestamp if possible
+                            if timestamp.is_some() {
+                                seq_no = None;
+                            }
+                        }
+                        (seq_no, timestamp)
+                    } else {
+                        (None, None)
+                    };
+                    doc.endpoint = fetch_legacy_endpoint(&self.pool, &did.id, seq_no, timestamp)
+                        .await
+                        .ok();
+                }
+                Some(doc.to_value()?)
+            }
+            _ => None,
         };
 
         let result = ResolutionResult {
@@ -83,7 +107,10 @@ impl<T: Pool> PoolResolver<T> {
     async fn _resolve(&self, did_url: &DidUrl) -> VdrResult<(Result, Metadata)> {
         let builder = self.pool.get_request_builder();
         let request = build_request(did_url, &builder)?;
-
+        debug!(
+            "PoolResolver: Prepared Request for DID {}: {:#?}",
+            did_url.id, request
+        );
         let ledger_data = handle_request(&self.pool, &request).await?;
         let namespace = did_url.namespace.clone();
         let result = handle_internal_resolution_result(namespace.as_str(), &ledger_data)?;
