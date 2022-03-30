@@ -176,6 +176,8 @@ impl RequestBuilder {
     }
 
     /// Build a `GET_ATTRIB` transaction request
+    /// seq_no and timestamp are only supported for did:indy compliant ledgers
+    /// Use only one of seq_no and timestamp
     pub fn build_get_attrib_request(
         &self,
         identifier: Option<&DidValue>,
@@ -183,8 +185,10 @@ impl RequestBuilder {
         raw: Option<String>,
         hash: Option<String>,
         enc: Option<String>,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
     ) -> VdrResult<PreparedRequest> {
-        let operation = GetAttribOperation::new(dest.to_short(), raw, hash, enc);
+        let operation = GetAttribOperation::new(dest.to_short(), raw, hash, enc, seq_no, timestamp);
         self.build(operation, identifier)
     }
 
