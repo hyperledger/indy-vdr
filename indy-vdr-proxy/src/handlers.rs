@@ -480,7 +480,8 @@ pub async fn handle_request<T: Pool>(
 
     let resolver_regex = Regex::new("/1.0/identifiers/(.*)").unwrap();
 
-    let captures = resolver_regex.captures(req.uri().path());
+    let uri = req.uri().to_string();
+    let captures = resolver_regex.captures(uri.as_str());
     let did = if let Some(cap) = captures {
         Some(cap.get(1).unwrap().as_str())
     } else {
