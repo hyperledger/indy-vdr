@@ -110,9 +110,11 @@ pub extern "C" fn indy_vdr_build_attrib_request(
 pub extern "C" fn indy_vdr_build_get_attrib_request(
     submitter_did: FfiStr, // optional
     target_did: FfiStr,
-    raw: FfiStr,  // optional
-    hash: FfiStr, // optional
-    enc: FfiStr,  // optional
+    raw: FfiStr,    // optional
+    hash: FfiStr,   // optional
+    enc: FfiStr,    // optional
+    seq_no: i32,    // optional, -1 for None
+    timestamp: i64, // optional, -1 for None
     handle_p: *mut RequestHandle,
 ) -> ErrorCode {
     catch_err! {
@@ -127,7 +129,9 @@ pub extern "C" fn indy_vdr_build_get_attrib_request(
         let raw = raw.into_opt_string();
         let hash = hash.into_opt_string();
         let enc = enc.into_opt_string();
-        let req = builder.build_get_attrib_request(identifier.as_ref(), &dest, raw, hash, enc)?;
+        let seq_no = if seq_no == -1 { None } else { Some(seq_no) };
+        let timestamp = if timestamp == -1 { None } else { Some(timestamp as u64) };
+        let req = builder.build_get_attrib_request(identifier.as_ref(), &dest, raw, hash, enc, seq_no, timestamp)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;

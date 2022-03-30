@@ -291,7 +291,13 @@ fn get_pool_status(state: Rc<RefCell<AppState>>, namespace: &str) -> VdrResult<R
     Ok(ResponseType::Json(result))
 }
 
-async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str) -> VdrResult<ResponseType> {
+async fn get_attrib<T: Pool>(
+    pool: &T,
+    dest: &str,
+    raw: &str,
+    seq_no: Option<i32>,
+    timestamp: Option<u64>,
+) -> VdrResult<ResponseType> {
     let dest = DidValue::from_str(dest)?;
     let request = pool.get_request_builder().build_get_attrib_request(
         None,
@@ -299,6 +305,8 @@ async fn get_attrib<T: Pool>(pool: &T, dest: &str, raw: &str) -> VdrResult<Respo
         Some(raw.to_string()),
         None,
         None,
+        seq_no,
+        timestamp,
     )?;
     let result = perform_ledger_request(pool, &request).await?;
     Ok(result.into())
@@ -560,7 +568,13 @@ pub async fn handle_request<T: Pool>(
             (&Method::GET, "attrib") => {
                 if let (Some(dest), Some(attrib)) = (parts.next(), parts.next()) {
                     // NOTE: 'endpoint' is currently the only supported attribute
-                    get_attrib(&pool, &*dest, &*attrib).await
+                    let seq_no: Option<i32> = query_params
+                        .get("seq_no")
+                        .and_then(|seq_no| seq_no.as_str().parse().ok());
+                    let timestamp: Option<u64> = query_params
+                        .get("timestamp")
+                        .and_then(|ts| ts.as_str().parse().ok());
+                    get_attrib(&pool, &*dest, &*attrib, seq_no, timestamp).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
