@@ -135,6 +135,8 @@ mod builder {
                     Some(ATTRIB_RAW_DATA_FIELD.to_string()),
                     None,
                     None,
+                    None,
+                    None,
                 )
                 .unwrap();
 
@@ -158,6 +160,8 @@ mod builder {
                     &my_did,
                     None,
                     Some(ATTRIB_HASH_DATA.to_string()),
+                    None,
+                    None,
                     None,
                 )
                 .unwrap();
@@ -183,6 +187,8 @@ mod builder {
                     None,
                     None,
                     Some(ATTRIB_ENC_DATA.to_string()),
+                    None,
+                    None,
                 )
                 .unwrap();
 
@@ -208,6 +214,8 @@ mod builder {
                     None,
                     None,
                     Some(ATTRIB_ENC_DATA.to_string()),
+                    None,
+                    None,
                 )
                 .unwrap();
 
@@ -257,6 +265,8 @@ mod send_attrib {
                 Some(ATTRIB_RAW_DATA_FIELD.to_string()),
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap();
 
@@ -297,6 +307,8 @@ mod send_attrib {
                 &identity.did,
                 None,
                 Some(ATTRIB_HASH_DATA.to_string()),
+                None,
+                None,
                 None,
             )
             .unwrap();
@@ -339,6 +351,8 @@ mod send_attrib {
                 None,
                 None,
                 Some(ATTRIB_ENC_DATA.to_string()),
+                None,
+                None,
             )
             .unwrap();
 
@@ -398,6 +412,8 @@ mod send_attrib {
                 None,
                 &identity.did,
                 Some(ATTRIB_RAW_DATA_FIELD.to_string()),
+                None,
+                None,
                 None,
                 None,
             )
