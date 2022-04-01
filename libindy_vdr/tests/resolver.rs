@@ -50,7 +50,7 @@ mod send_resolver {
             .request_builder()
             .build_get_nym_request(None, &identity.did, None, None)
             .unwrap();
-    
+
         let _response = pool
             .send_request_with_retries(&get_nym_request, &nym_response)
             .unwrap();
