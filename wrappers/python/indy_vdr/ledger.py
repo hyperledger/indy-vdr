@@ -217,6 +217,8 @@ def build_get_attrib_request(
     raw: Optional[str],
     xhash: Optional[str],
     enc: Optional[str],
+    seq_no: Optional[int],
+    timestamp: Optional[int],
 ) -> str:
     """
     Builds a GET_ATTRIB request.
@@ -230,6 +232,8 @@ def build_get_attrib_request(
         xhash: (Optional) Requested attribute name.
         raw: (Optional) Requested attribute hash.
         enc: (Optional) Requested attribute encrypted value.
+        seq_no: (Optional) Version of NYM as sepecified by txn sequence number
+        timestamp: (Optional) Version of NYM as sepecified by timestamp
     """
 
     handle = RequestHandle()
@@ -238,6 +242,8 @@ def build_get_attrib_request(
     raw_p = encode_str(raw)
     hash_p = encode_str(xhash)
     enc_p = encode_str(enc)
+    seq_no_c = c_int32(seq_no if seq_no is not None else -1)
+    timestamp_c = c_int64(timestamp if timestamp is not None else -1)
     do_call(
         "indy_vdr_build_get_attrib_request",
         did_p,
@@ -245,6 +251,8 @@ def build_get_attrib_request(
         raw_p,
         hash_p,
         enc_p,
+        seq_no_c,
+        timestamp_c,
         byref(handle),
     )
     return Request(handle)

@@ -268,7 +268,12 @@ pub async fn request_transaction<T: Pool>(
 }
 
 /// Fetch legacy service endpoint using ATTRIB tx
-pub async fn fetch_legacy_endpoint<T: Pool>(pool: &T, did: &DidValue) -> VdrResult<Endpoint> {
+pub async fn fetch_legacy_endpoint<T: Pool>(
+    pool: &T,
+    did: &DidValue,
+    seq_no: Option<i32>,
+    timestamp: Option<u64>,
+) -> VdrResult<Endpoint> {
     let builder = pool.get_request_builder();
     let request = builder.build_get_attrib_request(
         None,
@@ -276,7 +281,13 @@ pub async fn fetch_legacy_endpoint<T: Pool>(pool: &T, did: &DidValue) -> VdrResu
         Some(String::from(LEGACY_INDY_SERVICE)),
         None,
         None,
+        seq_no,
+        timestamp,
     )?;
+    debug!(
+        "Fetching legacy endpoint for {} with request {:#?}",
+        did, request
+    );
     let ledger_data = handle_request(pool, &request).await?;
     let (_, _, endpoint_data) = parse_ledger_data(&ledger_data)?;
     let endpoint_data: Endpoint = serde_json::from_str(endpoint_data.as_str().unwrap())

@@ -69,7 +69,12 @@ class Resolver:
         # associated ATTRIB endpoints. We can't handle in this in libindy_vdr directly. 
         if not diddoc_content:
             unqualified_did = reply_data["dest"]
-            req = build_get_attrib_request(None, unqualified_did, "endpoint", None, None)
+            # Find out if specific version was requested
+            seq_no = result["didDocumentMetadata"]["nodeResponse"]["result"].get("seqNo", None)
+            timestamp = result["didDocumentMetadata"]["nodeResponse"]["result"].get("timestamp", None)
+            if timestamp:
+                seq_no = None
+            req = build_get_attrib_request(None, unqualified_did, "endpoint", None, None, seq_no, timestamp)
             res = await pool.submit_request(req)
             data = res.get("data", None)
             if data:
