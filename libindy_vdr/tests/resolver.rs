@@ -42,8 +42,18 @@ mod send_resolver {
             )
             .unwrap();
 
-        let _nym_response =
+        let nym_response =
             helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+
+        // Get NYM to make sure it was written before it gets resolved
+        let get_nym_request = pool
+            .request_builder()
+            .build_get_nym_request(None, &identity.did, None, None)
+            .unwrap();
+    
+        let _response = pool
+            .send_request_with_retries(&get_nym_request, &nym_response)
+            .unwrap();
 
         // Resolve DID
         let resolver = Resolver::new(pool.pool);
