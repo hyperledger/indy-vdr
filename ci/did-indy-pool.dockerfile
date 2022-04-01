@@ -141,9 +141,7 @@ GENESIS_DIR = '/var/lib/indy'\n\
 BACKUP_DIR = '/var/lib/indy/backup'\n\
 PLUGINS_DIR = '/var/lib/indy/plugins'\n\
 NODE_INFO_DIR = '/var/lib/indy'\n\
-NETWORK_NAME = 'sandbox'\n\
-LOG_LEVEL = 'DEBUG'\n\
-logLevel = 'DEBUG'\n"\
+NETWORK_NAME = 'sandbox'\n"\
 >> /etc/indy/indy_config.py
 
 ARG pool_ip=127.0.0.1
