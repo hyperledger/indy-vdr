@@ -75,8 +75,9 @@ RUN gem install --no-document rake fpm
 RUN apt-get -y autoremove \
     && rm -rf /var/lib/apt/lists/*
 
-# Download, build and install indy-node
-RUN git clone --single-branch --branch feature/did-indy-new https://github.com/indicio-tech/indy-node && \
+# Download, build and install indy-node. Will invalidate cache if new HEAD
+ADD https://api.github.com/repos/domwoe/indy-node/git/refs/heads/feature/did-indy-new version.json
+RUN git clone --single-branch -b feature/did-indy-new https://github.com/domwoe/indy-node.git && \
     pip install -e indy-node
 
 

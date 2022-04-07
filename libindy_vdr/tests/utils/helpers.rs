@@ -33,7 +33,7 @@ pub fn get_response_data(response: &str) -> Result<serde_json::Value, String> {
 
 pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
     let trustee = Identity::trustee();
-    let new_identity = Identity::new(None);
+    let new_identity = Identity::new(None, None);
 
     // Send NYM
     let mut nym_request = pool

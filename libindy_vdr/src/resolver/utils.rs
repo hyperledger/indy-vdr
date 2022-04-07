@@ -12,13 +12,13 @@ use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, S
 use crate::ledger::responses::{Endpoint, GetNymResultV1};
 use crate::ledger::RequestBuilder;
 use crate::pool::helpers::perform_ledger_request;
-use crate::pool::{Pool, PoolRunner, PreparedRequest, RequestResult, TimingResult};
+use crate::pool::{Pool, PreparedRequest, RequestResult, TimingResult};
 use crate::utils::did::DidValue;
 use crate::utils::Qualifiable;
 
 pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<PreparedRequest> {
     let request = if did.path.is_some() {
-        match LedgerObject::from_str(did.path.as_ref().unwrap().as_str())? {
+        match LedgerObject::parse(did.path.as_ref().unwrap().as_str())? {
             LedgerObject::Schema(schema) => builder.build_get_schema_request(
                 None,
                 &SchemaId::new(&did.id, &schema.name, &schema.version),
@@ -153,12 +153,16 @@ pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<Prepar
     request
 }
 
-pub fn handle_resolution_result(
+pub fn handle_internal_resolution_result(
     namespace: &str,
     ledger_data: &str,
-    txn_type: &str,
 ) -> VdrResult<(Result, Metadata)> {
-    let data = parse_ledger_data(&ledger_data)?;
+    let (node_response, txn_type, data) = parse_ledger_data(ledger_data)?;
+    let txn_type = txn_type
+        .as_str()
+        .ok_or("Unknown")
+        .unwrap()
+        .trim_matches('"');
     Ok(match txn_type {
         constants::GET_NYM => {
             let get_nym_result: GetNymResultV1 = serde_json::from_str(data.as_str().unwrap())
@@ -175,7 +179,7 @@ pub fn handle_resolution_result(
             );
 
             let metadata = Metadata::DidDocumentMetadata(DidDocumentMetadata {
-                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                node_response,
                 object_type: String::from("NYM"),
                 self_certification_version: get_nym_result.version,
             });
@@ -185,52 +189,51 @@ pub fn handle_resolution_result(
         constants::GET_CRED_DEF => (
             Result::Content(data),
             Metadata::ContentMetadata(ContentMetadata {
-                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                node_response,
                 object_type: String::from("CRED_DEF"),
             }),
         ),
         constants::GET_SCHEMA => (
             Result::Content(data),
             Metadata::ContentMetadata(ContentMetadata {
-                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                node_response,
                 object_type: String::from("SCHEMA"),
             }),
         ),
         constants::GET_REVOC_REG_DEF => (
             Result::Content(data),
             Metadata::ContentMetadata(ContentMetadata {
-                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                node_response,
                 object_type: String::from("REVOC_REG_DEF"),
             }),
         ),
         constants::GET_REVOC_REG_DELTA => (
             Result::Content(data),
             Metadata::ContentMetadata(ContentMetadata {
-                node_response: serde_json::from_str(&ledger_data).unwrap(),
+                node_response,
                 object_type: String::from("REVOC_REG_DELTA"),
             }),
         ),
         _ => (
             Result::Content(data),
             Metadata::ContentMetadata(ContentMetadata {
-                node_response: serde_json::from_str(&ledger_data).unwrap(),
-                object_type: String::from("REVOC_REG_DELTA"),
+                node_response,
+                object_type: String::from("Unknown"),
             }),
         ),
     })
 }
 
-pub fn parse_ledger_data(ledger_data: &str) -> VdrResult<SJsonValue> {
-    let v: SJsonValue = serde_json::from_str(&ledger_data)
+pub fn parse_ledger_data(ledger_data: &str) -> VdrResult<(SJsonValue, SJsonValue, SJsonValue)> {
+    let v: SJsonValue = serde_json::from_str(ledger_data)
         .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse ledger response"))?;
-    let data: &SJsonValue = &v["result"]["data"];
-    if *data == SJsonValue::Null {
-        Err(err_msg(
-            VdrErrorKind::Resolver,
-            format!("Empty data in ledger response"),
-        ))
+    // Unwrap should be safe here
+    let txn_type = (&v["result"]["type"]).to_owned();
+    let data = (&v["result"]["data"]).to_owned();
+    if data == SJsonValue::Null {
+        Err(err_msg(VdrErrorKind::Resolver, "Object not found"))
     } else {
-        Ok(data.to_owned())
+        Ok((v, txn_type, data))
     }
 }
 
@@ -250,7 +253,7 @@ pub fn parse_or_now(datetime: Option<&String>) -> VdrResult<i64> {
 }
 
 pub async fn handle_request<T: Pool>(pool: &T, request: &PreparedRequest) -> VdrResult<String> {
-    let (result, _timing) = request_transaction(pool, &request).await?;
+    let (result, _timing) = request_transaction(pool, request).await?;
     match result {
         RequestResult::Reply(data) => Ok(data),
         RequestResult::Failed(error) => Err(error),
@@ -261,11 +264,16 @@ pub async fn request_transaction<T: Pool>(
     pool: &T,
     request: &PreparedRequest,
 ) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
-    perform_ledger_request(pool, &request).await
+    perform_ledger_request(pool, request).await
 }
 
 /// Fetch legacy service endpoint using ATTRIB tx
-pub async fn fetch_legacy_endpoint<T: Pool>(pool: &T, did: &DidValue) -> VdrResult<Endpoint> {
+pub async fn fetch_legacy_endpoint<T: Pool>(
+    pool: &T,
+    did: &DidValue,
+    seq_no: Option<i32>,
+    timestamp: Option<u64>,
+) -> VdrResult<Endpoint> {
     let builder = pool.get_request_builder();
     let request = builder.build_get_attrib_request(
         None,
@@ -273,42 +281,18 @@ pub async fn fetch_legacy_endpoint<T: Pool>(pool: &T, did: &DidValue) -> VdrResu
         Some(String::from(LEGACY_INDY_SERVICE)),
         None,
         None,
+        seq_no,
+        timestamp,
     )?;
+    debug!(
+        "Fetching legacy endpoint for {} with request {:#?}",
+        did, request
+    );
     let ledger_data = handle_request(pool, &request).await?;
-    let endpoint_data = parse_ledger_data(&ledger_data)?;
+    let (_, _, endpoint_data) = parse_ledger_data(&ledger_data)?;
     let endpoint_data: Endpoint = serde_json::from_str(endpoint_data.as_str().unwrap())
         .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse endpoint data"))?;
     Ok(endpoint_data)
-}
-
-pub fn fetch_legacy_endpoint_with_runner(
-    runner: &PoolRunner,
-    did: &DidValue,
-    callback: Callback<VdrResult<Endpoint>>,
-) -> VdrResult<()> {
-    let builder = RequestBuilder::default();
-    let request = builder.build_get_attrib_request(
-        None,
-        did,
-        Some(String::from(LEGACY_INDY_SERVICE)),
-        None,
-        None,
-    )?;
-    runner.send_request(
-        request,
-        Box::new(move |result| match result {
-            Ok((res, _)) => match res {
-                RequestResult::Reply(reply_data) => {
-                    let endpoint_data = parse_ledger_data(&reply_data).unwrap();
-                    let endpoint_data: Endpoint =
-                        serde_json::from_str(endpoint_data.as_str().unwrap()).unwrap();
-                    callback(Ok(endpoint_data));
-                }
-                RequestResult::Failed(err) => callback(Err(err)),
-            },
-            Err(err) => callback(Err(err)),
-        }),
-    )
 }
 
 #[cfg(test)]
@@ -333,7 +317,7 @@ mod tests {
     fn build_get_revoc_reg_request_from_version_time(request_builder: RequestBuilder) {
         let datetime_as_str = "2020-12-20T19:17:47Z";
         let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54?versionTime={}",datetime_as_str);
-        let did_url = DidUrl::from_str(&did_url_as_str).unwrap();
+        let did_url = DidUrl::parse(&did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
         let timestamp = (*(request.req_json).get("operation").unwrap())
             .get("timestamp")
@@ -355,7 +339,7 @@ mod tests {
         let now = OffsetDateTime::now_utc().unix_timestamp();
 
         let did_url_as_str = "did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54";
-        let did_url = DidUrl::from_str(did_url_as_str).unwrap();
+        let did_url = DidUrl::parse(did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
         let timestamp = (*(request.req_json).get("operation").unwrap())
             .get("timestamp")
@@ -373,7 +357,7 @@ mod tests {
     ) {
         let datetime_as_str = "20201220T19:17:47Z";
         let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54?versionTime={}",datetime_as_str);
-        let did_url = DidUrl::from_str(&did_url_as_str).unwrap();
+        let did_url = DidUrl::parse(&did_url_as_str).unwrap();
         let _err = build_request(&did_url, &request_builder).unwrap_err();
     }
 
@@ -382,7 +366,7 @@ mod tests {
         let from_as_str = "2019-12-20T19:17:47Z";
         let to_as_str = "2020-12-20T19:17:47Z";
         let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54?from={}&to={}",from_as_str, to_as_str);
-        let did_url = DidUrl::from_str(&did_url_as_str).unwrap();
+        let did_url = DidUrl::parse(&did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
         assert_eq!(request.txn_type, constants::GET_REVOC_REG_DELTA);
     }
@@ -392,7 +376,7 @@ mod tests {
         let now = OffsetDateTime::now_utc().unix_timestamp();
         let from_as_str = "2019-12-20T19:17:47Z";
         let did_url_as_str = format!("did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_ENTRY/104/revocable/a4e25e54?from={}",from_as_str);
-        let did_url = DidUrl::from_str(&did_url_as_str).unwrap();
+        let did_url = DidUrl::parse(&did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
 
         let to = (*(request.req_json).get("operation").unwrap())
@@ -408,7 +392,7 @@ mod tests {
     fn build_get_revoc_reg_delta_request_without_parameter(request_builder: RequestBuilder) {
         let now = OffsetDateTime::now_utc().unix_timestamp();
         let did_url_as_str = "did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/REV_REG_DELTA/104/revocable/a4e25e54";
-        let did_url = DidUrl::from_str(did_url_as_str).unwrap();
+        let did_url = DidUrl::parse(did_url_as_str).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
 
         let to = (*(request.req_json).get("operation").unwrap())
@@ -432,7 +416,7 @@ mod tests {
             encoded_schema_name
         );
 
-        let did_url = DidUrl::from_str(did_url_string.as_str()).unwrap();
+        let did_url = DidUrl::parse(did_url_string.as_str()).unwrap();
         let request = build_request(&did_url, &request_builder).unwrap();
         let schema_name = (*(request.req_json).get("operation").unwrap())
             .get("data")

@@ -17,7 +17,6 @@ class VdrErrorCode(IntEnum):
     POOL_TIMEOUT = 32
     WRAPPER = 99
     RESOLVER = 9
-    
 
 
 class VdrError(Exception):

@@ -51,6 +51,10 @@ pub struct GetAttribOperation {
     pub hash: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seq_no: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<u64>,
 }
 
 impl GetAttribOperation {
@@ -59,6 +63,8 @@ impl GetAttribOperation {
         raw: Option<String>,
         hash: Option<String>,
         enc: Option<String>,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
     ) -> GetAttribOperation {
         GetAttribOperation {
             _type: Self::get_txn_type().to_string(),
@@ -66,6 +72,8 @@ impl GetAttribOperation {
             raw,
             hash,
             enc,
+            seq_no,
+            timestamp,
         }
     }
 }
