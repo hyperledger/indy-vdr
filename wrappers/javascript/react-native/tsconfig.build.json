@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.build.json",
+  "compilerOptions": {
+    "outDir": "./build",
+    "skipLibCheck": true,
+    "types": ["react-native"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["example"]
+}

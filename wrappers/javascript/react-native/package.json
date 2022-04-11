@@ -1,0 +1,79 @@
+{
+  "name": "indy-vdr-react-native",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "React Native wrapper for Indy Vdr",
+  "react-native": "lib/index.js",
+  "source": "src/index",
+  "main": "lib/index.js",
+  "homepage": "https://github.com/hyperledger/indy-vdr/tree/main/wrappers/javascript/react-native",
+  "author": "Hyperledger (https://github.com/hyperledger)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyperledger/indy-vdr",
+    "directory": "wrappers/javascript/react-native"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "release-it": {
+    "github": {
+      "release": true
+    },
+    "npm": {
+      "skipCheck": true,
+      "ignoreVersion": true,
+      "tag": "latest"
+    },
+    "git": {
+      "push": false,
+      "commit": false,
+      "requireCommits": true,
+      "tagAnnotation": "${version}",
+      "requireBranch": "main"
+    }
+  },
+  "files": [
+    "android/src",
+    "android/libs",
+    "android/build.gradle",
+    "android/CMakeLists.txt",
+    "android/cpp-adapter.cpp",
+    "ios/**/*.h",
+    "ios/**/*.mm",
+    "ios/Frameworks",
+    "ios/indyVdrReactNative.xcodeproj/project.pbxproj",
+    "cpp/*.cpp",
+    "cpp/*.h",
+    "indy-vdr-react-native.podspec",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "check-types": "tsc --noEmit -p tsconfig.build.json",
+    "check-format": "yarn prettier --check",
+    "format": "yarn prettier --write",
+    "prettier": "prettier --ignore-path .gitignore '**/*+(.js|json|ts|md|yml|yaml)'",
+    "build": "yarn clean && yarn compile",
+    "clean": "rimraf -rf ./lib",
+    "compile": "tsc -p tsconfig.build.json",
+    "example": "yarn --cwd example",
+    "release": "release-it"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/react": "^16.9.19",
+    "@types/react-native": "^0.66.0",
+    "prettier": "2.6.2",
+    "react": "17.0.2",
+    "react-native": "0.67.2",
+    "typescript": "4.5.5",
+    "release-it": "14.13.1"
+  },
+  "peerDependencies": {
+    "indy-vdr-shared": "*",
+    "react": ">= 16",
+    "react-native": "=> 0.66.0"
+  }
+}
