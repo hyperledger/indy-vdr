@@ -47,12 +47,12 @@ indy-vdr-proxy -p <PORT> (-g <OPTIONAL_PATH_TO_GENESIS_FILE>)
 ```
 
 To start the proxy server with the standard configuration of indy ledgers use the following command:
-`indy-vdr-proxy -p <PORT> --multiple-ledgers`
+`indy-vdr-proxy -p <PORT> -- --multiple-ledgers`
 This will get the ledger configuration from `https://github.com/IDunion/indy-did-networks`
 
 A custom ledger configuration can be provided either by specificing a Github repo or a local folder:
 ```
-indy-vdr-proxy -p <PORT> --multiple-ledgers -g <GITHUB_URL or PATH_TO_FOLDER>
+indy-vdr-proxy -p <PORT> -g <GITHUB_URL or PATH_TO_FOLDER> -- --multiple-ledgers
 ```
 The structure needs to be as follows `<NAMESPACE>/OPTIONAL<SUB_NAMESPACE>/pool_transactions_genesis.json`, e.g. `/sovrin/staging/pool_transactions_genesis.json`
 
