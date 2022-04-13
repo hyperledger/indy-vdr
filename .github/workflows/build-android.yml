@@ -20,8 +20,6 @@ jobs:
       matrix:
         architecture: [aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android]
     steps:
-      - uses: actions/checkout@v2
-      - run: docker build ./docker -t ${{ matrix.architecture }}:with-zmq -f ./docker/${{ matrix.architecture }}.Dockerfile
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
@@ -31,7 +29,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.architecture}}
-          path: target/${{ matrix.architecture }}/release/lib${{ env.LIB_NAME }}.a
+          path: target/${{ matrix.architecture }}/release/lib${{ env.LIB_NAME }}.so
   create_android_library:
     name: Create android libs
     runs-on: ubuntu-latest
