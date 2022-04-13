@@ -19,7 +19,6 @@ add_library(
   cpp-adapter.cpp
   ../cpp/HostObject.cpp
   ../cpp/turboModuleUtility.cpp
-  ../cpp/nativeIndyVdr.cpp
   ../cpp/indyVdr.cpp
 )
 
