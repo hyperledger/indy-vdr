@@ -1,9 +1,14 @@
 #pragma once
 
-#include <libindy_vdr.h>
+#include <jsi/jsi.h>
+
+#include <indyVdr.h>
+#include <turboModuleUtility.h>
+
+using namespace facebook;
 
 namespace indyVdr {
 
-  const char* getVersion();
+jsi::Value getVersion(jsi::Runtime &rt, jsi::Object options);
 
 }

@@ -16,14 +16,15 @@ void assertValueIsObject(jsi::Runtime &rt, const jsi::Value *val) {
 }
 
 void handleError(jsi::Runtime &rt, ErrorCode code) {
-    int error_code = int(code);
+  int error_code = int(code);
 
-    if (error_code == 0) return;
+  if (error_code == 0)
+    return;
 
-    const char *error_message;
-    indy_vdr_get_current_error(&error_message);
+  const char *error_message;
+  indy_vdr_get_current_error(&error_message);
 
-    throw jsi::JSError(rt, error_message);
+  throw jsi::JSError(rt, error_message);
 };
 
 template <>
@@ -79,7 +80,6 @@ uint32_t jsiToValue<uint32_t>(jsi::Runtime &rt, jsi::Value value,
 
   throw jsi::JSError(rt, "Value is not of type number");
 }
-
 
 template <>
 std::vector<int32_t> jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt,
