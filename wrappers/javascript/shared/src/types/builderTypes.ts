@@ -7,6 +7,7 @@ export type PrepareTxnAuthorAgreementAcceptanceOptions = {
 }
 
 export type RequestSetSignatureOptions = {
+  requestHandle: number
   signature: number
   signatureLen: number
 }

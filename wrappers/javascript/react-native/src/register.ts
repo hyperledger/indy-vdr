@@ -1,4 +1,4 @@
-import { IndyVdrNativeBindings } from './turboModule'
+import { IndyVdrNativeBindings } from 'indy-vdr-shared'
 
 // @ts-ignore
 if (!global._indy_vdr) {
@@ -7,4 +7,4 @@ if (!global._indy_vdr) {
 
 declare var _indy_vdr: IndyVdrNativeBindings
 
-export const indyVdr = _indy_vdr
+export const indyVdrReactNative = _indy_vdr

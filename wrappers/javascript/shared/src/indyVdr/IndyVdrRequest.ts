@@ -33,26 +33,26 @@ export class IndyVdrRequest {
   }
 
   public get body(): Record<string, unknown> {
-    return indyVdr.requestGetBody(this._handle)
+    return indyVdr.requestGetBody({ requestHandle: this.handle })
   }
 
   public get signatureInput(): string {
-    return indyVdr.requestGetSignatureInput(this._handle)
+    return indyVdr.requestGetSignatureInput({ requestHandle: this.handle })
   }
 
   public setEndorser(options: RequestSetEndorserOptions): void {
-    indyVdr.requestSetEndorser(this._handle, options)
+    indyVdr.requestSetEndorser({ requestHandle: this.handle, ...options })
   }
 
   public setMultiSignature(options: RequestSetMultiSignatureOptions): void {
-    indyVdr.requestSetMultiSignature(this._handle, options)
+    indyVdr.requestSetMultiSignature({ requestHandle: this.handle, ...options })
   }
 
   public setTransactionAuthorAgreementAcceptance(options: RequestSetTxnAuthorAgreementAcceptanceOptions): void {
-    indyVdr.requestSetTxnAuthorAgreementAcceptance(this._handle, options)
+    indyVdr.requestSetTxnAuthorAgreementAcceptance({ requestHandle: this.handle, ...options })
   }
 
   public free(): void {
-    indyVdr.requestFree(this._handle)
+    indyVdr.requestFree({ requestHandle: this.handle })
   }
 }

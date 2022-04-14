@@ -26,8 +26,10 @@ import type {
   TransactionAuthorAgreementRequestOptions,
 } from '../builder'
 import type {
+  PoolHandle,
   PoolSubmitActionOptions,
   PoolSubmitRequestOptions,
+  RequestHandle,
   RequestSetEndorserOptions,
   RequestSetMultiSignatureOptions,
   RequestSetTxnAuthorAgreementAcceptanceOptions,
@@ -37,7 +39,7 @@ import type { PoolStatus, SubmitAction, SubmitRequest, Transactions, Verifiers }
 
 // TODO: proper documentation
 export interface IndyVdr {
-  get latestError(): string
+  getCurrentError(): string
 
   version(): string
 
@@ -99,33 +101,35 @@ export interface IndyVdr {
 
   poolCreate(options: PoolCreateOptions): number
 
-  poolRefresh(handle: number): Promise<void>
+  poolRefresh(options: { poolHandle: PoolHandle }): Promise<void>
 
-  poolGetStatus(handle: number): Promise<PoolStatus>
+  poolGetStatus(options: { poolHandle: PoolHandle }): Promise<PoolStatus>
 
-  poolGetTransactions(handle: number): Promise<Transactions>
+  poolGetTransactions(options: { poolHandle: PoolHandle }): Promise<Transactions>
 
-  poolGetVerifiers(handle: number): Promise<Verifiers>
+  poolGetVerifiers(options: { poolHandle: PoolHandle }): Promise<Verifiers>
 
-  poolSubmitAction(handle: number, options: PoolSubmitActionOptions): Promise<SubmitAction>
+  poolSubmitAction(options: PoolSubmitActionOptions & { poolHandle: PoolHandle }): Promise<SubmitAction>
 
-  poolSubmitRequest(handle: number, options: PoolSubmitRequestOptions): Promise<SubmitRequest>
+  poolSubmitRequest(options: PoolSubmitRequestOptions & { poolHandle: PoolHandle }): Promise<SubmitRequest>
 
-  poolClose(handle: number): void
+  poolClose(options: { poolHandle: number }): void
 
   prepareTxnAuthorAgreementAcceptance(options: PrepareTxnAuthorAgreementAcceptanceOptions): string
 
-  requestFree(handle: number): void
+  requestFree(options: { requestHandle: number }): void
 
-  requestGetBody<T extends Record<string, unknown>>(handle: number): T
+  requestGetBody<T extends Record<string, unknown>>(options: { requestHandle: number }): T
 
-  requestGetSignatureInput(handle: number): string
+  requestGetSignatureInput(options: { requestHandle: number }): string
 
-  requestSetEndorser(handle: number, options: RequestSetEndorserOptions): void
+  requestSetEndorser(options: RequestSetEndorserOptions & { requestHandle: RequestHandle }): void
 
-  requestSetMultiSignature(handle: number, options: RequestSetMultiSignatureOptions): void
+  requestSetMultiSignature(options: RequestSetMultiSignatureOptions & { requestHandle: RequestHandle }): void
 
-  requestSetSignature(handle: number, options: RequestSetSignatureOptions): void
+  requestSetSignature(options: RequestSetSignatureOptions & { requestHandle: RequestHandle }): void
 
-  requestSetTxnAuthorAgreementAcceptance(handle: number, options: RequestSetTxnAuthorAgreementAcceptanceOptions): void
+  requestSetTxnAuthorAgreementAcceptance(
+    options: RequestSetTxnAuthorAgreementAcceptanceOptions & { requestHandle: RequestHandle }
+  ): void
 }

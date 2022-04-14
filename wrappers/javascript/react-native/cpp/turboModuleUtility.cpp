@@ -21,14 +21,16 @@ void handleError(jsi::Runtime &rt, ErrorCode code) {
   if (error_code == 0)
     return;
 
-  const char *error_message;
-  indy_vdr_get_current_error(&error_message);
+  jsi::Value errorMessage = indyVdr::getCurrentError(rt);
 
-  throw jsi::JSError(rt, error_message);
+  // TODO: can we create a jsi::Object from the error message and get the
+  // `message` property from that
+  throw jsi::JSError(rt, errorMessage.getString(rt));
 };
 
 template <>
-uint8_t jsiToValue<uint8_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
+uint8_t jsiToValue<uint8_t>(jsi::Runtime &rt, jsi::Value value,
+                            const char *name, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -37,7 +39,7 @@ uint8_t jsiToValue<uint8_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
 
 template <>
 std::string jsiToValue<std::string>(jsi::Runtime &rt, jsi::Value value,
-                                    bool optional) {
+                                    const char *name, bool optional) {
   if ((value.isNull() || value.isUndefined()) && optional)
     return std::string();
 
@@ -48,7 +50,8 @@ std::string jsiToValue<std::string>(jsi::Runtime &rt, jsi::Value value,
 }
 
 template <>
-int64_t jsiToValue<int64_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
+int64_t jsiToValue<int64_t>(jsi::Runtime &rt, jsi::Value value,
+                            const char *name, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -57,7 +60,7 @@ int64_t jsiToValue<int64_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
 
 template <>
 uint64_t jsiToValue<uint64_t>(jsi::Runtime &rt, jsi::Value value,
-                              bool optional) {
+                              const char *name, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -65,7 +68,8 @@ uint64_t jsiToValue<uint64_t>(jsi::Runtime &rt, jsi::Value value,
 }
 
 template <>
-int32_t jsiToValue<int32_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
+int32_t jsiToValue<int32_t>(jsi::Runtime &rt, jsi::Value value,
+                            const char *name, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -74,7 +78,7 @@ int32_t jsiToValue<int32_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
 
 template <>
 uint32_t jsiToValue<uint32_t>(jsi::Runtime &rt, jsi::Value value,
-                              bool optional) {
+                              const char *name, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -82,9 +86,9 @@ uint32_t jsiToValue<uint32_t>(jsi::Runtime &rt, jsi::Value value,
 }
 
 template <>
-std::vector<int32_t> jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt,
-                                                      jsi::Value value,
-                                                      bool optional) {
+std::vector<int32_t>
+jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt, jsi::Value value,
+                                 const char *name, bool optional) {
   if (value.isObject() && value.asObject(rt).isArray(rt)) {
     std::vector<int32_t> vec = {};
     jsi::Array arr = value.asObject(rt).asArray(rt);

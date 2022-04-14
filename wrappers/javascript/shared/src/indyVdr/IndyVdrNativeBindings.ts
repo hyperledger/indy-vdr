@@ -1,177 +1,177 @@
-type PoolHandle = number
-type RequestHandle = number
+export type PoolHandle = number
+export type RequestHandle = number
 
 export type Callback = (err: number) => void
 
 export type CallbackWithResponse = (err: number, response: string) => void
 
 export interface IndyVdrNativeBindings {
-  version(): string
+  version({}): string
 
-  get_current_error(): string
+  getCurrentError({}): string
 
-  set_config(options: { config: string }): void
+  setConfig(options: { config: string }): null
 
-  set_default_logger(): void
+  setDefaultLogger({}): null
 
-  set_protocol_version(options: { version: number }): void
+  setProtocolVersion(options: { version: number }): null
 
-  set_socks_proxy(options: { socks_proxy: string }): void
+  setSocksProxy(options: { socksProxy: string }): null
 
-  build_acceptance_mechanisms_request(options: {
-    submitter_did: string
+  buildAcceptanceMechanismsRequest(options: {
+    submitterDid: string
     aml: string
     version: string
-    aml_context?: string
+    amlContext?: string
   }): RequestHandle
 
-  build_get_acceptance_mechanisms_request(options: {
-    submitter_did?: string
+  buildGetAcceptanceMechanismsRequest(options: {
+    submitterDid?: string
     timestamp?: number
     version?: string
   }): RequestHandle
 
-  build_attrib_request(options: {
-    submitter_did: string
-    target_did: string
+  buildAttribRequest(options: {
+    submitterDid: string
+    targetDid: string
     hash?: string
     raw?: string
     enc?: string
   }): RequestHandle
 
-  build_get_attrib_request(options: {
-    submitter_did?: string
-    target_did: string
+  buildGetAttribRequest(options: {
+    submitterDid?: string
+    targetDid: string
     raw?: string
     hash?: string
     enc?: string
   }): RequestHandle
 
-  build_cred_def_request(options: { submitter_did: string; cred_def: string }): RequestHandle
+  buildCredDefRequest(options: { submitterDid: string; credentialDefinition: string }): RequestHandle
 
-  build_get_cred_def_request(options: { submitter_did?: string; cred_def_id: string }): RequestHandle
+  buildGetCredDefRequest(options: { submitterDid?: string; credentialDefinitionId: string }): RequestHandle
 
-  build_get_revoc_reg_def_request(options: { submitter_did?: string; revoc_reg_id: string }): RequestHandle
+  buildGetRevocRegDefRequest(options: { submitterDid?: string; revocationRegistryId: string }): RequestHandle
 
-  build_get_revoc_reg_request(options: {
-    submitter_did?: string
-    revoc_reg_id: string
+  buildGetRevocRegRequest(options: {
+    submitterDid?: string
+    revocationRegistryId: string
     timestamp: number
   }): RequestHandle
 
-  build_get_revoc_reg_delta_request(options: {
-    submitter_did?: string
-    revoc_reg_id: string
-    from_ts?: number
-    to_ts: number
+  buildGetRevocRegDeltaRequest(options: {
+    submitterDid?: string
+    revocationRegistryId: string
+    fromTs?: number
+    toTs: number
   }): RequestHandle
 
-  build_revoc_reg_def_request(options: { submitter_did: string; revoc_reg_def: string }): RequestHandle
+  buildRevocRegDefRequest(options: { submitterDid: string; revocationRegistryId: string }): RequestHandle
 
-  build_custom_request(options: { request_json: string }): RequestHandle
+  buildCustomRequest(options: { customRequest: string }): RequestHandle
 
-  build_disable_all_txn_author_agreements_request(options: { submitter_did: string }): RequestHandle
+  buildDisableAllTxnAuthorAgreementsRequest(options: { submitterDid: string }): RequestHandle
 
-  build_get_nym_request(options: { submitter_did?: string; dest: string }): RequestHandle
+  buildGetNymRequest(options: { submitterDid?: string; dest: string }): RequestHandle
 
-  build_get_schema_request(options: { submitter_did?: string; schema_id: string }): RequestHandle
+  buildGetSchemaRequest(options: { submitterDid?: string; schemaId: string }): RequestHandle
 
-  build_get_txn_author_agreement_request(options: { submitter_did?: string; data?: string }): RequestHandle
+  buildGetTxnAuthorAgreementRequest(options: { submitterDid?: string; data?: string }): RequestHandle
 
-  build_get_txn_request(options: { submitter_did?: string; ledger_type: number; seq_no: number }): RequestHandle
+  buildGetTxnRequest(options: { submitterDid?: string; ledgerType: number; seqNo: number }): RequestHandle
 
-  build_get_validator_info_request(options: { submitter_did: string }): RequestHandle
+  buildGetValidatorInfoRequest(options: { submitterDid: string }): RequestHandle
 
-  build_nym_request(options: {
-    submitter_did: string
+  buildNymRequest(options: {
+    submitterDid: string
     dest: string
     verkey?: string
     alias?: string
     role?: string
   }): RequestHandle
 
-  build_revoc_reg_entry_request(options: {
-    submitter_did: string
-    revoc_reg_def_id: string
-    revoc_reg_def_type: string
-    revoc_reg_entry: string
+  buildRevocRegEntryRequest(options: {
+    submitterDid: string
+    revocationRegistryDefinitionId: string
+    revocationRegistryDefinitionType: string
+    revocationRegistryEntry: string
   }): RequestHandle
 
-  build_schema_request(options: { submitter_did: string; schema: string }): RequestHandle
+  buildSchemaRequest(options: { submitterDid: string; schema: string }): RequestHandle
 
-  build_txn_author_agreement_request(options: {
-    submitter_did: string
+  buildTxnAuthorAgreementRequest(options: {
+    submitterDid: string
     text?: string
     version: string
-    ratification_ts?: number
-    retirement_ts?: number
+    ratificationTs?: number
+    retirementTs?: number
   }): RequestHandle
 
-  build_rich_schema_request(options: {
-    submitter_did: string
-    rs_id: string
-    rs_content: string
-    rs_name: string
-    rs_version: string
-    rs_type: string
+  buildRichSchemaRequest(options: {
+    submitterDid: string
+    id: string
+    content: string
+    name: string
+    version: string
+    type: string
     ver: string
   }): RequestHandle
 
-  build_get_rich_schema_object_by_id_request(options: { submitter_did: string; rs_id: string }): RequestHandle
+  buildGetRichSchemaObjectByIdRequest(options: { submitterDid: string; id: string }): RequestHandle
 
-  build_get_rich_schema_object_by_metadata_request(options: {
-    submitter_did: string
-    rs_type: string
-    rs_name: string
-    rs_version: string
+  buildGetRichSchemaObjectByMetadataRequest(options: {
+    submitterDid: string
+    type: string
+    name: string
+    version: string
   }): RequestHandle
 
-  pool_create(options: { params: string }): PoolHandle
+  poolCreate(options: { parameters: string }): PoolHandle
 
-  pool_refresh(options: { pool_handle: PoolHandle; cb: Callback }): void
+  poolRefresh(options: { poolHandle: PoolHandle; cb: Callback }): null
 
-  pool_get_status(options: { pool_handle: PoolHandle; cb: CallbackWithResponse }): void
+  poolGetStatus(options: { poolHandle: PoolHandle; cb: CallbackWithResponse }): null
 
-  pool_get_transactions(options: { pool_handle: PoolHandle; cb: CallbackWithResponse }): void
+  poolGetTransactions(options: { poolHandle: PoolHandle; cb: CallbackWithResponse }): null
 
-  pool_get_verifiers(options: { pool_handle: PoolHandle; cb: CallbackWithResponse }): void
+  poolGetVerifiers(options: { poolHandle: PoolHandle; cb: CallbackWithResponse }): null
 
-  pool_submit_action(options: {
-    pool_handle: PoolHandle
-    request_handle: number
+  poolSubmitAction(options: {
+    poolHandle: PoolHandle
+    requestHandle: number
     nodes?: string
     timeout?: number
     cb: CallbackWithResponse
-  }): void
+  }): null
 
-  pool_submit_request(options: { pool_handle: PoolHandle; request_handle: number; cb: CallbackWithResponse }): void
+  poolSubmitRequest(options: { poolHandle: PoolHandle; requestHandle: number; cb: CallbackWithResponse }): null
 
-  pool_close(options: { pool_handle: PoolHandle }): void
+  poolClose(options: { poolHandle: PoolHandle }): null
 
-  prepare_txn_author_agreement_acceptance(options: {
+  prepareTxnAuthorAgreementAcceptance(options: {
     text?: string
     version?: string
-    taa_digest?: string
-    acc_mech_type: string
+    taaDigest?: string
+    accMechType: string
     time: number
   }): string
 
-  request_free(options: { request_handle: number }): void
+  requestFree(options: { requestHandle: number }): null
 
-  request_get_body(options: { request_handle: number }): string
+  requestGetBody(options: { requestHandle: number }): string
 
-  request_get_signature_input(options: { request_handle: number }): string
+  requestGetSignatureInput(options: { requestHandle: number }): string
 
-  request_set_endorser(options: { request_handle: number; endorser: string }): void
+  requestSetEndorser(options: { requestHandle: number; endorser: string }): null
 
-  request_set_multi_signature(options: {
-    request_handle: number
+  requestSetMultiSignature(options: {
+    requestHandle: number
     identifier: string
     signature: number
-    signature_len: number
-  }): void
+    signatureLen: number
+  }): null
 
-  request_set_signature(options: { request_handle: number; signature: number; signature_len: number }): void
+  requestSetSignature(options: { requestHandle: number; signature: number; signatureLen: number }): null
 
-  request_set_txn_author_agreement_acceptance(options: { request_handle: number; acceptance: string }): void
+  requestSetTxnAuthorAgreementAcceptance(options: { requestHandle: number; acceptance: string }): null
 }
