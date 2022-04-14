@@ -4,7 +4,7 @@
 
 #include <map>
 
-#include <nativeIndyVdr.h>
+#include <indyVdr.h>
 #include <turboModuleUtility.h>
 
 using namespace facebook;

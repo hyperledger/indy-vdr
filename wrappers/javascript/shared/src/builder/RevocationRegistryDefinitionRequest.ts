@@ -1,7 +1,7 @@
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type RevocationRegistryDefinitionRequestOptions = {
-  submitterDid?: string
+  submitterDid: string
   revocationRegistryId: string
 }
 
