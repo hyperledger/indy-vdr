@@ -1,4 +1,4 @@
-import type { IndyVdr } from '../types'
+import { IndyVdr } from '../types'
 
 export let indyVdr: IndyVdr
 

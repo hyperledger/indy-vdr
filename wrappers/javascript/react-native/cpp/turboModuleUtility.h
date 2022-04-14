@@ -1,7 +1,9 @@
 #pragma once
 
-#include <HostObject.h>
 #include <jsi/jsi.h>
+
+#include <HostObject.h>
+#include <libindy_vdr.h>
 
 using namespace facebook;
 
@@ -12,7 +14,8 @@ void registerTurboModule(jsi::Runtime &rt);
 void assertValueIsObject(jsi::Runtime &rt, const jsi::Value *val);
 
 template <typename T>
-T jsiToValue(jsi::Runtime &rt, jsi::Value value, bool optional = false);
+T jsiToValue(jsi::Runtime &rt, jsi::Value value, const char *name,
+             bool optional = false);
 
 void handleError(jsi::Runtime &rt, ErrorCode code);
 
