@@ -1,9 +1,10 @@
 {
   "name": "indy-vdr-shared",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "license": "Apache-2.0",
   "description": "Shared library for using Indy VDR with NodeJS and React Native",
   "main": "build/index",
+  "source": "src/index",
   "types": "build/index",
   "homepage": "https://github.com/hyperledger/indy-vdr/tree/main/wrappers/javascript/shared",
   "repository": {
@@ -18,12 +19,17 @@
     "build"
   ],
   "scripts": {
+    "check-types": "tsc --noEmit -p tsconfig.build.json",
+    "check-format": "yarn prettier --check",
+    "format": "yarn prettier --write",
+    "prettier": "prettier --ignore-path .gitignore '**/*+(.js|json|ts|md|yml|yaml)'",
     "build": "yarn run clean && yarn run compile",
     "clean": "rimraf -rf ./build",
     "compile": "tsc -p tsconfig.build.json",
     "prepublishOnly": "yarn run build"
   },
   "devDependencies": {
+    "prettier": "^2.6.2",
     "rimraf": "^3.0.2",
     "typescript": "^4.5.5"
   }

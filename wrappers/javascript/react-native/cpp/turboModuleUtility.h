@@ -9,14 +9,33 @@ using namespace facebook;
 
 namespace turboModuleUtility {
 
+// state of a callback function
+struct State {
+  jsi::Function cb;
+  void *rt;
+
+  State(jsi::Function *cb_) : cb(std::move(*cb_)) {}
+};
+
+// Install the Turbomodule
 void registerTurboModule(jsi::Runtime &rt);
 
+// Asserts that a jsi::Value is an object and can be safely transformed
 void assertValueIsObject(jsi::Runtime &rt, const jsi::Value *val);
 
+// Converts jsi values to regular cpp values
 template <typename T>
-T jsiToValue(jsi::Runtime &rt, jsi::Value value, const char *name,
-             bool optional = false);
+T jsiToValue(jsi::Runtime &rt, jsi::Value value, bool optional = false);
 
+// Handles an error from within the module and sends it back to the js side
 void handleError(jsi::Runtime &rt, ErrorCode code);
+
+// Callback function that makes the host function async
+void callback(CallbackId result, ErrorCode code);
+
+// Callback function that makes the host function async with response from rust
+// side
+void callbackWithResponse(CallbackId result, ErrorCode code,
+                          const char *response);
 
 } // namespace turboModuleUtility
