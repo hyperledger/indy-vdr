@@ -1,12 +1,12 @@
 #import "turboModuleUtility.h"
 
-#import "IndyVdrReactNative.h"
+#import "IndyVdr.h"
 #import <React/RCTBridge+Private.h>
 #import <jsi/jsi.h>
 
 using namespace facebook;
 
-@implementation IndyVdrReactNative
+@implementation IndyVdr
 
 RCT_EXPORT_MODULE()
 
