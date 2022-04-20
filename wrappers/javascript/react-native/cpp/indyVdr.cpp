@@ -247,7 +247,7 @@ jsi::Value buildRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildCustomRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string requestJson = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "requestJson"));
+      rt, options.getProperty(rt, "customRequest"));
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code =
