@@ -1,6 +1,6 @@
 {
   "name": "indy-vdr-react-native",
-  "version": "11.0.0",
+  "version": "0.0.0",
   "license": "Apache-2.0",
   "description": "React Native wrapper for Indy Vdr",
   "react-native": "build/index",
@@ -76,6 +76,6 @@
   },
   "peerDependencies": {
     "react": ">= 16",
-    "react-native": "=> 0.66.0"
+    "react-native": ">= 0.66.0"
   }
 }
