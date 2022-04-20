@@ -1,6 +1,6 @@
 {
   "name": "indy-vdr-react-native",
-  "version": "6.0.0",
+  "version": "11.0.0",
   "license": "Apache-2.0",
   "description": "React Native wrapper for Indy Vdr",
   "react-native": "build/index",
@@ -43,10 +43,10 @@
     "ios/**/*.h",
     "ios/**/*.mm",
     "ios/Frameworks",
-    "ios/indyVdrReactNative.xcodeproj/project.pbxproj",
+    "ios/indyVdr.xcodeproj/project.pbxproj",
     "cpp/**/*.cpp",
     "cpp/**/*.h",
-    "indy-vdr-react-native.podspec",
+    "indy-vdr.podspec",
     "README.md",
     "LICENSE",
     "package.json"
