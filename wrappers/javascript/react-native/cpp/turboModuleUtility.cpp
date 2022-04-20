@@ -27,10 +27,25 @@ void handleError(jsi::Runtime &rt, ErrorCode code) {
   // `message` property from that
   throw jsi::JSError(rt, errorMessage.getString(rt));
 };
+void callback(CallbackId result, ErrorCode code) {
+  State *s = reinterpret_cast<State *>(result);
+  jsi::Function *cb = &s->cb;
+  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(s->rt);
+
+  cb->call(*rt, int(code));
+}
+
+void callbackWithResponse(CallbackId result, ErrorCode code,
+                          const char *response) {
+  State *s = reinterpret_cast<State *>(result);
+  jsi::Function *cb = &s->cb;
+  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(s->rt);
+
+  cb->call(*rt, int(code), response);
+}
 
 template <>
-uint8_t jsiToValue<uint8_t>(jsi::Runtime &rt, jsi::Value value,
-                            const char *name, bool optional) {
+uint8_t jsiToValue<uint8_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -39,7 +54,7 @@ uint8_t jsiToValue<uint8_t>(jsi::Runtime &rt, jsi::Value value,
 
 template <>
 std::string jsiToValue<std::string>(jsi::Runtime &rt, jsi::Value value,
-                                    const char *name, bool optional) {
+                                    bool optional) {
   if ((value.isNull() || value.isUndefined()) && optional)
     return std::string();
 
@@ -50,8 +65,7 @@ std::string jsiToValue<std::string>(jsi::Runtime &rt, jsi::Value value,
 }
 
 template <>
-int64_t jsiToValue<int64_t>(jsi::Runtime &rt, jsi::Value value,
-                            const char *name, bool optional) {
+int64_t jsiToValue<int64_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -60,7 +74,7 @@ int64_t jsiToValue<int64_t>(jsi::Runtime &rt, jsi::Value value,
 
 template <>
 uint64_t jsiToValue<uint64_t>(jsi::Runtime &rt, jsi::Value value,
-                              const char *name, bool optional) {
+                              bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -68,8 +82,7 @@ uint64_t jsiToValue<uint64_t>(jsi::Runtime &rt, jsi::Value value,
 }
 
 template <>
-int32_t jsiToValue<int32_t>(jsi::Runtime &rt, jsi::Value value,
-                            const char *name, bool optional) {
+int32_t jsiToValue<int32_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -78,7 +91,7 @@ int32_t jsiToValue<int32_t>(jsi::Runtime &rt, jsi::Value value,
 
 template <>
 uint32_t jsiToValue<uint32_t>(jsi::Runtime &rt, jsi::Value value,
-                              const char *name, bool optional) {
+                              bool optional) {
   if (value.isNumber())
     return value.asNumber();
 
@@ -86,9 +99,9 @@ uint32_t jsiToValue<uint32_t>(jsi::Runtime &rt, jsi::Value value,
 }
 
 template <>
-std::vector<int32_t>
-jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt, jsi::Value value,
-                                 const char *name, bool optional) {
+std::vector<int32_t> jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt,
+                                                      jsi::Value value,
+                                                      bool optional) {
   if (value.isObject() && value.asObject(rt).isArray(rt)) {
     std::vector<int32_t> vec = {};
     jsi::Array arr = value.asObject(rt).asArray(rt);
@@ -107,6 +120,20 @@ jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt, jsi::Value value,
     return {};
 
   throw jsi::JSError(rt, "Value is not of type []");
+}
+
+template <>
+ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Value value,
+                                  bool optional) {
+  if (value.isObject() && value.asObject(rt).isArrayBuffer(rt)) {
+    jsi::ArrayBuffer arrayBuffer = value.getObject(rt).getArrayBuffer(rt);
+    return ByteBuffer{int(arrayBuffer.size(rt)), arrayBuffer.data(rt)};
+  }
+
+  if (optional)
+    return ByteBuffer{0, 0};
+
+  throw jsi::JSError(rt, "Value is not of type ByteBuffer");
 }
 
 } // namespace turboModuleUtility
