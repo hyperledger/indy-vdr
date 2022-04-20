@@ -2,7 +2,7 @@
 
 #include <jsi/jsi.h>
 
-#include <libindy_vdr.h>
+#include <include/libindy_vdr.h>
 #include <turboModuleUtility.h>
 
 using namespace facebook;
