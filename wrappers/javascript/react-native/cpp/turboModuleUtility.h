@@ -3,7 +3,7 @@
 #include <jsi/jsi.h>
 
 #include <HostObject.h>
-#include <libindy_vdr.h>
+#include <include/libindy_vdr.h>
 
 using namespace facebook;
 

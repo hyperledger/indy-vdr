@@ -56,5 +56,5 @@ android/keystores/debug.keystore
 
 # frameworks
 ios/Frameworks/*
-example/ios
-example/android
+
+example

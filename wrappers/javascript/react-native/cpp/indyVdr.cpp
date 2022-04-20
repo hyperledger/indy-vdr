@@ -128,7 +128,7 @@ jsi::Value buildAttribRequest(jsi::Runtime &rt, jsi::Object options) {
   return int(requestHandle);
 };
 
-jsi::Value buildGetAttribRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildGetAttribRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string targetDid = turboModuleUtility::jsiToValue<std::string>(
@@ -151,7 +151,7 @@ jsi::Value buildGetAttribRequest(jsi::Runtime &rt, const jsi::Object &options) {
   return int(requestHandle);
 };
 
-jsi::Value buildCredDefRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string credDef = turboModuleUtility::jsiToValue<std::string>(
@@ -165,8 +165,7 @@ jsi::Value buildCredDefRequest(jsi::Runtime &rt, const jsi::Object &options) {
   return int(requestHandle);
 };
 
-jsi::Value buildGetCredDefRequest(jsi::Runtime &rt,
-                                  const jsi::Object &options) {
+jsi::Value buildGetCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string credDefId = turboModuleUtility::jsiToValue<std::string>(
@@ -181,8 +180,7 @@ jsi::Value buildGetCredDefRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildGetRevocRegDefRequest(jsi::Runtime &rt,
-                                      const jsi::Object &options) {
+jsi::Value buildGetRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
@@ -197,8 +195,7 @@ jsi::Value buildGetRevocRegDefRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildGetRevocRegRequest(jsi::Runtime &rt,
-                                   const jsi::Object &options) {
+jsi::Value buildGetRevocRegRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
@@ -215,8 +212,7 @@ jsi::Value buildGetRevocRegRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildGetRevocRegDeltaRequest(jsi::Runtime &rt,
-                                        const jsi::Object &options) {
+jsi::Value buildGetRevocRegDeltaRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
@@ -235,8 +231,7 @@ jsi::Value buildGetRevocRegDeltaRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildRevocRegDefRequest(jsi::Runtime &rt,
-                                   const jsi::Object &options) {
+jsi::Value buildRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
@@ -250,7 +245,7 @@ jsi::Value buildRevocRegDefRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildCustomRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildCustomRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string requestJson = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "requestJson"));
 
@@ -262,9 +257,8 @@ jsi::Value buildCustomRequest(jsi::Runtime &rt, const jsi::Object &options) {
   return int(requestHandle);
 };
 
-jsi::Value
-buildDisableAllTxnAuthorAgreementsRequest(jsi::Runtime &rt,
-                                          const jsi::Object &options) {
+jsi::Value buildDisableAllTxnAuthorAgreementsRequest(jsi::Runtime &rt,
+                                                     jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
 
@@ -276,7 +270,7 @@ buildDisableAllTxnAuthorAgreementsRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildGetNymRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildGetNymRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string dest = turboModuleUtility::jsiToValue<std::string>(
@@ -291,7 +285,7 @@ jsi::Value buildGetNymRequest(jsi::Runtime &rt, const jsi::Object &options) {
   return int(requestHandle);
 };
 
-jsi::Value buildGetSchemaRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildGetSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string schemaId = turboModuleUtility::jsiToValue<std::string>(
@@ -307,7 +301,7 @@ jsi::Value buildGetSchemaRequest(jsi::Runtime &rt, const jsi::Object &options) {
 };
 
 jsi::Value buildGetTxnAuthorAgreementRequest(jsi::Runtime &rt,
-                                             const jsi::Object &options) {
+                                             jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   std::string data = turboModuleUtility::jsiToValue<std::string>(
@@ -322,7 +316,7 @@ jsi::Value buildGetTxnAuthorAgreementRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildGetTxnRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildGetTxnRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"), true);
   int32_t ledgerType = turboModuleUtility::jsiToValue<int32_t>(
@@ -338,8 +332,7 @@ jsi::Value buildGetTxnRequest(jsi::Runtime &rt, const jsi::Object &options) {
   return int(requestHandle);
 };
 
-jsi::Value buildGetValidatorInfoRequest(jsi::Runtime &rt,
-                                        const jsi::Object &options) {
+jsi::Value buildGetValidatorInfoRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   RequestHandle requestHandle = getNewRequestHandle();
@@ -350,7 +343,7 @@ jsi::Value buildGetValidatorInfoRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildNymRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildNymRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string dest = turboModuleUtility::jsiToValue<std::string>(
@@ -373,8 +366,7 @@ jsi::Value buildNymRequest(jsi::Runtime &rt, const jsi::Object &options) {
   return int(requestHandle);
 };
 
-jsi::Value buildRevocRegEntryRequest(jsi::Runtime &rt,
-                                     const jsi::Object &options) {
+jsi::Value buildRevocRegEntryRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string revocRegDefId = turboModuleUtility::jsiToValue<std::string>(
@@ -393,7 +385,7 @@ jsi::Value buildRevocRegEntryRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildSchemaRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value buildSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string schema = turboModuleUtility::jsiToValue<std::string>(
@@ -408,7 +400,7 @@ jsi::Value buildSchemaRequest(jsi::Runtime &rt, const jsi::Object &options) {
 };
 
 jsi::Value buildTxnAuthorAgreementRequest(jsi::Runtime &rt,
-                                          const jsi::Object &options) {
+                                          jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string text = turboModuleUtility::jsiToValue<std::string>(
@@ -429,8 +421,7 @@ jsi::Value buildTxnAuthorAgreementRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildRichSchemaRequest(jsi::Runtime &rt,
-                                  const jsi::Object &options) {
+jsi::Value buildRichSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string rsId = turboModuleUtility::jsiToValue<std::string>(
@@ -457,7 +448,7 @@ jsi::Value buildRichSchemaRequest(jsi::Runtime &rt,
 };
 
 jsi::Value buildGetRichSchemaObjectByIdRequest(jsi::Runtime &rt,
-                                               const jsi::Object &options) {
+                                               jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string rsId = turboModuleUtility::jsiToValue<std::string>(
@@ -474,9 +465,8 @@ jsi::Value buildGetRichSchemaObjectByIdRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value
-buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
-                                          const jsi::Object &options) {
+jsi::Value buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
+                                                     jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "submitterDid"));
   std::string rsType = turboModuleUtility::jsiToValue<std::string>(
@@ -496,7 +486,7 @@ buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value poolCreate(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolCreate(jsi::Runtime &rt, jsi::Object options) {
   std::string params = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "params"));
 
@@ -507,7 +497,7 @@ jsi::Value poolCreate(jsi::Runtime &rt, const jsi::Object &options) {
   return int(poolHandle);
 };
 
-jsi::Value poolRefresh(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolRefresh(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
       rt, options.getProperty(rt, "poolHandle"));
 
@@ -520,7 +510,7 @@ jsi::Value poolRefresh(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::Value poolGetStatus(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolGetStatus(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
       rt, options.getProperty(rt, "poolHandle"));
 
@@ -533,7 +523,7 @@ jsi::Value poolGetStatus(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::Value poolGetTransactions(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolGetTransactions(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
       rt, options.getProperty(rt, "poolHandle"));
 
@@ -546,7 +536,7 @@ jsi::Value poolGetTransactions(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::Value poolGetVerifiers(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolGetVerifiers(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
       rt, options.getProperty(rt, "poolHandle"));
 
@@ -559,7 +549,7 @@ jsi::Value poolGetVerifiers(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::Value poolSubmitAction(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolSubmitAction(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
       rt, options.getProperty(rt, "poolHandle"));
   RequestHandle requestHandle =
@@ -580,7 +570,7 @@ jsi::Value poolSubmitAction(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::Value poolSubmitRequest(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolSubmitRequest(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
       rt, options.getProperty(rt, "poolHandle"));
   RequestHandle requestHandle =
@@ -597,7 +587,7 @@ jsi::Value poolSubmitRequest(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::Value poolClose(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value poolClose(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
       rt, options.getProperty(rt, "poolHandle"));
 
@@ -607,8 +597,8 @@ jsi::Value poolClose(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::String prepareTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
-                                                const jsi::Object &options) {
+jsi::Value prepareTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
+                                               jsi::Object options) {
   std::string text = turboModuleUtility::jsiToValue<std::string>(
       rt, options.getProperty(rt, "text"));
   std::string version = turboModuleUtility::jsiToValue<std::string>(
@@ -629,7 +619,7 @@ jsi::String prepareTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
   return jsi::String::createFromAscii(rt, output);
 };
 
-jsi::Value requestFree(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value requestFree(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
       (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
           rt, options.getProperty(rt, "requestHandle"));
@@ -640,7 +630,7 @@ jsi::Value requestFree(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::Value::null();
 };
 
-jsi::String requestGetBody(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value requestGetBody(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
       (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
           rt, options.getProperty(rt, "requestHandle"));
@@ -652,8 +642,7 @@ jsi::String requestGetBody(jsi::Runtime &rt, const jsi::Object &options) {
   return jsi::String::createFromAscii(rt, bodyP);
 };
 
-jsi::String requestGetSignatureInput(jsi::Runtime &rt,
-                                     const jsi::Object &options) {
+jsi::Value requestGetSignatureInput(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
       (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
           rt, options.getProperty(rt, "requestHandle"));
@@ -665,7 +654,7 @@ jsi::String requestGetSignatureInput(jsi::Runtime &rt,
   return jsi::String::createFromAscii(rt, inputP);
 };
 
-jsi::Value requestSetEndorser(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value requestSetEndorser(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
       (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
           rt, options.getProperty(rt, "requestHandle"));
@@ -678,8 +667,7 @@ jsi::Value requestSetEndorser(jsi::Runtime &rt, const jsi::Object &options) {
 
   return jsi::Value::null();
 };
-jsi::Value requestSetMultiSignature(jsi::Runtime &rt,
-                                    const jsi::Object &options) {
+jsi::Value requestSetMultiSignature(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
       (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
           rt, options.getProperty(rt, "requestHandle"));
@@ -695,7 +683,7 @@ jsi::Value requestSetMultiSignature(jsi::Runtime &rt,
   return jsi::Value::null();
 };
 
-jsi::Value requestSetSignature(jsi::Runtime &rt, const jsi::Object &options) {
+jsi::Value requestSetSignature(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
       (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
           rt, options.getProperty(rt, "requestHandle"));
@@ -709,7 +697,7 @@ jsi::Value requestSetSignature(jsi::Runtime &rt, const jsi::Object &options) {
 };
 
 jsi::Value requestSetTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
-                                                  const jsi::Object &options) {
+                                                  jsi::Object options) {
   RequestHandle requestHandle =
       (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
           rt, options.getProperty(rt, "requestHandle"));
