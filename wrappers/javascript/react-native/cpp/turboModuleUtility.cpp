@@ -28,25 +28,24 @@ void handleError(jsi::Runtime &rt, ErrorCode code) {
 };
 
 void callback(CallbackId result, ErrorCode code) {
-  State *pp = reinterpret_cast<State *>(result);
-  State *s = static_cast<State *>(pp);
-  jsi::Function *cb = &s->cb;
-  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(s->rt);
+  State *_state = reinterpret_cast<State *>(result);
+  State *state = static_cast<State *>(_state);
+  jsi::Function *cb = &state->cb;
+  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
 
   cb->call(*rt, int(code));
-  delete s;
+  delete state;
 }
 
 void callbackWithResponse(CallbackId result, ErrorCode code,
                           const char *response) {
-  // This is done so that we can free it after the callback has happened
-  State *pp = reinterpret_cast<State *>(result);
-  State *s = static_cast<State *>(pp);
-  jsi::Function *cb = &s->cb;
-  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(s->rt);
+  State *_state = reinterpret_cast<State *>(result);
+  State *state = static_cast<State *>(_state);
+  jsi::Function *cb = &state->cb;
+  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
 
   cb->call(*rt, int(code), response);
-  delete s;
+  delete state;
 }
 
 template <>
