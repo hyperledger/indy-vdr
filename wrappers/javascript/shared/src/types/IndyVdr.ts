@@ -109,9 +109,9 @@ export interface IndyVdr {
 
   poolGetVerifiers(options: { poolHandle: PoolHandle }): Promise<Verifiers>
 
-  poolSubmitAction(options: PoolSubmitActionOptions & { poolHandle: PoolHandle }): Promise<SubmitAction>
+  poolSubmitAction(options: PoolSubmitActionOptions & { poolHandle: PoolHandle }): Promise<string>
 
-  poolSubmitRequest(options: PoolSubmitRequestOptions & { poolHandle: PoolHandle }): Promise<SubmitRequest>
+  poolSubmitRequest(options: PoolSubmitRequestOptions & { poolHandle: PoolHandle }): Promise<string>
 
   poolClose(options: { poolHandle: number }): void
 
