@@ -1,4 +1,4 @@
-import { IndyVdrNativeBindings } from 'indy-vdr-shared'
+import type { IndyVdrNativeBindings } from 'indy-vdr-shared'
 
 // @ts-ignore
 if (!global._indy_vdr) {

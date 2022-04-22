@@ -52,8 +52,6 @@ const serialize = (arg: Argument): SerializedArgument => {
 
 const serializeArguments = (args: Record<string, Argument>) => {
   const retVal: SerializedArguments = {}
-  // TODO
-  // @ts-ignore
   Object.entries(args).map(([key, val]) => (retVal[key] = serialize(val)))
   return retVal
 }
