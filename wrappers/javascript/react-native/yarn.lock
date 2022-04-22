@@ -2831,9 +2831,9 @@ imurmurhash@^0.1.4:
   resolved "https://registry.yarnpkg.com/imurmurhash/-/imurmurhash-0.1.4.tgz#9218b9b2b928a238b13dc4fb6b6d576f231453ea"
   integrity sha1-khi5srkoojixPcT7a21XbyMUU+o=
 
-indy-vdr-shared@../shared/indy-vdr-shared-v3.0.0.tgz:
-  version "3.0.0"
-  resolved "../shared/indy-vdr-shared-v3.0.0.tgz#bc9b14509f80c8fe561ce6871a770d901d981b43"
+indy-vdr-shared@../shared/indy-vdr-shared-v103.0.0.tgz:
+  version "103.0.0"
+  resolved "../shared/indy-vdr-shared-v103.0.0.tgz#6e9e3134745d4075b2edbf38307ec69d6891337c"
 
 inflight@^1.0.4:
   version "1.0.6"

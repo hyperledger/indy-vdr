@@ -12,7 +12,7 @@ namespace turboModuleUtility {
 // state of a callback function
 struct State {
   jsi::Function cb;
-  void *rt;
+  jsi::Runtime *rt;
 
   State(jsi::Function *cb_) : cb(std::move(*cb_)) {}
 };

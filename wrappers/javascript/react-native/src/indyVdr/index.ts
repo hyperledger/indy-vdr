@@ -237,7 +237,10 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   poolGetTransactions(options: { poolHandle: PoolHandle }): Promise<Transactions> {
     const { poolHandle } = serializeArguments(options) as SerializedOptions<typeof options>
-    return this.promisifyWithResponse<Transactions>((cb) => indyVdrReactNative.poolGetTransactions({ cb, poolHandle }))
+    return this.promisifyWithResponse<Transactions>(
+      (cb) => indyVdrReactNative.poolGetTransactions({ cb, poolHandle }),
+      true
+    )
   }
 
   poolGetVerifiers(options: { poolHandle: PoolHandle }): Promise<Verifiers> {
@@ -247,11 +250,13 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   poolSubmitAction(options: PoolSubmitActionOptions & { poolHandle: PoolHandle }): Promise<string> {
     const serializedOptions = serializeArguments(options) as SerializedOptions<typeof options>
+    // TODO: This is not string
     return this.promisifyWithResponse<string>((cb) => indyVdrReactNative.poolSubmitAction({ cb, ...serializedOptions }))
   }
 
   poolSubmitRequest(options: PoolSubmitRequestOptions & { poolHandle: PoolHandle }): Promise<string> {
     const serializedOptions = serializeArguments(options) as SerializedOptions<typeof options>
+    // TODO: This is not string
     return this.promisifyWithResponse((cb) => indyVdrReactNative.poolSubmitRequest({ cb, ...serializedOptions }))
   }
 
