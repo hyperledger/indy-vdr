@@ -2,8 +2,7 @@ import { IndyVdrRequest, indyVdr } from '../indyVdr'
 
 export type AcceptanceMechanismsRequestOptions = {
   submitterDid: string
-  // TODO: or Record<string, unknown>
-  aml: string
+  aml: Record<string, unknown>
   version: string
   amlContext?: string
 }

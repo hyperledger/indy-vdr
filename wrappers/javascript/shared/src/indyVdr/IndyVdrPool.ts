@@ -1,4 +1,4 @@
-import type { PoolStatus, SubmitAction, SubmitRequest, Transactions, Verifiers } from '../types'
+import type { PoolStatus, Transactions, Verifiers } from '../types'
 
 import { indyVdr } from './indyVdr'
 import { RequestHandle } from './IndyVdrNativeBindings'
@@ -48,11 +48,11 @@ export class IndyVdrPool {
     indyVdr.poolClose({ poolHandle: this.handle })
   }
 
-  public async submitAction(options: PoolSubmitActionOptions): Promise<SubmitAction> {
-    return indyVdr.poolSubmitAction({ poolHandle: this.handle, ...options })
+  public async submitAction<T extends Record<string, unknown>>(options: PoolSubmitActionOptions): Promise<T> {
+    return JSON.parse(await indyVdr.poolSubmitAction({ poolHandle: this.handle, ...options })) as T
   }
 
-  public async submitRequest(options: PoolSubmitRequestOptions): Promise<SubmitRequest> {
-    return indyVdr.poolSubmitRequest({ poolHandle: this.handle, ...options })
+  public async submitRequest<T extends Record<string, unknown>>(options: PoolSubmitRequestOptions): Promise<T> {
+    return JSON.parse(await indyVdr.poolSubmitRequest({ poolHandle: this.handle, ...options })) as T
   }
 }
