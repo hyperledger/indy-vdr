@@ -1,7 +1,6 @@
 import { indyVdr, IndyVdrPool } from '../indyVdr'
 
 export type PoolCreateOptions = {
-  poolHandle: number
   parameters: {
     transactions?: string
     transactions_path?: string

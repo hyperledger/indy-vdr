@@ -3,8 +3,7 @@ import { indyVdr, IndyVdrRequest } from '../indyVdr'
 export type CustomRequestOptions = {
   customRequest: {
     protocolVersion: 1 | 2
-    // TODO: is this optional
-    reqId?: number
+    reqId: number
     identifier: string
     operation: {
       type: string

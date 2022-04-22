@@ -1,9 +1,9 @@
 export type PoolHandle = number
 export type RequestHandle = number
 
-export type Callback = (err: number) => void
+type Callback = (err: number) => void
 
-export type CallbackWithResponse = (err: number, response: string) => void
+type CallbackWithResponse = (err: number, response: string) => void
 
 export interface IndyVdrNativeBindings {
   version({}): string

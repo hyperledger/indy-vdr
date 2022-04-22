@@ -488,7 +488,7 @@ jsi::Value buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
 
 jsi::Value poolCreate(jsi::Runtime &rt, jsi::Object options) {
   std::string params = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "params"));
+      rt, options.getProperty(rt, "parameters"));
 
   PoolHandle poolHandle = getNewPoolHandle();
   ErrorCode code = indy_vdr_pool_create(params.c_str(), &requestHandle);

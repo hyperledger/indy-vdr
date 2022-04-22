@@ -1,6 +1,6 @@
 {
   "name": "indy-vdr-react-native",
-  "version": "0.0.0",
+  "version": "20.0.0",
   "license": "Apache-2.0",
   "description": "React Native wrapper for Indy Vdr",
   "react-native": "build/index",
@@ -63,7 +63,7 @@
     "release": "release-it"
   },
   "dependencies": {
-    "indy-vdr-shared": "../shared/indy-vdr-shared-v0.0.3.tgz"
+    "indy-vdr-shared": "../shared/indy-vdr-shared-v3.0.0.tgz"
   },
   "devDependencies": {
     "@types/react": "^16.9.19",

@@ -1,6 +1,6 @@
 {
   "name": "indy-vdr-shared",
-  "version": "0.0.0",
+  "version": "3.0.0",
   "license": "Apache-2.0",
   "description": "Shared library for using Indy VDR with NodeJS and React Native",
   "main": "build/index",
