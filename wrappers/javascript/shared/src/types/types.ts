@@ -47,9 +47,3 @@ type VerifierInfo = {
 }
 
 export type Verifiers = Record<string, VerifierInfo>
-
-// TODO: what is this?
-export type SubmitAction = string
-
-// TODO: what is this?
-export type SubmitRequest = string

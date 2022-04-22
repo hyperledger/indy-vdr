@@ -35,7 +35,7 @@ import type {
   RequestSetTxnAuthorAgreementAcceptanceOptions,
 } from '../indyVdr'
 import type { PrepareTxnAuthorAgreementAcceptanceOptions, RequestSetSignatureOptions } from './builderTypes'
-import type { PoolStatus, SubmitAction, SubmitRequest, Transactions, Verifiers } from './types'
+import type { PoolStatus, Transactions, Verifiers } from './types'
 
 // TODO: proper documentation
 export interface IndyVdr {
