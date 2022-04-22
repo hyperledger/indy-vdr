@@ -4,12 +4,10 @@ import { indyVdr } from './indyVdr'
 import { RequestHandle } from './IndyVdrNativeBindings'
 
 export type PoolSubmitRequestOptions = {
-  // poolHandle: PoolHandle
   requestHandle: RequestHandle
 }
 
 export type PoolSubmitActionOptions = {
-  // poolHandle: PoolHandle
   requestHandle: RequestHandle
   nodes?: string[]
   timeout?: number
@@ -48,11 +46,11 @@ export class IndyVdrPool {
     indyVdr.poolClose({ poolHandle: this.handle })
   }
 
-  public async submitAction<T extends Record<string, unknown>>(options: PoolSubmitActionOptions): Promise<T> {
-    return JSON.parse(await indyVdr.poolSubmitAction({ poolHandle: this.handle, ...options })) as T
+  public async submitAction(options: PoolSubmitActionOptions): Promise<string> {
+    return indyVdr.poolSubmitAction({ poolHandle: this.handle, ...options })
   }
 
-  public async submitRequest<T extends Record<string, unknown>>(options: PoolSubmitRequestOptions): Promise<T> {
-    return JSON.parse(await indyVdr.poolSubmitRequest({ poolHandle: this.handle, ...options })) as T
+  public async submitRequest(options: PoolSubmitRequestOptions): Promise<string> {
+    return indyVdr.poolSubmitRequest({ poolHandle: this.handle, ...options })
   }
 }

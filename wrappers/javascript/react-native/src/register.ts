@@ -1,7 +1,6 @@
 import type { IndyVdrNativeBindings } from 'indy-vdr-shared'
 
-// @ts-ignore
-if (!global._indy_vdr) {
+if (!_indy_vdr) {
   throw Error('_indy_vdr has not been exposed on global. Something went wrong while installing the turboModule')
 }
 

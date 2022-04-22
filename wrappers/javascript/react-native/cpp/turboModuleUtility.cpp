@@ -28,20 +28,25 @@ void handleError(jsi::Runtime &rt, ErrorCode code) {
 };
 
 void callback(CallbackId result, ErrorCode code) {
-  State *s = reinterpret_cast<State *>(result);
+  State *pp = reinterpret_cast<State *>(result);
+  State *s = static_cast<State *>(pp);
   jsi::Function *cb = &s->cb;
   jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(s->rt);
 
   cb->call(*rt, int(code));
+  delete s;
 }
 
 void callbackWithResponse(CallbackId result, ErrorCode code,
                           const char *response) {
-  State *s = reinterpret_cast<State *>(result);
+  // This is done so that we can free it after the callback has happened
+  State *pp = reinterpret_cast<State *>(result);
+  State *s = static_cast<State *>(pp);
   jsi::Function *cb = &s->cb;
   jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(s->rt);
 
   cb->call(*rt, int(code), response);
+  delete s;
 }
 
 template <>
@@ -111,7 +116,7 @@ std::vector<int32_t> jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt,
       if (element.isNumber()) {
         vec.push_back(element.asNumber());
       } else {
-        throw jsi::JSError(rt, "Value in array not of type int64_t");
+        throw jsi::JSError(rt, "Value in array not of type number");
       }
     }
     return vec;
@@ -119,7 +124,7 @@ std::vector<int32_t> jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt,
   if (optional)
     return {};
 
-  throw jsi::JSError(rt, "Value is not of type []");
+  throw jsi::JSError(rt, "Value is not of type Array<number>");
 }
 
 template <>
@@ -133,7 +138,8 @@ ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Value value,
   if (optional)
     return ByteBuffer{0, 0};
 
-  throw jsi::JSError(rt, "Value is not of type ByteBuffer");
+  // TODO: confirm both types
+  throw jsi::JSError(rt, "Value is not of type Uint8Array / Buffer");
 }
 
 } // namespace turboModuleUtility
