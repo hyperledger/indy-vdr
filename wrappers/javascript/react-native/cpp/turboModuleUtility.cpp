@@ -16,17 +16,17 @@ void assertValueIsObject(jsi::Runtime &rt, const jsi::Value *val) {
 }
 
 void handleError(jsi::Runtime &rt, ErrorCode code) {
-  int error_code = int(code);
-
-  if (error_code == 0)
+  if (code == ErrorCode::Success)
     return;
 
   jsi::Value errorMessage = indyVdr::getCurrentError(rt);
 
-  // TODO: can we create a jsi::Object from the error message and get the
-  // `message` property from that
-  throw jsi::JSError(rt, errorMessage.getString(rt));
+  jsi::Object JSON = rt.global().getPropertyAsObject(rt, "JSON");
+  jsi::Function JSONParse = JSON.getPropertyAsFunction(rt, "parse");
+  jsi::Value parsedErrorObject = JSONParse.call(rt, errorMessage);
+  throw jsi::JSError(rt, parsedErrorObject.getObject(rt));
 };
+
 void callback(CallbackId result, ErrorCode code) {
   State *s = reinterpret_cast<State *>(result);
   jsi::Function *cb = &s->cb;

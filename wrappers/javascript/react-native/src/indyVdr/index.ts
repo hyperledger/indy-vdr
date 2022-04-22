@@ -37,9 +37,10 @@ import {
   TransactionAuthorAgreementRequestOptions,
   Transactions,
   Verifiers,
+  serializeArguments,
 } from 'indy-vdr-shared'
+import type { SerializedOptions } from 'indy-vdr-shared'
 import { indyVdrReactNative } from '../register'
-import { serializeArguments, SerializedOptions } from '../utils'
 
 export class ReactNativeIndyVdr implements IndyVdr {
   private promisify = (method: (cb: (...args: any[]) => void) => void): Promise<void> => {
