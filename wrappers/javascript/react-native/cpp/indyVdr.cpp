@@ -31,8 +31,8 @@ jsi::Value getCurrentError(jsi::Runtime &rt) {
 };
 
 jsi::Value setConfig(jsi::Runtime &rt, jsi::Object options) {
-  std::string config = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "config"));
+  std::string config =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "config");
 
   ErrorCode code = indy_vdr_set_config(config.c_str());
   turboModuleUtility::handleError(rt, code);
@@ -48,8 +48,8 @@ jsi::Value setDefaultLogger(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value setProtocolVersion(jsi::Runtime &rt, jsi::Object options) {
-  int64_t version = turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "version"));
+  int64_t version =
+      turboModuleUtility::jsiToValue<int64_t>(rt, options, "version");
 
   ErrorCode code = indy_vdr_set_protocol_version(version);
   turboModuleUtility::handleError(rt, code);
@@ -58,8 +58,8 @@ jsi::Value setProtocolVersion(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value setSocksProxy(jsi::Runtime &rt, jsi::Object options) {
-  std::string socksProxy = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "socksProxy"));
+  std::string socksProxy =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "socksProxy");
 
   ErrorCode code = indy_vdr_set_socks_proxy(socksProxy.c_str());
   turboModuleUtility::handleError(rt, code);
@@ -69,14 +69,14 @@ jsi::Value setSocksProxy(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildAcceptanceMechanismsRequest(jsi::Runtime &rt,
                                             jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string aml = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "aml"));
-  std::string version = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "version"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string aml =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "aml");
+  std::string version =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "version");
   std::string amlContext = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "amlContext"), true);
+      rt, options, "amlContext", true);
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_acceptance_mechanisms_request(
@@ -89,12 +89,12 @@ jsi::Value buildAcceptanceMechanismsRequest(jsi::Runtime &rt,
 
 jsi::Value buildGetAcceptanceMechanismsRequest(jsi::Runtime &rt,
                                                jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  int64_t timestamp = turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "timestamp"), true);
-  std::string version = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "version"), true);
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  int64_t timestamp =
+      turboModuleUtility::jsiToValue<int64_t>(rt, options, "timestamp", true);
+  std::string version =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "version", true);
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_acceptance_mechanisms_request(
@@ -106,16 +106,16 @@ jsi::Value buildGetAcceptanceMechanismsRequest(jsi::Runtime &rt,
 };
 
 jsi::Value buildAttribRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string targetDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "targetDid"));
-  std::string hash = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "hash"), true);
-  std::string raw = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "raw"), true);
-  std::string enc = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "enc"), true);
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string targetDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "targetDid");
+  std::string hash =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "hash", true);
+  std::string raw =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "raw", true);
+  std::string enc =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "enc", true);
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_attrib_request(
@@ -130,15 +130,15 @@ jsi::Value buildAttribRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildGetAttribRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string targetDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "targetDid"));
-  std::string hash = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "hash"), true);
-  std::string raw = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "raw"), true);
-  std::string enc = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "enc"), true);
+      rt, options, "submitterDid", true);
+  std::string targetDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "targetDid");
+  std::string hash =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "hash", true);
+  std::string raw =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "raw", true);
+  std::string enc =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "enc", true);
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_attrib_request(
@@ -152,10 +152,10 @@ jsi::Value buildGetAttribRequest(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value buildCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string credDef = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "credDef"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string credDef =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "credDef");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_cred_def_request(
@@ -167,9 +167,9 @@ jsi::Value buildCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildGetCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string credDefId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "credDefId"));
+      rt, options, "submitterDid", true);
+  std::string credDefId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "credDefId");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_cred_def_request(
@@ -182,9 +182,9 @@ jsi::Value buildGetCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildGetRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "revocRegId"));
+      rt, options, "submitterDid", true);
+  std::string revocRegId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "revocRegId");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_revoc_reg_def_request(
@@ -197,11 +197,11 @@ jsi::Value buildGetRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildGetRevocRegRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "revocRegId"));
-  int64_t timestamp = turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "timestamp"));
+      rt, options, "submitterDid", true);
+  std::string revocRegId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "revocRegId");
+  int64_t timestamp =
+      turboModuleUtility::jsiToValue<int64_t>(rt, options, "timestamp");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_revoc_reg_request(
@@ -214,13 +214,12 @@ jsi::Value buildGetRevocRegRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildGetRevocRegDeltaRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "revocRegId"));
-  int64_t fromTs = turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "fromTs"), true);
-  int64_t toTs = turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "toTs"));
+      rt, options, "submitterDid", true);
+  std::string revocRegId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "revocRegId");
+  int64_t fromTs =
+      turboModuleUtility::jsiToValue<int64_t>(rt, options, "fromTs", true);
+  int64_t toTs = turboModuleUtility::jsiToValue<int64_t>(rt, options, "toTs");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_revoc_reg_delta_request(
@@ -232,10 +231,10 @@ jsi::Value buildGetRevocRegDeltaRequest(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value buildRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string revocRegId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "revocRegId"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string revocRegId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "revocRegId");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_revoc_reg_def_request(
@@ -246,8 +245,8 @@ jsi::Value buildRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value buildCustomRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string requestJson = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "customRequest"));
+  std::string requestJson =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "customRequest");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code =
@@ -259,8 +258,8 @@ jsi::Value buildCustomRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildDisableAllTxnAuthorAgreementsRequest(jsi::Runtime &rt,
                                                      jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_disable_all_txn_author_agreements_request(
@@ -272,9 +271,9 @@ jsi::Value buildDisableAllTxnAuthorAgreementsRequest(jsi::Runtime &rt,
 
 jsi::Value buildGetNymRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string dest = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "dest"));
+      rt, options, "submitterDid", true);
+  std::string dest =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "dest");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_nym_request(
@@ -287,9 +286,9 @@ jsi::Value buildGetNymRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildGetSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string schemaId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "schemaId"));
+      rt, options, "submitterDid", true);
+  std::string schemaId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "schemaId");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_schema_request(
@@ -303,9 +302,9 @@ jsi::Value buildGetSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
 jsi::Value buildGetTxnAuthorAgreementRequest(jsi::Runtime &rt,
                                              jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  std::string data = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "data"), true);
+      rt, options, "submitterDid", true);
+  std::string data =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "data", true);
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_txn_author_agreement_request(
@@ -318,11 +317,10 @@ jsi::Value buildGetTxnAuthorAgreementRequest(jsi::Runtime &rt,
 
 jsi::Value buildGetTxnRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"), true);
-  int32_t ledgerType = turboModuleUtility::jsiToValue<int32_t>(
-      rt, options.getProperty(rt, "ledgerType"));
-  int32_t seqNo = turboModuleUtility::jsiToValue<int32_t>(
-      rt, options.getProperty(rt, "seqNo"));
+      rt, options, "submitterDid", true);
+  int32_t ledgerType =
+      turboModuleUtility::jsiToValue<int32_t>(rt, options, "ledgerType");
+  int32_t seqNo = turboModuleUtility::jsiToValue<int32_t>(rt, options, "seqNo");
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_txn_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr, ledgerType,
@@ -333,8 +331,8 @@ jsi::Value buildGetTxnRequest(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value buildGetValidatorInfoRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_validator_info_request(
       submitterDid.c_str(), &requestHandle);
@@ -344,16 +342,16 @@ jsi::Value buildGetValidatorInfoRequest(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value buildNymRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string dest = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "dest"));
-  std::string verkey = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "verkey"), true);
-  std::string alias = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "alias"), true);
-  std::string role = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "role"), true);
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string dest =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "dest");
+  std::string verkey =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "verkey", true);
+  std::string alias =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "alias", true);
+  std::string role =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "role", true);
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_nym_request(
@@ -367,14 +365,14 @@ jsi::Value buildNymRequest(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value buildRevocRegEntryRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string revocRegDefId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "revocRegDefId"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string revocRegDefId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "revocRegDefId");
   std::string revocRegDefType = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "revocRegDefType"));
-  std::string revocRegEntry = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "revocRegEntry"));
+      rt, options, "revocRegDefType");
+  std::string revocRegEntry =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "revocRegEntry");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_revoc_reg_entry_request(
@@ -386,10 +384,10 @@ jsi::Value buildRevocRegEntryRequest(jsi::Runtime &rt, jsi::Object options) {
 };
 
 jsi::Value buildSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string schema = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "schema"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string schema =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "schema");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_schema_request(
@@ -401,16 +399,16 @@ jsi::Value buildSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildTxnAuthorAgreementRequest(jsi::Runtime &rt,
                                           jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string text = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "text"), true);
-  std::string version = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "version"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string text =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "text", true);
+  std::string version =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "version");
   int64_t ratificationTs = turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "ratificationTs"), true);
+      rt, options, "ratificationTs", true);
   int64_t retirementTs = turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "retirementTs"), true);
+      rt, options, "retirementTs", true);
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_txn_author_agreement_request(
@@ -422,20 +420,20 @@ jsi::Value buildTxnAuthorAgreementRequest(jsi::Runtime &rt,
 };
 
 jsi::Value buildRichSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string rsId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsId"));
-  std::string rsContent = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsContent"));
-  std::string rsName = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsName"));
-  std::string rsVersion = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsVersion"));
-  std::string rsType = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsType"));
-  std::string ver = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "ver"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string rsId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsId");
+  std::string rsContent =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsContent");
+  std::string rsName =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsName");
+  std::string rsVersion =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsVersion");
+  std::string rsType =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsType");
+  std::string ver =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "ver");
 
   RequestHandle requestHandle = getNewRequestHandle();
   // indy_vdr_build_rich_schema_request(
@@ -449,10 +447,10 @@ jsi::Value buildRichSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value buildGetRichSchemaObjectByIdRequest(jsi::Runtime &rt,
                                                jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string rsId = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsId"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string rsId =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsId");
 
   RequestHandle requestHandle = getNewRequestHandle();
   // ErrorCode code =
@@ -467,14 +465,14 @@ jsi::Value buildGetRichSchemaObjectByIdRequest(jsi::Runtime &rt,
 
 jsi::Value buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
                                                      jsi::Object options) {
-  std::string submitterDid = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "submitterDid"));
-  std::string rsType = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsType"));
-  std::string rsName = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsName"));
-  std::string rsVersion = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "rsVersion"));
+  std::string submitterDid =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
+  std::string rsType =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsType");
+  std::string rsName =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsName");
+  std::string rsVersion =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsVersion");
 
   RequestHandle requestHandle = getNewRequestHandle();
   // ErrorCode code = indy_vdr_build_get_rich_schema_object_by_metadata_request(
@@ -487,8 +485,8 @@ jsi::Value buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
 };
 
 jsi::Value poolCreate(jsi::Runtime &rt, jsi::Object options) {
-  std::string params = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "parameters"));
+  std::string params =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "parameters");
 
   PoolHandle poolHandle = getNewPoolHandle();
   ErrorCode code = indy_vdr_pool_create(params.c_str(), &requestHandle);
@@ -499,7 +497,7 @@ jsi::Value poolCreate(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value poolRefresh(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "poolHandle"));
+      rt, options, "poolHandle");
 
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
@@ -512,7 +510,7 @@ jsi::Value poolRefresh(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value poolGetStatus(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "poolHandle"));
+      rt, options, "poolHandle");
 
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
@@ -525,7 +523,7 @@ jsi::Value poolGetStatus(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value poolGetTransactions(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "poolHandle"));
+      rt, options, "poolHandle");
 
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
@@ -538,7 +536,7 @@ jsi::Value poolGetTransactions(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value poolGetVerifiers(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "poolHandle"));
+      rt, options, "poolHandle");
 
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
@@ -551,14 +549,14 @@ jsi::Value poolGetVerifiers(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value poolSubmitAction(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "poolHandle"));
+      rt, options, "poolHandle");
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
-  std::string nodes = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "nodes"), true);
-  int32_t timeout = turboModuleUtility::jsiToValue<int32_t>(
-      rt, options.getProperty(rt, "timeout"), true);
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
+  std::string nodes =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "nodes", true);
+  int32_t timeout =
+      turboModuleUtility::jsiToValue<int32_t>(rt, options, "timeout", true);
 
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
@@ -572,10 +570,10 @@ jsi::Value poolSubmitAction(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value poolSubmitRequest(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "poolHandle"));
+      rt, options, "poolHandle");
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
 
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
@@ -589,7 +587,7 @@ jsi::Value poolSubmitRequest(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value poolClose(jsi::Runtime &rt, jsi::Object options) {
   PoolHandle poolHandle = (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-      rt, options.getProperty(rt, "poolHandle"));
+      rt, options, "poolHandle");
 
   ErrorCode code = indy_vdr_pool_close(poolHandle);
   turboModuleUtility::handleError(rt, code);
@@ -599,16 +597,15 @@ jsi::Value poolClose(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value prepareTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
                                                jsi::Object options) {
-  std::string text = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "text"));
-  std::string version = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "version"));
-  std::string taaDigest = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "taaDigest"));
-  std::string accMechType = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "accMechType"));
-  int32_t time = turboModuleUtility::jsiToValue<int32_t>(
-      rt, options.getProperty(rt, "time"));
+  std::string text =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "text");
+  std::string version =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "version");
+  std::string taaDigest =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "taaDigest");
+  std::string accMechType =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "accMechType");
+  int32_t time = turboModuleUtility::jsiToValue<int32_t>(rt, options, "time");
 
   const char *output;
   ErrorCode code = indy_vdr_prepare_txn_author_agreement_acceptance(
@@ -621,8 +618,8 @@ jsi::Value prepareTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
 
 jsi::Value requestFree(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
 
   ErrorCode code = indy_vdr_request_free(requestHandle);
   turboModuleUtility::handleError(rt, code);
@@ -632,8 +629,8 @@ jsi::Value requestFree(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value requestGetBody(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
 
   const char *bodyP;
   ErrorCode code = indy_vdr_request_get_body(requestHandle, &bodyP);
@@ -644,8 +641,8 @@ jsi::Value requestGetBody(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value requestGetSignatureInput(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
 
   const char *inputP;
   ErrorCode code = indy_vdr_request_get_signature_input(requestHandle, &inputP);
@@ -656,10 +653,10 @@ jsi::Value requestGetSignatureInput(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value requestSetEndorser(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
-  std::string endorser = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "endorser"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
+  std::string endorser =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "endorser");
 
   ErrorCode code =
       indy_vdr_request_set_endorser(requestHandle, endorser.c_str());
@@ -669,12 +666,12 @@ jsi::Value requestSetEndorser(jsi::Runtime &rt, jsi::Object options) {
 };
 jsi::Value requestSetMultiSignature(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
-  std::string identifier = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "identifier"));
-  ByteBuffer signature = turboModuleUtility::jsiToValue<ByteBuffer>(
-      rt, options.getProperty(rt, "signature"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
+  std::string identifier =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "identifier");
+  ByteBuffer signature =
+      turboModuleUtility::jsiToValue<ByteBuffer>(rt, options, "signature");
 
   ErrorCode code = indy_vdr_request_set_multi_signature(
       requestHandle, identifier.c_str(), signature);
@@ -685,10 +682,10 @@ jsi::Value requestSetMultiSignature(jsi::Runtime &rt, jsi::Object options) {
 
 jsi::Value requestSetSignature(jsi::Runtime &rt, jsi::Object options) {
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
-  ByteBuffer signature = turboModuleUtility::jsiToValue<ByteBuffer>(
-      rt, options.getProperty(rt, "signature"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
+  ByteBuffer signature =
+      turboModuleUtility::jsiToValue<ByteBuffer>(rt, options, "signature");
 
   ErrorCode code = indy_vdr_request_set_signature(requestHandle, signature);
   turboModuleUtility::handleError(rt, code);
@@ -699,10 +696,10 @@ jsi::Value requestSetSignature(jsi::Runtime &rt, jsi::Object options) {
 jsi::Value requestSetTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
                                                   jsi::Object options) {
   RequestHandle requestHandle =
-      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(
-          rt, options.getProperty(rt, "requestHandle"));
-  std::string acceptance = turboModuleUtility::jsiToValue<std::string>(
-      rt, options.getProperty(rt, "acceptance"));
+      (uintptr_t)turboModuleUtility::jsiToValue<int64_t>(rt, options,
+                                                         "requestHandle");
+  std::string acceptance =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "acceptance");
 
   ErrorCode code = indy_vdr_request_set_txn_author_agreement_acceptance(
       requestHandle, acceptance.c_str());
