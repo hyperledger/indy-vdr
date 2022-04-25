@@ -3,7 +3,10 @@
   "private": true,
   "license": "Apache-2.0",
   "workspaces": {
-    "packages": ["shared", "react-native", "example"]
+    "packages": [
+      "shared",
+      "react-native"
+    ]
   },
   "scripts": {
     "check-types": "yarn workspaces run tsc --noEmit -p tsconfig.build.json",

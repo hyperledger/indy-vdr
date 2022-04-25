@@ -5,9 +5,3 @@ export type PrepareTxnAuthorAgreementAcceptanceOptions = {
   accMechType: string
   time: number
 }
-
-export type RequestSetSignatureOptions = {
-  requestHandle: number
-  signature: number
-  signatureLen: number
-}

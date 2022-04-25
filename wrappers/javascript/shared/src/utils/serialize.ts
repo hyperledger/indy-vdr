@@ -1,11 +1,11 @@
 export type Callback = (err: number) => void
 export type CallbackWithResponse = (err: number, response: string) => void
 
-type Argument = string | number | Record<string, unknown> | Array<unknown> | Date | Callback | CallbackWithResponse
+type Argument = Record<string, unknown> | Array<unknown> | Date | Uint8Array | SerializedArgument
 
-type SerializedArgument = string | number | Callback | CallbackWithResponse
+type SerializedArgument = string | number | Callback | CallbackWithResponse | ArrayBuffer
 
-type SerializedArguments = Record<string, string | number | Callback | CallbackWithResponse>
+type SerializedArguments = Record<string, SerializedArgument>
 
 export type SerializedOptions<Type> = {
   [Property in keyof Type]: Type[Property] extends string
@@ -32,6 +32,8 @@ export type SerializedOptions<Type> = {
     ? Callback
     : Type[Property] extends CallbackWithResponse
     ? CallbackWithResponse
+    : Type[Property] extends Uint8Array
+    ? ArrayBuffer
     : unknown
 }
 
@@ -44,7 +46,13 @@ const serialize = (arg: Argument): SerializedArgument => {
     case 'function':
       return arg
     case 'object':
-      return arg instanceof Date ? arg.valueOf() : JSON.stringify(arg)
+      if (arg instanceof Date) {
+        return arg.valueOf()
+      } else if (arg instanceof Uint8Array) {
+        return arg.buffer
+      } else {
+        return JSON.stringify(arg)
+      }
     default:
       throw new Error('could not serialize value')
   }

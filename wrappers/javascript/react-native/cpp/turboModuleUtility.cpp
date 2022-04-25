@@ -23,8 +23,14 @@ void handleError(jsi::Runtime &rt, ErrorCode code) {
 
   jsi::Object JSON = rt.global().getPropertyAsObject(rt, "JSON");
   jsi::Function JSONParse = JSON.getPropertyAsFunction(rt, "parse");
-  jsi::Value parsedErrorObject = JSONParse.call(rt, errorMessage);
-  throw jsi::JSError(rt, parsedErrorObject.getObject(rt));
+  jsi::Object parsedErrorObject =
+      JSONParse.call(rt, errorMessage).getObject(rt);
+  jsi::Value message = parsedErrorObject.getProperty(rt, "message");
+  if (message.isString()) {
+    throw jsi::JSError(rt, message.getString(rt).utf8(rt));
+  }
+  throw jsi::JSError(rt, "Could not get message with code: " +
+                             std::to_string(code));
 };
 
 void callback(CallbackId result, ErrorCode code) {
@@ -167,9 +173,8 @@ ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Object &options,
   if (optional)
     return ByteBuffer{0, 0};
 
-  // TODO: confirm both types
   throw jsi::JSError(rt,
-                     errorPrefix + name + errorInfix + "Uint8Array or Buffer");
+                     errorPrefix + name + errorInfix + "Uint8Array");
 }
 
 } // namespace turboModuleUtility
