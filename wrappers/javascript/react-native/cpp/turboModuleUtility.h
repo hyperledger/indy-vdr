@@ -9,6 +9,9 @@ using namespace facebook;
 
 namespace turboModuleUtility {
 
+std::string errorPrefix = "Value `";
+std::string errorInfix = "` is not of type ";
+
 // state of a callback function
 struct State {
   jsi::Function cb;
@@ -25,7 +28,8 @@ void assertValueIsObject(jsi::Runtime &rt, const jsi::Value *val);
 
 // Converts jsi values to regular cpp values
 template <typename T>
-T jsiToValue(jsi::Runtime &rt, jsi::Value value, bool optional = false);
+T jsiToValue(jsi::Runtime &rt, jsi::Object &options, const char *name,
+             bool optional = false);
 
 // Handles an error from within the module and sends it back to the js side
 void handleError(jsi::Runtime &rt, ErrorCode code);

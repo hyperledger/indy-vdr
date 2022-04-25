@@ -49,63 +49,90 @@ void callbackWithResponse(CallbackId result, ErrorCode code,
 }
 
 template <>
-uint8_t jsiToValue<uint8_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
+uint8_t jsiToValue(jsi::Runtime &rt, jsi::Object &options, const char *name,
+                   bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+  if ((value.isNull() || value.isUndefined()) && optional)
+    return 0;
+
   if (value.isNumber())
     return value.asNumber();
 
-  throw jsi::JSError(rt, "Value is not of type number");
-}
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "number");
+};
 
 template <>
-std::string jsiToValue<std::string>(jsi::Runtime &rt, jsi::Value value,
-                                    bool optional) {
+std::string jsiToValue<std::string>(jsi::Runtime &rt, jsi::Object &options,
+                                    const char *name, bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+
   if ((value.isNull() || value.isUndefined()) && optional)
     return std::string();
 
   if (value.isString())
     return value.asString(rt).utf8(rt);
 
-  throw jsi::JSError(rt, "Value is not of type string");
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "string");
 }
 
 template <>
-int64_t jsiToValue<int64_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
+int64_t jsiToValue(jsi::Runtime &rt, jsi::Object &options, const char *name,
+                   bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+  if ((value.isNull() || value.isUndefined()) && optional)
+    return 0;
+
   if (value.isNumber())
     return value.asNumber();
 
-  throw jsi::JSError(rt, "Value is not of type number");
-}
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "number");
+};
 
 template <>
-uint64_t jsiToValue<uint64_t>(jsi::Runtime &rt, jsi::Value value,
-                              bool optional) {
+uint64_t jsiToValue(jsi::Runtime &rt, jsi::Object &options, const char *name,
+                    bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+  if ((value.isNull() || value.isUndefined()) && optional)
+    return 0;
+
   if (value.isNumber())
     return value.asNumber();
 
-  throw jsi::JSError(rt, "Value is not of type number");
-}
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "number");
+};
 
 template <>
-int32_t jsiToValue<int32_t>(jsi::Runtime &rt, jsi::Value value, bool optional) {
+int32_t jsiToValue(jsi::Runtime &rt, jsi::Object &options, const char *name,
+                   bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+  if ((value.isNull() || value.isUndefined()) && optional)
+    return 0;
+
   if (value.isNumber())
     return value.asNumber();
 
-  throw jsi::JSError(rt, "Value is not of type number");
-}
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "number");
+};
 
 template <>
-uint32_t jsiToValue<uint32_t>(jsi::Runtime &rt, jsi::Value value,
-                              bool optional) {
+uint32_t jsiToValue(jsi::Runtime &rt, jsi::Object &options, const char *name,
+                    bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+  if ((value.isNull() || value.isUndefined()) && optional)
+    return 0;
+
   if (value.isNumber())
     return value.asNumber();
 
-  throw jsi::JSError(rt, "Value is not of type number");
-}
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "number");
+};
 
 template <>
-std::vector<int32_t> jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt,
-                                                      jsi::Value value,
-                                                      bool optional) {
+std::vector<int32_t>
+jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt, jsi::Object &options,
+                                 const char *name, bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+
   if (value.isObject() && value.asObject(rt).isArray(rt)) {
     std::vector<int32_t> vec = {};
     jsi::Array arr = value.asObject(rt).asArray(rt);
@@ -115,20 +142,23 @@ std::vector<int32_t> jsiToValue<std::vector<int32_t>>(jsi::Runtime &rt,
       if (element.isNumber()) {
         vec.push_back(element.asNumber());
       } else {
-        throw jsi::JSError(rt, "Value in array not of type number");
+        throw jsi::JSError(rt, errorPrefix + name + errorInfix + "number");
       }
     }
     return vec;
   }
+
   if (optional)
     return {};
 
-  throw jsi::JSError(rt, "Value is not of type Array<number>");
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "Array<number>");
 }
 
 template <>
-ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Value value,
-                                  bool optional) {
+ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Object &options,
+                                  const char *name, bool optional) {
+  jsi::Value value = options.getProperty(rt, name);
+
   if (value.isObject() && value.asObject(rt).isArrayBuffer(rt)) {
     jsi::ArrayBuffer arrayBuffer = value.getObject(rt).getArrayBuffer(rt);
     return ByteBuffer{int(arrayBuffer.size(rt)), arrayBuffer.data(rt)};
@@ -138,7 +168,8 @@ ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Value value,
     return ByteBuffer{0, 0};
 
   // TODO: confirm both types
-  throw jsi::JSError(rt, "Value is not of type Uint8Array / Buffer");
+  throw jsi::JSError(rt,
+                     errorPrefix + name + errorInfix + "Uint8Array or Buffer");
 }
 
 } // namespace turboModuleUtility
