@@ -164,14 +164,9 @@ export interface IndyVdrNativeBindings {
 
   requestSetEndorser(options: { requestHandle: number; endorser: string }): null
 
-  requestSetMultiSignature(options: {
-    requestHandle: number
-    identifier: string
-    signature: number
-    signatureLen: number
-  }): null
+  requestSetMultiSignature(options: { requestHandle: number; identifier: string; signature: ArrayBuffer }): null
 
-  requestSetSignature(options: { requestHandle: number; signature: number; signatureLen: number }): null
+  requestSetSignature(options: { requestHandle: number; signature: ArrayBuffer }): null
 
   requestSetTxnAuthorAgreementAcceptance(options: { requestHandle: number; acceptance: string }): null
 }
