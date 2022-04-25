@@ -11,8 +11,11 @@ export type RequestSetTxnAuthorAgreementAcceptanceOptions = {
 
 export type RequestSetMultiSignatureOptions = {
   identifier: string
-  signature: number
-  signatureLen: number
+  signature: Uint8Array
+}
+
+export type RequestSetSignatureOptions = {
+  signature: Uint8Array
 }
 
 export type RequestSetEndorserOptions = {
@@ -46,6 +49,10 @@ export class IndyVdrRequest {
 
   public setMultiSignature(options: RequestSetMultiSignatureOptions): void {
     indyVdr.requestSetMultiSignature({ requestHandle: this.handle, ...options })
+  }
+
+  public setSignature(options: RequestSetSignatureOptions): void {
+    indyVdr.requestSetSignature({ requestHandle: this.handle, ...options })
   }
 
   public setTransactionAuthorAgreementAcceptance(options: RequestSetTxnAuthorAgreementAcceptanceOptions): void {

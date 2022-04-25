@@ -32,9 +32,10 @@ import type {
   RequestHandle,
   RequestSetEndorserOptions,
   RequestSetMultiSignatureOptions,
+  RequestSetSignatureOptions,
   RequestSetTxnAuthorAgreementAcceptanceOptions,
 } from '../indyVdr'
-import type { PrepareTxnAuthorAgreementAcceptanceOptions, RequestSetSignatureOptions } from './builderTypes'
+import type { PrepareTxnAuthorAgreementAcceptanceOptions } from './builderTypes'
 import type { PoolStatus, Transactions, Verifiers } from './types'
 
 // TODO: proper documentation
