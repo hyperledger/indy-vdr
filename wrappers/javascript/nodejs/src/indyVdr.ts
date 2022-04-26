@@ -56,12 +56,12 @@ export class NodeJSIndyVdr implements IndyVdr {
   private promisify = async (method: (nativeCallbackPtr: Buffer, id: number) => void): Promise<void> => {
     return new Promise((resolve, reject) => {
       const cb: NativeCallback = (id, errorCode) => {
+        clearTimeout(id as unknown as NodeJS.Timeout)
         if (errorCode) reject(this.getCurrentError())
         resolve()
-        clearTimeout(id as unknown as NodeJS.Timeout)
       }
-      const { callback, id } = toNativeCallback(cb)
-      method(callback, +id)
+      const { nativeCallback, id } = toNativeCallback(cb)
+      method(nativeCallback, +id)
     })
   }
 
@@ -71,23 +71,19 @@ export class NodeJSIndyVdr implements IndyVdr {
   ): Promise<T> => {
     return new Promise((resolve, reject) => {
       const cb: NativeCallbackWithResponse = (id, errorCode, response) => {
-        console.log(id)
+        clearTimeout(id as unknown as NodeJS.Timeout)
         if (errorCode) reject(this.getCurrentError())
 
         try {
           //this is required to add array brackets, and commas, to an invalid json object that
           // should be a list
           const mappedResponse = isStream ? '[' + response.replace(/\n/g, ',') + ']' : response
-          clearTimeout(id as unknown as NodeJS.Timeout)
           resolve(JSON.parse(mappedResponse) as T)
         } catch (error) {
-          clearTimeout(id as unknown as NodeJS.Timeout)
           reject(error)
         }
       }
-      const { callback: nativeCallback, id } = toNativeCallbackWithResponse(cb)
-      console.log(id)
-      console.log(+id)
+      const { nativeCallback, id } = toNativeCallbackWithResponse(cb)
       method(nativeCallback, +id)
     })
   }

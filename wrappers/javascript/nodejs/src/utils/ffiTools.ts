@@ -34,14 +34,14 @@ export const uint8ArrayToByteBuffer = (typedArray: Buffer) => {
 
 export type NativeCallback = (id: number, errorCode: number) => void
 export const toNativeCallback = (cb: NativeCallback) => {
-  const callback = Callback(FFI_VOID, [FFI_CALLBACK_ID, FFI_ERROR_CODE], cb)
-  const id = setTimeout(() => callback, 1000000)
-  return { callback, id }
+  const nativeCallback = Callback(FFI_VOID, [FFI_CALLBACK_ID, FFI_ERROR_CODE], cb)
+  const id = setTimeout(() => nativeCallback, 1000000)
+  return { nativeCallback, id }
 }
 
 export type NativeCallbackWithResponse = (id: number, errorCode: number, response: string) => void
 export const toNativeCallbackWithResponse = (cb: NativeCallbackWithResponse) => {
-  const callback = Callback(FFI_VOID, [FFI_CALLBACK_ID, FFI_ERROR_CODE, FFI_STRING], cb)
-  const id = setTimeout(() => callback, 1000000)
-  return { callback, id }
+  const nativeCallback = Callback(FFI_VOID, [FFI_CALLBACK_ID, FFI_ERROR_CODE, FFI_STRING], cb)
+  const id = setTimeout(() => nativeCallback, 1000000)
+  return { nativeCallback, id }
 }
