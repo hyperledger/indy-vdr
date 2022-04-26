@@ -1,6 +1,7 @@
-import { handleError } from './error'
-import { indyVdr } from './lib'
-import { allocateHandleBuffer } from './utils'
+/* eslint-disable no-console */
+import { GetSchemaRequest, GetValidatorInfoRequest, PoolCreate, registerIndyVdr } from 'indy-vdr-shared'
+
+import { NodeJSIndyVdr } from './indyVdr'
 
 const transactions = `{"reqSignature":{},"txn":{"data":{"data":{"alias":"ev1","client_ip":"54.207.36.81","client_port":"9702","node_ip":"18.231.96.215","node_port":"9701","services":["VALIDATOR"]},"dest":"GWgp6huggos5HrzHVDy5xeBkYHxPvrRZzjPNAyJAqpjA"},"metadata":{"from":"J4N1K1SEB8uY2muwmecY5q"},"type":"0"},"txnMetadata":{"seqNo":1,"txnId":"b0c82a3ade3497964cb8034be915da179459287823d92b5717e6d642784c50e6"},"ver":"1"}
 {"reqSignature":{},"txn":{"data":{"data":{"alias":"zaValidator","client_ip":"154.0.164.39","client_port":"9702","node_ip":"154.0.164.39","node_port":"9701","services":["VALIDATOR"]},"dest":"BnubzSjE3dDVakR77yuJAuDdNajBdsh71ZtWePKhZTWe"},"metadata":{"from":"UoFyxT8BAqotbkhiehxHCn"},"type":"0"},"txnMetadata":{"seqNo":2,"txnId":"d5f775f65e44af60ff69cfbcf4f081cd31a218bf16a941d949339dadd55024d0"},"ver":"1"}
@@ -13,12 +14,17 @@ const transactions = `{"reqSignature":{},"txn":{"data":{"data":{"alias":"ev1","c
 {"reqSignature":{},"txn":{"data":{"data":{"alias":"prosovitor","client_ip":"138.68.240.143","client_port":"9711","node_ip":"138.68.240.143","node_port":"9710","services":["VALIDATOR"]},"dest":"C8W35r9D2eubcrnAjyb4F3PC3vWQS1BHDg7UvDkvdV6Q"},"metadata":{"from":"Y1ENo59jsXYvTeP378hKWG"},"type":"0"},"txnMetadata":{"seqNo":9,"txnId":"15f22de8c95ef194f6448cfc03e93aeef199b9b1b7075c5ea13cfef71985bd83"},"ver":"1"}
 {"reqSignature":{},"txn":{"data":{"data":{"alias":"iRespond","client_ip":"52.187.10.28","client_port":"9702","node_ip":"52.187.10.28","node_port":"9701","services":["VALIDATOR"]},"dest":"3SD8yyJsK7iKYdesQjwuYbBGCPSs1Y9kYJizdwp2Q1zp"},"metadata":{"from":"JdJi97RRDH7Bx7khr1znAq"},"type":"0"},"txnMetadata":{"seqNo":10,"txnId":"b65ce086b631ed75722a4e1f28fc9cf6119b8bc695bbb77b7bdff53cfe0fc2e2"},"ver":"1"}`
 
-const main = () => {
-  const handle = allocateHandleBuffer()
-  const e = indyVdr.indy_vdr_pool_create(`{params: {transactions: ${transactions}}}`, handle)
-  if (e > 0) {
-    handleError()
-  }
+const main = async () => {
+  registerIndyVdr({ vdr: new NodeJSIndyVdr() })
+
+  const pool = new PoolCreate({ parameters: { transactions } })
+
+  const getSchemaRequest = new GetSchemaRequest({
+    schemaId: 'MrQD91rFx5mSbuhxvQCWfm:2:Identidad:0.0.1',
+    submitterDid: 'MrQD91rFx5mSbuhxvQCWfm',
+  })
+
+  console.log(await pool.submitRequest({ requestHandle: getSchemaRequest.handle }))
 }
 
-main()
+void main()
