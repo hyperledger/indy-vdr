@@ -1,3 +1,5 @@
+/* eslint-disable no-empty-pattern */
+
 export type PoolHandle = number
 export type RequestHandle = number
 
@@ -66,7 +68,7 @@ export interface IndyVdrNativeBindings {
     toTs: number
   }): RequestHandle
 
-  buildRevocRegDefRequest(options: { submitterDid: string; revocationRegistryId: string }): RequestHandle
+  buildRevocRegDefRequest(options: { submitterDid: string; revocationRegistryDefinitionV1: string }): RequestHandle
 
   buildCustomRequest(options: { customRequest: string }): RequestHandle
 

@@ -1,9 +1,15 @@
+import type { ByteBuffer } from '../ffi'
+
+import { NULL } from 'ref-napi'
+
+import { uint8ArrayToByteBuffer } from './ffiTools'
+
 export type Callback = (err: number) => void
 export type CallbackWithResponse = (err: number, response: string) => void
 
 type Argument = Record<string, unknown> | Array<unknown> | Date | Uint8Array | SerializedArgument
 
-type SerializedArgument = string | number | Callback | CallbackWithResponse | ArrayBuffer
+type SerializedArgument = string | number | Callback | CallbackWithResponse | ArrayBuffer | typeof ByteBuffer
 
 type SerializedArguments = Record<string, SerializedArgument>
 
@@ -33,12 +39,14 @@ export type SerializedOptions<Type> = Required<{
     : Type[Property] extends CallbackWithResponse
     ? CallbackWithResponse
     : Type[Property] extends Uint8Array
-    ? ArrayBuffer
+    ? typeof ByteBuffer
     : unknown
 }>
 
 const serialize = (arg: Argument): SerializedArgument => {
   switch (typeof arg) {
+    case 'undefined':
+      return NULL
     case 'string':
       return arg
     case 'number':
@@ -49,7 +57,7 @@ const serialize = (arg: Argument): SerializedArgument => {
       if (arg instanceof Date) {
         return arg.valueOf()
       } else if (arg instanceof Uint8Array) {
-        return arg.buffer
+        return uint8ArrayToByteBuffer(Buffer.from(arg)) as unknown as typeof ByteBuffer
       } else {
         return JSON.stringify(arg)
       }

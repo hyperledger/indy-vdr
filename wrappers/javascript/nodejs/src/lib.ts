@@ -1,6 +1,6 @@
 import type { NativeMethods } from './ffi'
 
-import ffi from 'ffi-napi'
+import { Library } from 'ffi-napi'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
@@ -63,7 +63,7 @@ const getLibrary = () => {
   // TODO
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  return ffi.Library(validLibraryPath, nativeBindings)
+  return Library(validLibraryPath, nativeBindings)
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment

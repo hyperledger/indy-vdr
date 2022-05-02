@@ -5,7 +5,8 @@
   "workspaces": {
     "packages": [
       "shared",
-      "react-native"
+      "react-native",
+      "nodejs"
     ]
   },
   "scripts": {
@@ -20,7 +21,8 @@
     "reset": "find . -type dir -name node_modules | xargs rm -rf && rm -rf yarn.lock",
     "example": "yarn --cwd example",
     "react-native": "yarn --cwd react-native",
-    "shared": "yarn --cwd shared"
+    "shared": "yarn --cwd shared",
+    "nodejs": "yarn --cwd nodejs"
   },
   "repository": {
     "type": "git",

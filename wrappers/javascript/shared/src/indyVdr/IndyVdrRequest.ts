@@ -1,4 +1,4 @@
-import { indyVdr } from '../indyVdr'
+import { indyVdr } from '../indyVdr/indyVdr'
 
 export type RequestSetTxnAuthorAgreementAcceptanceOptions = {
   acceptance: {

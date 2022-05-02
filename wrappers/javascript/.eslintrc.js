@@ -10,7 +10,7 @@ module.exports = {
   ],
   parserOptions: {
     tsconfigRootDir: __dirname,
-    project: ['./tsconfig.eslint.json', 'shared/tsconfig.json', 'react-native/tsconfig.json', 'example/tsconfig.json'],
+    project: ['./tsconfig.eslint.json', 'shared/tsconfig.json', 'react-native/tsconfig.json', 'nodejs/tsconfig.json'],
   },
   settings: {
     'import/extensions': ['.js', '.ts', '.jsx', '.tsx'],
@@ -20,11 +20,11 @@ module.exports = {
     'import/resolver': {
       typescript: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
-        project: ['shared/tsconfig.json', 'react-native/tsconfig.json', 'example/tsconfig.json'],
+        project: ['shared/tsconfig.json', 'react-native/tsconfig.json', 'nodejs/tsconfig.json'],
         alwaysTryTypes: true,
       },
       node: {
-        project: ['shared/tsconfig.json', 'react-native/tsconfig.json', 'example/tsconfig.json'],
+        project: ['shared/tsconfig.json', 'react-native/tsconfig.json', 'nodejs/tsconfig.json'],
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
       },
     },
