@@ -6,7 +6,7 @@ export type GetRevocationRegistryDefinitionRequestOptions = {
 }
 
 export type GetRevocationRegistryDefinitionResponse = {
-  op: string
+  op: 'REPLY'
   result: {
     txnTime?: unknown
     state_proof: {
