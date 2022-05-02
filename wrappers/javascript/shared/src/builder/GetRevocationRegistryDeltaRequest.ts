@@ -8,7 +8,7 @@ export type GetRevocationRegistryDeltaRequestOptions = {
 }
 
 export type GetRevocationRegistryDeltaResponse = {
-  op: string
+  op: 'REPLY'
   result: {
     revocRegDefId: string
     to: number

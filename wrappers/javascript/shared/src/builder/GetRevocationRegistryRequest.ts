@@ -7,7 +7,7 @@ export type GetRevocationRegistryRequestOptions = {
 }
 
 export type GetRevocationRegistryResponse = {
-  op: string
+  op: 'REPLY'
   result: {
     revocRegDefId: string
     seqNo?: unknown

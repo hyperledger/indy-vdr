@@ -136,7 +136,6 @@ export const nativeBindings = {
   indy_vdr_request_set_txn_author_agreement_acceptance: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, FFI_STRING]],
 } as const
 
-// TODO handle optional
 export interface NativeMethods {
   indy_vdr_set_config: (arg0: string) => number
   indy_vdr_set_default_logger: () => number
