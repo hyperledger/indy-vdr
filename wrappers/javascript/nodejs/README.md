@@ -1,29 +1,28 @@
-# indy-vdr-react-native
+# indy-vdr-nodejs
 
-Wrapper for React Native around indy-vdr
+Wrapper for Nodejs around indy-vdr
 
 ## Requirements
 
-This module uses the new React Native Turbo Modules. These are faster than the
-previous Native Modules, and can be completely synchronous. A React Native
-version of `>= 0.66.0` is required for this package to work.
+This has been tested extensively with Nodejs version `16.11.0` and `16.15.0`.
+Older and newer versions might also work, but they have not been tested.
 
 ## Installation
 
 ```sh
-yarn add indy-vdr-react-native indy-vdr-shared
+yarn add indy-vdr-nodejs indy-vdr-shared
 ```
 
 ## Setup
 
 In order to work with this module a function from `indy-vdr-shared` has to be
-called to register the native module (indy-vdr-react-native)
+called to register the native module (indy-vdr-nodejs)
 
 ```typescript
 import { registerIndyVdr } from 'indy-vdr-shared'
-import { indyVdrReactNative } from 'indy-vdr-react-native'
+import { indyVdrNodeJS } from 'indy-vdr-nodejs'
 
-registerIndyVdr({ vdr: indyVdrReactNative })
+registerIndyVdr({ vdr: indyVdrNodeJS })
 ```
 
 After this setup classes can be built that are imported from `indy-vdr-shared`
