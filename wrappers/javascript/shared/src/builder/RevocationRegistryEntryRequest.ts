@@ -6,7 +6,7 @@ export type RevocationRegistryEntryRequestOptions = {
   revocationRegistryDefinitionType: string
   revocationRegistryEntry: {
     ver: '1.0'
-    value: string
+    value: { accum: unknown } & Record<string, unknown>
   }
 }
 

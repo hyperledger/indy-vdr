@@ -73,15 +73,18 @@ export const nativeBindings = {
     FFI_ERROR_CODE,
     [FFI_STRING, FFI_STRING, FFI_INT64, FFI_REQUEST_HANDLE_POINTER],
   ],
-  // indy_vdr_build_get_rich_schema_object_by_id_request: [FFI_ERROR_CODE, [FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE]],
-  //indy_vdr_build_get_rich_schema_object_by_metadata_request: [
-  //   FFI_ERROR_CODE,
-  //   [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE],
-  // ],
-  // indy_vdr_build_rich_schema_request: [
-  //   FFI_ERROR_CODE,
-  //   [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE],
-  // ],
+  indy_vdr_build_get_rich_schema_object_by_id_request: [
+    FFI_ERROR_CODE,
+    [FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER],
+  ],
+  indy_vdr_build_get_rich_schema_object_by_metadata_request: [
+    FFI_ERROR_CODE,
+    [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER],
+  ],
+  indy_vdr_build_rich_schema_request: [
+    FFI_ERROR_CODE,
+    [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER],
+  ],
   indy_vdr_build_get_schema_request: [FFI_ERROR_CODE, [FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER]],
   indy_vdr_build_txn_author_agreement_request: [
     FFI_ERROR_CODE,
@@ -128,7 +131,7 @@ export const nativeBindings = {
   indy_vdr_request_get_body: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, FFI_STRING_POINTER]],
   indy_vdr_request_get_signature_input: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, FFI_STRING_POINTER]],
   indy_vdr_request_set_endorser: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, FFI_STRING]],
-  indy_vdr_request_set_multi_signature: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, ByteBuffer]],
+  indy_vdr_request_set_multi_signature: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, FFI_STRING, ByteBuffer]],
   indy_vdr_request_set_signature: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, ByteBuffer]],
   indy_vdr_request_set_txn_author_agreement_acceptance: [FFI_ERROR_CODE, [FFI_REQUEST_HANDLE, FFI_STRING]],
 } as const

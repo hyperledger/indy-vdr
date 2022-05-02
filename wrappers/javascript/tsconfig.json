@@ -1,14 +1,11 @@
 {
   "extends": "./tsconfig.build.json",
-  "ts-node": {
-    "require": ["tsconfig-paths/register"],
-    "files": true
-  },
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
       "indy-vdr-shared": ["shared/src"],
-      "indy-vdr-react-native": ["react-native/src"]
+      "indy-vdr-react-native": ["react-native/src"],
+      "indy-vdr-nodejs": ["nodejs/src"]
     },
     "types": ["node"]
   },

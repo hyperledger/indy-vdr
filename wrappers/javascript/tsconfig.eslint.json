@@ -6,7 +6,8 @@
     "types": ["node"],
     "paths": {
       "indy-vdr-shared": ["shared/src"],
-      "indy-vdr-react-native": ["react-native/src"]
+      "indy-vdr-react-native": ["react-native/src"],
+      "indy-vdr-nodejs": ["nodejs/src"]
     }
   },
   "include": [".eslintrc.js"],

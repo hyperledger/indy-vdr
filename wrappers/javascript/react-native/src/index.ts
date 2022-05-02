@@ -1,4 +1,5 @@
 import { NativeModules } from 'react-native'
+
 import { ReactNativeIndyVdr } from './indyVdr'
 
 const module = NativeModules.IndyVdr
