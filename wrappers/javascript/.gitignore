@@ -54,7 +54,8 @@ android/keystores/debug.keystore
 # Expo
 .expo/*
 
-# frameworks
-ios/Frameworks/*
+# Native Libraries 
+react-native/ios/Frameworks/*
+react-native/android/libs
 
 example
