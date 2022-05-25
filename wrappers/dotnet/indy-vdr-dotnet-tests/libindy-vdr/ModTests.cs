@@ -24,5 +24,57 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             actual.Should().NotBeEmpty();
             Console.WriteLine(actual);
         }
+
+        [Test]
+        [TestCase(TestName = "SetConfig does not throw an exception.")]
+        public void SetConfig()
+        {
+            //Arrange
+
+            //Act
+            Action act = () => Mod.SetConfig("config");
+
+            //Assert
+            act.Should().NotThrow();
+        }
+
+        [Test]
+        [TestCase(TestName = "SetDefaultLogger does not throw an exception.")]
+        public void SetDefaultLogger()
+        {
+            //Arrange
+
+            //Act
+            Action act = () => Mod.SetDefaultLogger();
+
+            //Assert
+            act.Should().NotThrow();
+        }
+
+        [Test]
+        [TestCase(TestName = "SetSocksProxy does not throw an exception.")]
+        public void SetSocksProxy()
+        {
+            //Arrange
+
+            //Act
+            Action act = () => Mod.SetSocksProxy("socks_proxy");
+
+            //Assert
+            act.Should().NotThrow();
+        }
+
+        [Test]
+        [TestCase(TestName = "SetProtocolVersion does not throw an exception.")]
+        public void SetProtocolVersion()
+        {
+            //Arrange
+
+            //Act
+            Action act = () => Mod.SetProtocolVersion(1u);
+
+            //Assert
+            act.Should().NotThrow();
+        }
     }
 }
