@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace indy_vdr_dotnet
+﻿namespace indy_vdr_dotnet
 {
     public class Consts
     {

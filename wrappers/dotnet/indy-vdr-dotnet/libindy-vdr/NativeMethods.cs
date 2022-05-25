@@ -25,5 +25,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern void indy_vdr_get_current_error(ref string error_json_p);
         #endregion
+
+        #region Request
+        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern void indy_vdr_prepare_txn_author_agreement_acceptance(string text, string version, string taa_digest, string acc_mech_type, uint time, ref string output_p);
+        #endregion
     }
 }
