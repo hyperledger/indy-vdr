@@ -13,11 +13,15 @@ namespace indy_vdr_dotnet.models
         public struct FfiStr
         {
             public IntPtr data;
+
             public static FfiStr Create(string arg)
             {
                 FfiStr FfiString = new();
                 FfiString.data = new IntPtr();
-                FfiString.data = Marshal.StringToCoTaskMemUTF8(arg);
+                if (arg != null)
+                {
+                    FfiString.data = Marshal.StringToCoTaskMemUTF8(arg);
+                }
                 return FfiString;
             }
         }
