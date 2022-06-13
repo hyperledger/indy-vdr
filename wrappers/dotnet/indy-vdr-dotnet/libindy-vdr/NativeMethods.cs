@@ -12,7 +12,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region Ledger
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_build_acceptance_mechanisms_request(FfiStr submitter_did, FfiStr aml, FfiStr version, ref uint handle_p, FfiStr aml_context);
+        internal static extern int indy_vdr_build_acceptance_mechanisms_request(FfiStr submitter_did, FfiStr aml, FfiStr version, FfiStr aml_context, ref uint handle_p);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_build_get_acceptance_mechanisms_request(FfiStr submitter_did, long timestamp, FfiStr version, ref uint handle_p);
