@@ -125,7 +125,6 @@ namespace indy_vdr_dotnet.libindy_vdr
             return await Task.FromResult(request_handle);
         }
 
-        public static async Task<uint> BuildSchemaRequest(
 
         public static async Task<uint> BuildSchemaRequestAsync(
             string submitterDid,

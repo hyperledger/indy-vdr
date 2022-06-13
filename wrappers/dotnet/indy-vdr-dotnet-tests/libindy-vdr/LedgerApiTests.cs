@@ -46,6 +46,25 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             testObject.Should().NotBe(0);
         }
 
+        [Test, TestCase(TestName = "BuildGetAttributeRequest call returns request handle.")]
+        public async Task BuildGetAttributeRequestWorks()
+        {
+            //Arrange 
+            string testSubmitterDid = "LibindyDid111111111111";
+            string testTargetDid = "LibindyDid111111111111";
+            string testHash = "";
+            string testRaw = "";
+            string testEnc = "";
+
+            //Act
+            uint testObject = await LedgerApi.BuildAttributeRequest(
+                testTargetDid,
+                testSubmitterDid);
+
+            //Assert
+            testObject.Should().NotBe(0);
+        }
+
         [Test, TestCase(TestName = "BuildSchemaRequestAsync call returns request handle.")]
         public async Task BuildSchemaRequestAsyncWorks()
         {
@@ -71,23 +90,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             testObject.Should().NotBe(0);
         }
-        [Test, TestCase(TestName = "BuildGetAttributeRequest call returns request handle.")]
-        public async Task BuildGetAttributeRequestWorks()
-        {
-            //Arrange 
-            string testSubmitterDid = "LibindyDid111111111111";
-            string testTargetDid = "LibindyDid111111111111";
-            string testHash = "";
-            string testRaw = "";
-            string testEnc = "";
 
-            //Act
-            uint testObject = await LedgerApi.BuildAttributeRequest(
-                testTargetDid,
-                testSubmitterDid);
-
-            //Assert
-            testObject.Should().NotBe(0);
-        }
     }
 }
