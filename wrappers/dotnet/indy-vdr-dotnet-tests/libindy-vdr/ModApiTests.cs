@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace indy_vdr_dotnet_tests.libindy_vdr
 {
-    public class ModTests
+    public class ModApiTests
     {
         [Test]
         [TestCase(TestName = "GetVersionAsync returns a string that is not empty.")]

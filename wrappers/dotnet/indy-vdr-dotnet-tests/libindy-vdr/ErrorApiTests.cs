@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace indy_vdr_dotnet_tests.libindy_vdr
 {
-    internal class Errortests
+    public class ErrorApiTests
     {
         [Test]
         [TestCase(TestName = "GetCurrentErrorAsync returns the json of an empty error.")]
@@ -15,7 +15,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Act
             string expected = "{\"code\":0,\"message\":null,\"extra\":null}";
-            string actual = await Error.GetCurrentErrorAsync();
+            string actual = await ErrorApi.GetCurrentErrorAsync();
 
             //Assert
             actual.Should().Be(expected);
