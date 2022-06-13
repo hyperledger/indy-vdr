@@ -51,7 +51,8 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return await Task.FromResult(request_handle);
         }
-        public static async Task<uint> BuildSchemaRequest(
+
+        public static async Task<uint> BuildSchemaRequestAsync(
             string submitterDid,
             string schema)
         {
@@ -67,6 +68,16 @@ namespace indy_vdr_dotnet.libindy_vdr
                 NativeMethods.indy_vdr_get_current_error(ref error);
                 Debug.WriteLine(error);
             }
+            /*
+            string requestJson = "";
+            var bodyErrorCode = NativeMethods.indy_vdr_request_get_body(requestHandle, ref requestJson);
+
+            if (bodyErrorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Debug.WriteLine(error);
+            }*/
 
             return requestHandle;
         }
