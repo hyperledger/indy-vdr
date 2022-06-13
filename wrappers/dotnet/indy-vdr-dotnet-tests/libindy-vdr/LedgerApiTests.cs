@@ -5,9 +5,6 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace indy_vdr_dotnet_tests.libindy_vdr
@@ -41,7 +38,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Arrange 
             long testTimestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
 
-
             //Act
             uint testObject = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(
                 testTimestamp);
@@ -50,6 +46,31 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             testObject.Should().NotBe(0);
         }
 
+        [Test, TestCase(TestName = "BuildSchemaRequestAsync call returns request handle.")]
+        public async Task BuildSchemaRequestAsyncWorks()
+        {
+            //Arrange
+            string testSubmitterId = "LibindyDid111111111111";
+            Schema testSchema = new()
+            {
+                Id = "testId",
+                Name = "testName",
+                Version = "1.0",
+                Ver = "1.0",
+                AttrNames = new HashSet<string>() { "testAttribute1", "testAttribute2" },
+                SeqNo = 5
+            };
+
+            string schemaJson = JsonConvert.SerializeObject(testSchema);
+
+            //Act
+            uint testObject = await LedgerApi.BuildSchemaRequestAsync(
+                testSubmitterId,
+                schemaJson);
+
+            //Assert
+            testObject.Should().NotBe(0);
+        }
         [Test, TestCase(TestName = "BuildGetAttributeRequest call returns request handle.")]
         public async Task BuildGetAttributeRequestWorks()
         {
