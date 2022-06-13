@@ -2,7 +2,7 @@
 
 namespace indy_vdr_dotnet.libindy_vdr
 {
-    public static class Error
+    public static class ErrorApi
     {
         public static Task<string> GetCurrentErrorAsync()
         {
