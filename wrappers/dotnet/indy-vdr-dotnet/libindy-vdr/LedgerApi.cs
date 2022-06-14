@@ -12,17 +12,17 @@ namespace indy_vdr_dotnet.libindy_vdr
     {
 
         public static async Task<uint> BuildAcceptanceMechanismsRequestAsync(
-            string submitter_did,
+            string submitterDid,
             string aml,
             string verion,
-            string aml_context = null)
+            string amlContext = null)
         {
             uint request_handle = 0;
             int errorCode = NativeMethods.indy_vdr_build_acceptance_mechanisms_request(
-                FfiStr.Create(submitter_did),
+                FfiStr.Create(submitterDid),
                 FfiStr.Create(aml),
                 FfiStr.Create(verion),
-                FfiStr.Create(aml_context),
+                FfiStr.Create(amlContext),
                 ref request_handle);
 
             if (errorCode != 0)
@@ -38,16 +38,70 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<uint> BuildGetAcceptanceMechanismsRequestAsync(
             long timestamp,
             string version = null,
-            string submitter_did = null)
+            string submitterDid = null)
         {
             uint request_handle = 0;
             int errorCode = NativeMethods.indy_vdr_build_get_acceptance_mechanisms_request(
-                FfiStr.Create(submitter_did),
+                FfiStr.Create(submitterDid),
                 timestamp,
                 FfiStr.Create(version),
                 ref request_handle);
 
-            await ErrorApi.GetCurrentErrorAsync();
+            if (errorCode != 0)
+            {
+                await ErrorApi.GetCurrentErrorAsync();
+            }
+            return await Task.FromResult(request_handle);
+        }
+
+        public static async Task<uint> BuildAttributeRequest(
+            string targetDid,
+            string submitterDid = null,
+            string hash = null,
+            string raw = null,
+            string enc = null)
+        {
+            uint request_handle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_attrib_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(targetDid),
+                FfiStr.Create(hash),
+                FfiStr.Create(raw),
+                FfiStr.Create(enc),
+                ref request_handle);
+
+            Debug.WriteLine("\n\n TEST");
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Debug.WriteLine(error);
+            }
+
+            return await Task.FromResult(request_handle);
+        }
+
+        public static async Task<uint> BuildGetAttributeRequest(
+            string targetDid,
+            string submitterDid = null,
+            string hash = null,
+            string raw = null,
+            string enc = null)
+        {
+            uint request_handle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_attrib_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(targetDid),
+                FfiStr.Create(hash),
+                FfiStr.Create(raw),
+                FfiStr.Create(enc),
+                ref request_handle);
+
+            if (errorCode != 0)
+            {
+                await ErrorApi.GetCurrentErrorAsync();
+            }
 
             return await Task.FromResult(request_handle);
         }
@@ -95,6 +149,26 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return requestHandle;
         }
+
+        public static async Task<uint> BuildCredDefRequest(
+            string submitterDid,
+            string credDef)
+        {
+            uint request_handle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_cred_def_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(credDef),
+                ref request_handle);
+
+
+            if (errorCode != 0)
+            {
+                await ErrorApi.GetCurrentErrorAsync();
+            }
+
+            return await Task.FromResult(request_handle);
+        }
+
 
         public static async Task<uint> BuildSchemaRequestAsync(
             string submitterDid,

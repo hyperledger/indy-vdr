@@ -15,14 +15,15 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task BuildAcceptanceMechanismsRequestAsyncWorks()
         {
             //Arrange 
-            string testSubmitter_id = "LibindyDid111111111111";
-            string testAml = "{\"test\":{\"description\":\"testdescription\"}}";
+            string testSubmitterId = "LibindyDid111111111111";
+            Dictionary<string, Dictionary<string, string>> testDict = new() { { "test", new Dictionary<string, string>() { { "description", "" } } } };
+            string testAml = JsonConvert.SerializeObject(testDict);
             string testVersion = "1";
             string testAml_context = "test_aml_context";
 
             //Act
             uint testObject = await LedgerApi.BuildAcceptanceMechanismsRequestAsync(
-                testSubmitter_id,
+                testSubmitterId,
                 testAml,
                 testVersion,
                 testAml_context);
@@ -83,6 +84,25 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = testObject.Should().NotBe(0);
         }
 
+        [Test, TestCase(TestName = "BuildGetAttributeRequest call returns request handle.")]
+        public async Task BuildGetAttributeRequestWorks()
+        {
+            //Arrange 
+            string testSubmitterDid = "LibindyDid111111111111";
+            string testTargetDid = "LibindyDid111111111111";
+            string testHash = "";
+            string testRaw = "";
+            string testEnc = "";
+
+            //Act
+            uint testObject = await LedgerApi.BuildAttributeRequest(
+                testTargetDid,
+                testSubmitterDid);
+
+            //Assert
+            testObject.Should().NotBe(0);
+        }
+
         [Test, TestCase(TestName = "BuildSchemaRequestAsync call returns request handle.")]
         public async Task BuildSchemaRequestAsyncWorks()
         {
@@ -99,5 +119,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             _ = testObject.Should().NotBe(0);
         }
+
     }
 }
