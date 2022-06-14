@@ -87,11 +87,13 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                                     custom_state_proof_parser,
                                 ))
                         {
-                            debug!(
-                                "State proof verification succeeded for node: {}, sp_key: '{}'",
-                                node_alias,
-                                base64::encode(state_proof_key.as_ref().unwrap()),
-                            );
+                            if state_proof_key.is_some() {
+                                debug!(
+                                    "State proof verification succeeded for node: {}, sp_key: '{}'",
+                                    node_alias,
+                                    base64::encode(state_proof_key.as_ref().unwrap()),
+                                );
+                            }
                             return Ok((
                                 RequestResult::Reply(if cnt > f { soonest } else { raw_msg }),
                                 request.get_timing(),
