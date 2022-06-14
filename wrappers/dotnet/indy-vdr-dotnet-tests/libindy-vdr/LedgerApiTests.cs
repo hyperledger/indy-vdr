@@ -28,7 +28,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
                 testAml_context);
 
             //Assert
-            testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(0);
         }
 
         [Test, TestCase(TestName = "BuildGetAcceptanceMechanismsRequestAsync call returns request handle.")]
@@ -42,7 +42,45 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
                 testTimestamp);
 
             //Assert
-            testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(0);
+        }
+
+        [Test, TestCase(TestName = "BuildRevocRegDefRequestAsync call returns request handle.")]
+        public async Task BuildRevocRegDefRequestAsyncWorks()
+        {
+            //Arrange
+            string testSubmitterId = "LibindyDid111111111111";
+
+            string revRegDefJson = "{\"id\":\"testId\",\"revocDefType\":\"CL_ACCUM\",\"tag\":\"testTag\",\"credDefId\":\"testCredDefId\",\"value\":{\"issuanceType\":\"ISSUANCE_BY_DEFAULT\",\"maxCredNum\":5,\"publicKeys\":{\"accumKey\":\"testAccumKey\"},\"tailsHash\":\"testTailsHash\",\"tailsLocation\":\"testTailsLocation\"},\"ver\":\"1.0\"}";
+
+            //Act
+            uint testObject = await LedgerApi.BuildRevocRegDefRequestAsync(
+                testSubmitterId,
+                revRegDefJson);
+
+            //Assert
+            _ = testObject.Should().NotBe(0);
+        }
+
+        [Test, TestCase(TestName = "BuildRevocRegEntryRequestAsync call returns request handle.")]
+        public async Task BuildRevocRegEntryRequestAsyncWorks()
+        {
+            //Arrange
+            string testSubmitterId = "LibindyDid111111111111";
+            string testRevRegDefId = "revreg:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:4:creddef:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:3:CL:schema:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:2:gvt:1.0:tag:CL_ACCUM:TAG_1";
+            string testRevRegDefType = "CL_ACCUM";
+
+            string deltaJson = "{\"ver\":\"1.0\",\"value\":\"test\"}";
+
+            //Act
+            uint testObject = await LedgerApi.BuildRevocRegEntryRequestAsync(
+                testSubmitterId,
+                testRevRegDefId,
+                testRevRegDefType,
+                deltaJson);
+
+            //Assert
+            _ = testObject.Should().NotBe(0);
         }
 
         [Test, TestCase(TestName = "BuildSchemaRequestAsync call returns request handle.")]
@@ -50,17 +88,8 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         {
             //Arrange
             string testSubmitterId = "LibindyDid111111111111";
-            Schema testSchema = new()
-            {
-                Id = "testId",
-                Name = "testName",
-                Version = "1.0",
-                Ver = "1.0",
-                AttrNames = new HashSet<string>() { "testAttribute1", "testAttribute2" },
-                SeqNo = 5
-            };
 
-            string schemaJson = JsonConvert.SerializeObject(testSchema);
+            string schemaJson = "{\"Handle\":0,\"id\":\"testId\",\"name\":\"testName\",\"version\":\"1.0\",\"attrNames\":[\"testAttribute1\",\"testAttribute2\"],\"ver\":\"1.0\",\"SeqNo\":5}";
 
             //Act
             uint testObject = await LedgerApi.BuildSchemaRequestAsync(
@@ -68,7 +97,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
                 schemaJson);
 
             //Assert
-            testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(0);
         }
     }
 }

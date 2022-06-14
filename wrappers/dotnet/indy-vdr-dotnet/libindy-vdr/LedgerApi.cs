@@ -52,14 +52,58 @@ namespace indy_vdr_dotnet.libindy_vdr
             return await Task.FromResult(request_handle);
         }
 
+        public static async Task<uint> BuildRevocRegDefRequestAsync(
+            string submitterDid,
+            string revocRegDefJson)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_revoc_reg_def_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(revocRegDefJson),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildRevocRegEntryRequestAsync(
+            string submitterDid,
+            string revocRegDefId,
+            string revocRegDefType,
+            string revocRegEntryJson)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_revoc_reg_entry_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(revocRegDefId),
+                FfiStr.Create(revocRegDefType),
+                FfiStr.Create(revocRegEntryJson),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
+        }
+
         public static async Task<uint> BuildSchemaRequestAsync(
             string submitterDid,
-            string schema)
+            string schemaJson)
         {
             uint requestHandle = 0;
             int errorCode = NativeMethods.indy_vdr_build_schema_request(
                 FfiStr.Create(submitterDid),
-                FfiStr.Create(schema),
+                FfiStr.Create(schemaJson),
                 ref requestHandle);
 
             if (errorCode != 0)
@@ -82,7 +126,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
 
-        public static async Task<uint> BuildTxnAuthorAgreementRequest(
+        public static async Task<uint> BuildTxnAuthorAgreementRequestAsync(
             string submitterDid,
             string text,
             string version,
@@ -108,7 +152,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
 
-        public static async Task<uint> BuildRichSchemaRequest(
+        public static async Task<uint> BuildRichSchemaRequestAsync(
             string submitterDid,
             string rsId,
             string rsContent,
@@ -138,7 +182,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
 
-        public static async Task<uint> BuildGetRichSchemaObjectByIdRequest(
+        public static async Task<uint> BuildGetRichSchemaObjectByIdRequestAsync(
             string submitterDid,
             string rsId)
         {
@@ -158,7 +202,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
 
-        public static async Task<uint> BuildGetRichSchemaObjectByMetadataRequest(
+        public static async Task<uint> BuildGetRichSchemaObjectByMetadataRequestAsync(
             string submitterDid,
             string rsType,
             string rsName,
