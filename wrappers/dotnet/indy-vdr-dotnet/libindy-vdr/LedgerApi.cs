@@ -28,7 +28,7 @@ namespace indy_vdr_dotnet.libindy_vdr
                 Console.WriteLine(error);
             }
 
-            return await Task.FromResult(requestHandle);
+            return requestHandle;
         }
 
         public static async Task<uint> BuildGetAcceptanceMechanismsRequestAsync(
@@ -49,7 +49,7 @@ namespace indy_vdr_dotnet.libindy_vdr
                 NativeMethods.indy_vdr_get_current_error(ref error);
                 Console.WriteLine(error);
             }
-            return await Task.FromResult(requestHandle);
+            return requestHandle;
         }
 
         public static async Task<uint> BuildAttributeRequest(
@@ -77,7 +77,7 @@ namespace indy_vdr_dotnet.libindy_vdr
                 Console.WriteLine(error);
             }
 
-            return await Task.FromResult(requestHandle);
+            return requestHandle;
         }
 
         public static async Task<uint> BuildGetAttributeRequest(
@@ -103,7 +103,7 @@ namespace indy_vdr_dotnet.libindy_vdr
                 Console.WriteLine(error);
             }
 
-            return await Task.FromResult(requestHandle);
+            return requestHandle;
         }
 
         public static async Task<uint> BuildCredDefRequest(
@@ -124,14 +124,120 @@ namespace indy_vdr_dotnet.libindy_vdr
                 Console.WriteLine(error);
             }
 
-            return await Task.FromResult(requestHandle);
+            return requestHandle;
         }
 
+        public static async Task<uint> BuildCustomRequest(
+            string requestJson)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_custom_request(
+                FfiStr.Create(requestJson),
+                ref requestHandle);
 
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return requestHandle;
+        }
 
+        public static async Task<uint> BuildDisableAllTxnAuthorAgreementsRequest(
+            string submitterDid)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_disable_all_txn_author_agreements_request(
+                FfiStr.Create(submitterDid),
+                ref requestHandle);
 
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return requestHandle;
+        }
 
+        public static async Task<uint> BuildGetCredDefRequest(
+            string credDefDid,
+            string submitterDid = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_cred_def_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(credDefDid),
+                ref requestHandle);
 
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildGetNymRequest(
+            string targetDid,
+            string submitterDid = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_nym_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(targetDid),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildGetRevocRegDefRequest(
+            string revocRegId,
+            string submitterDid = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_def_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(revocRegId),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildGetRevocRegRequest(
+            string revocRegId,
+            long timestamp,
+            string submitterDid = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(revocRegId),
+                timestamp,
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return requestHandle;
+        }
 
         public static async Task<uint> BuildGetRevocRegDeltaRequestAsync(
             string revocRegId,
