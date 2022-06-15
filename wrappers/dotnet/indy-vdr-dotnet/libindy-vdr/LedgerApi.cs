@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using static indy_vdr_dotnet.models.Structures;
 
@@ -10,29 +7,28 @@ namespace indy_vdr_dotnet.libindy_vdr
 {
     public static class LedgerApi
     {
-
         public static async Task<uint> BuildAcceptanceMechanismsRequestAsync(
             string submitterDid,
             string aml,
             string verion,
             string amlContext = null)
         {
-            uint request_handle = 0;
+            uint requestHandle = 0;
             int errorCode = NativeMethods.indy_vdr_build_acceptance_mechanisms_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(aml),
                 FfiStr.Create(verion),
                 FfiStr.Create(amlContext),
-                ref request_handle);
+                ref requestHandle);
 
             if (errorCode != 0)
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
+                Console.WriteLine(error);
             }
 
-            return await Task.FromResult(request_handle);
+            return await Task.FromResult(requestHandle);
         }
 
         public static async Task<uint> BuildGetAcceptanceMechanismsRequestAsync(
@@ -40,18 +36,20 @@ namespace indy_vdr_dotnet.libindy_vdr
             string version = null,
             string submitterDid = null)
         {
-            uint request_handle = 0;
+            uint requestHandle = 0;
             int errorCode = NativeMethods.indy_vdr_build_get_acceptance_mechanisms_request(
                 FfiStr.Create(submitterDid),
                 timestamp,
                 FfiStr.Create(version),
-                ref request_handle);
+                ref requestHandle);
 
             if (errorCode != 0)
             {
-                await ErrorApi.GetCurrentErrorAsync();
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
             }
-            return await Task.FromResult(request_handle);
+            return await Task.FromResult(requestHandle);
         }
 
         public static async Task<uint> BuildAttributeRequest(
@@ -61,14 +59,14 @@ namespace indy_vdr_dotnet.libindy_vdr
             string raw = null,
             string enc = null)
         {
-            uint request_handle = 0;
+            uint requestHandle = 0;
             int errorCode = NativeMethods.indy_vdr_build_attrib_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
                 FfiStr.Create(hash),
                 FfiStr.Create(raw),
                 FfiStr.Create(enc),
-                ref request_handle);
+                ref requestHandle);
 
             Debug.WriteLine("\n\n TEST");
 
@@ -76,10 +74,10 @@ namespace indy_vdr_dotnet.libindy_vdr
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
+                Console.WriteLine(error);
             }
 
-            return await Task.FromResult(request_handle);
+            return await Task.FromResult(requestHandle);
         }
 
         public static async Task<uint> BuildGetAttributeRequest(
@@ -89,21 +87,180 @@ namespace indy_vdr_dotnet.libindy_vdr
             string raw = null,
             string enc = null)
         {
-            uint request_handle = 0;
+            uint requestHandle = 0;
             int errorCode = NativeMethods.indy_vdr_build_get_attrib_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
                 FfiStr.Create(hash),
                 FfiStr.Create(raw),
                 FfiStr.Create(enc),
-                ref request_handle);
+                ref requestHandle);
 
             if (errorCode != 0)
             {
-                await ErrorApi.GetCurrentErrorAsync();
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
             }
 
-            return await Task.FromResult(request_handle);
+            return await Task.FromResult(requestHandle);
+        }
+
+        public static async Task<uint> BuildCredDefRequest(
+            string submitterDid,
+            string credDef)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_cred_def_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(credDef),
+                ref requestHandle);
+
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return await Task.FromResult(requestHandle);
+        }
+
+
+
+
+
+
+
+        public static async Task<uint> BuildGetRevocRegDeltaRequestAsync(
+            string revocRegId,
+            long toTS,
+            long fromTs = -1,
+            string submitterDid = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_delta_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(revocRegId),
+                fromTs,
+                toTS,
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildGetSchemaRequestAsync(
+            string schemaId,
+            string submitterDid = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_schema_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(schemaId),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildGetTxnAuthorAgreementRequestAsync(
+            string submitterDid = null,
+            string data = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_txn_author_agreement_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(data),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildGetTxnRequestAsync(
+            int ledgerType,
+            int seqNo,
+            string submitterDid = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_txn_request(
+                FfiStr.Create(submitterDid),
+                ledgerType,
+                seqNo,
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildGetValidatorInfoRequestAsync(
+            string submitterDid)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_get_validator_info_request(
+                FfiStr.Create(submitterDid),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
+        }
+
+        public static async Task<uint> BuildNymRequestAsync(
+            string submitterDid,
+            string dest,
+            string verkey = null,
+            string alias = null,
+            string role = null)
+        {
+            uint requestHandle = 0;
+            int errorCode = NativeMethods.indy_vdr_build_nym_request(
+                FfiStr.Create(submitterDid),
+                FfiStr.Create(dest),
+                FfiStr.Create(verkey),
+                FfiStr.Create(alias),
+                FfiStr.Create(role),
+                ref requestHandle);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            return requestHandle;
         }
 
         public static async Task<uint> BuildRevocRegDefRequestAsync(
@@ -150,26 +307,6 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
 
-        public static async Task<uint> BuildCredDefRequest(
-            string submitterDid,
-            string credDef)
-        {
-            uint request_handle = 0;
-            int errorCode = NativeMethods.indy_vdr_build_cred_def_request(
-                FfiStr.Create(submitterDid),
-                FfiStr.Create(credDef),
-                ref request_handle);
-
-
-            if (errorCode != 0)
-            {
-                await ErrorApi.GetCurrentErrorAsync();
-            }
-
-            return await Task.FromResult(request_handle);
-        }
-
-
         public static async Task<uint> BuildSchemaRequestAsync(
             string submitterDid,
             string schemaJson)
@@ -184,7 +321,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
+                Console.WriteLine(error);
             }
             /*
             string requestJson = "";
@@ -220,7 +357,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
+                Console.WriteLine(error);
             }
 
             return requestHandle;
@@ -250,7 +387,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
+                Console.WriteLine(error);
             }
 
             return requestHandle;
@@ -270,7 +407,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
+                Console.WriteLine(error);
             }
 
             return requestHandle;
@@ -294,7 +431,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
+                Console.WriteLine(error);
             }
 
             return requestHandle;

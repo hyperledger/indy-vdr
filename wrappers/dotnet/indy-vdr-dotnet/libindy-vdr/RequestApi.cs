@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-namespace indy_vdr_dotnet.libindy_vdr
+﻿namespace indy_vdr_dotnet.libindy_vdr
 {
     public static class RequestApi
     {
