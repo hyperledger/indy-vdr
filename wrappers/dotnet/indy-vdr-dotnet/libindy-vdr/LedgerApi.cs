@@ -17,8 +17,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="submitterDid">Identifier (DID) of the transaction author as a base58-encoded string.</param>
         /// <param name="aml">aml: a set of new acceptance mechanisms:
         ///    {
-        ///        "<acceptance mechanism label 1>": { description 1},
-        ///        "<acceptance mechanism label 2>": { description 2},
+        ///        "acceptance mechanism label 1": { description 1},
+        ///        "acceptance mechanism label 2": { description 2},
         ///        ...
         ///    }</param>
         /// <param name="verion">The version of the new acceptance mechanisms. (Note: unique on the Ledger)</param>
@@ -565,7 +565,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///      "tailsLocation": "URL or path for the tails file",
         ///      "publicKeys": { /* <public_keys> */ } // registry's public keys
         ///  },
-        ///  "ver": "<version of revocation registry definition json>"
+        ///  "ver": "version of revocation registry definition json"
         ///}</param>
         /// <returns>Returns a RequestHandle</returns>
         public static async Task<uint> BuildRevocRegDefRequestAsync(
@@ -600,12 +600,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="revocRegEntryJson"> Registry-specific data:
         /// {
         ///     "value": {
-        ///         "prevAccum": "<previous accumulator value>",
-        ///         "accum": "<current accumulator value>",
+        ///         "prevAccum": "previous accumulator value",
+        ///         "accum": "current accumulator value",
         ///         "issued": [], // array<number> - an array of issued indices
         ///         "revoked": [] // array<number> an array of revoked indices
         ///              },
-        ///     "ver": "<version of the revocation registry entry json>"
+        ///     "ver": "version of the revocation registry entry json"
         /// }
         /// </param>
         /// <returns>Returns a RequestHandle</returns>
