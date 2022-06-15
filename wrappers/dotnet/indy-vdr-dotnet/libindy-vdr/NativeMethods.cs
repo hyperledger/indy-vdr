@@ -27,7 +27,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         internal static extern int indy_vdr_build_cred_def_request(FfiStr submitter_did, FfiStr cred_def, ref uint handle_p);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_build_custom_request(FfiStr submitter_did, ref uint handle_p);
+        internal static extern int indy_vdr_build_custom_request(FfiStr request_json, ref uint handle_p);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_build_disable_all_txn_author_agreements_request(FfiStr submitter_did, ref uint handle_p);
