@@ -46,8 +46,8 @@ export class IndyVdrPool {
     return indyVdr.poolClose({ poolHandle: this.handle })
   }
 
-  public async submitAction(options: PoolSubmitActionOptions): Promise<string> {
-    return indyVdr.poolSubmitAction({ poolHandle: this.handle, ...options })
+  public async submitAction<T extends Record<string, unknown>>(options: PoolSubmitActionOptions): Promise<T> {
+    return indyVdr.poolSubmitAction<T>({ poolHandle: this.handle, ...options })
   }
 
   public async submitRequest<T extends Record<string, unknown>>(options: PoolSubmitRequestOptions): Promise<T> {

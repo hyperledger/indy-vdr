@@ -58,10 +58,12 @@ const serialize = (arg: Argument): SerializedArgument => {
   }
 }
 
-const serializeArguments = (args: Record<string, Argument>) => {
+const serializeArguments = <T extends Record<string, Argument> = Record<string, Argument>>(
+  args: T
+): SerializedOptions<T> => {
   const retVal: SerializedArguments = {}
   Object.entries(args).forEach(([key, val]) => (retVal[key] = serialize(val)))
-  return retVal
+  return retVal as SerializedOptions<T>
 }
 
 export { serializeArguments }
