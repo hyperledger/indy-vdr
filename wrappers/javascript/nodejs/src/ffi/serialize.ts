@@ -1,8 +1,8 @@
-import type { ByteBuffer } from '../ffi'
+import type { ByteBuffer } from './structures'
 
 import { NULL } from 'ref-napi'
 
-import { uint8ArrayToByteBuffer } from './ffiTools'
+import { uint8ArrayToByteBuffer } from './conversion'
 
 export type Callback = (err: number) => void
 export type CallbackWithResponse = (err: number, response: string) => void
@@ -66,10 +66,12 @@ const serialize = (arg: Argument): SerializedArgument => {
   }
 }
 
-const serializeArguments = (args: Record<string, Argument>) => {
+const serializeArguments = <T extends Record<string, Argument> = Record<string, Argument>>(
+  args: T
+): SerializedOptions<T> => {
   const retVal: SerializedArguments = {}
   Object.entries(args).forEach(([key, val]) => (retVal[key] = serialize(val)))
-  return retVal
+  return retVal as SerializedOptions<T>
 }
 
 export { serializeArguments }

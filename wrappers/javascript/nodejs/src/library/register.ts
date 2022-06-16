@@ -1,11 +1,11 @@
-import type { NativeMethods } from './ffi'
+import type { NativeMethods } from './NativeBindings'
 
 import { Library } from 'ffi-napi'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
-import { nativeBindings } from './ffi'
+import { nativeBindings } from './bindings'
 
 const LIBNAME = 'indy_vdr'
 const ENV_VAR = 'LIB_INDY_VDR_PATH'

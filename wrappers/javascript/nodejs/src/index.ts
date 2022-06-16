@@ -1,3 +1,3 @@
-import { NodeJSIndyVdr } from './indyVdr'
+import { NodeJSIndyVdr } from './NodeJSIndyVdr'
 
 export const indyVdrNodeJS = new NodeJSIndyVdr()
