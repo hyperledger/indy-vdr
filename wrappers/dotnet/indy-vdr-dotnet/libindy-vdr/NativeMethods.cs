@@ -105,23 +105,23 @@ namespace indy_vdr_dotnet.libindy_vdr
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_pool_create(FfiStr param, ref uint handle_p);
 
-        //[DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        //internal static extern int indy_vdr_pool_refresh(uint pool_handle, Option cb, CallbackId cb_id);
+        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern int indy_vdr_pool_refresh(uint pool_handle);
 
-        //[DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        //internal static extern int indy_vdr_pool_get_status(uint pool_handle, Option cb, CallbackId cb_id);
+        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern int indy_vdr_pool_get_status(uint pool_handle);
 
-        //[DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        //internal static extern int indy_vdr_pool_get_transactions(uint pool_handle, Option cb, CallbackId cb_id);
+        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern int indy_vdr_pool_get_transactions(uint pool_handle);
 
-        //[DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        //internal static extern int indy_vdr_pool_get_verifiers(uint pool_handle, Option cb, CallbackId cb_id);
+        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern int indy_vdr_pool_get_verifiers(uint pool_handle);
 
-        //[DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        //internal static extern int indy_vdr_pool_submit_action(uint pool_handle, uint request_handle, FfiStr nodes, int timeout, Option cb, CallbackId cb_id);
+        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern int indy_vdr_pool_submit_action(uint pool_handle, uint request_handle, FfiStr nodes, int timeout);
 
-        //[DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        //internal static extern int indy_vdr_pool_submit_request(uint pool_handle, uint request_handle, Option cb, CallbackId cb_id);
+        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern int indy_vdr_pool_submit_request(uint pool_handle, uint request_handle);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_pool_close(uint pool_handle);
