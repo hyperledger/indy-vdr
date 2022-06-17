@@ -180,7 +180,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// </param>
         /// <returns>Returns RequestHandle</returns>
         public static async Task<uint> BuildCredDefRequest(
-           string submitterDid,
+            string submitterDid,
             string credDef)
         {
             uint requestHandle = 0;

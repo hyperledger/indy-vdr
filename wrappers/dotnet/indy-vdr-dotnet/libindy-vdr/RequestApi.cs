@@ -35,7 +35,6 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task RequestFree(
             uint requestHandle)
         {
-            string output = "";
             int errorCode = NativeMethods.indy_vdr_request_free(
                 requestHandle);
 
@@ -100,12 +99,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task RequestSetMultiSignature(
             uint requestHandle,
             string identifier,
-            ByteBuffer signature)
+            string signatureJson)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_multi_signature(
                 requestHandle,
                 FfiStr.Create(identifier),
-                signature);
+                ByteBuffer.Create(signatureJson));
 
             if (errorCode != 0)
             {
@@ -117,11 +116,11 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         public static async Task RequestSetSiganture(
             uint requestHandle,
-            ByteBuffer signature)
+            string signature)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_signature(
                 requestHandle,
-                signature);
+                ByteBuffer.Create(signature));
 
             if (errorCode != 0)
             {
