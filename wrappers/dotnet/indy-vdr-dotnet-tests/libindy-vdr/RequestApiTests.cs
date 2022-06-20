@@ -21,7 +21,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testTaaDigest = "taa_digest";
             //Act
 
-            string actual = await RequestApi.PrepareTxnAuthorAgreementAcceptance(
+            string actual = await RequestApi.PrepareTxnAuthorAgreementAcceptanceAsync(
                 testAccMechType,
                 testTime,
                 taaDigest: testTaaDigest);
@@ -41,7 +41,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testVersion = "version";
             //Act
 
-            string actual = await RequestApi.PrepareTxnAuthorAgreementAcceptance(
+            string actual = await RequestApi.PrepareTxnAuthorAgreementAcceptanceAsync(
                 testAccMechType,
                 testTime,
                 text: testText,
@@ -59,9 +59,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             uint requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
             
             //Act
-            string requestBodyBeforeFree = await RequestApi.RequestGetBody(requestHandle);
-            await RequestApi.RequestFree(requestHandle);
-            string actual = await RequestApi.RequestGetBody(requestHandle);
+            string requestBodyBeforeFree = await RequestApi.RequestGetBodyAsync(requestHandle);
+            await RequestApi.RequestFreeAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
 
             //Assert
             requestBodyBeforeFree.Should().NotBe("");
@@ -76,7 +76,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             uint requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
 
             //Act
-            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
 
             //Assert
             requestBody.Should().NotBe("");
@@ -90,7 +90,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             uint requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
 
             //Act
-            string signature = await RequestApi.RequestGetSignatureInput(requestHandle);
+            string signature = await RequestApi.RequestGetSignatureInputAsync(requestHandle);
 
             //Assert
             signature.Should().NotBe("");
@@ -104,12 +104,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testEndorser = "Endorser11111111111111";
             //Act
-            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject requestBodyJObj = JObject.Parse(requestBody);
-            await RequestApi.RequestSetEndorser(
+            await RequestApi.RequestSetEndorserAsync(
                 requestHandle,
                 testEndorser);
-            string actual = await RequestApi.RequestGetBody(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject actualJObj = JObject.Parse(actual);
             //Assert
             requestBodyJObj.Should().NotContainKey("endorser");
@@ -123,16 +123,16 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Arrange
             uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             //Act
-            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject requestBodyJObj = JObject.Parse(requestBody);
 
             string testIdentifier = "V4SGRU86Z58d6TV7PBUe6f";
             string testMultiSig = "sig";
-            await RequestApi.RequestSetMultiSignature(
+            await RequestApi.RequestSetMultiSignatureAsync(
                 requestHandle,
                 testIdentifier,
                 testMultiSig);
-            string actual = await RequestApi.RequestGetBody(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject actualJObj = JObject.Parse(actual);
             //Assert
             requestBodyJObj.Should().NotContainKey("signatures");
@@ -146,14 +146,14 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Arrange
             uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             //Act
-            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject requestBodyJObj = JObject.Parse(requestBody);
 
             string testMultiSig = "{\"signature\":\"sig\"}";
-            await RequestApi.RequestSetSiganture(
+            await RequestApi.RequestSetSigantureAsync(
                 requestHandle,
                 testMultiSig);
-            string actual = await RequestApi.RequestGetBody(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject actualJObj = JObject.Parse(actual);
             //Assert
             requestBodyJObj.Should().NotContainKey("signature");
@@ -168,13 +168,13 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testTaaAcceptance = "{\"mechanism\":\"acc_mech_type\",\"taaDigest\":\"taa_digest\",\"time\":1655683200}";
             //Act
-            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject requestBodyJObj = JObject.Parse(requestBody);
 
-            await RequestApi.RequestSetTxnAuthorAgreementAcceptance(
+            await RequestApi.RequestSetTxnAuthorAgreementAcceptanceAsync(
                 requestHandle,
                 testTaaAcceptance);
-            string actual = await RequestApi.RequestGetBody(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject actualJObj = JObject.Parse(actual);
             //Assert
             requestBodyJObj.Should().NotContainKey("taaAcceptance");

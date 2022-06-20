@@ -6,7 +6,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 {
     public static class RequestApi
     {
-        public static async Task<string> PrepareTxnAuthorAgreementAcceptance(
+        public static async Task<string> PrepareTxnAuthorAgreementAcceptanceAsync(
             string accMechType,
             ulong time,
             string text = null,
@@ -32,7 +32,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             return output;
         }
 
-        public static async Task RequestFree(
+        public static async Task RequestFreeAsync(
             uint requestHandle)
         {
             int errorCode = NativeMethods.indy_vdr_request_free(
@@ -46,7 +46,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
         }
 
-        public static async Task<string> RequestGetBody(
+        public static async Task<string> RequestGetBodyAsync(
             uint requestHandle)
         {
             string output = "";
@@ -63,7 +63,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             return output;
         }
 
-        public static async Task<string> RequestGetSignatureInput(
+        public static async Task<string> RequestGetSignatureInputAsync(
             uint requestHandle)
         {
             string output = "";
@@ -80,7 +80,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             return output;
         }
 
-        public static async Task RequestSetEndorser(
+        public static async Task RequestSetEndorserAsync(
             uint requestHandle,
             string endorser)
         {
@@ -96,7 +96,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
         }
 
-        public static async Task RequestSetMultiSignature(
+        public static async Task RequestSetMultiSignatureAsync(
             uint requestHandle,
             string identifier,
             string signatureJson)
@@ -114,7 +114,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
         }
 
-        public static async Task RequestSetSiganture(
+        public static async Task RequestSetSigantureAsync(
             uint requestHandle,
             string signature)
         {
@@ -130,7 +130,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
         }
 
-        public static async Task RequestSetTxnAuthorAgreementAcceptance(
+        public static async Task RequestSetTxnAuthorAgreementAcceptanceAsync(
             uint requestHandle,
             string acceptance)
         {
