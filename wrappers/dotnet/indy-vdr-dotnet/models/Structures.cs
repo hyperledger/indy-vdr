@@ -26,7 +26,7 @@ namespace indy_vdr_dotnet.models
         [StructLayout(LayoutKind.Sequential)]
         public unsafe struct ByteBuffer
         {
-            public uint len;
+            public long len;
             public byte* value;
 
             public static ByteBuffer Create(string json)

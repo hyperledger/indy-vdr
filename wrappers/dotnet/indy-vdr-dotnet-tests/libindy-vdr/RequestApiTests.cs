@@ -120,65 +120,65 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         [TestCase(TestName = "RequestSetMultiSignature call sets a multi-signature entry.")]
         public async Task RequestSetMultiSignatureWorks()
         {
-            ////Arrange
-            //uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
-            ////Act
-            //string requestBody = await RequestApi.RequestGetBody(requestHandle);
-            //JObject requestBodyJObj = JObject.Parse(requestBody);
+            //Arrange
+            uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            //Act
+            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            JObject requestBodyJObj = JObject.Parse(requestBody);
 
-            //string testIdentifier = "V4SGRU86Z58d6TV7PBUe6f";
-            //string testMultiSig = "{\"signature\":\"sig\"}";
-            //await RequestApi.RequestSetMultiSignature(
-            //    requestHandle,
-            //    testIdentifier,
-            //    testMultiSig);
-            //string actual = await RequestApi.RequestGetBody(requestHandle);
-            //JObject actualJObj = JObject.Parse(actual);
-            ////Assert
-            //requestBodyJObj.Should().NotContainKey("signatures");
-            //actualJObj.Should().ContainKey("signatures");
+            string testIdentifier = "V4SGRU86Z58d6TV7PBUe6f";
+            string testMultiSig = "sig";
+            await RequestApi.RequestSetMultiSignature(
+                requestHandle,
+                testIdentifier,
+                testMultiSig);
+            string actual = await RequestApi.RequestGetBody(requestHandle);
+            JObject actualJObj = JObject.Parse(actual);
+            //Assert
+            requestBodyJObj.Should().NotContainKey("signatures");
+            actualJObj.Should().ContainKey("signatures");
         }
 
         [Test]
         [TestCase(TestName = "RequestSetSiganture call sets a signature entry.")]
         public async Task RequestSetSigantureWorks()
         {
-            ////Arrange
-            //uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
-            ////Act
-            //string requestBody = await RequestApi.RequestGetBody(requestHandle);
-            //JObject requestBodyJObj = JObject.Parse(requestBody);
+            //Arrange
+            uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            //Act
+            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            JObject requestBodyJObj = JObject.Parse(requestBody);
 
-            //string testMultiSig = "{\"signature\":\"sig\"}";
-            //await RequestApi.RequestSetSiganture(
-            //    requestHandle,
-            //    testMultiSig);
-            //string actual = await RequestApi.RequestGetBody(requestHandle);
-            //JObject actualJObj = JObject.Parse(actual);
-            ////Assert
-            //requestBodyJObj.Should().NotContainKey("signature");
-            //actualJObj.Should().ContainKey("signature");
+            string testMultiSig = "{\"signature\":\"sig\"}";
+            await RequestApi.RequestSetSiganture(
+                requestHandle,
+                testMultiSig);
+            string actual = await RequestApi.RequestGetBody(requestHandle);
+            JObject actualJObj = JObject.Parse(actual);
+            //Assert
+            requestBodyJObj.Should().NotContainKey("signature");
+            actualJObj.Should().ContainKey("signature");
         }
 
         [Test]
         [TestCase(TestName = "RequestSetTxnAuthorAgreementAcceptance call sets a signature entry.")]
         public async Task RequestSetTxnAuthorAgreementAcceptanceWorks()
         {
-            ////Arrange
-            //uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
-            //string testAcceptance = "testAcceptance";
-            ////Act
-            //string requestBody = await RequestApi.RequestGetBody(requestHandle);
-            //JObject requestBodyJObj = JObject.Parse(requestBody);
+            //Arrange
+            uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            string testTaaAcceptance = "{\"mechanism\":\"acc_mech_type\",\"taaDigest\":\"taa_digest\",\"time\":1655683200}";
+            //Act
+            string requestBody = await RequestApi.RequestGetBody(requestHandle);
+            JObject requestBodyJObj = JObject.Parse(requestBody);
 
-            //await RequestApi.RequestSetTxnAuthorAgreementAcceptance(
-            //    requestHandle,
-            //    testAcceptance);
-            //string actual = await RequestApi.RequestGetBody(requestHandle);
-            //JObject actualJObj = JObject.Parse(actual);
-            ////Assert
-            //requestBodyJObj.Should().NotContainKey("acceptance");
-            //actualJObj.Should().ContainKey("acceptance");
+            await RequestApi.RequestSetTxnAuthorAgreementAcceptance(
+                requestHandle,
+                testTaaAcceptance);
+            string actual = await RequestApi.RequestGetBody(requestHandle);
+            JObject actualJObj = JObject.Parse(actual);
+            //Assert
+            requestBodyJObj.Should().NotContainKey("taaAcceptance");
+            actualJObj.Should().ContainKey("taaAcceptance");
         }
     }
 }
