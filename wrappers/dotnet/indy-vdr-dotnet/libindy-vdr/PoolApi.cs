@@ -1,14 +1,32 @@
-﻿using Newtonsoft.Json;
+﻿using indy_vdr_dotnet.utils;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using static indy_vdr_dotnet.libindy_vdr.NativeMethods;
 using static indy_vdr_dotnet.models.Structures;
 
 namespace indy_vdr_dotnet.libindy_vdr
 {
     public class PoolApi
     {
+        private static void GetPoolStatusCallbackMethod(long callback_id, int err, string result)
+        {
+            var taskCompletionSource = PendingCallbacks.Remove<string>(callback_id);
+            //if (!CallbackHelper.CheckCallback(taskCompletionSource, err))
+            //    return;
+            if (err != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+
+            taskCompletionSource.SetResult(result);
+        }
+        private static GetPoolStatusCompletedDelegate GetPoolStatusCallback = GetPoolStatusCallbackMethod;
+
         public static async Task<uint> CreatePoolAsync(
             string transactions = null,
             string transactionsPath = null,
@@ -52,20 +70,32 @@ namespace indy_vdr_dotnet.libindy_vdr
             return errorCode;
         }
 
-        public static async Task<int> GetPoolStatusAsync(
+        public static async Task<string> GetPoolStatusAsync(
             uint poolHandle)
         {
-            int errorCode = NativeMethods.indy_vdr_pool_get_status(
-                poolHandle);
+            //ParamGuard needed?
 
+            var taskCompletionSource = new TaskCompletionSource<string>();
+            var callbackId = PendingCallbacks.Add(taskCompletionSource);
+
+            int errorCode = NativeMethods.indy_vdr_pool_get_status(
+                poolHandle,
+                GetPoolStatusCallback,
+                callbackId
+                );
+
+            /**
             if (errorCode != 0)
             {
                 string error = "";
                 NativeMethods.indy_vdr_get_current_error(ref error);
                 Console.WriteLine(error);
-            }
+            }**/
 
-            return errorCode;
+            //CallbackHelper needed?
+
+            return await taskCompletionSource.Task;
+            //return errorCode;
         }
 
         public static async Task<int> GetPoolTransactionsAsync(
