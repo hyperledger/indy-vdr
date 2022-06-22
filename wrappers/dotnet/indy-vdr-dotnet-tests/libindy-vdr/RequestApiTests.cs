@@ -4,7 +4,6 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using System;
 using System.Threading.Tasks;
-using static indy_vdr_dotnet.models.Structures;
 
 namespace indy_vdr_dotnet_tests.libindy_vdr
 {
@@ -19,8 +18,8 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testAccMechType = "acc_mech_type";
             ulong testTime = (ulong) DateTimeOffset.Now.ToUnixTimeSeconds();
             string testTaaDigest = "taa_digest";
-            //Act
 
+            //Act
             string actual = await RequestApi.PrepareTxnAuthorAgreementAcceptanceAsync(
                 testAccMechType,
                 testTime,

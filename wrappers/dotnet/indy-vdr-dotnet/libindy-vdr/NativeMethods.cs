@@ -106,23 +106,28 @@ namespace indy_vdr_dotnet.libindy_vdr
         internal static extern int indy_vdr_pool_create(FfiStr param, ref uint handle_p);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_pool_refresh(uint pool_handle);
+        internal static extern int indy_vdr_pool_refresh(uint pool_handle, PoolRefreshCompletedDelegate callback, long callback_id);
+        internal delegate void PoolRefreshCompletedDelegate(long callback_id, int err);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_pool_get_status(uint pool_handle, GetPoolStatusCompletedDelegate cb, long callback_id);
-        internal delegate void GetPoolStatusCompletedDelegate(long callback_id, int err, string response);
+        internal static extern int indy_vdr_pool_get_status(uint pool_handle, PoolGetStatusCompletedDelegate callback, long callback_id);
+        internal delegate void PoolGetStatusCompletedDelegate(long callback_id, int err, string response);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_pool_get_transactions(uint pool_handle);
+        internal static extern int indy_vdr_pool_get_transactions(uint pool_handle, PoolGetTransactionsCompletedDelegate callback, long callback_id);
+        internal delegate void PoolGetTransactionsCompletedDelegate(long callback_id, int err, string response);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_pool_get_verifiers(uint pool_handle);
+        internal static extern int indy_vdr_pool_get_verifiers(uint pool_handle, PoolGetVerifiersCompletedDelegate callback, long callback_id);
+        internal delegate void PoolGetVerifiersCompletedDelegate(long callback_id, int err, string response);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_pool_submit_action(uint pool_handle, uint request_handle, FfiStr nodes, int timeout);
+        internal static extern int indy_vdr_pool_submit_action(uint pool_handle, uint request_handle, FfiStr nodes, int timeout, PoolSubmitActionCompletedDelegate callback, long callback_id);
+        internal delegate void PoolSubmitActionCompletedDelegate(long callback_id, int err, string response);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_pool_submit_request(uint pool_handle, uint request_handle);
+        internal static extern int indy_vdr_pool_submit_request(uint pool_handle, uint request_handle, PoolSubmitRequestCompletedDelegate callback, long callback_id);
+        internal delegate void PoolSubmitRequestCompletedDelegate(long callback_id, int err, string response);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_pool_close(uint pool_handle);
