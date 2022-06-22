@@ -60,11 +60,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Act
             string requestBodyBeforeFree = await RequestApi.RequestGetBodyAsync(requestHandle);
             await RequestApi.RequestFreeAsync(requestHandle);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            Func<Task> act = async () => await RequestApi.RequestGetBodyAsync(requestHandle);
 
             //Assert
             requestBodyBeforeFree.Should().NotBe("");
-            actual.Should().Be("");
+            await act.Should().ThrowAsync<Exception>();
         }
 
         [Test]
