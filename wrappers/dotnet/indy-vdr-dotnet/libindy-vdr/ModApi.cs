@@ -12,11 +12,10 @@ namespace indy_vdr_dotnet.libindy_vdr
             int errorCode = NativeMethods.indy_vdr_set_config(
                 FfiStr.Create(config));
 
-            if (errorCode != 0)
+            if (errorCode != (int)ErrorCode.Success)
             {
-                string error = "";
-                NativeMethods.indy_vdr_get_current_error(ref error);
-                Console.WriteLine(error);
+                string error = await ErrorApi.GetCurrentErrorAsync();
+                throw IndyVdrException.FromSdkError(error);
             }
             return errorCode;
         }
@@ -25,11 +24,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         {
             int errorCode = NativeMethods.indy_vdr_set_default_logger();
 
-            if (errorCode != 0)
+            if (errorCode != (int)ErrorCode.Success)
             {
-                string error = "";
-                NativeMethods.indy_vdr_get_current_error(ref error);
-                Console.WriteLine(error);
+                string error = await ErrorApi.GetCurrentErrorAsync();
+                throw IndyVdrException.FromSdkError(error);
             }
             return errorCode;
         }
@@ -38,11 +36,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         {
             int errorCode = NativeMethods.indy_vdr_set_protocol_version(version);
 
-            if (errorCode != 0)
+            if (errorCode != (int)ErrorCode.Success)
             {
-                string error = "";
-                NativeMethods.indy_vdr_get_current_error(ref error);
-                Console.WriteLine(error);
+                string error = await ErrorApi.GetCurrentErrorAsync();
+                throw IndyVdrException.FromSdkError(error);
             }
             return errorCode;
         }
@@ -50,11 +47,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<int> SetSocksProxyAsync(string socks_proxy)
         {
             int errorCode = NativeMethods.indy_vdr_set_socks_proxy(FfiStr.Create(socks_proxy));
-            if (errorCode != 0)
+            if (errorCode != (int)ErrorCode.Success)
             {
-                string error = "";
-                NativeMethods.indy_vdr_get_current_error(ref error);
-                Console.WriteLine(error);
+                string error = await ErrorApi.GetCurrentErrorAsync();
+                throw IndyVdrException.FromSdkError(error);
             }
             return errorCode;
         }
