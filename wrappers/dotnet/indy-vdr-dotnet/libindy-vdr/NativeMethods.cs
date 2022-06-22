@@ -92,7 +92,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         internal static extern int indy_vdr_set_default_logger();
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_set_protocol_version(uint version);
+        internal static extern int indy_vdr_set_protocol_version(long version);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_set_socks_proxy(FfiStr socks_proxy);
