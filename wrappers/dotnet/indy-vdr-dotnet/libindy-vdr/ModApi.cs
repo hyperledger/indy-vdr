@@ -1,31 +1,69 @@
+using System;
+using System.Threading.Tasks;
+using static indy_vdr_dotnet.models.Structures;
+
 namespace indy_vdr_dotnet.libindy_vdr
 {
     public static class ModApi
     {
-        //public static void SetConfig(string config)
-        //{
-        //    NativeMethods.indy_vdr_set_config(config);
-        //}
+        public static async Task<int> SetConfigAsync(
+            string config)
+        {
+            int errorCode = NativeMethods.indy_vdr_set_config(
+                FfiStr.Create(config));
 
-        //public static void SetDefaultLogger()
-        //{
-        //    NativeMethods.indy_vdr_set_default_logger();
-        //}
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return errorCode;
+        }
 
-        //public static void SetProtocolVersion(uint version)
-        //{
-        //    NativeMethods.indy_vdr_set_protocol_version(version);
-        //}
+        public static async Task<int> SetDefaultLoggerAsync()
+        {
+            int errorCode = NativeMethods.indy_vdr_set_default_logger();
 
-        //public static void SetSocksProxy(string socks_proxy)
-        //{
-        //    NativeMethods.indy_vdr_set_socks_proxy(socks_proxy);
-        //}
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return errorCode;
+        }
 
-        //public static Task<string> GetVersionAsync()
-        //{
-        //    string result = NativeMethods.indy_vdr_version();
-        //    return Task.FromResult(result);
-        //}
+        public static async Task<int> SetProtocolVersionAsync(long version)
+        {
+            int errorCode = NativeMethods.indy_vdr_set_protocol_version(version);
+
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return errorCode;
+        }
+
+        public static async Task<int> SetSocksProxyAsync(string socks_proxy)
+        {
+            int errorCode = NativeMethods.indy_vdr_set_socks_proxy(FfiStr.Create(socks_proxy));
+            if (errorCode != 0)
+            {
+                string error = "";
+                NativeMethods.indy_vdr_get_current_error(ref error);
+                Console.WriteLine(error);
+            }
+            return errorCode;
+        }
+
+        public static async Task<string> GetVersionAsync()
+        {
+            string output = NativeMethods.indy_vdr_version();
+
+            return output;
+        }
     }
 }
