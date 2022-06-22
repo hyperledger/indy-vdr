@@ -109,7 +109,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         internal static extern int indy_vdr_pool_refresh(uint pool_handle);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_pool_get_status(uint pool_handle);
+        internal static extern int indy_vdr_pool_get_status(uint pool_handle, GetPoolStatusCompletedDelegate cb, long callback_id);
+        internal delegate void GetPoolStatusCompletedDelegate(long callback_id, int err, string response);
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_pool_get_transactions(uint pool_handle);

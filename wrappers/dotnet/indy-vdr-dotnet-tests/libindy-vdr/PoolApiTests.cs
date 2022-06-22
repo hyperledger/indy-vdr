@@ -51,10 +51,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             uint poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
 
             //Act
-            int actual = await PoolApi.GetPoolStatusAsync(poolHandle);
-
+            //int actual = await PoolApi.GetPoolStatusAsync(poolHandle);
+            string result = await PoolApi.GetPoolStatusAsync(poolHandle);
             //Assert
-            _ = actual.Should().Be(0);
+            //_ = actual.Should().Be(0);
+            _ = result.Should().NotBe("");
         }
 
         [Test, TestCase(TestName = "GetPoolTransactionsAsync call returns errorcode 0.")]
