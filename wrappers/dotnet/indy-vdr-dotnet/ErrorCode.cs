@@ -1,11 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace indy_vdr_dotnet
+﻿namespace indy_vdr_dotnet
 {
+    public static class ErrorCodeConverter
+    {
+        public static string ToErrorCodeString(this ErrorCode errorCode)
+        {
+            return errorCode switch
+            {
+                ErrorCode.Success => "Success",
+                ErrorCode.Config => "Config",
+                ErrorCode.Connection => "Connection",
+                ErrorCode.FileSystem => "FileSystem",
+                ErrorCode.Input => "Input",
+                ErrorCode.Resource => "Resource",
+                ErrorCode.Unavailable => "Unavailable",
+                ErrorCode.Unexpected => "Unexpected",
+                ErrorCode.Incompatible => "Incompatible",
+                ErrorCode.PoolNoConsensus => "PoolNoConsensus",
+                ErrorCode.PoolRequestFailed => "PoolRequestFailed",
+                ErrorCode.PoolTimeout => "PoolTimeout",
+                _ => "Unknown error code"
+            };
+        }
+    }
     public enum ErrorCode
     {
         Success = 0,

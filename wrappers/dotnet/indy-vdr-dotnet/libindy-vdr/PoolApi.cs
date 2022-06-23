@@ -45,13 +45,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         {
             var taskCompletionSource = new TaskCompletionSource<bool>();
             var callbackId = PendingCallbacks.Add(taskCompletionSource);
-
+            
             int errorCode = NativeMethods.indy_vdr_pool_refresh(
                 poolHandle,
                 PoolRefreshCallback,
                 callbackId
                 );
-
+            
             if (errorCode != (int)ErrorCode.Success)
             {
                 string error = await ErrorApi.GetCurrentErrorAsync();
