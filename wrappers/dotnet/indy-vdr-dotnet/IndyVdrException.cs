@@ -23,7 +23,7 @@ namespace indy_vdr_dotnet
             if (int.TryParse(errCode, out errCodeInt))
             {
                 return new IndyVdrException(
-                    $"'{ErrorCodeConverter.ToErrorCodeString((ErrorCode)errCodeInt)}' error occured with ErrorCode '{errCode}' and extra: '{extra}': {msg}.");
+                    $"'{((ErrorCode)errCodeInt).ToErrorCodeString()}' error occured with ErrorCode '{errCode}' and extra: '{extra}': {msg}.");
             }
             else
             {
