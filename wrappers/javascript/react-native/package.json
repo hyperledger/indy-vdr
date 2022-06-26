@@ -42,8 +42,7 @@
     "build": "yarn clean && yarn compile",
     "clean": "rimraf -rf ./lib",
     "compile": "tsc -p tsconfig.build.json",
-    "example": "yarn --cwd example",
-    "release": "release-it"
+    "example": "yarn --cwd example"
   },
   "dependencies": {
     "indy-vdr-shared": "*"
