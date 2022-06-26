@@ -30,7 +30,6 @@
     "clean": "rimraf -rf ./lib",
     "compile": "tsc -p tsconfig.build.json",
     "example": "yarn --cwd example",
-    "release": "release-it",
     "test": "jest"
   },
   "devDependencies": {
