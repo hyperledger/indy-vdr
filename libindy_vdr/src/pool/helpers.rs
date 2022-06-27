@@ -1,4 +1,5 @@
 use std::iter::FromIterator;
+use std::string::ToString;
 
 use serde_json;
 
@@ -9,7 +10,7 @@ use super::handlers::{
 };
 use super::pool::Pool;
 use super::requests::{PreparedRequest, RequestMethod};
-use super::types::{NodeReplies, RequestResult, SingleReply, TimingResult};
+use super::types::{NodeReplies, RequestResult, TimingResult};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -140,17 +141,17 @@ pub async fn perform_ledger_request<T: Pool>(
             timeout,
         } => {
             let (result, timing) =
-                handle_full_request(&mut request, node_aliases.clone(), timeout.clone()).await?;
+                handle_full_request(&mut request, node_aliases.clone(), *timeout).await?;
             return Ok((result.map_result(format_full_reply)?, timing));
         }
         RequestMethod::BuiltinStateProof {
             sp_key,
             sp_timestamps,
-        } => (Some(sp_key.clone()), sp_timestamps.clone(), true, None),
+        } => (Some(sp_key.clone()), *sp_timestamps, true, None),
         RequestMethod::CustomStateProof {
             sp_parser,
             sp_timestamps,
-        } => (None, sp_timestamps.clone(), true, Some(sp_parser)),
+        } => (None, *sp_timestamps, true, Some(sp_parser)),
         RequestMethod::ReadConsensus => (None, (None, None), true, None),
         RequestMethod::Consensus => (None, (None, None), false, None),
     };
@@ -161,15 +162,10 @@ pub async fn perform_ledger_request<T: Pool>(
 /// Format a collection of node replies in the expected response format
 pub(crate) fn format_full_reply<T>(replies: NodeReplies<T>) -> VdrResult<String>
 where
-    T: Into<String>,
+    T: ToString,
 {
     serde_json::to_string(&serde_json::Map::from_iter(replies.into_iter().map(
-        |(node_alias, reply)| {
-            (
-                node_alias,
-                serde_json::Value::from(<SingleReply<T> as Into<String>>::into(reply)),
-            )
-        },
+        |(node_alias, reply)| (node_alias, serde_json::Value::from(reply.to_string())),
     )))
     .with_input_err("Error serializing response")
 }

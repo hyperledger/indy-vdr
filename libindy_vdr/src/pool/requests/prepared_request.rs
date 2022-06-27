@@ -103,7 +103,7 @@ impl PreparedRequest {
         identifier: &DidValue,
         signature: &[u8],
     ) -> VdrResult<()> {
-        self.req_json.as_object_mut().map(|request| {
+        if let Some(request) = self.req_json.as_object_mut() {
             if !request.contains_key("signatures") {
                 request.insert(
                     "signatures".to_string(),
@@ -127,7 +127,7 @@ impl PreparedRequest {
                     .unwrap()
                     .insert(identifier, signature);
             }
-        });
+        }
 
         Ok(())
     }
@@ -157,31 +157,27 @@ impl PreparedRequest {
     ) -> VdrResult<PreparedRequest> {
         let protocol_version = req_json["protocolVersion"]
             .as_i64()
-            .ok_or(input_err("Invalid request JSON: protocolVersion not found"))
+            .ok_or_else(|| input_err("Invalid request JSON: protocolVersion not found"))
             .and_then(ProtocolVersion::from_id)?;
 
         let req_id = req_json["reqId"].as_i64();
-        let req_id = if req_id.is_none() {
-            if auto_pop {
-                let new_req_id = new_request_id();
-                req_json["reqId"] = SJsonValue::from(new_req_id);
-                new_req_id
-            } else {
-                return Err(input_err("Invalid request JSON: reqId not found"));
-            }
+        let req_id = if let Some(req_id) = req_id {
+            req_id
+        } else if auto_pop {
+            let new_req_id = new_request_id();
+            req_json["reqId"] = SJsonValue::from(new_req_id);
+            new_req_id
         } else {
-            req_id.unwrap()
+            return Err(input_err("Invalid request JSON: reqId not found"));
         }
         .to_string();
 
         if let Some(ident) = req_json["identifier"].as_str() {
             DidValue(ident.to_owned()).validate()?
+        } else if auto_pop {
+            req_json["identifier"] = SJsonValue::from(DEFAULT_LIBINDY_DID.to_string());
         } else {
-            if auto_pop {
-                req_json["identifier"] = SJsonValue::from(DEFAULT_LIBINDY_DID.to_string());
-            } else {
-                return Err(input_err("Invalid request JSON: missing identifier DID"));
-            }
+            return Err(input_err("Invalid request JSON: missing identifier DID"));
         }
 
         let txn_type = req_json["operation"]["type"]
@@ -197,14 +193,10 @@ impl PreparedRequest {
                 parse_timestamp_from_req_for_builtin_sp(&req_json, txn_type.as_str()),
             );
 
-            if sp_key.is_some() {
-                Some(RequestMethod::BuiltinStateProof {
-                    sp_key: sp_key.unwrap(),
-                    sp_timestamps,
-                })
-            } else {
-                None
-            }
+            sp_key.map(|sp_key| RequestMethod::BuiltinStateProof {
+                sp_key,
+                sp_timestamps,
+            })
         };
 
         Ok(Self::new(
@@ -222,12 +214,10 @@ impl PreparedRequest {
                 node_aliases: None,
                 timeout: None,
             }
+        } else if READ_REQUESTS.contains(&txn_type) {
+            RequestMethod::ReadConsensus
         } else {
-            if READ_REQUESTS.contains(&txn_type) {
-                RequestMethod::ReadConsensus
-            } else {
-                RequestMethod::Consensus
-            }
+            RequestMethod::Consensus
         }
     }
 }

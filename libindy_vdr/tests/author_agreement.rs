@@ -13,9 +13,9 @@ fn empty() {
     // Empty test to run module
 }
 
-const TEXT: &'static str = "indy agreement";
-const VERSION: &'static str = "1.0.0";
-const DIGEST: &'static str = "83d907821df1c87db829e96569a11f6fc2e7880acba5e43d07ab786959e13bd3";
+const TEXT: &str = "indy agreement";
+const VERSION: &str = "1.0.0";
+const DIGEST: &str = "83d907821df1c87db829e96569a11f6fc2e7880acba5e43d07ab786959e13bd3";
 const RATIFICATION_TS: u64 = 12345;
 
 #[cfg(test)]
@@ -233,7 +233,7 @@ mod builder {
                     Some(TEXT),
                     Some(VERSION),
                     None,
-                    &ACCEPTANCE_MECH_TYPE,
+                    ACCEPTANCE_MECH_TYPE,
                     TIME_OF_ACCEPTANCE,
                 )
                 .unwrap();
@@ -249,7 +249,7 @@ mod builder {
                     None,
                     None,
                     Some(HASH),
-                    &ACCEPTANCE_MECH_TYPE,
+                    ACCEPTANCE_MECH_TYPE,
                     TIME_OF_ACCEPTANCE,
                 )
                 .unwrap();
@@ -265,7 +265,7 @@ mod builder {
                     Some(TEXT),
                     Some(VERSION),
                     Some(HASH),
-                    &ACCEPTANCE_MECH_TYPE,
+                    ACCEPTANCE_MECH_TYPE,
                     TIME_OF_ACCEPTANCE,
                 )
                 .unwrap();
@@ -281,7 +281,7 @@ mod builder {
                     Some("Other TEXT"),
                     Some(VERSION),
                     Some(HASH),
-                    &ACCEPTANCE_MECH_TYPE,
+                    ACCEPTANCE_MECH_TYPE,
                     TIME_OF_ACCEPTANCE,
                 )
                 .unwrap_err();
@@ -296,7 +296,7 @@ mod builder {
                     None,
                     None,
                     None,
-                    &ACCEPTANCE_MECH_TYPE,
+                    ACCEPTANCE_MECH_TYPE,
                     TIME_OF_ACCEPTANCE,
                 )
                 .unwrap_err();

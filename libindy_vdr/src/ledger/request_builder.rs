@@ -97,9 +97,9 @@ impl RequestBuilder {
         let identifier = identifier.or(Some(&DEFAULT_LIBINDY_DID));
         let txn_type = T::get_txn_type().to_string();
         let sp_key = operation.get_sp_key(self.protocol_version)?;
-        let method = if sp_key.is_some() {
+        let method = if let Some(sp_key) = sp_key {
             Some(RequestMethod::BuiltinStateProof {
-                sp_key: sp_key.unwrap(),
+                sp_key,
                 sp_timestamps: operation.get_sp_timestamps()?,
             })
         } else {
@@ -142,7 +142,7 @@ impl RequestBuilder {
         dest: &DidValue,
     ) -> VdrResult<PreparedRequest> {
         let dest = dest.to_short();
-        let operation = GetNymOperation::new(dest.clone());
+        let operation = GetNymOperation::new(dest);
         self.build(operation, identifier)
     }
 
@@ -369,11 +369,8 @@ impl RequestBuilder {
         version: String,
         aml_context: Option<String>,
     ) -> VdrResult<PreparedRequest> {
-        let operation = SetAcceptanceMechanismOperation::new(
-            aml,
-            version.to_string(),
-            aml_context.map(String::from),
-        );
+        let operation =
+            SetAcceptanceMechanismOperation::new(aml, version, aml_context.map(String::from));
         self.build(operation, Some(identifier))
     }
 
@@ -401,9 +398,7 @@ impl RequestBuilder {
         identifier: &DidValue,
         schema: Schema,
     ) -> VdrResult<PreparedRequest> {
-        let schema = match schema {
-            Schema::SchemaV1(s) => s,
-        };
+        let Schema::SchemaV1(schema) = schema;
         let schema_data =
             SchemaOperationData::new(schema.name, schema.version, schema.attr_names.into());
         self.build(SchemaOperation::new(schema_data), Some(identifier))
@@ -416,10 +411,12 @@ impl RequestBuilder {
         id: &SchemaId,
     ) -> VdrResult<PreparedRequest> {
         let id = id.to_unqualified();
-        let (_, dest, name, version) = id.parts().ok_or(input_err(format!(
-            "Schema ID `{}` cannot be used to build request: invalid number of parts",
-            id.0
-        )))?;
+        let (_, dest, name, version) = id.parts().ok_or_else(|| {
+            input_err(format!(
+                "Schema ID `{}` cannot be used to build request: invalid number of parts",
+                id.0
+            ))
+        })?;
         let data = GetSchemaOperationData::new(name, version);
         self.build(GetSchemaOperation::new(dest.to_short(), data), identifier)
     }
@@ -430,9 +427,7 @@ impl RequestBuilder {
         identifier: &DidValue,
         cred_def: CredentialDefinition,
     ) -> VdrResult<PreparedRequest> {
-        let cred_def = match cred_def.to_unqualified() {
-            CredentialDefinition::CredentialDefinitionV1(cred_def) => cred_def,
-        };
+        let CredentialDefinition::CredentialDefinitionV1(cred_def) = cred_def;
         self.build(CredDefOperation::new(cred_def), Some(identifier))
     }
 
@@ -500,9 +495,7 @@ impl RequestBuilder {
         identifier: &DidValue,
         revoc_reg: RevocationRegistryDefinition,
     ) -> VdrResult<PreparedRequest> {
-        let revoc_reg = match revoc_reg.to_unqualified() {
-            RevocationRegistryDefinition::RevocationRegistryDefinitionV1(revoc_reg) => revoc_reg,
-        };
+        let RevocationRegistryDefinition::RevocationRegistryDefinitionV1(revoc_reg) = revoc_reg;
         self.build(RevRegDefOperation::new(revoc_reg), Some(identifier))
     }
 
@@ -515,9 +508,7 @@ impl RequestBuilder {
         rev_reg_entry: RevocationRegistryDelta,
     ) -> VdrResult<PreparedRequest> {
         let revoc_reg_def_id = revoc_reg_def_id.to_unqualified();
-        let rev_reg_entry = match rev_reg_entry {
-            RevocationRegistryDelta::RevocationRegistryDeltaV1(entry) => entry,
-        };
+        let RevocationRegistryDelta::RevocationRegistryDeltaV1(rev_reg_entry) = rev_reg_entry;
         self.build(
             RevRegEntryOperation::new(revoc_def_type, &revoc_reg_def_id, rev_reg_entry),
             Some(identifier),
@@ -571,8 +562,7 @@ impl RequestBuilder {
     ) -> VdrResult<PreparedRequest> {
         let rich_schema = RichSchema::new(id, content, rs_name, rs_version, rs_type.clone(), ver);
         let allowed_rs_type: RSType =
-            serde_json::from_value(serde_json::value::Value::String(rs_type))
-                .map_err(|err| input_err(err))?;
+            serde_json::from_value(serde_json::value::Value::String(rs_type)).map_err(input_err)?;
         match &allowed_rs_type {
             RSType::Sch => build_rs_operation!(self, RichSchemaOperation, identifier, rich_schema),
             RSType::Map => build_rs_operation!(self, RSMappingOperation, identifier, rich_schema),
@@ -621,7 +611,7 @@ mod tests {
     use crate::ledger::constants;
 
     const REQ_ID: u64 = 1585221529670242337;
-    const TYPE: &'static str = constants::NYM;
+    const TYPE: &str = constants::NYM;
 
     fn _identifier() -> DidValue {
         DidValue(String::from("V4SGRU86Z58d6TV7PBUe6f"))
@@ -920,11 +910,11 @@ mod tests {
         case(ProtocolVersion::Node1_4)
     )]
     fn test_prepare_request_for_different_protocol_versions(protocol_version: ProtocolVersion) {
-        let request = RequestBuilder::new(protocol_version.clone())
+        let request = RequestBuilder::new(protocol_version)
             .build_get_nym_request(None, &_dest())
             .unwrap();
 
-        assert_eq!(request.protocol_version, protocol_version.clone());
+        assert_eq!(request.protocol_version, protocol_version);
         assert_eq!(
             request.req_json["protocolVersion"],
             json!(protocol_version.to_id())

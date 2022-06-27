@@ -174,7 +174,7 @@ impl Node {
         prefix: Option<&[u8]>,
     ) -> VdrResult<Vec<(String, String)>> {
         let node_and_prefix = prefix
-            .map(|prf| self.get_node(db, &prf))
+            .map(|prf| self.get_node(db, prf))
             .unwrap_or_else(|| Ok(Some((self, vec![]))))?;
         if let Some((node, prf)) = node_and_prefix {
             let vals = node._get_all_values(db, prf)?;
@@ -228,7 +228,7 @@ impl Node {
             }
             Node::Hash(ref hash) => {
                 let hash = NodeHash::from_slice(hash.as_slice());
-                if let Some(ref next) = db.get(hash) {
+                if let Some(next) = db.get(hash) {
                     next._get_node(db, path, seen_path)
                 } else {
                     Err(input_err(
@@ -249,7 +249,7 @@ impl Node {
                     String::from_utf8(pair_path.clone())
                 );
 
-                if pair_path.starts_with(&path) {
+                if pair_path.starts_with(path) {
                     Ok(Some((self, seen_path.to_vec())))
                 } else {
                     Ok(None)
@@ -270,7 +270,7 @@ impl Node {
                     new_seen_path.extend_from_slice(pair_path.as_slice());
                     pair.next
                         ._get_node(db, &path[pair_path.len()..], new_seen_path.as_slice())
-                } else if pair_path.starts_with(&path) {
+                } else if pair_path.starts_with(path) {
                     Ok(Some((self, seen_path.to_vec())))
                 } else {
                     Ok(None)
@@ -302,15 +302,15 @@ impl Node {
                         trace!("Intermediate result: {:?}", res);
                     }
                 }
-                if let Some(ref value) = node.value.as_ref() {
+                if let Some(value) = node.value.as_ref() {
                     let mut vec: Vec<Vec<u8>> =
                         UntrustedRlp::new(value).as_list().unwrap_or_default(); //default will cause error below
 
                     if let Some(val) = vec.pop() {
                         if vec.is_empty() {
                             res.push((
-                                prefix.clone(),
-                                String::from_utf8(val.clone()).with_input_err(
+                                prefix,
+                                String::from_utf8(val).with_input_err(
                                     "Patricia Merkle Trie contains malformed utf8 string",
                                 )?,
                             ));
@@ -322,7 +322,7 @@ impl Node {
             Node::Hash(ref hash) => {
                 trace!("Node::_get_all_values in Hash");
                 let hash = NodeHash::from_slice(hash.as_slice());
-                if let Some(ref next) = db.get(hash) {
+                if let Some(next) = db.get(hash) {
                     trace!("found value in db");
                     next._get_all_values(db, prefix)
                 } else {
@@ -345,15 +345,15 @@ impl Node {
                     .as_list()
                     .unwrap_or_default(); //default will cause error below
 
-                let mut full_path = prefix.clone();
-                let mut path_left = pair_path.clone();
+                let mut full_path = prefix;
+                let mut path_left = pair_path;
                 full_path.append(&mut path_left);
 
                 if let Some(val) = vec.pop() {
                     if vec.is_empty() {
                         return Ok(vec![(
                             full_path,
-                            String::from_utf8(val.clone()).with_input_err(
+                            String::from_utf8(val).with_input_err(
                                 "Patricia Merkle Trie contains malformed utf8 string",
                             )?,
                         )]);
@@ -370,8 +370,8 @@ impl Node {
                     return Err(input_err("Incorrect Patricia Merkle Trie: node marked as extension but path contains leaf flag"));
                 }
 
-                let mut full_path = prefix.clone();
-                let mut path_left = pair_path.clone();
+                let mut full_path = prefix;
+                let mut path_left = pair_path;
                 full_path.append(&mut path_left);
 
                 let values = pair.next._get_all_values(db, full_path)?;
@@ -476,9 +476,6 @@ mod tests {
 
     #[test]
     fn node_serialize_works_for_emtpy() {
-        assert_eq!(
-            base64::encode(&rlp::encode_list(&vec![Node::Blank])),
-            "wYA="
-        );
+        assert_eq!(base64::encode(&rlp::encode_list(&[Node::Blank])), "wYA=");
     }
 }

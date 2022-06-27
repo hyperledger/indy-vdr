@@ -14,8 +14,8 @@ fn empty() {
     // Empty test to run module
 }
 
-const VERSION: &'static str = "1.0.0";
-const CONTEXT: &'static str = "Some aml context";
+const VERSION: &str = "1.0.0";
+const CONTEXT: &str = "Some aml context";
 const TIMESTAMP: u64 = 12345;
 
 fn aml() -> AcceptanceMechanisms {

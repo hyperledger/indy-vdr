@@ -89,11 +89,7 @@ impl RequestType for GetCredDefOperation {
         Ok(Some(
             format!(
                 "{}:{}:{}:{}{}",
-                self.origin.to_string(),
-                marker,
-                self.signature_type,
-                self._ref,
-                tag
+                &*self.origin, marker, self.signature_type, self._ref, tag
             )
             .as_bytes()
             .to_vec(),

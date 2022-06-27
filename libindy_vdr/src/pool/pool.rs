@@ -30,11 +30,11 @@ pub trait Pool: Clone {
     fn get_config(&self) -> &PoolConfig;
 
     /// Create a new pool request instance
-    fn create_request<'a>(
-        &'a self,
+    fn create_request(
+        &self,
         req_id: String,
         req_json: String,
-    ) -> LocalBoxFuture<'a, VdrResult<Self::Request>>;
+    ) -> LocalBoxFuture<'_, VdrResult<Self::Request>>;
 
     /// Get the merkle tree representing the verifier pool transactions
     fn get_merkle_tree(&self) -> &MerkleTree;
@@ -97,7 +97,7 @@ where
         let txn_map = build_node_transaction_map(&merkle_tree, config.protocol_version)?;
         let verifiers = build_verifiers(txn_map)?;
         let networker = networker_factory.make_networker(config.clone(), &verifiers)?;
-        let setup = PoolSetup::new(config.clone(), merkle_tree, node_weights, verifiers);
+        let setup = PoolSetup::new(config, merkle_tree, node_weights, verifiers);
         Ok(Self::new(S::from(Box::new(setup)), networker))
     }
 }
@@ -109,11 +109,11 @@ where
 {
     type Request = PoolRequestImpl<S, T>;
 
-    fn create_request<'a>(
-        &'a self,
+    fn create_request(
+        &self,
         req_id: String,
         req_json: String,
-    ) -> LocalBoxFuture<'a, VdrResult<Self::Request>> {
+    ) -> LocalBoxFuture<'_, VdrResult<Self::Request>> {
         let setup = self.setup.clone();
         let networker = self.networker.clone();
         lazy(move |_| {

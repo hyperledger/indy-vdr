@@ -4,7 +4,7 @@ use crate::pool::{
     PoolBuilder, PoolRunner, PoolTransactions, RequestMethod, RequestResult, TimingResult,
 };
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 use std::os::raw::c_char;
 use std::sync::RwLock;
 use std::thread;
@@ -83,15 +83,11 @@ fn handle_pool_refresh(
         };
         let pool = builder.transactions(txns)?.into_runner()?;
         let mut pools = write_lock!(POOLS)?;
-        if !pools.contains_key(&pool_handle) {
-            let error: VdrError = (VdrErrorKind::Unexpected, "Pool was freed before refresh completed").into();
-            let code = ErrorCode::from(error.kind());
-            set_last_error(Some(error));
-            Ok(code)
-        } else {
-            pools.insert(pool_handle, pool);
-            // previous pool instance will now be dropped
+        if let Entry::Occupied(mut entry) = pools.entry(pool_handle) {
+            entry.insert(pool);
             Ok(ErrorCode::Success)
+        } else {
+            Err(err_msg(VdrErrorKind::Unexpected, "Pool was freed before refresh completed"))
         }
     }
 }
