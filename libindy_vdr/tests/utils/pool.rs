@@ -78,7 +78,7 @@ impl TestPool {
     ) -> Result<String, String> {
         Self::_submit_retry(
             Self::extract_seq_no_from_reply(previous_response).unwrap(),
-            || self.send_request(&prepared_request),
+            || self.send_request(prepared_request),
         )
     }
 

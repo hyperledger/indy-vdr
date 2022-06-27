@@ -38,13 +38,13 @@ fn _schedule() -> Schedule {
     schedule
 }
 
-const NAME: &'static str = "test-upgrade-libindy";
-const VERSION: &'static str = "2.0.0";
-const SHA256: &'static str = "f284bdc3c1c9e24a494e285cb387c69510f28de51c15bb93179d9c7f28705398";
-const START: &'static str = "start";
-const CANCEL: &'static str = "cancel";
-const PACKAGE: &'static str = "some_package";
-const JUSTIFICATION: &'static str = "Upgrade is not required";
+const NAME: &str = "test-upgrade-libindy";
+const VERSION: &str = "2.0.0";
+const SHA256: &str = "f284bdc3c1c9e24a494e285cb387c69510f28de51c15bb93179d9c7f28705398";
+const START: &str = "start";
+const CANCEL: &str = "cancel";
+const PACKAGE: &str = "some_package";
+const JUSTIFICATION: &str = "Upgrade is not required";
 
 #[test]
 fn empty() {

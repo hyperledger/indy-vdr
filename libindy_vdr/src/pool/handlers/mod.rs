@@ -51,9 +51,9 @@ impl<T> ReplyState<T> {
     }
 
     pub fn add_timeout(&mut self, node_alias: String) {
-        if !self.inner.contains_key(&node_alias) {
-            self.inner.insert(node_alias, SingleReply::Timeout());
-        }
+        self.inner
+            .entry(node_alias)
+            .or_insert(SingleReply::Timeout());
     }
 
     pub fn result(self) -> NodeReplies<T> {
@@ -80,13 +80,7 @@ impl<T> ReplyState<T> {
     pub fn failed_len(&self) -> usize {
         self.inner
             .values()
-            .filter(|r| {
-                if let SingleReply::Failed(_) = r {
-                    true
-                } else {
-                    false
-                }
-            })
+            .filter(|r| matches!(r, SingleReply::Failed(_)))
             .count()
     }
 

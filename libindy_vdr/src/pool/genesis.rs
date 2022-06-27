@@ -93,7 +93,7 @@ impl PoolTransactions {
     }
 
     /// Extend the pool transactions with a set of JSON strings.
-    pub fn extend_from_json<'a, T>(&mut self, txns: T) -> VdrResult<()>
+    pub fn extend_from_json<T>(&mut self, txns: T) -> VdrResult<()>
     where
         T: IntoIterator,
         T::Item: AsRef<str>,
@@ -141,6 +141,7 @@ impl PoolTransactions {
     }
 
     /// Get the number of pool transactions.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inner.len()
     }
@@ -331,8 +332,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 }
             }
             map
-        })
-        .into())
+        }))
 }
 
 fn _decode_transaction(
@@ -375,7 +375,7 @@ mod tests {
         use indy_test_utils::genesis::GenesisTransactions;
 
         pub fn _transactions() -> Vec<String> {
-            GenesisTransactions::new(Some(4)).transactions.clone()
+            GenesisTransactions::new(Some(4)).transactions
         }
 
         pub fn _merkle_tree() -> MerkleTree {
@@ -415,9 +415,7 @@ mod tests {
         fn test_pool_transactions_from_file_for_unknown_file() {
             let file = {
                 let mut transaction = GenesisTransactions::new(None);
-                let file = transaction.store_to_file();
-
-                file.clone()
+                transaction.store_to_file()
             };
 
             let _err = PoolTransactions::from_json_file(&file).unwrap_err();
