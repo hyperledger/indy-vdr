@@ -22,14 +22,14 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testAml_context = "test_aml_context";
 
             //Act
-            uint testObject = await LedgerApi.BuildAcceptanceMechanismsRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildAcceptanceMechanismsRequestAsync(
                 testSubmitterId,
                 testAml,
                 testVersion,
                 testAml_context);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetAcceptanceMechanismsRequestAsync call returns request handle.")]
@@ -39,11 +39,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             long testTimestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
 
             //Act
-            uint testObject = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(
                 testTimestamp);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetAttributeRequest call returns request handle.")]
@@ -57,12 +57,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testEnc = "";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetAttributeRequest(
+            IntPtr testObject = await LedgerApi.BuildGetAttributeRequest(
                 testTargetDid,
                 testSubmitterDid);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
 
@@ -74,12 +74,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testCredDef = "{\"id\":\"testCredDefId\",\"schemaId\":\"testSchemaId\",\"type\":\"CL\",\"tag\":\"\",\"value\":{\"primary\":\"testPrimaryCredentialPublicKey\",\"revoation\":\"\"},\"ver\":\"1.0\"}";
 
             //Act
-            uint testObject = await LedgerApi.BuildCredDefRequest(
+            IntPtr testObject = await LedgerApi.BuildCredDefRequest(
                 testSubmitterDid,
                 testCredDef);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildCustomRequest call returns request handle.")]
@@ -89,11 +89,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testRequestJson = "{\"operation\":{\"data\": 1,\"ledgerId\": 1,\"type\": \"3\"},\"protocolVersion\": 2,\"reqId\": 123,\"identifier\": \"LibindyDid111111111111\"}";
 
             //Act
-            uint testObject = await LedgerApi.BuildCustomRequest(
+            IntPtr testObject = await LedgerApi.BuildCustomRequest(
                 testRequestJson);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildDisableAllTxnAuthorAgreementsRequest call returns request handle.")]
@@ -103,11 +103,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterDid = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildDisableAllTxnAuthorAgreementsRequest(
+            IntPtr testObject = await LedgerApi.BuildDisableAllTxnAuthorAgreementsRequest(
                 testSubmitterDid);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetCredDefRequest call returns request handle.")]
@@ -118,12 +118,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterDid = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetCredDefRequest(
+            IntPtr testObject = await LedgerApi.BuildGetCredDefRequest(
                 testCredDefDid,
                 testSubmitterDid);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetNymRequest call returns request handle.")]
@@ -134,12 +134,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterDid = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetNymRequest(
+            IntPtr testObject = await LedgerApi.BuildGetNymRequest(
                 testTargetDid,
                 testSubmitterDid);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetRevocRegDefRequest call returns request handle.")]
@@ -150,12 +150,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterDid = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetRevocRegDefRequest(
+            IntPtr testObject = await LedgerApi.BuildGetRevocRegDefRequest(
                 testRevocRegId,
                 testSubmitterDid);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetRevocRegRequest call returns request handle.")]
@@ -167,13 +167,13 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterDid = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetRevocRegRequest(
+            IntPtr testObject = await LedgerApi.BuildGetRevocRegRequest(
                 testRevocRegId,
                 testTimestamp,
                 testSubmitterDid);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
 
@@ -187,14 +187,14 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterId = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetRevocRegDeltaRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildGetRevocRegDeltaRequestAsync(
                 testRevocRegId,
                 testToTs,
                 testFromTs,
                 testSubmitterId);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetSchemaRequestAsync call returns request handle.")]
@@ -205,12 +205,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterId = "LibindyDid111111111111";
             
             //Act
-            uint testObject = await LedgerApi.BuildGetSchemaRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildGetSchemaRequestAsync(
                 testSchemaId,
                 testSubmitterId);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetTxnAuthorAgreementRequestAsync call returns request handle.")]
@@ -221,12 +221,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string data = "{}";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetTxnAuthorAgreementRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildGetTxnAuthorAgreementRequestAsync(
                 testSubmitterId,
                 data);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetTxnRequestAsync call returns request handle.")]
@@ -238,13 +238,13 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterId = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetTxnRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildGetTxnRequestAsync(
                 ledgerType,
                 seqNo,
                 testSubmitterId);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildGetValidatorInfoRequestAsync call returns request handle.")]
@@ -254,11 +254,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string testSubmitterId = "LibindyDid111111111111";
 
             //Act
-            uint testObject = await LedgerApi.BuildGetValidatorInfoRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildGetValidatorInfoRequestAsync(
                 testSubmitterId);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildNymRequestAsync call returns request handle.")]
@@ -272,7 +272,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string role = "TRUSTEE";
 
             //Act
-            uint testObject = await LedgerApi.BuildNymRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildNymRequestAsync(
                 testSubmitterId,
                 dest,
                 verkey,
@@ -280,7 +280,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
                 role);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildRevocRegDefRequestAsync call returns request handle.")]
@@ -292,12 +292,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string revRegDefJson = "{\"id\":\"testId\",\"revocDefType\":\"CL_ACCUM\",\"tag\":\"testTag\",\"credDefId\":\"testCredDefId\",\"value\":{\"issuanceType\":\"ISSUANCE_BY_DEFAULT\",\"maxCredNum\":5,\"publicKeys\":{\"accumKey\":\"testAccumKey\"},\"tailsHash\":\"testTailsHash\",\"tailsLocation\":\"testTailsLocation\"},\"ver\":\"1.0\"}";
 
             //Act
-            uint testObject = await LedgerApi.BuildRevocRegDefRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildRevocRegDefRequestAsync(
                 testSubmitterId,
                 revRegDefJson);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildRevocRegEntryRequestAsync call returns request handle.")]
@@ -311,14 +311,14 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string deltaJson = "{\"ver\":\"1.0\",\"value\":\"test\"}";
 
             //Act
-            uint testObject = await LedgerApi.BuildRevocRegEntryRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildRevocRegEntryRequestAsync(
                 testSubmitterId,
                 testRevRegDefId,
                 testRevRegDefType,
                 deltaJson);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "BuildSchemaRequestAsync call returns request handle.")]
@@ -330,12 +330,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             string schemaJson = "{\"Handle\":0,\"id\":\"testId\",\"name\":\"testName\",\"version\":\"1.0\",\"attrNames\":[\"testAttribute1\",\"testAttribute2\"],\"ver\":\"1.0\",\"SeqNo\":5}";
 
             //Act
-            uint testObject = await LedgerApi.BuildSchemaRequestAsync(
+            IntPtr testObject = await LedgerApi.BuildSchemaRequestAsync(
                 testSubmitterId,
                 schemaJson);
 
             //Assert
-            _ = testObject.Should().NotBe(0);
+            _ = testObject.Should().NotBe(new IntPtr());
         }
     }
 }

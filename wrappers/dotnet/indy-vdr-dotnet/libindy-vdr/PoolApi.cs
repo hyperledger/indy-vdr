@@ -12,12 +12,12 @@ namespace indy_vdr_dotnet.libindy_vdr
     public class PoolApi
     {
         #region CreatePoolAsync
-        public static async Task<uint> CreatePoolAsync(
+        public static async Task<IntPtr> CreatePoolAsync(
             string transactions = null,
             string transactionsPath = null,
             Dictionary<string, float> nodeWeights = null)
         {
-            uint poolHandle = 0;
+            IntPtr poolHandle = new();
             string paramsJson = JsonConvert.SerializeObject(new 
             {
                 transactions,
@@ -41,7 +41,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region RefreshPoolAsync
         public static async Task<bool> RefreshPoolAsync(
-            uint poolHandle)
+            IntPtr poolHandle)
         {
             var taskCompletionSource = new TaskCompletionSource<bool>();
             var callbackId = PendingCallbacks.Add(taskCompletionSource);
@@ -77,7 +77,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region GetPoolStatusAsync
         public static async Task<string> GetPoolStatusAsync(
-            uint poolHandle)
+            IntPtr poolHandle)
         {
             var taskCompletionSource = new TaskCompletionSource<string>();
             var callbackId = PendingCallbacks.Add(taskCompletionSource);
@@ -114,7 +114,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region GetPoolTransactionsAsync
         public static async Task<string> GetPoolTransactionsAsync(
-            uint poolHandle)
+            IntPtr poolHandle)
         {
             var taskCompletionSource = new TaskCompletionSource<string>();
             var callbackId = PendingCallbacks.Add(taskCompletionSource);
@@ -149,7 +149,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region GetPoolVerifiersAsync
         public static async Task<string> GetPoolVerifiersAsync(
-            uint poolHandle)
+            IntPtr poolHandle)
         {
             var taskCompletionSource = new TaskCompletionSource<string>();
             var callbackId = PendingCallbacks.Add(taskCompletionSource);
@@ -184,8 +184,8 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region SubmitPoolActionAsync
         public static async Task<string> SubmitPoolActionAsync(
-            uint poolHandle,
-            uint requestHandle,
+            IntPtr poolHandle,
+            IntPtr requestHandle,
             List<string> nodeAliases = null,
             int timeout = -1)
         {
@@ -231,8 +231,8 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region SubmitPoolRequestAsync
         public static async Task<string> SubmitPoolRequestAsync(
-            uint poolHandle,
-            uint requestHandle)
+            IntPtr poolHandle,
+            IntPtr requestHandle)
         {
             var taskCompletionSource = new TaskCompletionSource<string>();
             var callbackId = PendingCallbacks.Add(taskCompletionSource);
@@ -268,7 +268,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         #region ClosePoolAsync
         public static async Task<int> ClosePoolAsync(
-            uint poolHandle)
+            IntPtr poolHandle)
         {
             int errorCode = NativeMethods.indy_vdr_pool_close(
                 poolHandle);

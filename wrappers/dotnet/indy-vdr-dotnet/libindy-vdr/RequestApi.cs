@@ -32,7 +32,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         public static async Task RequestFreeAsync(
-            uint requestHandle)
+            IntPtr requestHandle)
         {
             int errorCode = NativeMethods.indy_vdr_request_free(
                 requestHandle);
@@ -45,7 +45,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         public static async Task<string> RequestGetBodyAsync(
-            uint requestHandle)
+            IntPtr requestHandle)
         {
             string output = "";
             int errorCode = NativeMethods.indy_vdr_request_get_body(
@@ -61,7 +61,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         public static async Task<string> RequestGetSignatureInputAsync(
-            uint requestHandle)
+            IntPtr requestHandle)
         {
             string output = "";
             int errorCode = NativeMethods.indy_vdr_request_get_signature_input(
@@ -77,7 +77,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         public static async Task RequestSetEndorserAsync(
-            uint requestHandle,
+            IntPtr requestHandle,
             string endorser)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_endorser(
@@ -92,7 +92,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         public static async Task RequestSetMultiSignatureAsync(
-            uint requestHandle,
+            IntPtr requestHandle,
             string identifier,
             string signatureJson)
         {
@@ -109,7 +109,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         public static async Task RequestSetSigantureAsync(
-            uint requestHandle,
+            IntPtr requestHandle,
             string signature)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_signature(
@@ -124,7 +124,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         public static async Task RequestSetTxnAuthorAgreementAcceptanceAsync(
-            uint requestHandle,
+            IntPtr requestHandle,
             string acceptance)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_txn_author_agreement_acceptance(

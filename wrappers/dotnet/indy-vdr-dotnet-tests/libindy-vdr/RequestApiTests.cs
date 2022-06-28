@@ -55,7 +55,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestFreeWorks()
         {
             //Arrange
-            uint requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
+            IntPtr requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
             
             //Act
             string requestBodyBeforeFree = await RequestApi.RequestGetBodyAsync(requestHandle);
@@ -72,7 +72,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestGetBodyWorks()
         {
             //Arrange
-            uint requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
+            IntPtr requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
 
             //Act
             string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
@@ -86,7 +86,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestGetSignatureInputWorks()
         {
             //Arrange
-            uint requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
+            IntPtr requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
 
             //Act
             string signature = await RequestApi.RequestGetSignatureInputAsync(requestHandle);
@@ -100,7 +100,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetEndorserWorks()
         {
             //Arrange
-            uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testEndorser = "Endorser11111111111111";
             //Act
             string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
@@ -120,7 +120,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetMultiSignatureWorks()
         {
             //Arrange
-            uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             //Act
             string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject requestBodyJObj = JObject.Parse(requestBody);
@@ -143,7 +143,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetSigantureWorks()
         {
             //Arrange
-            uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             //Act
             string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
             JObject requestBodyJObj = JObject.Parse(requestBody);
@@ -164,7 +164,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetTxnAuthorAgreementAcceptanceWorks()
         {
             //Arrange
-            uint requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testTaaAcceptance = "{\"mechanism\":\"acc_mech_type\",\"taaDigest\":\"taa_digest\",\"time\":1655683200}";
             //Act
             string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);

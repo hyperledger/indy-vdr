@@ -24,13 +24,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="verion">The version of the new acceptance mechanisms. (Note: unique on the Ledger)</param>
         /// <param name="amlContext">(Optional) common context information about acceptance mechanisms (may be a URL to external resource).</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildAcceptanceMechanismsRequestAsync(
+        public static async Task<IntPtr> BuildAcceptanceMechanismsRequestAsync(
             string submitterDid,
             string aml,
             string verion,
             string amlContext = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_acceptance_mechanisms_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(aml),
@@ -56,12 +56,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="version">(Optional) version of acceptance mechanisms.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender (if not provided, then the default Libindy DID will be used).</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetAcceptanceMechanismsRequestAsync(
+        public static async Task<IntPtr> BuildGetAcceptanceMechanismsRequestAsync(
             long timestamp,
             string version = null,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_acceptance_mechanisms_request(
                 FfiStr.Create(submitterDid),
                 timestamp,
@@ -87,14 +87,14 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="raw">(Optional) JSON, where key is attribute name and value is attribute value.</param>
         /// <param name="enc">(Optional) Encrypted value attribute data.</param>
         /// <returns>Returns RequestHandle</returns>
-        public static async Task<uint> BuildAttributeRequest(
+        public static async Task<IntPtr> BuildAttributeRequest(
             string targetDid,
             string submitterDid = null,
             string hash = null,
             string raw = null,
             string enc = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_attrib_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
@@ -124,14 +124,14 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="raw">(Optional) Requested attribute hash.</param>
         /// <param name="enc">(Optional) Requested attribute encrypted value.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetAttributeRequest(
+        public static async Task<IntPtr> BuildGetAttributeRequest(
             string targetDid,
             string submitterDid = null,
             string hash = null,
             string raw = null,
             string enc = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_attrib_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
@@ -175,11 +175,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///    }  
         /// </param>
         /// <returns>Returns RequestHandle</returns>
-        public static async Task<uint> BuildCredDefRequest(
+        public static async Task<IntPtr> BuildCredDefRequest(
             string submitterDid,
             string credDef)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_cred_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(credDef),
@@ -200,10 +200,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// </summary>
         /// <param name="requestJson"></param>
         /// <returns></returns>
-        public static async Task<uint> BuildCustomRequest(
+        public static async Task<IntPtr> BuildCustomRequest(
             string requestJson)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_custom_request(
                 FfiStr.Create(requestJson),
                 ref requestHandle);
@@ -223,10 +223,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// </summary>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildDisableAllTxnAuthorAgreementsRequest(
+        public static async Task<IntPtr> BuildDisableAllTxnAuthorAgreementsRequest(
             string submitterDid)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_disable_all_txn_author_agreements_request(
                 FfiStr.Create(submitterDid),
                 ref requestHandle);
@@ -245,11 +245,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="credDefDid">ID of the corresponding credential definition on the ledger.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetCredDefRequest(
+        public static async Task<IntPtr> BuildGetCredDefRequest(
             string credDefDid,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_cred_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(credDefDid),
@@ -269,11 +269,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="targetDid">Target DID as base58-encoded string for 16 or 32 bit DID value.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be use).</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetNymRequest(
+        public static async Task<IntPtr> BuildGetNymRequest(
             string targetDid,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_nym_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
@@ -295,11 +295,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="revocRegId">ID of the corresponding revocation registry definition.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetRevocRegDefRequest(
+        public static async Task<IntPtr> BuildGetRevocRegDefRequest(
             string revocRegId,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegId),
@@ -322,12 +322,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="timestamp">Requested time represented as a total number of seconds since the Unix epoch.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetRevocRegRequest(
+        public static async Task<IntPtr> BuildGetRevocRegRequest(
             string revocRegId,
             long timestamp,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegId),
@@ -353,13 +353,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="fromTs">Requested time represented as a total number of seconds from Unix epoch.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetRevocRegDeltaRequestAsync(
+        public static async Task<IntPtr> BuildGetRevocRegDeltaRequestAsync(
             string revocRegId,
             long toTS,
             long fromTs = -1,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_delta_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegId),
@@ -382,11 +382,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="schemaId">ID of the corresponding schema on the ledger.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetSchemaRequestAsync(
+        public static async Task<IntPtr> BuildGetSchemaRequestAsync(
             string schemaId,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_schema_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(schemaId),
@@ -417,11 +417,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// Null data or empty JSON are acceptable here. In this case, ledger willreturn the latest version of the TAA.
         /// </param>
         /// <returns>Returns a RequestHandle.</returns>
-        public static async Task<uint> BuildGetTxnAuthorAgreementRequestAsync(
+        public static async Task<IntPtr> BuildGetTxnAuthorAgreementRequestAsync(
             string submitterDid = null,
             string data = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_txn_author_agreement_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(data),
@@ -443,12 +443,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="seqNo">Requested transaction sequence number as it's stored on the ledger.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetTxnRequestAsync(
+        public static async Task<IntPtr> BuildGetTxnRequestAsync(
             int ledgerType,
             int seqNo,
             string submitterDid = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_txn_request(
                 FfiStr.Create(submitterDid),
                 ledgerType,
@@ -468,10 +468,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// </summary>
         /// <param name="submitterDid">DID of the request sender.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetValidatorInfoRequestAsync(
+        public static async Task<IntPtr> BuildGetValidatorInfoRequestAsync(
             string submitterDid)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_validator_info_request(
                 FfiStr.Create(submitterDid),
                 ref requestHandle);
@@ -500,14 +500,14 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///    NETWORK_MONITOR
         ///    empty string to reset role</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildNymRequestAsync(
+        public static async Task<IntPtr> BuildNymRequestAsync(
             string submitterDid,
             string dest,
             string verkey = null,
             string alias = null,
             string role = null)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_nym_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(dest),
@@ -551,11 +551,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///  "ver": "version of revocation registry definition json"
         ///}</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildRevocRegDefRequestAsync(
+        public static async Task<IntPtr> BuildRevocRegDefRequestAsync(
             string submitterDid,
             string revocRegDefJson)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_revoc_reg_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegDefJson),
@@ -591,13 +591,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// }
         /// </param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildRevocRegEntryRequestAsync(
+        public static async Task<IntPtr> BuildRevocRegEntryRequestAsync(
             string submitterDid,
             string revocRegDefId,
             string revocRegDefType,
             string revocRegEntryJson)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_revoc_reg_entry_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegDefId),
@@ -628,11 +628,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///}
         /// </param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildSchemaRequestAsync(
+        public static async Task<IntPtr> BuildSchemaRequestAsync(
             string submitterDid,
             string schemaJson)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_schema_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(schemaJson),
@@ -678,14 +678,14 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///     Can be omitted in case of updating an existing TAA</param>
         /// <param name="retirementTs">(Optional) the date (timestamp) of TAA retirement.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildTxnAuthorAgreementRequestAsync(
+        public static async Task<IntPtr> BuildTxnAuthorAgreementRequestAsync(
             string submitterDid,
             string text,
             string version,
             long ratificationTs,
             long retirementTs)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_txn_author_agreement_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(text),
@@ -714,7 +714,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="rsType">Type constant as string, one of `ctx`, `sch`, `map`, `enc`, `cdf`, `pdf`</param>
         /// <param name="version">Version as string.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildRichSchemaRequestAsync(
+        public static async Task<IntPtr> BuildRichSchemaRequestAsync(
             string submitterDid,
             string rsId,
             string rsContent,
@@ -723,7 +723,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string rsType,
             string version)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_rich_schema_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(rsId),
@@ -751,11 +751,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string.</param>
         /// <param name="rsId">DID-string like object which represents id of requested RICH_SCHEMA.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetRichSchemaObjectByIdRequestAsync(
+        public static async Task<IntPtr> BuildGetRichSchemaObjectByIdRequestAsync(
             string submitterDid,
             string rsId)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_rich_schema_object_by_id_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(rsId),
@@ -780,13 +780,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="rsName">Rich Schema object's name.</param>
         /// <param name="rsVersion">Rich Schema object's version.</param>
         /// <returns>Returns a RequestHandle</returns>
-        public static async Task<uint> BuildGetRichSchemaObjectByMetadataRequestAsync(
+        public static async Task<IntPtr> BuildGetRichSchemaObjectByMetadataRequestAsync(
             string submitterDid,
             string rsType,
             string rsName,
             string rsVersion)
         {
-            uint requestHandle = 0;
+            IntPtr requestHandle = new();
             int errorCode = NativeMethods.indy_vdr_build_get_rich_schema_object_by_metadata_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(rsType),
