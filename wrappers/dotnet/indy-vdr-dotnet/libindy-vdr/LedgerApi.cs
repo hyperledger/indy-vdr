@@ -103,8 +103,6 @@ namespace indy_vdr_dotnet.libindy_vdr
                 FfiStr.Create(enc),
                 ref requestHandle);
 
-            Debug.WriteLine("\n\n TEST");
-
             if (errorCode != (int)ErrorCode.Success)
             {
                 string error = await ErrorApi.GetCurrentErrorAsync();
@@ -643,17 +641,6 @@ namespace indy_vdr_dotnet.libindy_vdr
                 string error = await ErrorApi.GetCurrentErrorAsync();
                 throw IndyVdrException.FromSdkError(error);
             }
-            /*
-            string requestJson = "";
-            var bodyErrorCode = NativeMethods.indy_vdr_request_get_body(requestHandle, ref requestJson);
-
-            if (bodyErrorCode != 0)
-            {
-                string error = "";
-                NativeMethods.indy_vdr_get_current_error(ref error);
-                Debug.WriteLine(error);
-            }*/
-
             return requestHandle;
         }
 
@@ -692,106 +679,6 @@ namespace indy_vdr_dotnet.libindy_vdr
                 FfiStr.Create(version),
                 ratificationTs,
                 retirementTs,
-                ref requestHandle);
-
-            if (errorCode != (int)ErrorCode.Success)
-            {
-                string error = await ErrorApi.GetCurrentErrorAsync();
-                throw IndyVdrException.FromSdkError(error);
-            }
-
-            return requestHandle;
-        }
-
-        /// <summary>
-        /// Builds a RICH_SCHEMA request to add it to the ledger.
-        /// </summary>
-        /// <param name="submitterDid">Identifier (DID) of the transaction author as a base58-encoded string.</param>
-        /// <param name="rsId">Identifier of the rich schema.</param>
-        /// <param name="rsContent">JSON-LD string object.</param>
-        /// <param name="rsName">Rich schema name.</param>
-        /// <param name="rsVersion">Rich schema version.</param>
-        /// <param name="rsType">Type constant as string, one of `ctx`, `sch`, `map`, `enc`, `cdf`, `pdf`</param>
-        /// <param name="version">Version as string.</param>
-        /// <returns>Returns a RequestHandle</returns>
-        public static async Task<IntPtr> BuildRichSchemaRequestAsync(
-            string submitterDid,
-            string rsId,
-            string rsContent,
-            string rsName,
-            string rsVersion,
-            string rsType,
-            string version)
-        {
-            IntPtr requestHandle = new();
-            int errorCode = NativeMethods.indy_vdr_build_rich_schema_request(
-                FfiStr.Create(submitterDid),
-                FfiStr.Create(rsId),
-                FfiStr.Create(rsContent),
-                FfiStr.Create(rsName),
-                FfiStr.Create(rsVersion),
-                FfiStr.Create(rsType),
-                FfiStr.Create(version),
-                ref requestHandle);
-
-            if (errorCode != (int)ErrorCode.Success)
-            {
-                string error = await ErrorApi.GetCurrentErrorAsync();
-                throw IndyVdrException.FromSdkError(error);
-            }
-
-            return requestHandle;
-        }
-
-        /// <summary>
-        /// Builds a GET_RICH_SCHEMA_BY_ID request.
-        /// 
-        /// Used to fetch a RICH_SCHEMA from the ledger using RICH_SCHEMA_ID.
-        /// </summary>
-        /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string.</param>
-        /// <param name="rsId">DID-string like object which represents id of requested RICH_SCHEMA.</param>
-        /// <returns>Returns a RequestHandle</returns>
-        public static async Task<IntPtr> BuildGetRichSchemaObjectByIdRequestAsync(
-            string submitterDid,
-            string rsId)
-        {
-            IntPtr requestHandle = new();
-            int errorCode = NativeMethods.indy_vdr_build_get_rich_schema_object_by_id_request(
-                FfiStr.Create(submitterDid),
-                FfiStr.Create(rsId),
-                ref requestHandle);
-
-            if (errorCode != (int)ErrorCode.Success)
-            {
-                string error = await ErrorApi.GetCurrentErrorAsync();
-                throw IndyVdrException.FromSdkError(error);
-            }
-
-            return requestHandle;
-        }
-
-        /// <summary>
-        /// Builds a GET_RICH_SCHEMA_BY_METADATA request.
-        ///  
-        /// Used to fetch a RICH_SCHEMA from the ledger using the RICH_SCHEMA's metadata.
-        /// </summary>
-        /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string</param>
-        /// <param name="rsType">Rich Schema object's type enum.</param>
-        /// <param name="rsName">Rich Schema object's name.</param>
-        /// <param name="rsVersion">Rich Schema object's version.</param>
-        /// <returns>Returns a RequestHandle</returns>
-        public static async Task<IntPtr> BuildGetRichSchemaObjectByMetadataRequestAsync(
-            string submitterDid,
-            string rsType,
-            string rsName,
-            string rsVersion)
-        {
-            IntPtr requestHandle = new();
-            int errorCode = NativeMethods.indy_vdr_build_get_rich_schema_object_by_metadata_request(
-                FfiStr.Create(submitterDid),
-                FfiStr.Create(rsType),
-                FfiStr.Create(rsName),
-                FfiStr.Create(rsVersion),
                 ref requestHandle);
 
             if (errorCode != (int)ErrorCode.Success)

@@ -78,6 +78,37 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
                 testTimestamp,
                 submitterDid: "InvalidLength");
 
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
+        [Test, TestCase(TestName = "BuildAttributeRequest call returns request handle.")]
+        public async Task BuildAttributeRequestWorks()
+        {
+            //Arrange 
+            string testSubmitterDid = "LibindyDid111111111111";
+            string testTargetDid = "LibindyDid111111111111";
+
+            //Act
+            IntPtr testObject = await LedgerApi.BuildAttributeRequest(
+                testTargetDid,
+                testSubmitterDid);
+
+            //Assert
+            _ = testObject.Should().NotBe(new IntPtr());
+        }
+
+        [Test, TestCase(TestName = "BuildAttributeRequest call with invalid submitterDid length throws.")]
+        public async Task BuildAttributeRequestThrows()
+        {
+            //Arrange 
+            string testSubmitterDid = "InvalidLength";
+            string testTargetDid = "LibindyDid111111111111";
+
+            //Act
+            Func<Task> func = async () => await LedgerApi.BuildAttributeRequest(
+                testTargetDid,
+                testSubmitterDid);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -660,6 +691,50 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             Func<Task> func = async () => await LedgerApi.BuildSchemaRequestAsync(
                 testsubmitterDid,
                 schemaJson);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
+        [Test, TestCase(TestName = "BuildTxnAuthorAgreementRequestAsync call returns request handle.")]
+        public async Task BuildTxnAuthorAgreementRequestAsyncWorks()
+        {
+            //Arrange
+            string testsubmitterDid = "LibindyDid111111111111";
+            string testText = "Text";
+            string testVersion = "1.0";
+            long testRatificationTs = 1;
+            long testRetirementTs = 1;
+
+            //Act
+            IntPtr testObject = await LedgerApi.BuildTxnAuthorAgreementRequestAsync(
+                testsubmitterDid,
+                testText,
+                testVersion,
+                testRatificationTs,
+                testRetirementTs);
+
+            //Assert
+            _ = testObject.Should().NotBe(new IntPtr());
+        }
+
+        [Test, TestCase(TestName = "BuildTxnAuthorAgreementRequestAsync call with invalid submitterDid throws.")]
+        public async Task BuildTxnAuthorAgreementRequestAsyncThrows()
+        {
+            //Arrange
+            string testsubmitterDid = "InvalidLength";
+            string testText = "Text";
+            string testVersion = "1.0";
+            long testRatificationTs = 1;
+            long testRetirementTs = 1;
+
+            //Act
+            Func<Task> func = async () => await LedgerApi.BuildTxnAuthorAgreementRequestAsync(
+                testsubmitterDid,
+                testText,
+                testVersion,
+                testRatificationTs,
+                testRetirementTs);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();

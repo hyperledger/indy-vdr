@@ -74,15 +74,6 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         internal static extern int indy_vdr_build_txn_author_agreement_request(FfiStr submitter_did, FfiStr text, FfiStr version, long ratification_ts, long retirement_ts, ref IntPtr handle_p);
-
-        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_build_rich_schema_request(FfiStr submitter_did, FfiStr rs_id, FfiStr rs_content, FfiStr rs_name, FfiStr rs_version, FfiStr rs_type, FfiStr ver, ref IntPtr handle_p);
-
-        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_build_get_rich_schema_object_by_id_request(FfiStr submitter_did, FfiStr rs_id, ref IntPtr handle_p);
-
-        [DllImport(Consts.LIBINDY_VDR_NAME, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        internal static extern int indy_vdr_build_get_rich_schema_object_by_metadata_request(FfiStr submitter_did, FfiStr rs_type, FfiStr rs_name, FfiStr rs_version, ref IntPtr handle_p);
         #endregion
 
         #region Mod
