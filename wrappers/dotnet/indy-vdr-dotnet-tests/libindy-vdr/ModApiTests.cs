@@ -48,6 +48,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             errorCode.Should().Be(0);
+            _ = await ModApi.SetConfigAsync(JsonConvert.SerializeObject(new { }));
         }
 
         [Test]
@@ -75,6 +76,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             errorCode.Should().Be(0);
+            _ = await ModApi.SetConfigAsync(JsonConvert.SerializeObject(new { }));
         }
 
         [Test]

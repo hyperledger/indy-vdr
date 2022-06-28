@@ -32,7 +32,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = actual.Should().NotBe(new IntPtr());
         }
 
-        [Test, TestCase(TestName = "RefreshPoolAsync call returns a result string.")]
+        [Test, TestCase(TestName = "RefreshPoolAsync call returns a result bool.")]
         public async Task RefreshPoolAsyncWorks()
         {
             //Arrange
