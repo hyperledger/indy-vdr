@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using indy_vdr_dotnet;
 using indy_vdr_dotnet.libindy_vdr;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
@@ -28,6 +29,28 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             actual.Should().NotBe(expected);
         }
+
+        [Test]
+        [TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call throws when version is missing but text is given.")]
+        public async Task PrepareTxnAuthorAgreementAcceptanceWorksWithTaaDigestThrows()
+        {
+            //Arrange
+            string testAccMechType = "acc_mech_type";
+            ulong testTime = (ulong)DateTimeOffset.Now.ToUnixTimeSeconds();
+            string testTaaDigest = "taa_digest";
+            string testText = "";
+
+            //Act
+            Func<Task> func = async () => await RequestApi.PrepareTxnAuthorAgreementAcceptanceAsync(
+                testAccMechType,
+                testTime,
+                taaDigest: testTaaDigest,
+                text: testText);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
         [Test]
         [TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call with version, text returns a JSON.")]
         public async Task PrepareTxnAuthorAgreementAcceptanceWorksWithVersionText()
@@ -68,6 +91,21 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         }
 
         [Test]
+        [TestCase(TestName = "RequestFree call with invalid pointer throws.")]
+        public async Task RequestFreeThrows()
+        {
+            //Arrange
+            IntPtr requestHandle = new();
+
+            //Act
+            Func<Task> func = async () => await RequestApi.RequestFreeAsync(requestHandle);
+
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
+        [Test]
         [TestCase(TestName = "RequestGetBody call returns a JSON string.")]
         public async Task RequestGetBodyWorks()
         {
@@ -82,6 +120,20 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         }
 
         [Test]
+        [TestCase(TestName = "RequestGetBody call with invalid pointer throws.")]
+        public async Task RequestGetBodyThrows()
+        {
+            //Arrange
+            IntPtr requestHandle = new();
+
+            //Act
+            Func<Task> func = async () => await RequestApi.RequestGetBodyAsync(requestHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
+        [Test]
         [TestCase(TestName = "RequestGetSignatureInput call returns a signature string.")]
         public async Task RequestGetSignatureInputWorks()
         {
@@ -93,6 +145,20 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             signature.Should().NotBe("");
+        }
+
+        [Test]
+        [TestCase(TestName = "RequestGetSignatureInput call with invalid pointer throws.")]
+        public async Task RequestGetSignatureInputThrows()
+        {
+            //Arrange
+            IntPtr requestHandle = new();
+
+            //Act
+            Func<Task> func = async () => await RequestApi.RequestGetSignatureInputAsync(requestHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
         }
 
         [Test]
@@ -113,6 +179,23 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             requestBodyJObj.Should().NotContainKey("endorser");
             actualJObj.Should().ContainKey("endorser");
+        }
+
+        [Test]
+        [TestCase(TestName = "RequestSetEndorser call with invalid pointer throws.")]
+        public async Task RequestSetEndorserThrows()
+        {
+            //Arrange
+            IntPtr requestHandle = new();
+            string testEndorser = "Endorser11111111111111";
+            //Act
+            JObject requestBodyJObj = new();
+            Func<Task> func = async () => await RequestApi.RequestSetEndorserAsync(
+                requestHandle,
+                testEndorser);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
         }
 
         [Test]
@@ -139,6 +222,29 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         }
 
         [Test]
+        [TestCase(TestName = "RequestSetMultiSignature call with invalid pointer throws.")]
+        public async Task RequestSetMultiSignatureThrows()
+        {
+            //Arrange
+            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            //Act
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
+            JObject requestBodyJObj = JObject.Parse(requestBody);
+
+            string testIdentifier = "V4SGRU86Z58d6TV7PBUe6f";
+            string testMultiSig = "sig";
+            Func<Task> func = async () => await RequestApi.RequestSetMultiSignatureAsync(
+                new IntPtr(),
+                testIdentifier,
+                testMultiSig);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            JObject actualJObj = JObject.Parse(actual);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
+        [Test]
         [TestCase(TestName = "RequestSetSiganture call sets a signature entry.")]
         public async Task RequestSetSigantureWorks()
         {
@@ -160,6 +266,26 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         }
 
         [Test]
+        [TestCase(TestName = "RequestSetSiganture call with invalid pointer throws.")]
+        public async Task RequestSetSigantureThrows()
+        {
+            //Arrange
+            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            //Act
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
+            JObject requestBodyJObj = JObject.Parse(requestBody);
+
+            string testMultiSig = "{\"signature\":\"sig\"}";
+            Func<Task> func = async () => await RequestApi.RequestSetSigantureAsync(
+                new IntPtr(),
+                testMultiSig);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            JObject actualJObj = JObject.Parse(actual);
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
+        [Test]
         [TestCase(TestName = "RequestSetTxnAuthorAgreementAcceptance call sets a signature entry.")]
         public async Task RequestSetTxnAuthorAgreementAcceptanceWorks()
         {
@@ -178,6 +304,27 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             requestBodyJObj.Should().NotContainKey("taaAcceptance");
             actualJObj.Should().ContainKey("taaAcceptance");
+        }
+
+        [Test]
+        [TestCase(TestName = "RequestSetTxnAuthorAgreementAcceptance call with invalid pointer throws.")]
+        public async Task RequestSetTxnAuthorAgreementAcceptanceThrows()
+        {
+            //Arrange
+            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            string testTaaAcceptance = "{\"mechanism\":\"acc_mech_type\",\"taaDigest\":\"taa_digest\",\"time\":1655683200}";
+            //Act
+            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
+            JObject requestBodyJObj = JObject.Parse(requestBody);
+
+            Func<Task> func = async () => await RequestApi.RequestSetTxnAuthorAgreementAcceptanceAsync(
+                new IntPtr(),
+                testTaaAcceptance);
+            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            JObject actualJObj = JObject.Parse(actual);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
         }
     }
 }

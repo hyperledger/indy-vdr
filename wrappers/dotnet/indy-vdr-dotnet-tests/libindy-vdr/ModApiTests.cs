@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using indy_vdr_dotnet;
 using indy_vdr_dotnet.libindy_vdr;
 using Newtonsoft.Json;
 using NUnit.Framework;
@@ -48,6 +49,24 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             errorCode.Should().Be(0);
+            _ = await ModApi.SetConfigAsync(JsonConvert.SerializeObject(new { }));
+        }
+
+        [Test]
+        [TestCase(TestName = "SetConfig call throws.")]
+        public async Task SetConfigThrows()
+        {
+            //Arrange
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\ew_builder");
+            string _genesisFilePath = Path.GetFullPath(genesisFile);
+
+            //Act
+            string testConfigJson = "";
+            Func<Task> func = async () => await ModApi.SetConfigAsync(testConfigJson);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
             _ = await ModApi.SetConfigAsync(JsonConvert.SerializeObject(new { }));
         }
 

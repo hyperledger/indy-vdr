@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using indy_vdr_dotnet;
 using indy_vdr_dotnet.libindy_vdr;
 using NUnit.Framework;
 using System;
@@ -32,6 +33,18 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = actual.Should().NotBe(new IntPtr());
         }
 
+        [Test, TestCase(TestName = "CreatePoolAsync call throws.")]
+        public async Task CreatePoolAsyncThrows()
+        {
+            //Arrange
+
+            //Act
+            Func<Task> func = async () => await PoolApi.CreatePoolAsync(null, "", null);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
         [Test, TestCase(TestName = "RefreshPoolAsync call returns a result bool.")]
         public async Task RefreshPoolAsyncWorks()
         {
@@ -43,6 +56,19 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             _ = actual.Should().Be(true);
+        }
+
+        [Test, TestCase(TestName = "RefreshPoolAsync call throws.")]
+        public async Task RefreshPoolAsyncThrows()
+        {
+            //Arrange
+            IntPtr poolHandle = new();
+
+            //Act
+            Func<Task> func = async () => await PoolApi.RefreshPoolAsync(poolHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
         }
 
         [Test, TestCase(TestName = "GetPoolStatusAsync call returns a result string.")]
@@ -58,6 +84,19 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = actual.Should().NotBe("");
         }
 
+        [Test, TestCase(TestName = "GetPoolStatusAsync call throws.")]
+        public async Task GetPoolStatusAsyncThrows()
+        {
+            //Arrange
+            IntPtr poolHandle = new();
+
+            //Act
+            Func<Task> func = async () =>  await PoolApi.GetPoolStatusAsync(poolHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
         [Test, TestCase(TestName = "GetPoolTransactionsAsync call returns a result string.")]
         public async Task GetPoolTransactionsAsyncWorks()
         {
@@ -69,6 +108,19 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             _ = actual.Should().NotBe("");
+        }
+
+        [Test, TestCase(TestName = "GetPoolTransactionsAsync call throws.")]
+        public async Task GetPoolTransactionsAsyncThrows()
+        {
+            //Arrange
+            IntPtr poolHandle = new();
+
+            //Act
+            Func<Task> func = async () => await PoolApi.GetPoolTransactionsAsync(poolHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
         }
 
         [Test, TestCase(TestName = "GetPoolVerifiersAsync call returns a result string.")]
@@ -84,6 +136,19 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = actual.Should().NotBe("");
         }
 
+        [Test, TestCase(TestName = "GetPoolVerifiersAsync call throws.")]
+        public async Task GetPoolVerifiersAsyncThrows()
+        {
+            //Arrange
+            IntPtr poolHandle = new();
+
+            //Act
+            Func<Task> func = async () => await PoolApi.GetPoolVerifiersAsync(poolHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
         [Test, TestCase(TestName = "SubmitPoolRequestAsync call returns a result string.")]
         public async Task SubmitPoolRequestAsyncWorks()
         {
@@ -96,6 +161,20 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             _ = actual.Should().NotBe("");
+        }
+
+        [Test, TestCase(TestName = "SubmitPoolRequestAsync call throws.")]
+        public async Task SubmitPoolRequestAsyncThrows()
+        {
+            //Arrange
+            IntPtr poolHandle = new();
+            IntPtr requestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+
+            //Act
+            Func<Task> func = async () => await PoolApi.SubmitPoolRequestAsync(poolHandle, requestHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
         }
 
         [Test, TestCase(TestName = "SubmitPoolActionAsync call returns a result string.")]
@@ -113,6 +192,21 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = actual.Should().NotBe("");
         }
 
+        [Test, TestCase(TestName = "SubmitPoolActionAsync call throws.")]
+        public async Task SubmitPoolActionAsyncThrows()
+        {
+            //Arrange
+            IntPtr poolHandle = new();
+            IntPtr requestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+            List<string> nodes = new() { "xsvalidatorec2irl", "vnode1", "danube", "FoundationBuilder" };
+
+            //Act
+            Func<Task> func = async () => await PoolApi.SubmitPoolActionAsync(poolHandle, requestHandle, nodes);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
+        }
+
         [Test, TestCase(TestName = "ClosePoolAsync call returns errorcode 0.")]
         public async Task ClosePoolAsyncWorks()
         {
@@ -124,6 +218,19 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Assert
             _ = actual.Should().Be(0);
+        }
+
+        [Test, TestCase(TestName = "ClosePoolAsync call throws.")]
+        public async Task ClosePoolAsyncThrows()
+        {
+            //Arrange
+            IntPtr poolHandle = new();
+
+            //Act
+            Func<Task> func = async () => await PoolApi.ClosePoolAsync(poolHandle);
+
+            //Assert
+            await func.Should().ThrowAsync<IndyVdrException>();
         }
     }
 }
