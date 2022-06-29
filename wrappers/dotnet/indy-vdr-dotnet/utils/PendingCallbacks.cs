@@ -27,7 +27,7 @@ namespace indy_vdr_dotnet.utils
         /// <summary>
         /// Gets the map of callback ids and their task completion sources.
         /// </summary>
-        private static IDictionary<long, object> _taskCompletionSources = new ConcurrentDictionary<long, object>();
+        private static readonly IDictionary<long, object> _taskCompletionSources = new ConcurrentDictionary<long, object>();
 
         /// <summary>
         /// Adds a new TaskCompletionSource to track.
@@ -54,9 +54,9 @@ namespace indy_vdr_dotnet.utils
         {
             Debug.Assert(_taskCompletionSources.ContainsKey(callbackId), string.Format("No task completion source is currently registered for the callback with the id '{0}'.", callbackId));
 
-            var taskCompletionSource = _taskCompletionSources[callbackId];
+            object taskCompletionSource = _taskCompletionSources[callbackId];
             _taskCompletionSources.Remove(callbackId);
-            var result = taskCompletionSource as TaskCompletionSource<T>;
+            TaskCompletionSource<T> result = taskCompletionSource as TaskCompletionSource<T>;
 
             Debug.Assert(result != null, string.Format("No task completion source of the specified type is registered for the callback with the id '{0}'.", callbackId));
 

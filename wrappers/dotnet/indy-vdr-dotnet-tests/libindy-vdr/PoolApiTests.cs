@@ -27,10 +27,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Arrange
 
             //Act
-            IntPtr actual = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
 
             //Assert
-            _ = actual.Should().NotBe(new IntPtr());
+            _ = poolHandle.Should().NotBe(new IntPtr());
         }
 
         [Test, TestCase(TestName = "CreatePoolAsync call throws.")]
@@ -49,10 +49,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RefreshPoolAsyncWorks()
         {
             //Arrange
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
 
             //Act
-            bool actual = await PoolApi.RefreshPoolAsync(poolHandle);
+            bool actual = await PoolApi.RefreshPoolAsync(testPoolHandle);
 
             //Assert
             _ = actual.Should().Be(true);
@@ -62,10 +62,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RefreshPoolAsyncThrows()
         {
             //Arrange
-            IntPtr poolHandle = new();
+            IntPtr testPoolHandle = new();
 
             //Act
-            Func<Task> func = async () => await PoolApi.RefreshPoolAsync(poolHandle);
+            Func<Task> func = async () => await PoolApi.RefreshPoolAsync(testPoolHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -75,10 +75,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task GetPoolStatusAsyncWorks()
         {
             //Arrange
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
 
             //Act
-            string actual = await PoolApi.GetPoolStatusAsync(poolHandle);
+            string actual = await PoolApi.GetPoolStatusAsync(testPoolHandle);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -88,10 +88,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task GetPoolStatusAsyncThrows()
         {
             //Arrange
-            IntPtr poolHandle = new();
+            IntPtr testPoolHandle = new();
 
             //Act
-            Func<Task> func = async () =>  await PoolApi.GetPoolStatusAsync(poolHandle);
+            Func<Task> func = async () => await PoolApi.GetPoolStatusAsync(testPoolHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -101,10 +101,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task GetPoolTransactionsAsyncWorks()
         {
             //Arrange
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
 
             //Act
-            string actual = await PoolApi.GetPoolTransactionsAsync(poolHandle);
+            string actual = await PoolApi.GetPoolTransactionsAsync(testPoolHandle);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -114,10 +114,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task GetPoolTransactionsAsyncThrows()
         {
             //Arrange
-            IntPtr poolHandle = new();
+            IntPtr testPoolHandle = new();
 
             //Act
-            Func<Task> func = async () => await PoolApi.GetPoolTransactionsAsync(poolHandle);
+            Func<Task> func = async () => await PoolApi.GetPoolTransactionsAsync(testPoolHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -127,10 +127,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task GetPoolVerifiersAsyncWorks()
         {
             //Arrange
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
 
             //Act
-            string actual = await PoolApi.GetPoolVerifiersAsync(poolHandle);
+            string actual = await PoolApi.GetPoolVerifiersAsync(testPoolHandle);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -140,10 +140,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task GetPoolVerifiersAsyncThrows()
         {
             //Arrange
-            IntPtr poolHandle = new();
+            IntPtr testPoolHandle = new();
 
             //Act
-            Func<Task> func = async () => await PoolApi.GetPoolVerifiersAsync(poolHandle);
+            Func<Task> func = async () => await PoolApi.GetPoolVerifiersAsync(testPoolHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -153,11 +153,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task SubmitPoolRequestAsyncWorks()
         {
             //Arrange
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
-            IntPtr requestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testRequestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
 
             //Act
-            string actual = await PoolApi.SubmitPoolRequestAsync(poolHandle, requestHandle);
+            string actual = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -167,11 +167,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task SubmitPoolRequestAsyncThrows()
         {
             //Arrange
-            IntPtr poolHandle = new();
-            IntPtr requestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+            IntPtr testPoolHandle = new();
+            IntPtr testRequestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
 
             //Act
-            Func<Task> func = async () => await PoolApi.SubmitPoolRequestAsync(poolHandle, requestHandle);
+            Func<Task> func = async () => await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -181,12 +181,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task SubmitPoolActionAsyncWorks()
         {
             //Arrange
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
-            IntPtr requestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
-            List<string> nodes = new() { "xsvalidatorec2irl", "vnode1", "danube", "FoundationBuilder" };
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testRequestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+            List<string> testNodes = new() { "xsvalidatorec2irl", "vnode1", "danube", "FoundationBuilder" };
 
             //Act
-            string actual = await PoolApi.SubmitPoolActionAsync(poolHandle, requestHandle, nodes);
+            string actual = await PoolApi.SubmitPoolActionAsync(testPoolHandle, testRequestHandle, testNodes);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -196,12 +196,12 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task SubmitPoolActionAsyncThrows()
         {
             //Arrange
-            IntPtr poolHandle = new();
-            IntPtr requestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
-            List<string> nodes = new() { "xsvalidatorec2irl", "vnode1", "danube", "FoundationBuilder" };
+            IntPtr testPoolHandle = new();
+            IntPtr testRequestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+            List<string> testNodes = new() { "xsvalidatorec2irl", "vnode1", "danube", "FoundationBuilder" };
 
             //Act
-            Func<Task> func = async () => await PoolApi.SubmitPoolActionAsync(poolHandle, requestHandle, nodes);
+            Func<Task> func = async () => await PoolApi.SubmitPoolActionAsync(testPoolHandle, testRequestHandle, testNodes);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -211,10 +211,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task ClosePoolAsyncWorks()
         {
             //Arrange
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
 
             //Act
-            int actual = await PoolApi.ClosePoolAsync(poolHandle);
+            int actual = await PoolApi.ClosePoolAsync(testPoolHandle);
 
             //Assert
             _ = actual.Should().Be(0);
@@ -224,10 +224,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task ClosePoolAsyncThrows()
         {
             //Arrange
-            IntPtr poolHandle = new();
+            IntPtr testPoolHandle = new();
 
             //Act
-            Func<Task> func = async () => await PoolApi.ClosePoolAsync(poolHandle);
+            Func<Task> func = async () => await PoolApi.ClosePoolAsync(testPoolHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();

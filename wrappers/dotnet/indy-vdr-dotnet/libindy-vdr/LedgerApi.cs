@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using static indy_vdr_dotnet.models.Structures;
 
@@ -347,13 +346,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// If from is not specified, then the whole state until `to` will be returned.
         /// </summary>
         /// <param name="revocRegId">ID of the corresponding revocation registry definition.</param>
-        /// <param name="toTS">Requested time represented as a total number of seconds from Unix epoch.</param>
+        /// <param name="toTs">Requested time represented as a total number of seconds from Unix epoch.</param>
         /// <param name="fromTs">Requested time represented as a total number of seconds from Unix epoch.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
         /// <returns>Returns a RequestHandle</returns>
         public static async Task<IntPtr> BuildGetRevocRegDeltaRequestAsync(
             string revocRegId,
-            long toTS,
+            long toTs,
             long fromTs = -1,
             string submitterDid = null)
         {
@@ -362,7 +361,7 @@ namespace indy_vdr_dotnet.libindy_vdr
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegId),
                 fromTs,
-                toTS,
+                toTs,
                 ref requestHandle);
 
             if (errorCode != (int)ErrorCode.Success)

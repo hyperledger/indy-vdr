@@ -13,14 +13,14 @@ namespace indy_vdr_dotnet.libindy_vdr
             string version = null,
             string taaDigest = null)
         {
-            string output = "";
+            string agreementAcceptance = "";
             int errorCode = NativeMethods.indy_vdr_prepare_txn_author_agreement_acceptance(
                 FfiStr.Create(text),
                 FfiStr.Create(version),
                 FfiStr.Create(taaDigest),
                 FfiStr.Create(accMechType),
                 time,
-                ref output);
+                ref agreementAcceptance);
 
             if (errorCode != (int)ErrorCode.Success)
             {
@@ -28,7 +28,7 @@ namespace indy_vdr_dotnet.libindy_vdr
                 throw IndyVdrException.FromSdkError(error);
             }
 
-            return output;
+            return agreementAcceptance;
         }
 
         public static async Task RequestFreeAsync(
@@ -47,33 +47,33 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<string> RequestGetBodyAsync(
             IntPtr requestHandle)
         {
-            string output = "";
+            string body = "";
             int errorCode = NativeMethods.indy_vdr_request_get_body(
                 requestHandle,
-                ref output);
+                ref body);
 
             if (errorCode != (int)ErrorCode.Success)
             {
                 string error = await ErrorApi.GetCurrentErrorAsync();
                 throw IndyVdrException.FromSdkError(error);
             }
-            return output;
+            return body;
         }
 
         public static async Task<string> RequestGetSignatureInputAsync(
             IntPtr requestHandle)
         {
-            string output = "";
+            string signature = "";
             int errorCode = NativeMethods.indy_vdr_request_get_signature_input(
                 requestHandle,
-                ref output);
+                ref signature);
 
             if (errorCode != (int)ErrorCode.Success)
             {
                 string error = await ErrorApi.GetCurrentErrorAsync();
                 throw IndyVdrException.FromSdkError(error);
             }
-            return output;
+            return signature;
         }
 
         public static async Task RequestSetEndorserAsync(
@@ -94,12 +94,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task RequestSetMultiSignatureAsync(
             IntPtr requestHandle,
             string identifier,
-            string signatureJson)
+            string signature)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_multi_signature(
                 requestHandle,
                 FfiStr.Create(identifier),
-                ByteBuffer.Create(signatureJson));
+                ByteBuffer.Create(signature));
 
             if (errorCode != (int)ErrorCode.Success)
             {
@@ -125,11 +125,11 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         public static async Task RequestSetTxnAuthorAgreementAcceptanceAsync(
             IntPtr requestHandle,
-            string acceptance)
+            string agreementAcceptance)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_txn_author_agreement_acceptance(
                 requestHandle,
-                FfiStr.Create(acceptance));
+                FfiStr.Create(agreementAcceptance));
 
             if (errorCode != (int)ErrorCode.Success)
             {

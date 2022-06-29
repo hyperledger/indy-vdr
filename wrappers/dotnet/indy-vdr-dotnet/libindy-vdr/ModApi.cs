@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using static indy_vdr_dotnet.models.Structures;
 
@@ -57,9 +56,9 @@ namespace indy_vdr_dotnet.libindy_vdr
 
         public static async Task<string> GetVersionAsync()
         {
-            string output = NativeMethods.indy_vdr_version();
+            string version = NativeMethods.indy_vdr_version();
 
-            return output;
+            return version;
         }
     }
 }

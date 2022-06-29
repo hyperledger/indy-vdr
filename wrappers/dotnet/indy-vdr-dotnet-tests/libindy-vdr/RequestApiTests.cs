@@ -15,9 +15,8 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task PrepareTxnAuthorAgreementAcceptanceWorksWithTaaDigest()
         {
             //Arrange
-            string expected = "";
             string testAccMechType = "acc_mech_type";
-            ulong testTime = (ulong) DateTimeOffset.Now.ToUnixTimeSeconds();
+            ulong testTime = (ulong)DateTimeOffset.Now.ToUnixTimeSeconds();
             string testTaaDigest = "taa_digest";
 
             //Act
@@ -27,7 +26,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
                 taaDigest: testTaaDigest);
 
             //Assert
-            actual.Should().NotBe(expected);
+            _ = actual.Should().NotBe("");
         }
 
         [Test]
@@ -56,7 +55,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task PrepareTxnAuthorAgreementAcceptanceWorksWithVersionText()
         {
             //Arrange
-            string expected = "";
             string testAccMechType = "acc_mech_type";
             ulong testTime = (ulong)DateTimeOffset.Now.ToUnixTimeSeconds();
             string testText = "text";
@@ -70,23 +68,23 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
                 version: testVersion);
 
             //Assert
-            actual.Should().NotBe(expected);
+            _ = actual.Should().NotBe("");
         }
 
         [Test]
-        [TestCase(TestName = "RequestFree call frees given RequestHandle.")]
+        [TestCase(TestName = "RequestFree call frees given testRequestHandle.")]
         public async Task RequestFreeWorks()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
-            
+            IntPtr testRequestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
+
             //Act
-            string requestBodyBeforeFree = await RequestApi.RequestGetBodyAsync(requestHandle);
-            await RequestApi.RequestFreeAsync(requestHandle);
-            Func<Task> act = async () => await RequestApi.RequestGetBodyAsync(requestHandle);
+            string testRequestBodyBeforeFree = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            await RequestApi.RequestFreeAsync(testRequestHandle);
+            Func<Task> act = async () => await RequestApi.RequestGetBodyAsync(testRequestHandle);
 
             //Assert
-            requestBodyBeforeFree.Should().NotBe("");
+            _ = testRequestBodyBeforeFree.Should().NotBe("");
             await act.Should().ThrowAsync<Exception>();
         }
 
@@ -95,10 +93,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestFreeThrows()
         {
             //Arrange
-            IntPtr requestHandle = new();
+            IntPtr testRequestHandle = new();
 
             //Act
-            Func<Task> func = async () => await RequestApi.RequestFreeAsync(requestHandle);
+            Func<Task> func = async () => await RequestApi.RequestFreeAsync(testRequestHandle);
 
 
             //Assert
@@ -110,13 +108,13 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestGetBodyWorks()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
+            IntPtr testRequestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
 
             //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string testRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
 
             //Assert
-            requestBody.Should().NotBe("");
+            _ = testRequestBody.Should().NotBe("");
         }
 
         [Test]
@@ -124,10 +122,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestGetBodyThrows()
         {
             //Arrange
-            IntPtr requestHandle = new();
+            IntPtr testRequestHandle = new();
 
             //Act
-            Func<Task> func = async () => await RequestApi.RequestGetBodyAsync(requestHandle);
+            Func<Task> func = async () => await RequestApi.RequestGetBodyAsync(testRequestHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -138,13 +136,13 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestGetSignatureInputWorks()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
+            IntPtr testRequestHandle = await LedgerApi.BuildGetAcceptanceMechanismsRequestAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
 
             //Act
-            string signature = await RequestApi.RequestGetSignatureInputAsync(requestHandle);
+            string signature = await RequestApi.RequestGetSignatureInputAsync(testRequestHandle);
 
             //Assert
-            signature.Should().NotBe("");
+            _ = signature.Should().NotBe("");
         }
 
         [Test]
@@ -152,10 +150,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestGetSignatureInputThrows()
         {
             //Arrange
-            IntPtr requestHandle = new();
+            IntPtr testRequestHandle = new();
 
             //Act
-            Func<Task> func = async () => await RequestApi.RequestGetSignatureInputAsync(requestHandle);
+            Func<Task> func = async () => await RequestApi.RequestGetSignatureInputAsync(testRequestHandle);
 
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
@@ -166,18 +164,20 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetEndorserWorks()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testEndorser = "Endorser11111111111111";
+            string testRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            JObject testRequestBodyJObj = JObject.Parse(testRequestBody);
+
             //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
-            JObject requestBodyJObj = JObject.Parse(requestBody);
             await RequestApi.RequestSetEndorserAsync(
-                requestHandle,
+                testRequestHandle,
                 testEndorser);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject actualJObj = JObject.Parse(actual);
+
             //Assert
-            requestBodyJObj.Should().NotContainKey("endorser");
+            testRequestBodyJObj.Should().NotContainKey("endorser");
             actualJObj.Should().ContainKey("endorser");
         }
 
@@ -186,12 +186,13 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetEndorserThrows()
         {
             //Arrange
-            IntPtr requestHandle = new();
+            IntPtr testRequestHandle = new();
             string testEndorser = "Endorser11111111111111";
+            JObject testRequestBodyJObj = new();
+
             //Act
-            JObject requestBodyJObj = new();
             Func<Task> func = async () => await RequestApi.RequestSetEndorserAsync(
-                requestHandle,
+                testRequestHandle,
                 testEndorser);
 
             //Assert
@@ -203,21 +204,22 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetMultiSignatureWorks()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
-            //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
-            JObject requestBodyJObj = JObject.Parse(requestBody);
-
+            IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            string testRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            JObject testRequestBodyJObj = JObject.Parse(testRequestBody);
             string testIdentifier = "V4SGRU86Z58d6TV7PBUe6f";
             string testMultiSig = "sig";
+
+            //Act
             await RequestApi.RequestSetMultiSignatureAsync(
-                requestHandle,
+                testRequestHandle,
                 testIdentifier,
                 testMultiSig);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject actualJObj = JObject.Parse(actual);
+
             //Assert
-            requestBodyJObj.Should().NotContainKey("signatures");
+            testRequestBodyJObj.Should().NotContainKey("signatures");
             actualJObj.Should().ContainKey("signatures");
         }
 
@@ -226,18 +228,18 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetMultiSignatureThrows()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
-            //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
-            JObject requestBodyJObj = JObject.Parse(requestBody);
-
+            IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            string testtestRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            JObject testtestRequestBodyJObj = JObject.Parse(testtestRequestBody);
             string testIdentifier = "V4SGRU86Z58d6TV7PBUe6f";
             string testMultiSig = "sig";
+
+            //Act
             Func<Task> func = async () => await RequestApi.RequestSetMultiSignatureAsync(
                 new IntPtr(),
                 testIdentifier,
                 testMultiSig);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject actualJObj = JObject.Parse(actual);
 
             //Assert
@@ -249,19 +251,20 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetSigantureWorks()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
-            //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
-            JObject requestBodyJObj = JObject.Parse(requestBody);
-
+            IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            string testtestRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            JObject testtestRequestBodyJObj = JObject.Parse(testtestRequestBody);
             string testMultiSig = "{\"signature\":\"sig\"}";
+
+            //Act
             await RequestApi.RequestSetSigantureAsync(
-                requestHandle,
+                testRequestHandle,
                 testMultiSig);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject actualJObj = JObject.Parse(actual);
+
             //Assert
-            requestBodyJObj.Should().NotContainKey("signature");
+            testtestRequestBodyJObj.Should().NotContainKey("signature");
             actualJObj.Should().ContainKey("signature");
         }
 
@@ -270,17 +273,18 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetSigantureThrows()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
-            //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
-            JObject requestBodyJObj = JObject.Parse(requestBody);
-
+            IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            string testtestRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            JObject testtestRequestBodyJObj = JObject.Parse(testtestRequestBody);
             string testMultiSig = "{\"signature\":\"sig\"}";
+
+            //Act
             Func<Task> func = async () => await RequestApi.RequestSetSigantureAsync(
                 new IntPtr(),
                 testMultiSig);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject actualJObj = JObject.Parse(actual);
+
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
@@ -290,19 +294,20 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetTxnAuthorAgreementAcceptanceWorks()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testTaaAcceptance = "{\"mechanism\":\"acc_mech_type\",\"taaDigest\":\"taa_digest\",\"time\":1655683200}";
-            //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
-            JObject requestBodyJObj = JObject.Parse(requestBody);
+            string testRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            JObject testRequestBodyJObj = JObject.Parse(testRequestBody);
 
+            //Act
             await RequestApi.RequestSetTxnAuthorAgreementAcceptanceAsync(
-                requestHandle,
+                testRequestHandle,
                 testTaaAcceptance);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject actualJObj = JObject.Parse(actual);
+
             //Assert
-            requestBodyJObj.Should().NotContainKey("taaAcceptance");
+            testRequestBodyJObj.Should().NotContainKey("taaAcceptance");
             actualJObj.Should().ContainKey("taaAcceptance");
         }
 
@@ -311,16 +316,16 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task RequestSetTxnAuthorAgreementAcceptanceThrows()
         {
             //Arrange
-            IntPtr requestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
+            IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testTaaAcceptance = "{\"mechanism\":\"acc_mech_type\",\"taaDigest\":\"taa_digest\",\"time\":1655683200}";
             //Act
-            string requestBody = await RequestApi.RequestGetBodyAsync(requestHandle);
-            JObject requestBodyJObj = JObject.Parse(requestBody);
+            string testRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+            JObject testRequestBodyJObj = JObject.Parse(testRequestBody);
 
             Func<Task> func = async () => await RequestApi.RequestSetTxnAuthorAgreementAcceptanceAsync(
                 new IntPtr(),
                 testTaaAcceptance);
-            string actual = await RequestApi.RequestGetBodyAsync(requestHandle);
+            string actual = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject actualJObj = JObject.Parse(actual);
 
             //Assert

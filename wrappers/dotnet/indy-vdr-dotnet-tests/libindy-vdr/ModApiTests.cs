@@ -4,7 +4,6 @@ using indy_vdr_dotnet.libindy_vdr;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
-using System.IO;
 using System.Threading.Tasks;
 
 namespace indy_vdr_dotnet_tests.libindy_vdr
@@ -29,22 +28,19 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task SetConfig()
         {
             //Arrange
-            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\ew_builder");
-            string _genesisFilePath = Path.GetFullPath(genesisFile);
-
-            //Act
             string testConfigJson = JsonConvert.SerializeObject(new
             {
                 protocol_version = "Node1_4",
                 freshness_threshold = 1,
                 ack_timeout = 10000,
                 reply_timeout = 10000,
-                conn_request_limit = 1l,
+                conn_request_limit = 1L,
                 conn_active_timeout = 10000,
-                request_read_nodes = 1l,
+                request_read_nodes = 1L,
                 socks_proxy = "proxy1.intranet.company.com:1080"
             });
+
+            //Act
             int errorCode = await ModApi.SetConfigAsync(testConfigJson);
 
             //Assert
@@ -57,12 +53,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public async Task SetConfigThrows()
         {
             //Arrange
-            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\ew_builder");
-            string _genesisFilePath = Path.GetFullPath(genesisFile);
+            string testConfigJson = "";
 
             //Act
-            string testConfigJson = "";
             Func<Task> func = async () => await ModApi.SetConfigAsync(testConfigJson);
 
             //Assert

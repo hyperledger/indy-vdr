@@ -18,7 +18,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             Dictionary<string, float> nodeWeights = null)
         {
             IntPtr poolHandle = new();
-            string paramsJson = JsonConvert.SerializeObject(new 
+            string paramsJson = JsonConvert.SerializeObject(new
             {
                 transactions,
                 transactions_path = transactionsPath,
@@ -43,15 +43,15 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<bool> RefreshPoolAsync(
             IntPtr poolHandle)
         {
-            var taskCompletionSource = new TaskCompletionSource<bool>();
-            var callbackId = PendingCallbacks.Add(taskCompletionSource);
-            
+            TaskCompletionSource<bool> taskCompletionSource = new TaskCompletionSource<bool>();
+            long callbackId = PendingCallbacks.Add(taskCompletionSource);
+
             int errorCode = NativeMethods.indy_vdr_pool_refresh(
                 poolHandle,
                 PoolRefreshCallback,
                 callbackId
                 );
-            
+
             if (errorCode != (int)ErrorCode.Success)
             {
                 string error = await ErrorApi.GetCurrentErrorAsync();
@@ -60,11 +60,11 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return await taskCompletionSource.Task;
         }
-        private static void PoolRefreshCallbackMethod(long callback_id, int err)
+        private static void PoolRefreshCallbackMethod(long callbackId, int errorCode)
         {
-            var taskCompletionSource = PendingCallbacks.Remove<bool>(callback_id);
+            TaskCompletionSource<bool> taskCompletionSource = PendingCallbacks.Remove<bool>(callbackId);
 
-            if (err != (int)ErrorCode.Success)
+            if (errorCode != (int)ErrorCode.Success)
             {
                 string error = ErrorApi.GetCurrentErrorAsync().GetAwaiter().GetResult();
                 taskCompletionSource.SetException(IndyVdrException.FromSdkError(error));
@@ -72,15 +72,15 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
             taskCompletionSource.SetResult(true);
         }
-        private static PoolRefreshCompletedDelegate PoolRefreshCallback = PoolRefreshCallbackMethod;
+        private static readonly PoolRefreshCompletedDelegate PoolRefreshCallback = PoolRefreshCallbackMethod;
         #endregion
 
         #region GetPoolStatusAsync
         public static async Task<string> GetPoolStatusAsync(
             IntPtr poolHandle)
         {
-            var taskCompletionSource = new TaskCompletionSource<string>();
-            var callbackId = PendingCallbacks.Add(taskCompletionSource);
+            TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
+            long callbackId = PendingCallbacks.Add(taskCompletionSource);
 
             int errorCode = NativeMethods.indy_vdr_pool_get_status(
                 poolHandle,
@@ -97,11 +97,11 @@ namespace indy_vdr_dotnet.libindy_vdr
             return await taskCompletionSource.Task;
         }
 
-        private static void PoolGetStatusCallbackMethod(long callback_id, int err, string result)
+        private static void PoolGetStatusCallbackMethod(long callbackId, int errorCode, string result)
         {
-            var taskCompletionSource = PendingCallbacks.Remove<string>(callback_id);
+            TaskCompletionSource<string> taskCompletionSource = PendingCallbacks.Remove<string>(callbackId);
 
-            if (err != (int)ErrorCode.Success)
+            if (errorCode != (int)ErrorCode.Success)
             {
                 string error = ErrorApi.GetCurrentErrorAsync().GetAwaiter().GetResult();
                 taskCompletionSource.SetException(IndyVdrException.FromSdkError(error));
@@ -109,15 +109,15 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
             taskCompletionSource.SetResult(result);
         }
-        private static PoolGetStatusCompletedDelegate PoolGetStatusCallback = PoolGetStatusCallbackMethod;
+        private static readonly PoolGetStatusCompletedDelegate PoolGetStatusCallback = PoolGetStatusCallbackMethod;
         #endregion
 
         #region GetPoolTransactionsAsync
         public static async Task<string> GetPoolTransactionsAsync(
             IntPtr poolHandle)
         {
-            var taskCompletionSource = new TaskCompletionSource<string>();
-            var callbackId = PendingCallbacks.Add(taskCompletionSource);
+            TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
+            long callbackId = PendingCallbacks.Add(taskCompletionSource);
 
             int errorCode = NativeMethods.indy_vdr_pool_get_transactions(
                 poolHandle,
@@ -132,27 +132,27 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return await taskCompletionSource.Task;
         }
-        private static void PoolGetTransactionsCallbackMethod(long callback_id, int err, string result)
+        private static void PoolGetTransactionsCallbackMethod(long callbackId, int errorCode, string transactions)
         {
-            var taskCompletionSource = PendingCallbacks.Remove<string>(callback_id);
+            TaskCompletionSource<string> taskCompletionSource = PendingCallbacks.Remove<string>(callbackId);
 
-            if (err != (int)ErrorCode.Success)
+            if (errorCode != (int)ErrorCode.Success)
             {
                 string error = ErrorApi.GetCurrentErrorAsync().GetAwaiter().GetResult();
                 taskCompletionSource.SetException(IndyVdrException.FromSdkError(error));
                 return;
             }
-            taskCompletionSource.SetResult(result);
+            taskCompletionSource.SetResult(transactions);
         }
-        private static PoolGetTransactionsCompletedDelegate PoolGetTransactionsCallback = PoolGetTransactionsCallbackMethod;
+        private static readonly PoolGetTransactionsCompletedDelegate PoolGetTransactionsCallback = PoolGetTransactionsCallbackMethod;
         #endregion
 
         #region GetPoolVerifiersAsync
         public static async Task<string> GetPoolVerifiersAsync(
             IntPtr poolHandle)
         {
-            var taskCompletionSource = new TaskCompletionSource<string>();
-            var callbackId = PendingCallbacks.Add(taskCompletionSource);
+            TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
+            long callbackId = PendingCallbacks.Add(taskCompletionSource);
 
             int errorCode = NativeMethods.indy_vdr_pool_get_verifiers(
                 poolHandle,
@@ -167,19 +167,19 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return await taskCompletionSource.Task;
         }
-        private static void PoolGetVerifiersCallbackMethod(long callback_id, int err, string result)
+        private static void PoolGetVerifiersCallbackMethod(long callbackId, int errorCode, string verifiers)
         {
-            var taskCompletionSource = PendingCallbacks.Remove<string>(callback_id);
+            TaskCompletionSource<string> taskCompletionSource = PendingCallbacks.Remove<string>(callbackId);
 
-            if (err != (int)ErrorCode.Success)
+            if (errorCode != (int)ErrorCode.Success)
             {
                 string error = ErrorApi.GetCurrentErrorAsync().GetAwaiter().GetResult();
                 taskCompletionSource.SetException(IndyVdrException.FromSdkError(error));
                 return;
             }
-            taskCompletionSource.SetResult(result);
+            taskCompletionSource.SetResult(verifiers);
         }
-        private static PoolGetVerifiersCompletedDelegate PoolGetVerifiersCallback = PoolGetVerifiersCallbackMethod;
+        private static readonly PoolGetVerifiersCompletedDelegate PoolGetVerifiersCallback = PoolGetVerifiersCallbackMethod;
         #endregion
 
         #region SubmitPoolActionAsync
@@ -195,8 +195,8 @@ namespace indy_vdr_dotnet.libindy_vdr
                 nodesJson = JsonConvert.SerializeObject(nodeAliases);
             }
 
-            var taskCompletionSource = new TaskCompletionSource<string>();
-            var callbackId = PendingCallbacks.Add(taskCompletionSource);
+            TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
+            long callbackId = PendingCallbacks.Add(taskCompletionSource);
 
             int errorCode = NativeMethods.indy_vdr_pool_submit_action(
                 poolHandle,
@@ -214,11 +214,11 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return await taskCompletionSource.Task;
         }
-        private static void PoolSubmitActionCallbackMethod(long callback_id, int err, string result)
+        private static void PoolSubmitActionCallbackMethod(long callbackId, int errorCode, string result)
         {
-            var taskCompletionSource = PendingCallbacks.Remove<string>(callback_id);
+            TaskCompletionSource<string> taskCompletionSource = PendingCallbacks.Remove<string>(callbackId);
 
-            if (err != (int)ErrorCode.Success)
+            if (errorCode != (int)ErrorCode.Success)
             {
                 string error = ErrorApi.GetCurrentErrorAsync().GetAwaiter().GetResult();
                 taskCompletionSource.SetException(IndyVdrException.FromSdkError(error));
@@ -226,7 +226,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
             taskCompletionSource.SetResult(result);
         }
-        private static PoolSubmitActionCompletedDelegate PoolSubmitActionCallback = PoolSubmitActionCallbackMethod;
+        private static readonly PoolSubmitActionCompletedDelegate PoolSubmitActionCallback = PoolSubmitActionCallbackMethod;
         #endregion
 
         #region SubmitPoolRequestAsync
@@ -234,8 +234,8 @@ namespace indy_vdr_dotnet.libindy_vdr
             IntPtr poolHandle,
             IntPtr requestHandle)
         {
-            var taskCompletionSource = new TaskCompletionSource<string>();
-            var callbackId = PendingCallbacks.Add(taskCompletionSource);
+            TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
+            long callbackId = PendingCallbacks.Add(taskCompletionSource);
 
             int errorCode = NativeMethods.indy_vdr_pool_submit_request(
                 poolHandle,
@@ -251,11 +251,11 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return await taskCompletionSource.Task;
         }
-        private static void PoolSubmitRequestCallbackMethod(long callback_id, int err, string result)
+        private static void PoolSubmitRequestCallbackMethod(long callbackId, int errorCode, string result)
         {
-            var taskCompletionSource = PendingCallbacks.Remove<string>(callback_id);
+            TaskCompletionSource<string> taskCompletionSource = PendingCallbacks.Remove<string>(callbackId);
 
-            if (err != (int)ErrorCode.Success)
+            if (errorCode != (int)ErrorCode.Success)
             {
                 string error = ErrorApi.GetCurrentErrorAsync().GetAwaiter().GetResult();
                 taskCompletionSource.SetException(IndyVdrException.FromSdkError(error));
@@ -263,7 +263,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
             taskCompletionSource.SetResult(result);
         }
-        private static PoolSubmitRequestCompletedDelegate PoolSubmitRequestCallback = PoolSubmitRequestCallbackMethod;
+        private static readonly PoolSubmitRequestCompletedDelegate PoolSubmitRequestCallback = PoolSubmitRequestCallbackMethod;
         #endregion
 
         #region ClosePoolAsync

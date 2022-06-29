@@ -17,13 +17,13 @@ namespace indy_vdr_dotnet
         public static IndyVdrException FromSdkError(string message)
         {
             string msg = JsonConvert.DeserializeObject<Dictionary<string, string>>(message)["message"];
-            string errCode = JsonConvert.DeserializeObject<Dictionary<string, string>>(message)["code"];
+            string errorCode = JsonConvert.DeserializeObject<Dictionary<string, string>>(message)["code"];
             string extra = JsonConvert.DeserializeObject<Dictionary<string, string>>(message)["extra"];
             int errCodeInt;
-            if (int.TryParse(errCode, out errCodeInt))
+            if (int.TryParse(errorCode, out errCodeInt))
             {
                 return new IndyVdrException(
-                    $"'{((ErrorCode)errCodeInt).ToErrorCodeString()}' error occured with ErrorCode '{errCode}' and extra: '{extra}': {msg}.");
+                    $"'{((ErrorCode)errCodeInt).ToErrorCodeString()}' error occured with ErrorCode '{errorCode}' and extra: '{extra}': {msg}.");
             }
             else
             {
