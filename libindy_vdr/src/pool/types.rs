@@ -392,7 +392,7 @@ impl CatchupRep {
                     .with_input_err("Invalid key in catchup reply")
             })
             .collect::<VdrResult<Vec<usize>>>()?;
-        keys.sort();
+        keys.sort_unstable();
         Ok(keys
             .iter()
             .flat_map(|k| {
@@ -435,13 +435,13 @@ impl Reply {
     pub fn req_id(&self) -> Option<u64> {
         self.value["result"]
             .get("reqId")
-            .or(self.value["result"]["txn"]["metadata"].get("reqId"))
+            .or_else(|| self.value["result"]["txn"]["metadata"].get("reqId"))
             .and_then(SJsonValue::as_u64)
     }
     pub fn result(&self) -> Option<&SJsonValue> {
         self.value
             .get("result") // V0
-            .or(self.value["data"]["result"][0].get("result")) // V1
+            .or_else(|| self.value["data"]["result"][0].get("result")) // V1
     }
 }
 
@@ -573,7 +573,7 @@ pub struct VerifierKey {
 impl VerifierKey {
     pub fn from_bytes(key: &[u8]) -> VdrResult<Self> {
         Ok(Self {
-            inner: BlsVerKey::from_bytes(&key).map_err(|_| input_err("Invalid BLS key"))?,
+            inner: BlsVerKey::from_bytes(key).map_err(|_| input_err("Invalid BLS key"))?,
         })
     }
 
@@ -674,16 +674,6 @@ impl<T: ToString> ToString for SingleReply<T> {
         match self {
             Self::Reply(msg) => msg.to_string(),
             Self::Failed(msg) => msg.clone(),
-            Self::Timeout() => "timeout".to_owned(),
-        }
-    }
-}
-
-impl<T: Into<String>> Into<String> for SingleReply<T> {
-    fn into(self) -> String {
-        match self {
-            Self::Reply(msg) => msg.into(),
-            Self::Failed(msg) => msg,
             Self::Timeout() => "timeout".to_owned(),
         }
     }

@@ -96,12 +96,7 @@ impl PoolRunner {
 
     /// Shut down the associated worker thread and release any pool resources.
     pub fn close(&mut self) -> bool {
-        if self.sender.is_none() {
-            return false;
-        } else {
-            drop(self.sender.take());
-            return true;
-        }
+        self.sender.take().is_some()
     }
 }
 
@@ -115,7 +110,7 @@ impl Drop for PoolRunner {
     }
 }
 
-type Callback<R> = Box<dyn (FnOnce(R) -> ()) + Send>;
+type Callback<R> = Box<dyn FnOnce(R) + Send>;
 
 type GetStatusResponse = VdrResult<PoolRunnerStatus>;
 

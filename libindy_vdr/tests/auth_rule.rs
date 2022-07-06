@@ -10,11 +10,11 @@ use indy_vdr::utils::did::DidValue;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
 
-const TXN_TYPE: &'static str = constants::NYM;
-const ADD_ACTION: &'static str = "ADD";
-const EDIT_ACTION: &'static str = "EDIT";
-const FIELD: &'static str = "role";
-const VALUE: &'static str = "0";
+const TXN_TYPE: &str = constants::NYM;
+const ADD_ACTION: &str = "ADD";
+const EDIT_ACTION: &str = "EDIT";
+const FIELD: &str = "role";
+const VALUE: &str = "0";
 
 fn _role_constraint() -> Constraint {
     Constraint::RoleConstraint(RoleConstraint {

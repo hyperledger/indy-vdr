@@ -119,7 +119,7 @@ impl GetRichSchemaById {
 impl Validatable for GetRichSchemaById {
     fn validate(&self) -> Result<(), ValidationError> {
         // ToDo: add specific validation if needed
-        return self.id.validate();
+        self.id.validate()
     }
 }
 
@@ -142,7 +142,7 @@ impl GetRichSchemaByIdOperation {
 impl Validatable for GetRichSchemaByIdOperation {
     fn validate(&self) -> Result<(), ValidationError> {
         // ToDo: add specific validation
-        return self.id.validate();
+        self.id.validate()
     }
 }
 

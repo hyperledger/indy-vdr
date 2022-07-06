@@ -76,10 +76,7 @@ impl RequestType for GetSchemaOperation {
         Ok(Some(
             format!(
                 "{}:{}:{}:{}",
-                self.dest.to_string(),
-                marker,
-                self.data.name,
-                self.data.version
+                &*self.dest, marker, self.data.name, self.data.version
             )
             .as_bytes()
             .to_vec(),

@@ -57,7 +57,7 @@ impl VdrError {
         Self { kind, msg, source }
     }
 
-    pub fn kind<'a>(&'a self) -> &'a VdrErrorKind {
+    pub fn kind(&self) -> &VdrErrorKind {
         &self.kind
     }
 
@@ -206,5 +206,5 @@ fn pool_request_failed_reason(reply: &str) -> String {
             return reason.to_owned();
         }
     }
-    return "Unknown reason".to_owned();
+    "Unknown reason".to_owned()
 }

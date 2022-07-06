@@ -9,7 +9,6 @@ use std::sync::RwLock;
 
 use ffi_support::{define_string_destructor, rust_string_to_c, FfiStr};
 use once_cell::sync::Lazy;
-use serde_json;
 
 #[macro_use]
 mod macros;

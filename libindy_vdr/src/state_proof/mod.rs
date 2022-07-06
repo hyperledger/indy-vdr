@@ -96,7 +96,7 @@ pub(crate) fn check_state_proof(
     trace!("process_reply: Try to verify proof and signature >>");
 
     let res = match parse_generic_reply_for_proof_checking(
-        &msg_result,
+        msg_result,
         raw_msg,
         sp_key,
         custom_state_proof_parser,
@@ -213,7 +213,7 @@ pub(crate) fn get_cur_time() -> u64 {
 fn extract_left_last_write_time(msg_result: &SJsonValue) -> Option<u64> {
     let state_proof = &msg_result["data"]["stateProofFrom"]
         .as_object()
-        .or(msg_result["state_proof"].as_object());
+        .or_else(|| msg_result["state_proof"].as_object());
     match (msg_result["type"].as_str(), state_proof) {
         (Some(constants::GET_REVOC_REG_DELTA), Some(state_proof)) => {
             state_proof["multi_signature"]["value"]["timestamp"].as_u64()
@@ -240,7 +240,7 @@ pub(crate) fn result_without_state_proof(result: &SJsonValue) -> SJsonValue {
                     .iter()
                     .filter_map(SJsonValue::as_str)
                     .collect::<Vec<&str>>();
-                entries.sort();
+                entries.sort_unstable();
                 multi_sig["participants"] = SJsonValue::from(entries);
             }
         }
@@ -330,7 +330,7 @@ pub(crate) fn verify_parsed_sp(
                             proof_nodes.as_slice(),
                             root_hash.as_slice(),
                             &key,
-                            v.as_ref().map(String::as_str),
+                            v.as_deref(),
                         ) {
                             debug!("Simple verification failed");
                             return false;
@@ -673,13 +673,7 @@ fn _parse_reply_for_builtin_sp(
 
     let mut state_proofs = vec![];
 
-    match _parse_reply_for_sp(
-        json_msg,
-        data.as_ref().map(String::as_str),
-        &parsed_data,
-        type_,
-        key,
-    ) {
+    match _parse_reply_for_sp(json_msg, data.as_deref(), &parsed_data, type_, key) {
         Ok(state_proof) => state_proofs.push(state_proof),
         Err(err) => {
             debug!("_parse_reply_for_sp: <<<  {}", err);
@@ -688,13 +682,7 @@ fn _parse_reply_for_builtin_sp(
     }
 
     if REQUESTS_FOR_MULTI_STATE_PROOFS.contains(&type_) {
-        match _parse_reply_for_multi_sp(
-            json_msg,
-            data.as_ref().map(String::as_str),
-            &parsed_data,
-            type_,
-            key,
-        ) {
+        match _parse_reply_for_multi_sp(json_msg, data.as_deref(), &parsed_data, type_, key) {
             Ok(Some(state_proof)) => {
                 trace!("_parse_reply_for_multi_sp: proof: {:?}", state_proof);
                 state_proofs.push(state_proof);
@@ -786,7 +774,7 @@ fn _parse_reply_for_sp(
 
     Ok(ParsedSP {
         root_hash: root_hash.to_owned(),
-        proof_nodes: proof.to_owned(),
+        proof_nodes: proof,
         multi_signature: multi_sig,
         kvs_to_verify: KeyValuesInSP::Simple(KeyValueSimpleData {
             kvs: vec![(base64::encode(sp_key), value)],
@@ -971,7 +959,7 @@ fn _verify_merkle_tree(
     };
     let mut hash = unwrap_or_map_return!(hash, |err| {
         debug!("Error while hashing merkle tree leaf: {:?}", err);
-        return false;
+        false
     });
 
     trace!("Hashed leaf in b58: {}", base58::encode(&hash));
@@ -988,7 +976,7 @@ fn _verify_merkle_tree(
         };
         hash = unwrap_or_map_return!(turned_hash, |err| {
             debug!("Error while hashing: {:?}", err);
-            return false;
+            false
         })
     }
 
@@ -1043,7 +1031,7 @@ fn _verify_proof(
         .map(|root| {
             root.get_str_value(&map, key)
                 .map_err(map_err_log!(level: debug, "{}"))
-                .map(|value| value.as_ref().map(String::as_str).eq(&expected_value))
+                .map(|value| value.as_deref().eq(&expected_value))
                 .unwrap_or(false)
         })
         .unwrap_or(false)
@@ -1089,7 +1077,7 @@ fn _verify_proof_range(
             debug!("Some values in state proof are not correlating with state proof rule, aborting.");
             return false;
         }
-        let mut vals_for_sort: Vec<(u64, (String, Option<String>))> = vals_for_sort_check.into_iter().flat_map(|a| a).collect();
+        let mut vals_for_sort: Vec<(u64, (String, Option<String>))> = vals_for_sort_check.into_iter().flatten().collect();
         // Sort by numerical suffixes in ascending order
         vals_for_sort.sort_by_key(|&(a, _)| a);
         trace!("Sorted trie values: {:?}", vals_for_sort);
@@ -1547,7 +1535,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             Some(99),
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh11".to_string(), Some("4373".to_string())),
                 ("abcdefgh24".to_string(), Some("4905".to_string())),
@@ -1574,7 +1562,7 @@ mod tests {
             "abcdefgh",
             Some(101),
             None,
-            &vec![]
+            &[]
         ));
     }
 
@@ -1598,7 +1586,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             Some(99),
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh24".to_string(), Some("4905".to_string())),
             ]
@@ -1625,7 +1613,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             Some(99),
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh11".to_string(), Some("4373".to_string())),
                 ("abcdefgh13".to_string(), Some("4234".to_string())),
@@ -1653,7 +1641,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             Some(99),
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh12".to_string(), Some("4373".to_string())),
                 ("abcdefgh24".to_string(), Some("4905".to_string())),
@@ -1680,7 +1668,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             Some(100),
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh11".to_string(), Some("4373".to_string())),
                 ("abcdefgh24".to_string(), Some("4905".to_string())),
@@ -1707,7 +1695,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             None,
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh11".to_string(), Some("4373".to_string())),
                 ("abcdefgh24".to_string(), Some("4905".to_string())),
@@ -1737,7 +1725,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             None,
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh11".to_string(), Some("4373".to_string())),
                 //                ("abcdefgh24".to_string(), Some("4905".to_string())),
@@ -1767,7 +1755,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             None,
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh11".to_string(), Some("4373".to_string())),
                 ("abcdefgh24".to_string(), Some("4905".to_string())),
@@ -1798,7 +1786,7 @@ mod tests {
             "abcdefgh",
             Some(10),
             None,
-            &vec![
+            &[
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
                 ("abcdefgh11".to_string(), Some("4373".to_string())),
                 ("abcdefgh25".to_string(), Some("4905".to_string())),
@@ -1827,7 +1815,7 @@ mod tests {
             "abcdefgh",
             None,
             Some(24),
-            &vec![
+            &[
                 ("abcdefgh1".to_string(), Some("3630".to_string())),
                 ("abcdefgh4".to_string(), Some("3037".to_string())),
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
@@ -1856,7 +1844,7 @@ mod tests {
             "abcdefgh",
             None,
             Some(24),
-            &vec![
+            &[
                 ("abcdefgh1".to_string(), Some("3630".to_string())),
                 ("abcdefgh4".to_string(), Some("3037".to_string())),
                 //                ("abcdefgh10".to_string(), Some("4970".to_string())),
@@ -1885,7 +1873,7 @@ mod tests {
             "abcdefgh",
             None,
             Some(24),
-            &vec![
+            &[
                 ("abcdefgh1".to_string(), Some("3630".to_string())),
                 ("abcdefgh4".to_string(), Some("3037".to_string())),
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
@@ -1915,7 +1903,7 @@ mod tests {
             "abcdefgh",
             None,
             Some(24),
-            &vec![
+            &[
                 ("abcdefgh1".to_string(), Some("3630".to_string())),
                 ("abcdefgh4".to_string(), Some("3037".to_string())),
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
@@ -1943,7 +1931,7 @@ mod tests {
             "abcdefgh",
             None,
             Some(99),
-            &vec![
+            &[
                 ("abcdefgh1".to_string(), Some("3630".to_string())),
                 ("abcdefgh4".to_string(), Some("3037".to_string())),
                 ("abcdefgh10".to_string(), Some("4970".to_string())),
@@ -1997,10 +1985,12 @@ mod tests {
     #[test]
     fn state_proof_verify_proof_works_for_corrupted_rlp_bytes_for_proofs() {
         let proofs = Vec::from_hex("f8c0f7798080a0792fc4967c792ef3d22fefd3f43209e2185b25e9a97640f09bb4b61657f67cf3c62084c3827634808080808080808080808080f4808080dd808080c62084c3827631c62084c3827632808080808080808080808080c63384c3827633808080808080808080808080f851808080a0099d752f1d5a4b9f9f0034540153d2d2a7c14c11290f27e5d877b57c801848caa06267640081beb8c77f14f30c68f30688afc3e5d5a388194c6a42f699fe361b2f808080808080808080808080").unwrap();
-        assert_eq!(
-            _verify_proof(proofs.as_slice(), &[0x00], "".as_bytes(), None),
-            false
-        );
+        assert!(!_verify_proof(
+            proofs.as_slice(),
+            &[0x00],
+            "".as_bytes(),
+            None
+        ));
     }
 
     #[test]
