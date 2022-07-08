@@ -12,6 +12,14 @@ namespace indy_vdr_dotnet.libindy_vdr
     public class PoolApi
     {
         #region CreatePoolAsync
+        /// <summary>
+        /// Creates and initializes a new pool.
+        /// </summary>
+        /// <param name="transactions"></param>
+        /// <param name="transactionsPath">Path of genesis file.</param>
+        /// <param name="nodeWeights"></param>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Handle of pool object.</returns>
         public static async Task<IntPtr> CreatePoolAsync(
             string transactions = null,
             string transactionsPath = null,
@@ -40,6 +48,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         #endregion
 
         #region RefreshPoolAsync
+        /// <summary>
+        /// Resfreshes pool transactions.
+        /// </summary>
+        /// <param name="poolHandle">Handle of pool object.</param>
+        /// <exception cref="IndyVdrException">Throws if provided pool handle is invalid.</exception>
+        /// <returns>Result if pool could be refreshed or not.</returns>
         public static async Task<bool> RefreshPoolAsync(
             IntPtr poolHandle)
         {
@@ -76,6 +90,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         #endregion
 
         #region GetPoolStatusAsync
+        /// <summary>
+        /// Gets the current status of the provided pool instance.
+        /// </summary>
+        /// <param name="poolHandle">Handle of pool object.</param>
+        /// <exception cref="IndyVdrException">Throws if provided pool handle is invalid.</exception>
+        /// <returns>Current pool status in json format.</returns>
         public static async Task<string> GetPoolStatusAsync(
             IntPtr poolHandle)
         {
@@ -113,6 +133,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         #endregion
 
         #region GetPoolTransactionsAsync
+        /// <summary>
+        /// Gets information for all current transactions of a provided pool.</summary>
+        /// <param name="poolHandle">Handle of pool object.</param>
+        /// <exception cref="IndyVdrException">Throws if provided pool handle is invalid.</exception>
+        /// <returns>Returns a list of all transactions of the pool in json format.</returns>
         public static async Task<string> GetPoolTransactionsAsync(
             IntPtr poolHandle)
         {
@@ -130,7 +155,11 @@ namespace indy_vdr_dotnet.libindy_vdr
                 throw IndyVdrException.FromSdkError(error);
             }
 
-            return await taskCompletionSource.Task;
+            // The return of the native method is not valid json!
+            // It only concatentates the transaction objects with a '\n'
+            // instead of a ','.
+            string transactionsJson = await taskCompletionSource.Task;
+            return $"[{transactionsJson.Replace("}\n{","},{")}]";
         }
         private static void PoolGetTransactionsCallbackMethod(long callbackId, int errorCode, string transactions)
         {
@@ -148,6 +177,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         #endregion
 
         #region GetPoolVerifiersAsync
+        /// <summary>
+        /// Gets information of all current verifiers to a provided pool.
+        /// </summary>
+        /// <param name="poolHandle">Handle of pool object.</param>
+        /// <exception cref="IndyVdrException">Throws if provided pool handle is invalid.</exception>
+        /// <returns>All pool verifiers represented in json format.</returns>
         public static async Task<string> GetPoolVerifiersAsync(
             IntPtr poolHandle)
         {
@@ -183,6 +218,19 @@ namespace indy_vdr_dotnet.libindy_vdr
         #endregion
 
         #region SubmitPoolActionAsync
+        /// <summary>
+        /// Submit a pool action to all verifier nodes.
+        ///
+        /// The following requests are sent as actions:
+        ///    GET_VALIDATOR_INFO
+        ///    POOL_RESTART
+        /// </summary>
+        /// <param name="poolHandle">Handle of pool object.</param>
+        /// <param name="requestHandle">Handle of the prepared request object.</param>
+        /// <param name="nodeAliases">All nodes that are requested to perform the action.</param>
+        /// <param name="timeout">Seconds until timeout (Default: -1 for no timeout).</param>
+        /// <exception cref="IndyVdrException">Throws if handles or aliases are invalid.</exception>
+        /// <returns>The node aliases as keys and the node's responses as values as dictionary in json format.</returns>
         public static async Task<string> SubmitPoolActionAsync(
             IntPtr poolHandle,
             IntPtr requestHandle,
@@ -230,6 +278,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         #endregion
 
         #region SubmitPoolRequestAsync
+        /// <summary>
+        /// Submits a ledger request to the pool.
+        /// </summary>
+        /// <param name="poolHandle">Handle of the pool object.</param>
+        /// <param name="requestHandle">Handle of the prepared request object.</param>
+        /// <exception cref="IndyVdrException">If one of the handles is invalid.</exception>
+        /// <returns>Reply from the pool in json format.</returns>
         public static async Task<string> SubmitPoolRequestAsync(
             IntPtr poolHandle,
             IntPtr requestHandle)
@@ -267,6 +322,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         #endregion
 
         #region ClosePoolAsync
+        /// <summary>
+        /// Closes the pool from further actions and frees instance.
+        /// </summary>
+        /// <param name="poolHandle">Handle of the pool object.</param>
+        /// <exception cref="IndyVdrException">Throws if provided handle is invalid.</exception>
+        /// <returns>Error code of operation (0 if success):</returns>
         public static async Task<int> ClosePoolAsync(
             IntPtr poolHandle)
         {

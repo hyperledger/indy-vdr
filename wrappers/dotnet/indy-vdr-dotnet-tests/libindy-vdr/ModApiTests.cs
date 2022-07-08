@@ -10,8 +10,8 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 {
     public class ModApiTests
     {
-        [Test]
-        [TestCase(TestName = "GetVersionAsync returns a string that is not empty.")]
+        #region Tests for GetVersion
+        [Test, TestCase(TestName = "GetVersionAsync returns a string that is not empty.")]
         public async Task GetVersion()
         {
             //Arrange
@@ -22,9 +22,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             actual.Should().NotBeEmpty();
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "SetConfig sets the pool config.")]
+        #region Tests for SetConfig
+        [Test, TestCase(TestName = "SetConfigAsync sets the pool config.")]
         public async Task SetConfig()
         {
             //Arrange
@@ -48,8 +49,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = await ModApi.SetConfigAsync(JsonConvert.SerializeObject(new { }));
         }
 
-        [Test]
-        [TestCase(TestName = "SetConfig call throws.")]
+        [Test, TestCase(TestName = "SetConfigAsync call throws.")]
         public async Task SetConfigThrows()
         {
             //Arrange
@@ -62,9 +62,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             await func.Should().ThrowAsync<IndyVdrException>();
             _ = await ModApi.SetConfigAsync(JsonConvert.SerializeObject(new { }));
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "SetDefaultLogger does not throw an exception.")]
+        #region Tests for SetDefaultLogger
+        [Test, TestCase(TestName = "SetDefaultLoggerAsync does not throw an exception.")]
         public async Task SetDefaultLogger()
         {
             //Arrange
@@ -75,9 +76,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             errorCode.Should().Be(0);
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "SetSocksProxy sets the socks proxy.")]
+        #region Tests for SetSocksProxy
+        [Test, TestCase(TestName = "SetSocksProxyAsync sets the socks proxy.")]
         public async Task SetSocksProxy()
         {
             //Arrange
@@ -90,18 +92,20 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             errorCode.Should().Be(0);
             _ = await ModApi.SetConfigAsync(JsonConvert.SerializeObject(new { }));
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "SetProtocolVersion sets the protocol version.")]
+        #region Tests for SetProtocolVersion
+        [Test, TestCase(TestName = "SetProtocolVersionAsync sets the protocol version.")]
         public async Task SetProtocolVersion()
         {
             //Arrange
 
-            //Act
+            //Act                       
             int errorCode = await ModApi.SetProtocolVersionAsync(2);
 
             //Assert
             errorCode.Should().Be(0);
         }
+        #endregion
     }
 }

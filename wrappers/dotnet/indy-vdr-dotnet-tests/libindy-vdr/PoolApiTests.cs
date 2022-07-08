@@ -21,6 +21,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _genesisFilePath = Path.GetFullPath(genesisFile);
         }
 
+        #region Tests for CreatePoolAsync
         [Test, TestCase(TestName = "CreatePoolAsync call returns request handle.")]
         public async Task CreatePoolAsyncWorks()
         {
@@ -44,7 +45,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for RefreshPoolAsync
         [Test, TestCase(TestName = "RefreshPoolAsync call returns a result bool.")]
         public async Task RefreshPoolAsyncWorks()
         {
@@ -70,7 +73,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for GetPoolStatusAsync
         [Test, TestCase(TestName = "GetPoolStatusAsync call returns a result string.")]
         public async Task GetPoolStatusAsyncWorks()
         {
@@ -96,7 +101,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for GetPoolTransactionAsync
         [Test, TestCase(TestName = "GetPoolTransactionsAsync call returns a result string.")]
         public async Task GetPoolTransactionsAsyncWorks()
         {
@@ -122,7 +129,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for GetPoolVerifiersAsync
         [Test, TestCase(TestName = "GetPoolVerifiersAsync call returns a result string.")]
         public async Task GetPoolVerifiersAsyncWorks()
         {
@@ -148,7 +157,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for SubmitPoolRequestAsync
         [Test, TestCase(TestName = "SubmitPoolRequestAsync call returns a result string.")]
         public async Task SubmitPoolRequestAsyncWorks()
         {
@@ -158,6 +169,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Act
             string actual = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+            var actualJson = Newtonsoft.Json.JsonConvert.DeserializeObject(actual);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -176,7 +188,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for SubmitPoolActionAsync
         [Test, TestCase(TestName = "SubmitPoolActionAsync call returns a result string.")]
         public async Task SubmitPoolActionAsyncWorks()
         {
@@ -187,6 +201,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Act
             string actual = await PoolApi.SubmitPoolActionAsync(testPoolHandle, testRequestHandle, testNodes);
+            var actualJson = Newtonsoft.Json.JsonConvert.DeserializeObject(actual);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -206,7 +221,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for ClosePoolAsync
         [Test, TestCase(TestName = "ClosePoolAsync call returns errorcode 0.")]
         public async Task ClosePoolAsyncWorks()
         {
@@ -232,5 +249,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
     }
 }

@@ -10,8 +10,8 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 {
     public class RequestApiTests
     {
-        [Test]
-        [TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call with taa_digest returns a JSON.")]
+        #region Tests for PrepareTxnAuthorAgreementAcceptanceAsync
+        [Test, TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call with taa_digest returns a JSON.")]
         public async Task PrepareTxnAuthorAgreementAcceptanceWorksWithTaaDigest()
         {
             //Arrange
@@ -29,8 +29,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = actual.Should().NotBe("");
         }
 
-        [Test]
-        [TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call throws when version is missing but text is given.")]
+        [Test, TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call throws when version is missing but text is given.")]
         public async Task PrepareTxnAuthorAgreementAcceptanceWorksWithTaaDigestThrows()
         {
             //Arrange
@@ -49,9 +48,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call with version, text returns a JSON.")]
+        #region Tests for PrepareTxnAuthorAgreementAcceptanceAsync
+        [Test, TestCase(TestName = "PrepareTxnAuthorAgreementAcceptance call with version, text returns a JSON.")]
         public async Task PrepareTxnAuthorAgreementAcceptanceWorksWithVersionText()
         {
             //Arrange
@@ -70,9 +70,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             _ = actual.Should().NotBe("");
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "RequestFree call frees given testRequestHandle.")]
+        #region Tests for RequestFreeAsync
+        [Test, TestCase(TestName = "RequestFree call frees given testRequestHandle.")]
         public async Task RequestFreeWorks()
         {
             //Arrange
@@ -88,8 +89,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             await act.Should().ThrowAsync<Exception>();
         }
 
-        [Test]
-        [TestCase(TestName = "RequestFree call with invalid pointer throws.")]
+        [Test, TestCase(TestName = "RequestFree call with invalid pointer throws.")]
         public async Task RequestFreeThrows()
         {
             //Arrange
@@ -102,9 +102,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "RequestGetBody call returns a JSON string.")]
+        #region Tests for RequestGetBodyAsync
+        [Test, TestCase(TestName = "RequestGetBody call returns a JSON string.")]
         public async Task RequestGetBodyWorks()
         {
             //Arrange
@@ -117,8 +118,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = testRequestBody.Should().NotBe("");
         }
 
-        [Test]
-        [TestCase(TestName = "RequestGetBody call with invalid pointer throws.")]
+        [Test, TestCase(TestName = "RequestGetBody call with invalid pointer throws.")]
         public async Task RequestGetBodyThrows()
         {
             //Arrange
@@ -130,9 +130,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "RequestGetSignatureInput call returns a signature string.")]
+        #region Tests for RequestGetSignatureInputAsync
+        [Test, TestCase(TestName = "RequestGetSignatureInput call returns a signature string.")]
         public async Task RequestGetSignatureInputWorks()
         {
             //Arrange
@@ -145,8 +146,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             _ = signature.Should().NotBe("");
         }
 
-        [Test]
-        [TestCase(TestName = "RequestGetSignatureInput call with invalid pointer throws.")]
+        [Test, TestCase(TestName = "RequestGetSignatureInput call with invalid pointer throws.")]
         public async Task RequestGetSignatureInputThrows()
         {
             //Arrange
@@ -158,9 +158,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "RequestSetEndorser call sets the endorser.")]
+        #region Tests for RequestSetEndorserAsync
+        [Test, TestCase(TestName = "RequestSetEndorser call sets the endorser.")]
         public async Task RequestSetEndorserWorks()
         {
             //Arrange
@@ -181,8 +182,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             actualJObj.Should().ContainKey("endorser");
         }
 
-        [Test]
-        [TestCase(TestName = "RequestSetEndorser call with invalid pointer throws.")]
+        [Test, TestCase(TestName = "RequestSetEndorser call with invalid pointer throws.")]
         public async Task RequestSetEndorserThrows()
         {
             //Arrange
@@ -198,9 +198,11 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "RequestSetMultiSignature call sets a multi-signature entry.")]
+        #region Tests for RequestSetMultiSignatureAsync
+
+        [Test, TestCase(TestName = "RequestSetMultiSignature call sets a multi-signature entry.")]
         public async Task RequestSetMultiSignatureWorks()
         {
             //Arrange
@@ -223,8 +225,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             actualJObj.Should().ContainKey("signatures");
         }
 
-        [Test]
-        [TestCase(TestName = "RequestSetMultiSignature call with invalid pointer throws.")]
+        [Test, TestCase(TestName = "RequestSetMultiSignature call with invalid pointer throws.")]
         public async Task RequestSetMultiSignatureThrows()
         {
             //Arrange
@@ -245,7 +246,9 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
+        #region Tests for RequestSetSigantureAsync
         [Test]
         [TestCase(TestName = "RequestSetSiganture call sets a signature entry.")]
         public async Task RequestSetSigantureWorks()
@@ -268,8 +271,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             actualJObj.Should().ContainKey("signature");
         }
 
-        [Test]
-        [TestCase(TestName = "RequestSetSiganture call with invalid pointer throws.")]
+        [Test, TestCase(TestName = "RequestSetSiganture call with invalid pointer throws.")]
         public async Task RequestSetSigantureThrows()
         {
             //Arrange
@@ -288,9 +290,10 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
 
-        [Test]
-        [TestCase(TestName = "RequestSetTxnAuthorAgreementAcceptance call sets a signature entry.")]
+        #region Tests for RequestSetTxnAuthorAgreementAcceptanceAsync
+        [Test, TestCase(TestName = "RequestSetTxnAuthorAgreementAcceptance call sets a signature entry.")]
         public async Task RequestSetTxnAuthorAgreementAcceptanceWorks()
         {
             //Arrange
@@ -311,8 +314,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             actualJObj.Should().ContainKey("taaAcceptance");
         }
 
-        [Test]
-        [TestCase(TestName = "RequestSetTxnAuthorAgreementAcceptance call with invalid pointer throws.")]
+        [Test, TestCase(TestName = "RequestSetTxnAuthorAgreementAcceptance call with invalid pointer throws.")]
         public async Task RequestSetTxnAuthorAgreementAcceptanceThrows()
         {
             //Arrange
@@ -331,5 +333,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+        #endregion
     }
 }
