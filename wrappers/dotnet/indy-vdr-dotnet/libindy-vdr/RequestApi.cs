@@ -16,8 +16,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="text"></param>
         /// <param name="version">TAA version.</param>
         /// <param name="taaDigest">TAA digest.</param>
-        /// <exception cref="IndyVdrException">Throws if parameters or the combination of them are invalid</exception>
-        /// <returns>The transaction author agreement acceptance in json format.</returns>
+        /// <exception cref="IndyVdrException">Throws if parameters or the combination of them are invalid.</exception>
+        /// <returns>The transaction author agreement acceptance as json <see cref="System.String"/>.</returns>
         public static async Task<string> PrepareTxnAuthorAgreementAcceptanceAsync(
             string accMechType,
             ulong time,
@@ -47,8 +47,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// Frees a request object from the heap.
         /// </summary>
         /// <param name="requestHandle">Handle of the request object.</param>
-        /// <exception cref="IndyVdrException">Throws if handle is invalid.</exception>
-        /// <returns></returns>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="requestHandle"/> is invalid.</exception>
         public static async Task RequestFreeAsync(
             IntPtr requestHandle)
         {
@@ -66,8 +65,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// Gets the body of a request from its handle.
         /// </summary>
         /// <param name="requestHandle">Handle of the request object.</param>
-        /// <exception cref="IndyVdrException">Throws if handle is invalid.</exception>
-        /// <returns>Body of the request in json format.</returns>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="requestHandle"/> is invalid.</exception>
+        /// <returns>Body of the request as json <see cref="System.String"/>.</returns>
         public static async Task<string> RequestGetBodyAsync(
             IntPtr requestHandle)
         {
@@ -91,8 +90,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// appropriate signature for the request.
         /// </summary>
         /// <param name="requestHandle">Handle of the request object.</param>
-        /// <exception cref="IndyVdrException">Throws if handle is invalid.</exception>
-        /// <returns>The values of the request signature seperated by '|'.</returns>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="requestHandle"/> is invalid.</exception>
+        /// <returns>The values of the request signature seperated by the character '<c>|</c>'.</returns>
         public static async Task<string> RequestGetSignatureInputAsync(
             IntPtr requestHandle)
         {
@@ -114,15 +113,16 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///
         /// When a transaction is expected to be sent to the ledger by an endorser, this
         /// property must be set in order to generate a valid signature.
+        /// </summary>
+        /// <remarks>
         /// Note: Both Transaction Author and Endorser must sign the output request.
         /// More about Transaction Endorser:
-        ///    https://github.com/hyperledger/indy-node/blob/master/design/transaction_endorser.md
-        ///    https://github.com/hyperledger/indy-sdk/blob/master/docs/configuration.md
-        ///    
-        /// </summary>
+        ///    <c>https://github.com/hyperledger/indy-node/blob/master/design/transaction_endorser.md</c>, 
+        ///    <c>https://github.com/hyperledger/indy-sdk/blob/master/docs/configuration.md</c>
+        /// </remarks>
         /// <param name="requestHandle">Handle of a prepared request object.</param>
         /// <param name="endorser">DID of the Endorser that will submit the transaction. The Endorser's DID must be present on the ledger.</param>
-        /// <exception cref="IndyVdrException">Throws if handle is invalid.</exception>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="requestHandle"/> ir <paramref name="endorser"/> are invalid.</exception>
         public static async Task RequestSetEndorserAsync(
             IntPtr requestHandle,
             string endorser)
@@ -144,7 +144,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <param name="requestHandle">Handle of a prepared request object.</param>
         /// <param name="identifier">The DID of the signer.</param>
         /// <param name="signature">The ed25519 signature.</param>
-        /// <exception cref="IndyVdrException">Throws if handle is invalid.</exception>
+        /// <exception cref="IndyVdrException">Throws if any paramter is invalid.</exception>
         public static async Task RequestSetMultiSignatureAsync(
             IntPtr requestHandle,
             string identifier,
@@ -167,7 +167,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// </summary>
         /// <param name="requestHandle">Handle of a prepared request object.</param>
         /// <param name="signature">The ed25519 signature.</param>
-        /// <exception cref="IndyVdrException">Throws if handle is invalid.</exception>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="requestHandle"/> or <paramref name="signature"/> is invalid.</exception>
         public static async Task RequestSetSigantureAsync(
             IntPtr requestHandle,
             string signature)
@@ -187,8 +187,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// Set the TAA acceptance on a prepared request.
         /// </summary>
         /// <param name="requestHandle">Handle of a prepared request object.</param>
-        /// <param name="agreementAcceptance"></param>
-        /// <exception cref="IndyVdrException">Throws if handle is invalid.</exception>
+        /// <param name="agreementAcceptance">TAA to set.</param>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
         public static async Task RequestSetTxnAuthorAgreementAcceptanceAsync(
             IntPtr requestHandle,
             string agreementAcceptance)

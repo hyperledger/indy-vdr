@@ -2,6 +2,10 @@
 {
     public static class ErrorCodeConverter
     {
+        /// <summary>
+        /// Converts the value of <see cref="ErrorCode"/> to the corresponding <see cref="System.String"/> representation for the backend.
+        /// </summary>
+        /// <returns>Matching <see cref="System.String"/> for each provided code to use in error messages.</returns>
         public static string ToErrorCodeString(this ErrorCode errorCode)
         {
             return errorCode switch
@@ -22,6 +26,10 @@
             };
         }
     }
+
+    /// <summary>
+    /// The error codes defined in the backend.
+    /// </summary>
     public enum ErrorCode
     {
         Success = 0,

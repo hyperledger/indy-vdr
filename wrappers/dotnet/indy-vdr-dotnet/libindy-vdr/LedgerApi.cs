@@ -7,22 +7,25 @@ namespace indy_vdr_dotnet.libindy_vdr
     public static class LedgerApi
     {
         /// <summary>
-        /// Builds a SET_TXN_AUTHR_AGRMT_AML request.
-        /// 
-        /// Request to add a new list of acceptance mechanisms for transaction author
-        /// agreement.Acceptance Mechanism is a description of the ways how the user may
-        /// accept a transaction author agreement.
+        /// Builds a <c>SET_TXN_AUTHR_AGRMT_AML</c> request.
         /// </summary>
+        /// <remarks> 
+        /// Request to add a new list of acceptance mechanisms for transaction author
+        /// agreement. Acceptance Mechanism is a description of the ways how the user may
+        /// accept a transaction author agreement.
+        /// </remarks>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as a base58-encoded string.</param>
-        /// <param name="aml">aml: a set of new acceptance mechanisms:
+        /// <param name="aml">A set of new acceptance mechanisms:
         ///    {
         ///        "acceptance mechanism label 1": { description 1},
         ///        "acceptance mechanism label 2": { description 2},
         ///        ...
-        ///    }</param>
+        ///    }
+        /// </param>
         /// <param name="verion">The version of the new acceptance mechanisms. (Note: unique on the Ledger)</param>
         /// <param name="amlContext">(Optional) common context information about acceptance mechanisms (may be a URL to external resource).</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>SET_TXN_AUTHR_AGRMT_AML</c> request.</returns>
         public static async Task<IntPtr> BuildAcceptanceMechanismsRequestAsync(
             string submitterDid,
             string aml,
@@ -47,16 +50,18 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_TXN_AUTHR_AGRMT_AML request.
-        /// 
-        /// Request to get a list of acceptance mechanisms from the ledger valid for specified time, or the latest one.
+        /// Builds a <c>GET_TXN_AUTHR_AGRMT_AML</c> request.
         /// </summary>
-        /// <param name="timestamp">(Optional) time to get an active acceptance mechanisms. The latest one will be returned for the empty timestamp.</param>
+        /// <remarks>
+        /// Request to get a list of acceptance mechanisms from the ledger valid for specified time, or the latest one.
+        /// </remarks>
+        /// <param name="timestamp">(Optional) Unix timestamp to get an active acceptance mechanisms. The latest one will be returned for the empty timestamp.</param>
         /// <param name="version">(Optional) version of acceptance mechanisms.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender (if not provided, then the default Libindy DID will be used).</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_TXN_AUTHR_AGRMT_AML</c> request.</returns>
         public static async Task<IntPtr> BuildGetAcceptanceMechanismsRequestAsync(
-            long timestamp,
+            long timestamp = 0,
             string version = null,
             string submitterDid = null)
         {
@@ -76,16 +81,18 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds an ATTRIB request.
-        /// 
-        /// Request to add attribute to a NYM record.
+        /// Builds an <c>ATTRIB</c> request.
         /// </summary>
+        /// <remarks>
+        /// Request to add attribute to a NYM record.
+        /// </remarks>
         /// <param name="targetDid">Target DID as base58-encoded string for 16 or 32 bit DID value.</param>
         /// <param name="submitterDid">(Optional) Identifier (DID) of the transaction author as base58-encoded string.</param>
         /// <param name="hash">(Optional) Hash of attribute data.</param>
         /// <param name="raw">(Optional) JSON, where key is attribute name and value is attribute value.</param>
         /// <param name="enc">(Optional) Encrypted value attribute data.</param>
-        /// <returns>Returns RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>ATTRIB</c> request.</returns>
         public static async Task<IntPtr> BuildAttributeRequest(
             string targetDid,
             string submitterDid = null,
@@ -111,16 +118,18 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
         /// <summary>
-        /// Builds a GET_ATTRIB request.
-        /// 
-        /// Request to get information about an Attribute for the specified DID.
+        /// Builds a <c>GET_ATTRIB</c> request.
         /// </summary>
+        /// <remarks>
+        /// Request to get information about an Attribute for the specified DID.
+        /// </remarks>
         /// <param name="targetDid">Target DID as base58-encoded string for 16 or 32 bit DID value.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender (if not provided, then the default Libindy DID will be used).</param>
         /// <param name="hash">(Optional) Requested attribute name.</param>
         /// <param name="raw">(Optional) Requested attribute hash.</param>
         /// <param name="enc">(Optional) Requested attribute encrypted value.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_ATTRIB</c> request.</returns>
         public static async Task<IntPtr> BuildGetAttributeRequest(
             string targetDid,
             string submitterDid = null,
@@ -147,13 +156,14 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a CRED_DEF request to to add a credential definition to the ledger.
-        /// 
-        /// In particular, this publishes the public key that the issuer created for
-        /// issuing credentials against a particular schema.
+        /// Builds a <c>CRED_DEF</c> request to to add a credential definition to the ledger.
         /// </summary>
+        /// <remarks>
+        /// In particular, this publishes the public key that the issuer created for
+        /// issuing credentials against a particular schema.</remarks>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string</param>
         /// <param name="credDef">Credential definition.
+        /// <c>
         /// {
         ///     "id": "credential definition identifier",
         ///     "schemaId": "schema identifier",
@@ -169,9 +179,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///                 "revocation": /* Optional */ "revocation credential public key"
         ///             },
         ///     "ver": Version of the CredDef json>
-        ///    }  
-        /// </param>
-        /// <returns>Returns RequestHandle</returns>
+        /// }
+        /// </c>
+        ///</param>
+        ///<exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        ///<returns>Returns the <see cref="IntPtr"/>handle to a <c>CRED_DEF</c> request.</returns>
         public static async Task<IntPtr> BuildCredDefRequest(
             string submitterDid,
             string credDef)
@@ -193,10 +205,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// 
+        /// Builds a custom request.
         /// </summary>
-        /// <param name="requestJson"></param>
-        /// <returns></returns>
+        /// <param name="requestJson">Json <see cref="System.String"/> of a custom request.</param>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="requestJson"/> is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a custom request.</returns>
         public static async Task<IntPtr> BuildCustomRequest(
             string requestJson)
         {
@@ -214,12 +227,14 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a DISABLE_ALL_TXN_AUTHR_AGRMTS request.
-        /// 
-        /// Used to disable all Transaction Author Agreements on the ledger.
+        /// Builds a <c>DISABLE_ALL_TXN_AUTHR_AGRMTS</c> request.
         /// </summary>
+        /// <remarks>
+        /// Used to disable all Transaction Author Agreements on the ledger.
+        /// </remarks>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="submitterDid"/> is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>DISABLE_ALL_TXN_AUTHR_AGRMTS</c> request.</returns>
         public static async Task<IntPtr> BuildDisableAllTxnAuthorAgreementsRequest(
             string submitterDid)
         {
@@ -237,11 +252,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_CRED_DEF request to fetch a credential definition by ID.
+        /// Builds a <c>GET_CRED_DEF</c> request to fetch a credential definition by ID.
         /// </summary>
         /// <param name="credDefDid">ID of the corresponding credential definition on the ledger.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_CRED_DEF</c> request.</returns>
         public static async Task<IntPtr> BuildGetCredDefRequest(
             string credDefDid,
             string submitterDid = null)
@@ -261,11 +277,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_NYM request to get information about a DID (NYM).
+        /// Builds a   request to get information about a DID (NYM).
         /// </summary>
         /// <param name="targetDid">Target DID as base58-encoded string for 16 or 32 bit DID value.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be use).</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_NYM</c> request.</returns>
         public static async Task<IntPtr> BuildGetNymRequest(
             string targetDid,
             string submitterDid = null)
@@ -285,13 +302,15 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_REVOC_REG_DEF request.
-        /// 
-        /// Request to get the revocation registry definition for a given revocation registry ID.
+        /// Builds a <c>GET_REVOC_REG_DEF</c> request.
         /// </summary>
+        /// <remarks>
+        /// Request to get the revocation registry definition for a given revocation registry ID.
+        /// </remarks>
         /// <param name="revocRegId">ID of the corresponding revocation registry definition.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_REVOC_REG_DEF</c> request.</returns>
         public static async Task<IntPtr> BuildGetRevocRegDefRequest(
             string revocRegId,
             string submitterDid = null)
@@ -311,14 +330,16 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_REVOC_REG request.
-        /// 
-        /// Request to get the accumulated state of the revocation registry by ID. The state is defined by the given timestamp.
+        /// Builds a <c>GET_REVOC_REG</c> request.
         /// </summary>
+        /// <remarks>
+        /// Request to get the accumulated state of the revocation registry by ID. The state is defined by the given timestamp.
+        /// </remarks>
         /// <param name="revocRegId">ID of the corresponding revocation registry definition.</param>
         /// <param name="timestamp">Requested time represented as a total number of seconds since the Unix epoch.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_REVOC_REG</c> request.</returns>
         public static async Task<IntPtr> BuildGetRevocRegRequest(
             string revocRegId,
             long timestamp,
@@ -338,18 +359,21 @@ namespace indy_vdr_dotnet.libindy_vdr
             }
             return requestHandle;
         }
+
         /// <summary>
-        /// Builds a GET_REVOC_REG_DELTA request.
-        /// 
-        /// Request to get the delta of the accumulated state of the revocation registry
-        /// identified by `revoc_reg_id`. The delta is defined by from and to timestamp fields.
-        /// If from is not specified, then the whole state until `to` will be returned.
+        /// Builds a <c>GET_REVOC_REG_DELTA</c> request.
         /// </summary>
+        /// <remarks>
+        /// Request to get the delta of the accumulated state of the revocation registry
+        /// identified by `<c>revoc_reg_id</c>`. The delta is defined by from and to timestamp fields.
+        /// If from is not specified, then the whole state until `<c>to</c>` will be returned.
+        /// </remarks>
         /// <param name="revocRegId">ID of the corresponding revocation registry definition.</param>
         /// <param name="toTs">Requested time represented as a total number of seconds from Unix epoch.</param>
         /// <param name="fromTs">Requested time represented as a total number of seconds from Unix epoch.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_REVOC_REG_DELTA</c> request.</returns>
         public static async Task<IntPtr> BuildGetRevocRegDeltaRequestAsync(
             string revocRegId,
             long toTs,
@@ -374,11 +398,12 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_SCHEMA request to fetch a credential schema by ID.
+        /// Builds a <c>GET_SCHEMA</c> request to fetch a credential schema by ID.
         /// </summary>
         /// <param name="schemaId">ID of the corresponding schema on the ledger.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_SCHEMA</c> request.</returns>
         public static async Task<IntPtr> BuildGetSchemaRequestAsync(
             string schemaId,
             string submitterDid = null)
@@ -399,21 +424,22 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_TXN_AUTHR_AGRMT request.
-        /// 
-        /// Used to get a specific Transaction Author Agreement from the ledger.
+        /// Builds a <c>GET_TXN_AUTHR_AGRMT</c> request.
         /// </summary>
+        /// <remarks>
+        /// Used to get a specific Transaction Author Agreement from the ledger.
+        /// </remarks>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
-        /// <param name="data">(Optional) specifies conditions for getting a specific TAA
-        /// Contains 3 mutually exclusive optional fields:
+        /// <param name="data">(Optional) specifies conditions for getting a specific TAA. Contains 3 mutually exclusive optional fields:
         /// {
         ///     hash: Optional<str> - hash of requested TAA,
         ///     version: Optional<str> - version of requested TAA.
         ///     imestamp: Optional<i64> - ledger will return TAA valid at requested timestamp.
         /// }
-        /// Null data or empty JSON are acceptable here. In this case, ledger willreturn the latest version of the TAA.
+        /// Null data or empty JSON are acceptable here. In this case, ledger will return the latest version of the TAA.
         /// </param>
-        /// <returns>Returns a RequestHandle.</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_TXN_AUTHR_AGRMT</c> request.</returns>
         public static async Task<IntPtr> BuildGetTxnAuthorAgreementRequestAsync(
             string submitterDid = null,
             string data = null)
@@ -434,12 +460,13 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a GET_TXN request to get any transaction by its sequence number.
+        /// Builds a <c>GET_TXN request</c> to get any transaction by its sequence number.
         /// </summary>
-        /// <param name="ledgerType">Type of the ledger the requested transaction belongs to pass a `LedgerType` instance for known values.</param>
+        /// <param name="ledgerType">Type of the ledger the requested transaction belongs to pass a `<c>LedgerType</c>` instance for known values.</param>
         /// <param name="seqNo">Requested transaction sequence number as it's stored on the ledger.</param>
         /// <param name="submitterDid">(Optional) DID of the read request sender. If not provided then the default Libindy DID will be used.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_TXN request</c> request.</returns>
         public static async Task<IntPtr> BuildGetTxnRequestAsync(
             int ledgerType,
             int seqNo,
@@ -461,10 +488,11 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
         /// <summary>
-        /// Builds a GET_VALIDATOR_INFO request.
+        /// Builds a <c>GET_VALIDATOR_INFO</c> request.
         /// </summary>
         /// <param name="submitterDid">DID of the request sender.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if <paramref name="submitterDid"/> is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>GET_VALIDATOR_INFO</c> request.</returns>
         public static async Task<IntPtr> BuildGetValidatorInfoRequestAsync(
             string submitterDid)
         {
@@ -482,21 +510,22 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
         /// <summary>
-        /// Builds a NYM request to create new DID on the ledger.
+        /// Builds a <c>NYM</c> request to create new DID on the ledger.
         /// </summary>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string.</param>
         /// <param name="dest">Target DID as base58-encoded string for 16 or 32 bit DID value.</param>
         /// <param name="verkey">(Optional) Target identity verification key as base58-encoded string.</param>
         /// <param name="alias">(Optional) The NYM's alias.</param>
         /// <param name="role">(Optional) Role of a user NYM record:
-        ///    null (common USER)
-        ///    TRUSTEE
-        ///    STEWARD
-        ///    TRUST_ANCHOR
-        ///    ENDORSER - equal to TRUST_ANCHOR that will be removed soon
-        ///    NETWORK_MONITOR
+        ///    <c>null</c> (common USER),
+        ///    <c>TRUSTEE</c>,
+        ///    <c>STEWARD</c>,
+        ///    <c>TRUST_ANCHOR</c>,
+        ///    <c>ENDORSER</c> - equal to TRUST_ANCHOR that will be removed soon,
+        ///    <c>NETWORK_MONITOR</c>,
         ///    empty string to reset role</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>NYM</c> request.</returns>
         public static async Task<IntPtr> BuildNymRequestAsync(
             string submitterDid,
             string dest,
@@ -523,10 +552,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a REVOC_REG_DEF request.
-        /// 
-        /// Request to add the definition of revocation registry to an existing credential definition.
+        /// Builds a <c>REVOC_REG_DEF</c> request.
         /// </summary>
+        /// <remarks>
+        /// Request to add the definition of revocation registry to an existing credential definition.
+        /// </remarks>
         /// <param name="submitterDid">Request to add the definition of revocation registry to an existing credential definition.</param>
         /// <param name="revocRegDefJson">revoc_reg_def: Revocation Registry data:
         /// jsonc
@@ -546,8 +576,10 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///      "publicKeys": { /* <public_keys> */ } // registry's public keys
         ///  },
         ///  "ver": "version of revocation registry definition json"
-        ///}</param>
-        /// <returns>Returns a RequestHandle</returns>
+        ///}
+        ///</param>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>REVOC_REG_DEF</c> request.</returns>
         public static async Task<IntPtr> BuildRevocRegDefRequestAsync(
             string submitterDid,
             string revocRegDefJson)
@@ -567,12 +599,13 @@ namespace indy_vdr_dotnet.libindy_vdr
             return requestHandle;
         }
         /// <summary>
-        /// Builds a REVOC_REG_ENTRY request.
-        /// 
+        /// Builds a <c>REVOC_REG_ENTRY</c> request.
+        /// </summary>
+        /// <remarks>
         /// Request to add the revocation registry entry containing the new accumulator value and issued/revoked indices. 
         /// This is just a delta of indices, not the whole list. 
         /// It can be sent each time a new credential is issued/revoked.
-        /// </summary>
+        /// </remarks>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string.</param>
         /// <param name="revocRegDefId"></param>
         /// <param name="revocRegDefType"></param>
@@ -587,7 +620,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///     "ver": "version of the revocation registry entry json"
         /// }
         /// </param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>REVOC_REG_ENTRY</c> request.</returns>
         public static async Task<IntPtr> BuildRevocRegEntryRequestAsync(
             string submitterDid,
             string revocRegDefId,
@@ -612,7 +646,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a SCHEMA request to to add a credential schema to the ledger.
+        /// Builds a <c>SCHEMA</c> request to to add a credential schema to the ledger.
         /// </summary>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string</param>
         /// <param name="schemaJson">Credential schema:
@@ -624,7 +658,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///     "ver": "version of the schema json"
         ///}
         /// </param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>SCHEMA</c> request.</returns>
         public static async Task<IntPtr> BuildSchemaRequestAsync(
             string submitterDid,
             string schemaJson)
@@ -644,10 +679,11 @@ namespace indy_vdr_dotnet.libindy_vdr
         }
 
         /// <summary>
-        /// Builds a TXN_AUTHR_AGRMT request.
-        /// 
-        /// Used to add a new version of the Transaction Author Agreement to the ledger.
+        /// Builds a <c>TXN_AUTHR_AGRMT</c> request.
         /// </summary>
+        /// <remarks>
+        /// Used to add a new version of the Transaction Author Agreement to the ledger.
+        /// </remarks>
         /// <param name="submitterDid">Identifier (DID) of the transaction author as base58-encoded string.</param>
         /// <param name="text">(Optional) the content of the TAA. Mandatory in case of adding a new TAA.
         /// An existing TAA text can not be changed.
@@ -663,7 +699,8 @@ namespace indy_vdr_dotnet.libindy_vdr
         ///     Must be specified in case of adding a new TAA
         ///     Can be omitted in case of updating an existing TAA</param>
         /// <param name="retirementTs">(Optional) the date (timestamp) of TAA retirement.</param>
-        /// <returns>Returns a RequestHandle</returns>
+        /// <exception cref="IndyVdrException">Throws if any parameter is invalid.</exception>
+        /// <returns>Returns the <see cref="IntPtr"/> handle to a <c>TXN_AUTHR_AGRMT</c> request.</returns>
         public static async Task<IntPtr> BuildTxnAuthorAgreementRequestAsync(
             string submitterDid,
             string text,
