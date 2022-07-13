@@ -12,7 +12,7 @@
 	  <Company>Hyperledger Indy</Company>
 	  <Product>Hyperledger Indy-VDR</Product>
 	  <Description>
-		  .NET wrapper for the Hyperledger indy-vdr.
+		  .NET wrapper for the Hyperledger Indy-VDR.
 	  </Description>
 	  <PackageProjectUrl>https://github.com/hyperledger/indy-vdr</PackageProjectUrl>
 	  <RepositoryUrl>https://github.com/hyperledger/indy-vdr</RepositoryUrl>
