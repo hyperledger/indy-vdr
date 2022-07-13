@@ -83,7 +83,11 @@ macro_rules! unwrap_or_map_return {
     ($result:expr, $on_err:expr) => {
         match $result {
             Ok(res) => res,
-            Err(err) => return ($on_err)(err),
+            Err(err) =>
+            {
+                #[allow(clippy::redundant_closure_call)]
+                return ($on_err)(err)
+            }
         }
     };
 }

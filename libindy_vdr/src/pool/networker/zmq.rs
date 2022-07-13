@@ -21,13 +21,8 @@ new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
 new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
 
 /// ZeroMQ `NetworkerFactory` implementation
+#[derive(Default)]
 pub struct ZMQNetworkerFactory;
-
-impl ZMQNetworkerFactory {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 impl NetworkerFactory for ZMQNetworkerFactory {
     type Output = ZMQNetworker;
@@ -40,7 +35,7 @@ impl NetworkerFactory for ZMQNetworkerFactory {
         let worker = thread::spawn(move || {
             let mut zmq_thread = ZMQThread::new(config, zmq_ctx, cmd_recv, evt_recv, remotes);
             if let Err(err) = zmq_thread.work() {
-                warn!("ZMQ worker exited with error: {}", err.to_string())
+                warn!("ZMQ worker exited with error: {}", err)
             } else {
                 trace!("ZMQ worker exited");
             }
@@ -74,7 +69,7 @@ impl Networker for ZMQNetworker {
 
 impl Drop for ZMQNetworker {
     fn drop(&mut self) {
-        if let Err(_) = self.cmd_send.send("exit", 0) {
+        if self.cmd_send.send("exit", 0).is_err() {
             trace!("Networker command socket already closed")
         } else {
             trace!("Networker thread told to exit")
@@ -172,7 +167,7 @@ impl ZMQThread {
                 return Ok(PollResult::Exit);
             }
         }
-        if events.len() > 0 {
+        if !events.is_empty() {
             trace!("Got {} events", events.len());
             return Ok(PollResult::Events(events));
         } else {
@@ -181,13 +176,13 @@ impl ZMQThread {
         if poll_items.len() == 1 {
             return Ok(PollResult::NoSockets);
         }
-        return Ok(PollResult::Default);
+        Ok(PollResult::Default)
     }
 
     fn process_event(&mut self, conn_id: ZMQConnectionHandle, event: ConnectionEvent) {
         let (req_id, fwd) = match event {
             ConnectionEvent::Reply(message, meta, node_alias, time) => {
-                let req_id = meta.request_id().unwrap_or("".to_owned());
+                let req_id = meta.request_id().unwrap_or_default();
                 if let Some(conn) = self.pool_connections.get_mut(&conn_id) {
                     conn.clean_idle_timeout(&req_id);
                 }
@@ -300,7 +295,7 @@ impl ZMQThread {
         self.requests.insert(handle, pending);
         self.requests
             .get_mut(&handle)
-            .ok_or(input_err("Error adding request"))
+            .ok_or_else(|| input_err("Error adding request"))
     }
 
     fn remove_request(&mut self, handle: RequestHandle) {
@@ -324,7 +319,7 @@ impl ZMQThread {
             self.pool_connections.remove(delete);
             // DEBUG test active sockets
             let (_, poll_items) = self.get_poll_items();
-            if poll_items.len() == 0 {
+            if poll_items.is_empty() {
                 trace!("No more sockets!");
             }
         }
@@ -407,7 +402,10 @@ impl ZMQThread {
             .filter(|conn| {
                 conn.is_active() && conn.req_cnt < req_limit && !conn.seen_request(sub_id.as_str())
             });
-        if conn.is_none() {
+        if let Some(conn) = conn {
+            conn.init_request(sub_id);
+            Ok(conn_id.unwrap())
+        } else {
             let mut conn = ZMQConnection::new(
                 self.zmq_ctx.clone(),
                 self.remotes.clone(),
@@ -422,9 +420,6 @@ impl ZMQThread {
             self.last_connection.replace(pc_id);
             debug!("New {}", pc_id);
             Ok(pc_id)
-        } else {
-            conn.unwrap().init_request(sub_id);
-            Ok(conn_id.unwrap())
         }
     }
 
@@ -558,14 +553,14 @@ impl ZMQConnection {
             let min_idle = self
                 .idle_timeouts
                 .iter()
-                .min_by(|&(_, inst1), &(_, inst2)| inst1.cmp(&inst2))
+                .min_by(|&(_, inst1), &(_, inst2)| inst1.cmp(inst2))
                 .map(|(req_id, inst)| ((req_id.as_str(), ""), inst));
             if let Some(((req_id, node_alias), timeout)) = self
                 .socket_timeouts
                 .iter()
                 .map(|((req_id, alias), inst)| ((req_id.as_str(), alias.as_str()), inst))
                 .chain(min_idle)
-                .min_by(|(_, ref val1), (_, ref val2)| val1.cmp(&val2))
+                .min_by(|(_, ref val1), (_, ref val2)| val1.cmp(val2))
             {
                 (Some((req_id.to_string(), node_alias.to_string())), *timeout)
             } else {
@@ -647,11 +642,10 @@ impl ZMQConnection {
                     .socket_timeouts
                     .remove(&(req_id.to_string(), node_alias))
                     .is_some()
-                    && self
+                    && !self
                         .socket_timeouts
                         .keys()
-                        .find(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
-                        .is_none()
+                        .any(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
                 {
                     self.set_idle_timeout(req_id.to_string())
                 }
@@ -736,8 +730,8 @@ impl RemoteNode {
                 .as_bytes(),
         )?;
         s.set_linger(0)?; //TODO set correct timeout
-        if socks_proxy.is_some() {
-            let proxy = socks_proxy.unwrap();
+        if let Some(socks_proxy) = socks_proxy {
+            let proxy = socks_proxy;
             debug!("Use socks proxy: {}", proxy);
             let result = s.set_socks_proxy(Some(&proxy));
             if result.is_err() {
@@ -818,9 +812,6 @@ struct PendingRequest {
 
 impl PendingRequest {
     fn send_event(&mut self, event: RequestExtEvent) -> bool {
-        if let Err(_) = self.sender.unbounded_send(event) {
-            return false;
-        }
-        return true;
+        self.sender.unbounded_send(event).is_ok()
     }
 }
