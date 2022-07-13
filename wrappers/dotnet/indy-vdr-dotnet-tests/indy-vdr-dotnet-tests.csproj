@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Resources\ew_builder" />
+    <None Remove="Resources\genesis_builder" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\ew_builder" />
+    <EmbeddedResource Include="Resources\genesis_builder" />
   </ItemGroup>
 
   <ItemGroup>
