@@ -9,10 +9,10 @@ use indy_vdr::utils::did::DidValue;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
 
-const ATTRIB_RAW_DATA_FIELD: &'static str = r#"endpoint"#;
-const ATTRIB_HASH_DATA: &'static str =
+const ATTRIB_RAW_DATA_FIELD: &str = r#"endpoint"#;
+const ATTRIB_HASH_DATA: &str =
     r#"83d907821df1c87db829e96569a11f6fc2e7880acba5e43d07ab786959e13bd3"#;
-const ATTRIB_ENC_DATA: &'static str = r#"aa3f41f619aa7e5e6b6d0de555e05331787f9bf9aa672b94b57ab65b9b66c3ea960b18a98e3834b1fc6cebf49f463b81fd6e3181"#;
+const ATTRIB_ENC_DATA: &str = r#"aa3f41f619aa7e5e6b6d0de555e05331787f9bf9aa672b94b57ab65b9b66c3ea960b18a98e3834b1fc6cebf49f463b81fd6e3181"#;
 
 fn attrib_raw_data() -> serde_json::Value {
     json!({ "endpoint": { "ha": "127.0.0.1:5555" } })

@@ -75,12 +75,12 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                         if cnt > f
                             || (request_with_state_proof
                                 && check_state_proof(
-                                    &result,
+                                    result,
                                     f,
                                     &*DEFAULT_GENERATOR,
                                     &node_keys,
                                     &raw_msg,
-                                    state_proof_key.as_ref().map(Vec::as_slice),
+                                    state_proof_key.as_deref(),
                                     state_proof_timestamps,
                                     last_write_time,
                                     config.freshness_threshold,

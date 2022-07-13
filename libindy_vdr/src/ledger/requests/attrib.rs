@@ -85,7 +85,7 @@ impl RequestType for GetAttribOperation {
             let marker = get_sp_key_marker(1, protocol_version);
             let hash = SHA256::digest(attr_name.as_bytes());
             return Ok(Some(
-                format!("{}:{}:{}", self.dest.to_string(), marker, hex::encode(hash))
+                format!("{}:{}:{}", &*self.dest, marker, hex::encode(hash))
                     .as_bytes()
                     .to_vec(),
             ));

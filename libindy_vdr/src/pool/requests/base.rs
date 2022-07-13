@@ -119,11 +119,10 @@ where
         let verifiers = &self.pool_setup.as_ref().verifiers;
         HashMap::from_iter(self.node_order.iter().flat_map(|alias| {
             verifiers.get(alias).and_then(|entry| {
-                if let Some(bls_key) = entry.bls_key.as_ref() {
-                    Some((alias.clone(), bls_key.clone()))
-                } else {
-                    None
-                }
+                entry
+                    .bls_key
+                    .as_ref()
+                    .map(|bls_key| (alias.clone(), bls_key.clone()))
             })
         }))
     }
@@ -155,7 +154,7 @@ where
         let nodes = (min..max)
             .map(|idx| aliases[idx].clone())
             .collect::<Vec<String>>();
-        if nodes.len() > 0 {
+        if !nodes.is_empty() {
             self.trigger(NetworkerEvent::Dispatch(
                 self.handle,
                 nodes.clone(),
@@ -173,7 +172,7 @@ where
             .filter(|n| node_aliases.contains(n))
             .cloned()
             .collect::<Vec<String>>();
-        if aliases.len() > 0 {
+        if !aliases.is_empty() {
             self.trigger(NetworkerEvent::Dispatch(
                 self.handle,
                 aliases.clone(),

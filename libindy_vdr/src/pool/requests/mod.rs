@@ -89,13 +89,13 @@ impl RequestTiming {
     }
 
     pub fn received(&mut self, node_alias: &str, recv_time: SystemTime) {
-        self.replies.get_mut(node_alias).map(|node| {
+        if let Some(node) = self.replies.get_mut(node_alias) {
             let duration = recv_time
                 .duration_since(node.0)
                 .unwrap_or(Duration::new(0, 0))
                 .as_secs_f32();
             node.1 = duration;
-        });
+        }
     }
 
     pub fn result(&self) -> Option<TimingResult> {

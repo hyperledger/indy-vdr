@@ -66,7 +66,7 @@ impl RequestType for GetRevRegOperation {
     fn get_sp_key(&self, protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let marker = get_sp_key_marker(6, protocol_version);
         Ok(Some(
-            format!("{}:{}", marker, self.revoc_reg_def_id.to_string())
+            format!("{}:{}", marker, self.revoc_reg_def_id)
                 .as_bytes()
                 .to_vec(),
         ))
@@ -111,7 +111,7 @@ impl RequestType for GetRevRegDeltaOperation {
     fn get_sp_key(&self, protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let marker = get_sp_key_marker(if self.from.is_some() { 6 } else { 5 }, protocol_version);
         Ok(Some(
-            format!("{}:{}", marker, self.revoc_reg_def_id.to_string())
+            format!("{}:{}", marker, self.revoc_reg_def_id)
                 .as_bytes()
                 .to_vec(),
         ))

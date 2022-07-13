@@ -47,7 +47,7 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
         )
         .unwrap();
 
-    sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+    sign_and_send_request(&trustee, pool, &mut nym_request).unwrap();
 
     new_identity
 }
@@ -55,10 +55,10 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
 pub fn sign_and_send_request(
     identity: &Identity,
     pool: &TestPool,
-    mut request: &mut PreparedRequest,
+    request: &mut PreparedRequest,
 ) -> Result<String, String> {
-    identity.sign_request(&mut request);
-    pool.send_request(&request)
+    identity.sign_request(&mut *request);
+    pool.send_request(request)
 }
 
 pub fn sign_and_send_full_request(
@@ -98,8 +98,8 @@ pub mod schema {
     use indy_vdr::ledger::requests::schema::{AttributeNames, Schema, SchemaV1};
     use std::collections::HashSet;
 
-    pub const NAME: &'static str = "gvt";
-    pub const VERSION: &'static str = "1.0";
+    pub const NAME: &str = "gvt";
+    pub const VERSION: &str = "1.0";
 
     pub fn attributes() -> AttributeNames {
         let mut attributes = HashSet::new();
@@ -150,7 +150,7 @@ pub mod schema {
             .build_schema_request(&identity.did, Schema::SchemaV1(schema.clone()))
             .unwrap();
 
-        let schema_response = sign_and_send_request(&identity, &pool, &mut schema_request).unwrap();
+        let schema_response = sign_and_send_request(identity, pool, &mut schema_request).unwrap();
 
         let seq_no = TestPool::extract_seq_no_from_reply(&schema_response).unwrap();
         (schema.id.clone(), seq_no)
@@ -160,10 +160,10 @@ pub mod schema {
         // Get Schema
         let get_schema_request = pool
             .request_builder()
-            .build_get_schema_request(None, &schema_id)
+            .build_get_schema_request(None, schema_id)
             .unwrap();
 
-        pool.send_request_with_retries(&get_schema_request, &schema_response)
+        pool.send_request_with_retries(&get_schema_request, schema_response)
             .unwrap();
     }
 }
@@ -176,7 +176,7 @@ pub mod cred_def {
     };
 
     pub const SCHEMA_SEQ_NO: u64 = 1;
-    pub const TAG: &'static str = "tag";
+    pub const TAG: &str = "tag";
     pub const TYPE: SignatureType = SignatureType::CL;
 
     pub fn build_cred_def_id(did: &DidValue, schema_seq_no: u64) -> CredentialDefinitionId {
@@ -244,7 +244,7 @@ pub mod cred_def {
             .unwrap();
 
         let _cred_def_response =
-            sign_and_send_request(&identity, &pool, &mut cred_def_request).unwrap();
+            sign_and_send_request(identity, pool, &mut cred_def_request).unwrap();
 
         cred_def_id
     }
@@ -259,7 +259,7 @@ pub mod revoc_reg {
         RevocationRegistryDefinitionValue,
     };
 
-    pub const TAG: &'static str = "tag";
+    pub const TAG: &str = "tag";
     pub const REVOC_DEF_TYPE: RegistryType = RegistryType::CL_ACCUM;
     pub const FROM: i64 = 123456789;
     pub const TO: i64 = 987654321;
@@ -337,7 +337,7 @@ pub mod revoc_reg {
             .unwrap();
 
         let _cred_def_response =
-            sign_and_send_request(&identity, &pool, &mut revoc_reg_def_request).unwrap();
+            sign_and_send_request(identity, pool, &mut revoc_reg_def_request).unwrap();
 
         revoc_reg_def_id
     }
@@ -385,7 +385,7 @@ pub mod taa {
             )
             .unwrap();
 
-        sign_and_send_request(&trustee, &pool, &mut request).unwrap()
+        sign_and_send_request(trustee, pool, &mut request).unwrap()
     }
 
     pub fn set_taa(pool: &TestPool, trustee: &Identity) -> (String, String, String, u64) {
@@ -399,7 +399,7 @@ pub mod taa {
             .request_builder()
             .build_disable_all_txn_author_agreements_request(&trustee.did)
             .unwrap();
-        let _response = sign_and_send_request(&trustee, &pool, &mut request).unwrap();
+        let _response = sign_and_send_request(trustee, pool, &mut request).unwrap();
     }
 
     pub fn set_aml(
@@ -417,7 +417,7 @@ pub mod taa {
                 Some(aml_context.clone()),
             )
             .unwrap();
-        let response = sign_and_send_request(&trustee, &pool, &mut request).unwrap();
+        let response = sign_and_send_request(trustee, pool, &mut request).unwrap();
 
         (response, aml, aml_label, aml_version, aml_context)
     }
