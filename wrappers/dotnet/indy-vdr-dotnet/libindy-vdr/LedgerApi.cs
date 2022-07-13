@@ -32,7 +32,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string verion,
             string amlContext = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_acceptance_mechanisms_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(aml),
@@ -65,7 +65,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string version = null,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_acceptance_mechanisms_request(
                 FfiStr.Create(submitterDid),
                 timestamp,
@@ -100,7 +100,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string raw = null,
             string enc = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_attrib_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
@@ -137,7 +137,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string raw = null,
             string enc = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_attrib_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
@@ -188,7 +188,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string submitterDid,
             string credDef)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_cred_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(credDef),
@@ -213,7 +213,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<IntPtr> BuildCustomRequest(
             string requestJson)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_custom_request(
                 FfiStr.Create(requestJson),
                 ref requestHandle);
@@ -238,7 +238,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<IntPtr> BuildDisableAllTxnAuthorAgreementsRequest(
             string submitterDid)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_disable_all_txn_author_agreements_request(
                 FfiStr.Create(submitterDid),
                 ref requestHandle);
@@ -262,7 +262,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string credDefDid,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_cred_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(credDefDid),
@@ -287,7 +287,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string targetDid,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_nym_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
@@ -315,7 +315,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string revocRegId,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegId),
@@ -345,7 +345,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             long timestamp,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegId),
@@ -380,7 +380,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             long fromTs = -1,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_revoc_reg_delta_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegId),
@@ -408,7 +408,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string schemaId,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_schema_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(schemaId),
@@ -444,7 +444,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string submitterDid = null,
             string data = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_txn_author_agreement_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(data),
@@ -472,7 +472,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             int seqNo,
             string submitterDid = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_txn_request(
                 FfiStr.Create(submitterDid),
                 ledgerType,
@@ -496,7 +496,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<IntPtr> BuildGetValidatorInfoRequestAsync(
             string submitterDid)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_validator_info_request(
                 FfiStr.Create(submitterDid),
                 ref requestHandle);
@@ -533,7 +533,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string alias = null,
             string role = null)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_nym_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(dest),
@@ -584,7 +584,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string submitterDid,
             string revocRegDefJson)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_revoc_reg_def_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegDefJson),
@@ -628,7 +628,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string revocRegDefType,
             string revocRegEntryJson)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_revoc_reg_entry_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(revocRegDefId),
@@ -664,7 +664,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string submitterDid,
             string schemaJson)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_schema_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(schemaJson),
@@ -708,7 +708,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             long ratificationTs,
             long retirementTs)
         {
-            IntPtr requestHandle = new();
+            IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_txn_author_agreement_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(text),

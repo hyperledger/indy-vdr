@@ -24,7 +24,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             string transactionsPath = null,
             Dictionary<string, float> nodeWeights = null)
         {
-            IntPtr poolHandle = new();
+            IntPtr poolHandle = new IntPtr();
             string paramsJson = JsonConvert.SerializeObject(new
             {
                 transactions,

@@ -13,7 +13,7 @@ namespace indy_vdr_dotnet.models
 
             public static FfiStr Create(string arg)
             {
-                FfiStr ffiString = new();
+                FfiStr ffiString = new FfiStr();
                 ffiString.data = new IntPtr();
                 if (arg != null)
                 {
@@ -34,7 +34,7 @@ namespace indy_vdr_dotnet.models
                 UTF8Encoding decoder = new UTF8Encoding(true, true);
                 byte[] bytes = new byte[json.Length];
                 decoder.GetBytes(json, 0, json.Length, bytes, 0);
-                ByteBuffer buffer = new();
+                ByteBuffer buffer = new ByteBuffer();
                 buffer.len = (uint)json.Length;
                 fixed (byte* bytebuffer_p = &bytes[0])
                 {
