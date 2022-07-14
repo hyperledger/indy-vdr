@@ -19,8 +19,7 @@ namespace indy_vdr_dotnet
             string msg = JsonConvert.DeserializeObject<Dictionary<string, string>>(message)["message"];
             string errorCode = JsonConvert.DeserializeObject<Dictionary<string, string>>(message)["code"];
             string extra = JsonConvert.DeserializeObject<Dictionary<string, string>>(message)["extra"];
-            int errCodeInt;
-            if (int.TryParse(errorCode, out errCodeInt))
+            if (int.TryParse(errorCode, out int errCodeInt))
             {
                 return new IndyVdrException(
                     $"'{((ErrorCode)errCodeInt).ToErrorCodeString()}' error occured with ErrorCode '{errorCode}' and extra: '{extra}': {msg}.");
@@ -28,7 +27,7 @@ namespace indy_vdr_dotnet
             else
             {
                 return new IndyVdrException("An unknown error code was received.");
-            }     
+            }
         }
     }
 }

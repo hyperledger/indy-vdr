@@ -17,7 +17,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         public void OneTimeSetUp()
         {
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\ew_builder");
+            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\genesis_builder");
             _genesisFilePath = Path.GetFullPath(genesisFile);
         }
 
@@ -169,7 +169,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Act
             string actual = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
-            var actualJson = Newtonsoft.Json.JsonConvert.DeserializeObject(actual);
 
             //Assert
             _ = actual.Should().NotBe("");
@@ -201,7 +200,6 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
 
             //Act
             string actual = await PoolApi.SubmitPoolActionAsync(testPoolHandle, testRequestHandle, testNodes);
-            var actualJson = Newtonsoft.Json.JsonConvert.DeserializeObject(actual);
 
             //Assert
             _ = actual.Should().NotBe("");

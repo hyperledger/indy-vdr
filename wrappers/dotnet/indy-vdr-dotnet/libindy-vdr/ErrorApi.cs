@@ -11,7 +11,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static Task<string> GetCurrentErrorAsync()
         {
             string result = "";
-            NativeMethods.indy_vdr_get_current_error(ref result);
+            _ = NativeMethods.indy_vdr_get_current_error(ref result);
             return Task.FromResult(result);
         }
     }

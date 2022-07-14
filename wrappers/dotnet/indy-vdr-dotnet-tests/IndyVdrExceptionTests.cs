@@ -42,7 +42,7 @@ namespace indy_vdr_dotnet_tests
         }
 
         [Test, TestCaseSource(nameof(CreateErrorCodeCases))]
-        public async Task IndyVdrExceptionsRightMessages(string testMessage, string testExtra, string errorCode, string expected)
+        public Task IndyVdrExceptionsRightMessages(string testMessage, string testExtra, string errorCode, string expected)
         {
             //Arrange
             string testErrorMessage = $"{{\"code\":\"{errorCode}\",\"message\":\"{testMessage}\",\"extra\":\"{testExtra}\" }}";
@@ -58,6 +58,7 @@ namespace indy_vdr_dotnet_tests
             //Assert
             actual.Should().Be(expected);
             Console.WriteLine(testException.Message);
+            return Task.CompletedTask;
         }
     }
 }
