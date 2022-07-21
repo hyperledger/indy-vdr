@@ -87,11 +87,14 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Arrange 
             string testSubmitterDid = "LibindyDid111111111111";
             string testTargetDid = "LibindyDid111111111111";
-
+            string testRaw = "{\"name\":\"Alex\"}";
             //Act
             IntPtr testObject = await LedgerApi.BuildAttributeRequest(
                 testTargetDid,
-                testSubmitterDid);
+                testSubmitterDid,
+                null,
+                testRaw,
+                null);
 
             //Assert
             _ = testObject.Should().NotBe(new IntPtr());

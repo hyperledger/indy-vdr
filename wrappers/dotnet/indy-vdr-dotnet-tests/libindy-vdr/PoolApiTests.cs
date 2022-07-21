@@ -160,13 +160,51 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
         #endregion
 
         #region Tests for SubmitPoolRequestAsync
-        [Test, TestCase(TestName = "SubmitPoolRequestAsync call returns a result string.")]
+        [Test, TestCase(TestName = "SubmitPoolRequestAsync call returns a result string for GET_SCHEMA request.")]
         public async Task SubmitPoolRequestAsyncWorks()
         {
             //Arrange
             IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
-            IntPtr testRequestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+            string testSchemaId = "9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0";
 
+            IntPtr testRequestHandle = await LedgerApi.BuildGetSchemaRequestAsync(testSchemaId);
+            string debug = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+
+            //Act
+            string actual = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+            
+            //Assert
+            _ = actual.Should().NotBe("");
+        }
+
+        [Test, TestCase(TestName = "SubmitPoolRequestAsync call returns a result string for GET_CRED_DEF request.")]
+        public async Task SubmitPoolRequestAsyncWorksCredDef()
+        {
+            //Arrange
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            string testCredDefDid = "A9Rsuu7FNquw8Ne2Smu5Nr:3:CL:15:tag";
+            string testSubmitterDid = "LibindyDid111111111111";
+
+            IntPtr testRequestHandle = await LedgerApi.BuildGetCredDefRequest(testCredDefDid, testSubmitterDid);
+            string debug = await RequestApi.RequestGetBodyAsync(testRequestHandle);
+
+            //Act
+            string actual = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+
+            //Assert
+            _ = actual.Should().NotBe("");
+        }
+
+        [Test, TestCase(TestName = "SubmitPoolRequestAsync call returns a result string for GET_ATTRIB request.")]
+        public async Task SubmitPoolRequestAsyncWorksGetAttr()
+        {
+            //Arrange
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            string testSubmitterDid = "LibindyDid111111111111";
+            string testTargetDid = "LibindyDid111111111111";
+
+            IntPtr testRequestHandle = await LedgerApi.BuildGetAttributeRequest(testTargetDid, testSubmitterDid, "name", null, null);
+            string debug = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             //Act
             string actual = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
 

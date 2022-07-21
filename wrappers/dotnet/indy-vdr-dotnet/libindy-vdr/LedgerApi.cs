@@ -133,16 +133,16 @@ namespace indy_vdr_dotnet.libindy_vdr
         public static async Task<IntPtr> BuildGetAttributeRequest(
             string targetDid,
             string submitterDid = null,
-            string hash = null,
             string raw = null,
+            string hash = null,
             string enc = null)
         {
             IntPtr requestHandle = new IntPtr();
             int errorCode = NativeMethods.indy_vdr_build_get_attrib_request(
                 FfiStr.Create(submitterDid),
                 FfiStr.Create(targetDid),
-                FfiStr.Create(hash),
                 FfiStr.Create(raw),
+                FfiStr.Create(hash),
                 FfiStr.Create(enc),
                 ref requestHandle);
 
