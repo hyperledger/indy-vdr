@@ -45,7 +45,7 @@
     "example": "yarn --cwd example"
   },
   "dependencies": {
-    "indy-vdr-shared": "/Users/beri/Developer/work/essif/vdr/indy-vdr/wrappers/javascript/shared"
+    "indy-vdr-shared": "*"
   },
   "devDependencies": {
     "@types/react": "^16.9.19",
