@@ -10,8 +10,8 @@ using namespace facebook;
 
 namespace turboModuleUtility {
 
-std::string errorPrefix = "Value `";
-std::string errorInfix = "` is not of type ";
+static const std::string errorPrefix = "Value `";
+static const std::string errorInfix = "` is not of type ";
 
 // state of a callback function
 struct State {
