@@ -2,7 +2,12 @@
 
 namespace turboModuleUtility {
 
-void registerTurboModule(jsi::Runtime &rt) {
+std::shared_ptr<react::CallInvoker> invoker;
+
+void registerTurboModule(jsi::Runtime &rt,
+                         std::shared_ptr<react::CallInvoker> jsCallInvoker) {
+  // Setting the callInvoker for async code
+  invoker = jsCallInvoker;
   // Create a TurboModuleRustHostObject
   auto instance = std::make_shared<TurboModuleHostObject>(rt);
   // Create a JS equivalent object of the instance
@@ -34,24 +39,26 @@ void handleError(jsi::Runtime &rt, ErrorCode code) {
 };
 
 void callback(CallbackId result, ErrorCode code) {
-  State *_state = reinterpret_cast<State *>(result);
-  State *state = static_cast<State *>(_state);
-  jsi::Function *cb = &state->cb;
-  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
+  invoker->invokeAsync([result, code]() {
+    State *_state = reinterpret_cast<State *>(result);
+    State *state = static_cast<State *>(_state);
+    jsi::Function *cb = &state->cb;
+    jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
 
-  cb->call(*rt, int(code));
-  delete state;
+    cb->call(*rt, int(code));
+  });
 }
 
 void callbackWithResponse(CallbackId result, ErrorCode code,
                           const char *response) {
-  State *_state = reinterpret_cast<State *>(result);
-  State *state = static_cast<State *>(_state);
-  jsi::Function *cb = &state->cb;
-  jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
+  invoker->invokeAsync([result, code, response]() {
+    State *_state = reinterpret_cast<State *>(result);
+    State *state = static_cast<State *>(_state);
+    jsi::Function *cb = &state->cb;
+    jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
 
-  cb->call(*rt, int(code), response);
-  delete state;
+    cb->call(*rt, int(code), response);
+  });
 }
 
 template <>
@@ -173,8 +180,7 @@ ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Object &options,
   if (optional)
     return ByteBuffer{0, 0};
 
-  throw jsi::JSError(rt,
-                     errorPrefix + name + errorInfix + "Uint8Array");
+  throw jsi::JSError(rt, errorPrefix + name + errorInfix + "Uint8Array");
 }
 
 } // namespace turboModuleUtility
