@@ -583,7 +583,7 @@ jsi::Value poolSubmitRequest(jsi::Runtime &rt, jsi::Object options) {
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
   state->rt = &rt;
-  ErorCode code = indy_vdr_pool_submit_request(
+  ErrorCode code = indy_vdr_pool_submit_request(
       poolHandle, requestHandle, turboModuleUtility::callbackWithResponse,
       CallbackId(state));
   turboModuleUtility::handleError(rt, code);
