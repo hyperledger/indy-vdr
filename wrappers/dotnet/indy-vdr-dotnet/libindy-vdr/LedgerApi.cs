@@ -1,4 +1,9 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using static indy_vdr_dotnet.models.Structures;
 
@@ -725,5 +730,130 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return requestHandle;
         }
+
+        #region Parse methods
+        public static async Task<string> ParseGetSchemaResponse(string response)
+        {
+            string ver = null;
+            string dest = null;
+            string name = null;
+            string version = null;
+            List<string> attrNames = null;
+            string seqNo = null;
+
+            var responseJson = JObject.Parse(JObject.Parse(response)["result"].ToString());
+            seqNo = responseJson["seqNo"].ToString();
+
+            dest = responseJson["dest"].ToString();
+            responseJson = JObject.Parse(responseJson["data"].ToString());
+            name = responseJson["name"].ToString();
+            version = responseJson["version"].ToString();
+            ver = version; // TODO ??? Is ver = version?
+            attrNames = responseJson["attr_names"].Values<string>().ToList();
+
+            string id = dest + ":" + "2" + ":" + name + ":" + version;
+
+            return JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
+            {
+                ver,
+                id,
+                name,
+                version,
+                attrNames,
+                seqNo
+            })).ToString();
+        }
+
+        public static async Task<string> ParseGetCredDefResponse(string response)
+        {
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\genesis_builder");
+            var _genesisFilePath = Path.GetFullPath(genesisFile);
+            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+
+            
+            var credDefResponseJson = JObject.Parse(JObject.Parse(response)["result"].ToString());
+
+            string identifier = credDefResponseJson["identifier"].ToString();
+            string tag = credDefResponseJson["tag"].ToString();
+            string type = credDefResponseJson["signature_type"].ToString();
+            string origin = credDefResponseJson["origin"].ToString();
+            string ref_value = credDefResponseJson["ref"].ToString();
+
+            string id = origin + ":" + "3" + ":" + type + ":" + ref_value + ":" + tag;
+
+            credDefResponseJson = JObject.Parse(credDefResponseJson["data"].ToString());
+
+            var primary = credDefResponseJson["primary"].ToString();
+            var revocation = credDefResponseJson["revocation"].ToString();
+
+            var y = JsonConvert.DeserializeObject<Dictionary<string, string>>(primary);
+            int schemaTxn = credDefResponseJson["seqNo"].ToObject<int>();
+            var getTxnReq = await LedgerApi.BuildGetTxnRequestAsync(1, schemaTxn, identifier);
+            string schemaResponse = await PoolApi.SubmitPoolRequestAsync(poolHandle, getTxnReq);
+            string schemaId = JObject.Parse(JObject.Parse(JObject.Parse(JObject.Parse(schemaResponse)["result"].ToString())["data"].ToString())["txnMetadata"].ToString())["txnId"].ToString();
+            string ver = "1.0"; // TODO ??? find version
+
+            var value = JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
+            {
+                primary,
+                revocation
+            })).ToString();
+
+            return JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
+            {
+                ver,
+                id,
+                schemaId,
+                type,
+                tag,
+                value
+            })).ToString();
+
+        }
+
+        public static async Task<string> ParseGetRevocRegDefResponseAsyn(string response)
+        {
+            string ver = null;
+            string dest = null;
+            string name = null;
+            string version = null;
+            List<string> attrNames = null;
+            string seqNo = null;
+
+            var responseJson = JObject.Parse(JObject.Parse(response)["result"].ToString());
+            seqNo = responseJson["seqNo"].ToString();
+
+            dest = responseJson["dest"].ToString();
+            responseJson = JObject.Parse(responseJson["data"].ToString());
+            name = responseJson["name"].ToString();
+            version = responseJson["version"].ToString();
+            ver = version; // TODO ??? Is ver = version?
+            attrNames = responseJson["attr_names"].Values<string>().ToList();
+
+            string id = dest + ":" + "2" + ":" + name + ":" + version;
+
+            return JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
+            {
+                ver,
+                id,
+                name,
+                version,
+                attrNames,
+                seqNo
+            })).ToString();
+        }
+
+        public static async Task<string> ParseGetRevocRegDeltaResponseAsyn(string response)
+        {
+            return "";
+        }
+
+        public static async Task<string> ParseGetRevocRegResponseAsync(string response)
+        {
+            return "";
+        }
+
+        #endregion
     }
 }

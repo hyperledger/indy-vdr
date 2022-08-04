@@ -2,15 +2,26 @@
 using indy_vdr_dotnet;
 using indy_vdr_dotnet.libindy_vdr;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace indy_vdr_dotnet_tests.libindy_vdr
 {
     public class LedgerApiTests
     {
+        private string _genesisFilePath;
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\genesis_builder");
+            _genesisFilePath = Path.GetFullPath(genesisFile);
+        }
         [Test, TestCase(TestName = "BuildAcceptanceMechanismsRequestAsync call returns request handle.")]
         public async Task BuildAcceptanceMechanismsRequestAsyncWorks()
         {
@@ -735,5 +746,138 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             //Assert
             await func.Should().ThrowAsync<IndyVdrException>();
         }
+
+        #region Parse methods
+        [Test, TestCase(TestName = "ParseGetSchemaResponse takes a response JSON and parses it to a schema JSON.")]
+        public async Task ParseGetSchemaResponseWorks()
+        {
+            //Arrange
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            IntPtr testRequestHandle = await LedgerApi.BuildGetSchemaRequestAsync("9vBvpoNHmqiDu4pAUVVue7:2:Boarding Pass:1.0");
+            string response = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+            //Act
+            string res = await LedgerApi.ParseGetSchemaResponse(response);
+
+            //Assert
+            var resJObj = JObject.Parse(res);
+
+            string version = resJObj["version"].ToString();
+            string id = resJObj["id"].ToString();
+
+            version.Should().NotBeNullOrEmpty();
+            id.Should().NotBeNullOrEmpty();
+        }
+
+        [Test, TestCase(TestName = "ParseGetCredDefResponse takes a response JSON and parses it to a schema JSON.")]
+        public async Task ParseGetCredDefResponseWorks()
+        {
+            //Arrange
+            IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            //string testCredDefDid = "AZffDeSWT8qsyF6nTEWkX1:3:CL:52671:default";
+            string testCredDefDid = "J8L3C8nBZxSRVu1DueRbJR:3:CL:52019:9491087";
+            string testSubmitterDid = "LibindyDid111111111111";
+
+            IntPtr testRequestHandle = await LedgerApi.BuildGetCredDefRequest(testCredDefDid, testSubmitterDid);
+
+            
+            string response = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+
+            //Act
+            string res = await LedgerApi.ParseGetCredDefResponse(response);
+
+            //Assert
+            var resJObj = JObject.Parse(res);
+
+            string version = resJObj["version"].ToString();
+            string id = resJObj["id"].ToString();
+
+            version.Should().NotBeNullOrEmpty();
+            id.Should().NotBeNullOrEmpty();
+        }
+
+        [Test, TestCase(TestName = "ParseGetRevocRegDefResponse takes a response JSON and parses it to a schema JSON.")]
+        public async Task ParseGetRevocRegDefResponseWorks()
+        {
+            ////Arrange
+            //IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            //string testRevocRegId = "L5wx9FUxCDpFJEdFc23jcn:4:L5wx9FUxCDpFJEdFc23jcn:3:CL:1954:";
+            //string testSubmitterDid = "LibindyDid111111111111";
+            //IntPtr testRequestHandle = await LedgerApi.BuildGetRevocRegDefRequest(
+            //    testRevocRegId,
+            //    testSubmitterDid);
+            //string response = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+            ////Act
+            //string res = await LedgerApi.ParseGetRevocRegDefResponseAsyn(response);
+
+            ////Assert
+            //var resJObj = JObject.Parse(res);
+
+            //string version = resJObj["version"].ToString();
+            //string id = resJObj["id"].ToString();
+
+            //version.Should().NotBeNullOrEmpty();
+            //id.Should().NotBeNullOrEmpty();
+        }
+
+        [Test, TestCase(TestName = "ParseGetRevocRegDeltaResponse takes a response JSON and parses it to a schema JSON.")]
+        public async Task ParseGetRevocRegDeltaResponseWorks()
+        {
+            ////Arrange
+            //IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            //string testRevocRegId = "revreg:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:4:creddef:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:3:CL:schema:sov:did:sov:NcYxiDXkpYi6ov5FcYDi1e:2:gvt:1.0:tag:CL_ACCUM:TAG_1";
+            //long testFromTs = 1;
+            //long testToTs = 1;
+            //string testSubmitterDid = "LibindyDid111111111111";
+
+            ////Act
+            //IntPtr testRequestHandle = await LedgerApi.BuildGetRevocRegDeltaRequestAsync(
+            //    testRevocRegId,
+            //    testToTs,
+            //    testFromTs,
+            //    testSubmitterDid);
+            //string response = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+            ////Act
+            //string res = await LedgerApi.ParseGetRevocRegDeltaResponseAsyn(response);
+
+            ////Assert
+            //var resJObj = JObject.Parse(res);
+
+            //string version = resJObj["version"].ToString();
+            //string id = resJObj["id"].ToString();
+
+            //version.Should().NotBeNullOrEmpty();
+            //id.Should().NotBeNullOrEmpty();
+        }
+
+        [Test, TestCase(TestName = "ParseGetRevocRegResponse takes a response JSON and parses it to a schema JSON.")]
+        public async Task ParseGetRevocRegResponseWorks()
+        {
+            ////Arrange
+            //IntPtr testPoolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
+            //string testRevocRegId = "L5wx9FUxCDpFJEdFc23jcn:4:L5wx9FUxCDpFJEdFc23jcn:3:CL:1954:";
+            //long testTimestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
+            //string testSubmitterDid = "LibindyDid111111111111";
+
+            ////Act
+            //IntPtr testRequestHandle = await LedgerApi.BuildGetRevocRegRequest(
+            //    testRevocRegId,
+            //    testTimestamp,
+            //    testSubmitterDid);
+            //string response = await PoolApi.SubmitPoolRequestAsync(testPoolHandle, testRequestHandle);
+            ////Act
+            //string res = await LedgerApi.ParseGetRevocRegResponseAsync(response);
+
+            ////Assert
+            //var resJObj = JObject.Parse(res);
+
+            //string version = resJObj["version"].ToString();
+            //string id = resJObj["id"].ToString();
+
+            //version.Should().NotBeNullOrEmpty();
+            //id.Should().NotBeNullOrEmpty();
+        }
+
+
+        #endregion
     }
 }
