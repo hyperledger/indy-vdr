@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ReactCommon/CallInvoker.h>
 #include <jsi/jsi.h>
 
 #include <HostObject.h>
@@ -9,8 +10,8 @@ using namespace facebook;
 
 namespace turboModuleUtility {
 
-std::string errorPrefix = "Value `";
-std::string errorInfix = "` is not of type ";
+static const std::string errorPrefix = "Value `";
+static const std::string errorInfix = "` is not of type ";
 
 // state of a callback function
 struct State {
@@ -21,7 +22,8 @@ struct State {
 };
 
 // Install the Turbomodule
-void registerTurboModule(jsi::Runtime &rt);
+void registerTurboModule(jsi::Runtime &rt,
+                         std::shared_ptr<react::CallInvoker> jsCallInvoker);
 
 // Asserts that a jsi::Value is an object and can be safely transformed
 void assertValueIsObject(jsi::Runtime &rt, const jsi::Value *val);
