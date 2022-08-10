@@ -17,7 +17,7 @@ namespace indy_vdr_dotnet.models
                 ffiString.data = new IntPtr();
                 if (arg != null)
                 {
-                    ffiString.data = Marshal.StringToCoTaskMemUTF8(arg);
+                    ffiString.data = Marshal.StringToCoTaskMemAnsi(arg);
                 }
                 return ffiString;
             }

@@ -6,7 +6,7 @@
 	  <AssemblyName>Hyperledger.Indy-VDR</AssemblyName>
 	  <RootNamespace>Hyperledger.Indy</RootNamespace>
 	  <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-	  <Version>0.4.1-alpha</Version>
+	  <Version>0.4.2-alpha</Version>
 	  <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 	  <Authors>esatus AG</Authors>
 	  <Company>Hyperledger Indy</Company>

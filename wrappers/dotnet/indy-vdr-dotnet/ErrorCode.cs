@@ -8,22 +8,35 @@
         /// <returns>Matching <see cref="System.String"/> for each provided code to use in error messages.</returns>
         public static string ToErrorCodeString(this ErrorCode errorCode)
         {
-            return errorCode switch
+            switch (errorCode) 
             {
-                ErrorCode.Success => "Success",
-                ErrorCode.Config => "Config",
-                ErrorCode.Connection => "Connection",
-                ErrorCode.FileSystem => "FileSystem",
-                ErrorCode.Input => "Input",
-                ErrorCode.Resource => "Resource",
-                ErrorCode.Unavailable => "Unavailable",
-                ErrorCode.Unexpected => "Unexpected",
-                ErrorCode.Incompatible => "Incompatible",
-                ErrorCode.PoolNoConsensus => "PoolNoConsensus",
-                ErrorCode.PoolRequestFailed => "PoolRequestFailed",
-                ErrorCode.PoolTimeout => "PoolTimeout",
-                _ => "Unknown error code"
-            };
+                case ErrorCode.Success:
+                    return "Success";
+                case ErrorCode.Config:
+                    return "Config";
+                case ErrorCode.Connection:
+                    return "Connection";
+                case ErrorCode.FileSystem:
+                    return "FileSystem";
+                case ErrorCode.Input:
+                    return "Input";
+                case ErrorCode.Resource:
+                    return "Resource";
+                case ErrorCode.Unavailable:
+                    return "Unavailable";
+                case ErrorCode.Unexpected:
+                    return "Unexpected";
+                case ErrorCode.Incompatible:
+                    return "Incompatible";
+                case ErrorCode.PoolNoConsensus:
+                    return "PoolNoConsensus";
+                case ErrorCode.PoolRequestFailed:
+                    return "PoolRequestFailed";
+                case ErrorCode.PoolTimeout:
+                    return "PoolTimeout";
+                default:
+                    return "Unknown error code";
+            }
         }
     }
 
