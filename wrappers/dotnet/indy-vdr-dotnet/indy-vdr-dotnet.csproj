@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	  <TargetFrameworks>net6.0;netstandard2.1</TargetFrameworks>
+	  <TargetFrameworks>netstandard2.0</TargetFrameworks>
       <RootNamespace>indy_vdr_dotnet</RootNamespace>
 	  <AssemblyName>Hyperledger.Indy-VDR</AssemblyName>
 	  <RootNamespace>Hyperledger.Indy</RootNamespace>
