@@ -769,89 +769,79 @@ namespace indy_vdr_dotnet.libindy_vdr
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\genesis_builder");
             var _genesisFilePath = Path.GetFullPath(genesisFile);
-            IntPtr poolHandle = await PoolApi.CreatePoolAsync(null, _genesisFilePath, null);
-
             
             var credDefResponseJson = JObject.Parse(JObject.Parse(response)["result"].ToString());
 
-            string identifier = credDefResponseJson["identifier"].ToString();
             string tag = credDefResponseJson["tag"].ToString();
             string type = credDefResponseJson["signature_type"].ToString();
             string origin = credDefResponseJson["origin"].ToString();
             string ref_value = credDefResponseJson["ref"].ToString();
+            string schemaId = ref_value;
 
             string id = origin + ":" + "3" + ":" + type + ":" + ref_value + ":" + tag;
 
             credDefResponseJson = JObject.Parse(credDefResponseJson["data"].ToString());
 
-            var primary = credDefResponseJson["primary"].ToString();
-            var revocation = credDefResponseJson["revocation"].ToString();
-
-            var y = JsonConvert.DeserializeObject<Dictionary<string, string>>(primary);
-            int schemaTxn = credDefResponseJson["seqNo"].ToObject<int>();
-            var getTxnReq = await LedgerApi.BuildGetTxnRequestAsync(1, schemaTxn, identifier);
-            string schemaResponse = await PoolApi.SubmitPoolRequestAsync(poolHandle, getTxnReq);
-            string schemaId = JObject.Parse(JObject.Parse(JObject.Parse(JObject.Parse(schemaResponse)["result"].ToString())["data"].ToString())["txnMetadata"].ToString())["txnId"].ToString();
-            string ver = "1.0"; // TODO ??? find version
-
-            var value = JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
+            return JsonConvert.SerializeObject(new
             {
-                primary,
-                revocation
-            })).ToString();
-
-            return JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
-            {
-                ver,
+                ver = "1.0", // TODO ??? find ver
                 id,
                 schemaId,
                 type,
                 tag,
-                value
-            })).ToString();
-
+                value = new
+                {
+                    primary = credDefResponseJson["primary"],
+                    revocation = credDefResponseJson["revocation"]
+                }
+            });
         }
 
         public static async Task<string> ParseGetRevocRegDefResponseAsyn(string response)
         {
-            string ver = null;
-            string dest = null;
-            string name = null;
-            string version = null;
-            List<string> attrNames = null;
-            string seqNo = null;
+            var responseJson = JObject.Parse(response);
 
-            var responseJson = JObject.Parse(JObject.Parse(response)["result"].ToString());
-            seqNo = responseJson["seqNo"].ToString();
-
-            dest = responseJson["dest"].ToString();
-            responseJson = JObject.Parse(responseJson["data"].ToString());
-            name = responseJson["name"].ToString();
-            version = responseJson["version"].ToString();
-            ver = version; // TODO ??? Is ver = version?
-            attrNames = responseJson["attr_names"].Values<string>().ToList();
-
-            string id = dest + ":" + "2" + ":" + name + ":" + version;
-
-            return JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
+            return JsonConvert.SerializeObject(new
             {
-                ver,
-                id,
-                name,
-                version,
-                attrNames,
-                seqNo
-            })).ToString();
+                ver = "1.0", // TODO ??? find version,
+                id = responseJson["result"]["id"],
+                revocDefType = responseJson["result"]["data"]["revocDefType"],
+                tag = responseJson["result"]["data"]["tag"],
+                credDefId = responseJson["result"]["data"]["credDefId"],
+                value = new
+                {
+                    issuanceType = responseJson["result"]["data"]["value"]["issuanceType"],
+                    maxCredNum = responseJson["result"]["data"]["value"]["maxCredNum"],
+                    publicKeys = new
+                    {
+                        accumKey = new
+                        {
+                            z = responseJson["result"]["data"]["value"]["publicKeys"]["accumKey"]["z"]
+                        }
+                    }
+                },
+                tailsHash = responseJson["result"]["data"]["value"]["tailsHash"],
+                tailsLocation = responseJson["result"]["data"]["value"]["tailsLocation"]
+            });
         }
 
         public static async Task<string> ParseGetRevocRegDeltaResponseAsyn(string response)
         {
-            return "";
+            return ""; // TODO ??? 
         }
 
         public static async Task<string> ParseGetRevocRegResponseAsync(string response)
         {
-            return "";
+            var responseJson = JObject.Parse(response);
+
+            return JsonConvert.SerializeObject(new
+            {
+                ver = "1.0",
+                value = new
+                {
+                    accum = responseJson["result"]["data"]["value"]["accum"]
+                }
+            });
         }
 
         #endregion
