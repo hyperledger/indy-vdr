@@ -734,26 +734,18 @@ namespace indy_vdr_dotnet.libindy_vdr
         #region Parse methods
         public static async Task<string> ParseGetSchemaResponse(string response)
         {
-            string ver = null;
-            string dest = null;
-            string name = null;
-            string version = null;
-            List<string> attrNames = null;
-            string seqNo = null;
+            var responseJson = JObject.Parse(response);
+            var seqNo = responseJson["result"]["seqNo"];
 
-            var responseJson = JObject.Parse(JObject.Parse(response)["result"].ToString());
-            seqNo = responseJson["seqNo"].ToString();
-
-            dest = responseJson["dest"].ToString();
-            responseJson = JObject.Parse(responseJson["data"].ToString());
-            name = responseJson["name"].ToString();
-            version = responseJson["version"].ToString();
-            ver = version; // TODO ??? Is ver = version?
-            attrNames = responseJson["attr_names"].Values<string>().ToList();
+            var dest = responseJson["result"]["dest"];
+            var name = responseJson["result"]["data"]["name"].ToString();
+            var version = responseJson["result"]["data"]["version"].ToString();
+            var ver = version; // TODO ??? Is ver = version?
+            var attrNames = responseJson["result"]["data"]["attr_names"].Values<string>().ToList();
 
             string id = dest + ":" + "2" + ":" + name + ":" + version;
 
-            return JsonConvert.DeserializeObject(JsonConvert.SerializeObject(new
+            return JsonConvert.SerializeObject(new
             {
                 ver,
                 id,
@@ -761,38 +753,31 @@ namespace indy_vdr_dotnet.libindy_vdr
                 version,
                 attrNames,
                 seqNo
-            })).ToString();
+            });
         }
 
         public static async Task<string> ParseGetCredDefResponse(string response)
-        {
-            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string genesisFile = Path.Combine(currentDirectory, @"..\..\..\Resources\genesis_builder");
-            var _genesisFilePath = Path.GetFullPath(genesisFile);
-            
-            var credDefResponseJson = JObject.Parse(JObject.Parse(response)["result"].ToString());
+        {            
+            var credDefResponseJson = JObject.Parse(response);
 
-            string tag = credDefResponseJson["tag"].ToString();
-            string type = credDefResponseJson["signature_type"].ToString();
-            string origin = credDefResponseJson["origin"].ToString();
-            string ref_value = credDefResponseJson["ref"].ToString();
-            string schemaId = ref_value;
+            var tag = credDefResponseJson["result"]["tag"];
+            var type = credDefResponseJson["result"]["signature_type"];
+            var origin = credDefResponseJson["result"]["origin"];
+            var ref_value = credDefResponseJson["result"]["ref"];
 
-            string id = origin + ":" + "3" + ":" + type + ":" + ref_value + ":" + tag;
-
-            credDefResponseJson = JObject.Parse(credDefResponseJson["data"].ToString());
+            var id = origin + ":" + "3" + ":" + type + ":" + ref_value + ":" + tag;
 
             return JsonConvert.SerializeObject(new
             {
                 ver = "1.0", // TODO ??? find ver
                 id,
-                schemaId,
+                ref_value,
                 type,
                 tag,
                 value = new
                 {
-                    primary = credDefResponseJson["primary"],
-                    revocation = credDefResponseJson["revocation"]
+                    primary = credDefResponseJson["result"]["data"]["primary"],
+                    revocation = credDefResponseJson["result"]["data"]["revocation"]
                 }
             });
         }
