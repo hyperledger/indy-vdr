@@ -740,7 +740,7 @@ namespace indy_vdr_dotnet.libindy_vdr
             var dest = responseJson["result"]["dest"];
             var name = responseJson["result"]["data"]["name"].ToString();
             var version = responseJson["result"]["data"]["version"].ToString();
-            var ver = version; // TODO ??? Is ver = version?
+            var ver = version; // TODO ??? check if ver is version
             var attrNames = responseJson["result"]["data"]["attr_names"].Values<string>().ToList();
 
             string id = dest + ":" + "2" + ":" + name + ":" + version;
@@ -769,7 +769,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return JsonConvert.SerializeObject(new
             {
-                ver = "1.0", // TODO ??? find ver
+                ver = "1.0", // TODO ??? check ver
                 id,
                 ref_value,
                 type,
@@ -788,7 +788,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return JsonConvert.SerializeObject(new
             {
-                ver = "1.0", // TODO ??? find version,
+                ver = "1.0", // TODO ??? check version
                 id = responseJson["result"]["id"],
                 revocDefType = responseJson["result"]["data"]["revocDefType"],
                 tag = responseJson["result"]["data"]["tag"],
@@ -821,7 +821,7 @@ namespace indy_vdr_dotnet.libindy_vdr
 
             return JsonConvert.SerializeObject(new
             {
-                ver = "1.0",
+                ver = "1.0", // TODO ??? check version
                 value = new
                 {
                     accum = responseJson["result"]["data"]["value"]["accum"]
