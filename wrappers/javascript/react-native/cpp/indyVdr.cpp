@@ -502,8 +502,9 @@ jsi::Value poolRefresh(jsi::Runtime &rt, jsi::Object options) {
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
   state->rt = &rt;
-  indy_vdr_pool_refresh(poolHandle, turboModuleUtility::callback,
-                        CallbackId(state));
+  ErrorCode code = indy_vdr_pool_refresh(
+      poolHandle, turboModuleUtility::callback, CallbackId(state));
+  turboModuleUtility::handleError(rt, code);
 
   return jsi::Value::null();
 };
@@ -515,8 +516,9 @@ jsi::Value poolGetStatus(jsi::Runtime &rt, jsi::Object options) {
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
   state->rt = &rt;
-  indy_vdr_pool_get_status(poolHandle, turboModuleUtility::callbackWithResponse,
-                           CallbackId(state));
+  ErrorCode code = indy_vdr_pool_get_status(
+      poolHandle, turboModuleUtility::callbackWithResponse, CallbackId(state));
+  turboModuleUtility::handleError(rt, code);
 
   return jsi::Value::null();
 };
@@ -528,8 +530,9 @@ jsi::Value poolGetTransactions(jsi::Runtime &rt, jsi::Object options) {
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
   state->rt = &rt;
-  indy_vdr_pool_get_transactions(
+  ErrorCode code = indy_vdr_pool_get_transactions(
       poolHandle, turboModuleUtility::callbackWithResponse, CallbackId(state));
+  turboModuleUtility::handleError(rt, code);
 
   return jsi::Value::null();
 };
@@ -541,8 +544,9 @@ jsi::Value poolGetVerifiers(jsi::Runtime &rt, jsi::Object options) {
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
   state->rt = &rt;
-  indy_vdr_pool_get_verifiers(
+  ErrorCode code = indy_vdr_pool_get_verifiers(
       poolHandle, turboModuleUtility::callbackWithResponse, CallbackId(state));
+  turboModuleUtility::handleError(rt, code);
 
   return jsi::Value::null();
 };
@@ -561,9 +565,10 @@ jsi::Value poolSubmitAction(jsi::Runtime &rt, jsi::Object options) {
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
   state->rt = &rt;
-  indy_vdr_pool_submit_action(
+  ErrorCode code = indy_vdr_pool_submit_action(
       poolHandle, requestHandle, nodes.length() > 0 ? nodes.c_str() : nullptr,
       timeout, turboModuleUtility::callbackWithResponse, CallbackId(state));
+  turboModuleUtility::handleError(rt, code);
 
   return jsi::Value::null();
 };
@@ -578,9 +583,10 @@ jsi::Value poolSubmitRequest(jsi::Runtime &rt, jsi::Object options) {
   jsi::Function cb = options.getPropertyAsFunction(rt, "cb");
   State *state = new State(&cb);
   state->rt = &rt;
-  indy_vdr_pool_submit_request(poolHandle, requestHandle,
-                               turboModuleUtility::callbackWithResponse,
-                               CallbackId(state));
+  ErrorCode code = indy_vdr_pool_submit_request(
+      poolHandle, requestHandle, turboModuleUtility::callbackWithResponse,
+      CallbackId(state));
+  turboModuleUtility::handleError(rt, code);
 
   return jsi::Value::null();
 };
