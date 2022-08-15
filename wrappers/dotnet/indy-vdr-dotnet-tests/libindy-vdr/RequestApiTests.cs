@@ -4,6 +4,7 @@ using indy_vdr_dotnet.libindy_vdr;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using System;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace indy_vdr_dotnet_tests.libindy_vdr
@@ -278,7 +279,7 @@ namespace indy_vdr_dotnet_tests.libindy_vdr
             IntPtr testRequestHandle = await LedgerApi.BuildGetTxnRequestAsync(1, 1);
             string testtestRequestBody = await RequestApi.RequestGetBodyAsync(testRequestHandle);
             JObject testtestRequestBodyJObj = JObject.Parse(testtestRequestBody);
-            string testMultiSig = "{\"signature\":\"sig\"}";
+            byte[] testMultiSig = Encoding.UTF8.GetBytes("{\"signature\":\"sig\"}");
 
             //Act
             Func<Task> func = async () => await RequestApi.RequestSetSigantureAsync(
