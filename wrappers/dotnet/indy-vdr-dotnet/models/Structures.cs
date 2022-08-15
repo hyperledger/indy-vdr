@@ -42,6 +42,18 @@ namespace indy_vdr_dotnet.models
                 }
                 return buffer;
             }
+
+            public static ByteBuffer Create(byte[] bytes)
+            {
+                ByteBuffer buffer = new ByteBuffer();
+                buffer.len = bytes.Length;
+                fixed (byte* bytebuffer_p = &bytes[0])
+                {
+                    buffer.value = bytebuffer_p;
+                }
+
+                return buffer;
+            }
         }
     }
 }

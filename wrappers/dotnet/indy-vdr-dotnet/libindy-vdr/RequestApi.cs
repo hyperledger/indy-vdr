@@ -170,7 +170,7 @@ namespace indy_vdr_dotnet.libindy_vdr
         /// <exception cref="IndyVdrException">Throws if <paramref name="requestHandle"/> or <paramref name="signature"/> is invalid.</exception>
         public static async Task RequestSetSigantureAsync(
             IntPtr requestHandle,
-            string signature)
+            byte[] signature)
         {
             int errorCode = NativeMethods.indy_vdr_request_set_signature(
                 requestHandle,
