@@ -9,4 +9,5 @@ node_modules
 Podfile.lock
 .vscode
 coverage
+.vs
 *.tgz
