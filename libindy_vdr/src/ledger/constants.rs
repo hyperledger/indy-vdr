@@ -25,6 +25,8 @@ pub const GET_VALIDATOR_INFO: &str = "119";
 pub const AUTH_RULE: &str = "120";
 pub const GET_AUTH_RULE: &str = "121";
 pub const AUTH_RULES: &str = "122";
+pub const FLAG: &str = "130";
+pub const GET_FLAG: &str = "131";
 // RichSchema objects
 pub const RICH_SCHEMA_CTX: &str = "200";
 pub const RICH_SCHEMA: &str = "201";
@@ -36,7 +38,7 @@ pub const RICH_SCHEMA_PRES_DEF: &str = "205";
 pub const GET_RICH_SCHEMA_BY_ID: &str = "300";
 pub const GET_RICH_SCHEMA_BY_METADATA: &str = "301";
 
-pub const REQUESTS: [&str; 31] = [
+pub const REQUESTS: [&str; 33] = [
     NODE,
     NYM,
     GET_TXN,
@@ -62,6 +64,8 @@ pub const REQUESTS: [&str; 31] = [
     GET_TXN_AUTHR_AGRMT,
     GET_TXN_AUTHR_AGRMT_AML,
     DISABLE_ALL_TXN_AUTHR_AGRMTS,
+    FLAG,
+    GET_FLAG,
     RICH_SCHEMA_CTX,
     RICH_SCHEMA,
     RICH_SCHEMA_ENCODING,
@@ -71,7 +75,7 @@ pub const REQUESTS: [&str; 31] = [
 ];
 
 // likely matches REQUESTS_FOR_STATE_PROOFS
-pub const READ_REQUESTS: [&str; 13] = [
+pub const READ_REQUESTS: [&str; 14] = [
     GET_NYM,
     GET_TXN_AUTHR_AGRMT,
     GET_TXN_AUTHR_AGRMT_AML,
@@ -83,6 +87,7 @@ pub const READ_REQUESTS: [&str; 13] = [
     GET_REVOC_REG_DELTA,
     GET_AUTH_RULE,
     GET_TXN,
+    GET_FLAG,
     GET_RICH_SCHEMA_BY_ID,
     GET_RICH_SCHEMA_BY_METADATA,
 ];
@@ -139,6 +144,8 @@ pub fn txn_name_to_code(txn: &str) -> Option<&str> {
         "GET_TXN_AUTHR_AGRMT" => Some(GET_TXN_AUTHR_AGRMT),
         "GET_TXN_AUTHR_AGRMT_AML" => Some(GET_TXN_AUTHR_AGRMT_AML),
         "DISABLE_ALL_TXN_AUTHR_AGRMTS" => Some(DISABLE_ALL_TXN_AUTHR_AGRMTS),
+        "FLAG" => Some(FLAG),
+        "GET_FLAG" => Some(GET_FLAG),
         val => Some(val),
     }
 }

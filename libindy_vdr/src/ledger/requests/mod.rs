@@ -6,6 +6,8 @@ pub mod auth_rule;
 pub mod author_agreement;
 /// Credential definition operations
 pub mod cred_def;
+/// FLAG transactions operations
+pub mod flag;
 /// NODE transactions operations
 pub mod node;
 /// NYM transaction operations
