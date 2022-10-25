@@ -73,7 +73,7 @@ def get_genesis_txns_from_did_indy_repo_by_name(
         main = next(parts, None)
         sub = next(parts, None)
 
-        genesis_file_url = f"{INDY_NETWORKS_GITHUB_RAW_BASE}/{name}/{genesis_filename}"
+        genesis_file_url = f"{INDY_NETWORKS_GITHUB_RAW_BASE}/networks/{name}/{genesis_filename}"
         target_local_path = f"{base_dir}/{name}/{genesis_filename}"
         try:
             urllib.request.urlretrieve(genesis_file_url, target_local_path)
