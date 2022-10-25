@@ -1,5 +1,6 @@
 use crate::common::error::prelude::*;
 use crate::ledger::responses::Endpoint;
+use indy_utils::base58;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value as SJsonValue};
 
@@ -173,12 +174,46 @@ fn merge_diddoc(base: &mut SJsonValue, content: &SJsonValue) {
     }
 }
 
-fn expand_verkey(id: &str, verkey: &str) -> String {
-    if let Some(stripped) = verkey.strip_prefix('~') {
-        format!("{}{}", id, stripped)
+// Returns raw verkey in case of conversion errors, otherwise 'default' indy handling
+pub fn expand_verkey(id: &str, verkey: &str) -> String {
+    expand_verkey_indy(id, verkey).unwrap_or(verkey.to_string())
+}
+
+pub fn expand_verkey_indy(id: &str, verkey: &str) -> VdrResult<String> {
+    // separate optional crypto_type from verkey part
+    let (key, key_type) = if verkey.contains(":") {
+        let vec: Vec<&str> = verkey.split(":").collect();
+        match vec.len() {
+            2 => {
+                let key = vec[0];
+                let key_type = vec[1];
+                if key.len() == 0 || key_type.len() == 0 {
+                    return Err(input_err("Unexpected verkey format"));
+                }
+                (key, Some(key_type))
+            }
+            _ => return Err(input_err("Unexpected verkey format")),
+        }
     } else {
-        verkey.to_string()
+        (verkey, None)
+    };
+    // Decode parts from base58 and re-encode
+    let mut result: String;
+    if key.starts_with("~") && key.len() >= 2 {
+        let mut decoded = base58::decode(id)?;
+        let mut keys = key.chars();
+        keys.next();
+        let mut key_decoded = base58::decode(keys.as_str())?;
+        decoded.append(&mut key_decoded);
+        result = base58::encode(decoded);
+    } else {
+        result = verkey.to_string();
+    };
+    // Add key type if it was used
+    if key_type.is_some() && key_type.unwrap() != "" {
+        result = format!("{}:{}", result, key_type.unwrap());
     }
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -186,6 +221,61 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+
+    #[test]
+    fn expand_verkey_no_type() {
+        let id = "V4SGRU86Z58d6TV7PBUe6f";
+        let verkey = "~CoRER63DVYnWZtK8uAzNbx";
+        let expected_verkey = "GJ1SzoWzavQYfNL9XkaJdrQejfztN4XqdsiV4ct3LXKL";
+
+        let expanded_verkey = expand_verkey(id, verkey);
+        assert_eq!(expanded_verkey, expected_verkey)
+    }
+
+    #[test]
+    fn expand_verkey_key_type() {
+        let id = "V4SGRU86Z58d6TV7PBUe6f";
+        let verkey = "~CoRER63DVYnWZtK8uAzNbx:ed25519";
+        let expected_verkey = "GJ1SzoWzavQYfNL9XkaJdrQejfztN4XqdsiV4ct3LXKL:ed25519";
+
+        let expanded_verkey = expand_verkey(id, verkey);
+        assert_eq!(expanded_verkey, expected_verkey)
+    }
+
+    #[test]
+    fn expand_verkey_key_type_empty_key() {
+        let id = "V4SGRU86Z58d6TV7PBUe6f";
+        let verkey = ":ed25519";
+
+        let expanded_verkey = expand_verkey(id, verkey);
+        assert_eq!(expanded_verkey, verkey)
+    }
+
+    #[test]
+    fn expand_verkey_key_type_empty_type() {
+        let id = "V4SGRU86Z58d6TV7PBUe6f";
+        let verkey = "~CoRER63DVYnWZtK8uAzNbx:";
+
+        let expanded_verkey = expand_verkey(id, verkey);
+        assert_eq!(expanded_verkey, verkey)
+    }
+
+    #[test]
+    fn expand_verkey_key_type_nothing() {
+        let id = "V4SGRU86Z58d6TV7PBUe6f";
+        let verkey = ":";
+
+        let expanded_verkey = expand_verkey(id, verkey);
+        assert_eq!(expanded_verkey, verkey)
+    }
+
+    #[test]
+    fn expand_verkey_invalid() {
+        let id = "V4SGRU86Z58d6TV7PBUe6f";
+        let verkey = "~CoRER63DVYnWZtK8uAzNb0";
+        let expanded_verkey = expand_verkey(id, verkey);
+        assert_eq!(expanded_verkey, verkey)
+    }
 
     #[test]
     fn serialze_diddoc_without_diddoc_content() {
