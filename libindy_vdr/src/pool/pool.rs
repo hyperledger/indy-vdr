@@ -120,8 +120,11 @@ where
             let (tx, rx) = unbounded();
             let handle = RequestHandle::next();
             let setup_ref = setup.as_ref();
-            let node_order = choose_nodes(&setup_ref.verifiers, setup_ref.node_weights.clone());
-            debug!("New {}: reqId({})", handle, req_id);
+            let node_order = choose_nodes(&setup_ref.verifiers, setup_ref.node_weights.as_ref());
+            debug!(
+                "New {}: reqId({}), node order: {:?}",
+                handle, req_id, node_order
+            );
             networker.send(NetworkerEvent::NewRequest(handle, req_id, req_json, tx))?;
             Ok(PoolRequestImpl::new(
                 handle, rx, setup, networker, node_order,
@@ -149,19 +152,21 @@ where
 
 pub(crate) fn choose_nodes(
     verifiers: &Verifiers,
-    weights: Option<HashMap<String, f32>>,
+    weights: Option<&HashMap<String, f32>>,
 ) -> Vec<String> {
     let mut weighted = verifiers
         .keys()
-        .map(|name| {
-            (
-                weights
-                    .as_ref()
-                    .and_then(|w| w.get(name))
-                    .cloned()
-                    .unwrap_or(1.0),
-                name.as_str(),
-            )
+        .filter_map(|name| {
+            let weight = weights
+                .as_ref()
+                .and_then(|w| w.get(name))
+                .copied()
+                .unwrap_or(1.0);
+            if weight <= 0.0 {
+                None
+            } else {
+                Some((weight, name.as_str()))
+            }
         })
         .collect::<Vec<(f32, &str)>>();
     let mut rng = rand::thread_rng();
@@ -176,9 +181,36 @@ pub(crate) fn choose_nodes(
     result
 }
 
-/*
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use crate::pool::{VerifierInfo, Verifiers};
+
+    use super::*;
+
+    #[test]
+    fn test_choose_nodes() {
+        let test_verif = VerifierInfo {
+            client_addr: "127.0.0.1".into(),
+            node_addr: "127.0.0.1".into(),
+            public_key: "pk".into(),
+            enc_key: "ek".into(),
+            bls_key: None,
+        };
+        let mut verifiers = Verifiers::new();
+        verifiers.insert("a".into(), test_verif.clone());
+        verifiers.insert("b".into(), test_verif.clone());
+        verifiers.insert("c".into(), test_verif);
+
+        let mut weights = HashMap::new();
+        weights.insert("a".into(), 0.0);
+        weights.insert("b".into(), 0.000001);
+        let found = choose_nodes(&verifiers, Some(&weights));
+        assert_eq!(found, ["c", "b"]);
+    }
+
+    /*
     // use crate::services::pool::events::MockUpdateHandler;
     use crate::services::pool::networker::MockNetworker;
     use crate::services::pool::request_handler::tests::MockRequestHandler;
@@ -833,5 +865,5 @@ mod tests {
             assert_eq!(_get_f(7), 2);
         }
     }
+    */
 }
-*/
