@@ -19,10 +19,10 @@
     "lint": "eslint .",
     "validate": "yarn lint && yarn check-types && yarn check-format",
     "reset": "find . -type dir -name node_modules | xargs rm -rf && rm -rf yarn.lock",
-    "example": "yarn --cwd example",
     "react-native": "yarn --cwd react-native",
     "shared": "yarn --cwd shared",
-    "nodejs": "yarn --cwd nodejs"
+    "nodejs": "yarn --cwd nodejs",
+    "test": "yarn nodejs test"
   },
   "repository": {
     "type": "git",
