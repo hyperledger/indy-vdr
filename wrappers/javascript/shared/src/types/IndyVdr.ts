@@ -11,8 +11,6 @@ import type {
   GetRevocationRegistryDefinitionRequestOptions,
   GetRevocationRegistryDeltaRequestOptions,
   GetRevocationRegistryRequestOptions,
-  GetRichSchemaObjectByIdRequestOptions,
-  GetRichSchemaObjectByMetadataRequestOptions,
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
@@ -21,7 +19,6 @@ import type {
   PoolCreateOptions,
   RevocationRegistryDefinitionRequestOptions,
   RevocationRegistryEntryRequestOptions,
-  RichSchemaRequestOptions,
   SchemaRequestOptions,
   TransactionAuthorAgreementRequestOptions,
 } from '../builder'
@@ -93,12 +90,6 @@ export interface IndyVdr {
   buildSchemaRequest(options: SchemaRequestOptions): number
 
   buildTxnAuthorAgreementRequest(options: TransactionAuthorAgreementRequestOptions): number
-
-  buildRichSchemaRequest(options: RichSchemaRequestOptions): number
-
-  buildGetRichSchemaObjectByIdRequest(options: GetRichSchemaObjectByIdRequestOptions): number
-
-  buildGetRichSchemaObjectByMetadataRequest(options: GetRichSchemaObjectByMetadataRequestOptions): number
 
   poolCreate(options: PoolCreateOptions): number
 

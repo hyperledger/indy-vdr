@@ -109,25 +109,6 @@ export interface IndyVdrNativeBindings {
     retirementTs?: number
   }): RequestHandle
 
-  buildRichSchemaRequest(options: {
-    submitterDid: string
-    id: string
-    content: string
-    name: string
-    version: string
-    type: string
-    ver: string
-  }): RequestHandle
-
-  buildGetRichSchemaObjectByIdRequest(options: { submitterDid: string; id: string }): RequestHandle
-
-  buildGetRichSchemaObjectByMetadataRequest(options: {
-    submitterDid: string
-    type: string
-    name: string
-    version: string
-  }): RequestHandle
-
   poolCreate(options: { parameters: string }): PoolHandle
 
   poolRefresh(options: { poolHandle: PoolHandle; cb: Callback }): null

@@ -42,11 +42,6 @@ jsi::Value buildRevocRegEntryRequest(jsi::Runtime &rt, jsi::Object options);
 jsi::Value buildSchemaRequest(jsi::Runtime &rt, jsi::Object options);
 jsi::Value buildTxnAuthorAgreementRequest(jsi::Runtime &rt,
                                           jsi::Object options);
-jsi::Value buildRichSchemaRequest(jsi::Runtime &rt, jsi::Object options);
-jsi::Value buildGetRichSchemaObjectByIdRequest(jsi::Runtime &rt,
-                                               jsi::Object options);
-jsi::Value buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
-                                                     jsi::Object options);
 
 jsi::Value poolCreate(jsi::Runtime &rt, jsi::Object options);
 jsi::Value poolRefresh(jsi::Runtime &rt, jsi::Object options);

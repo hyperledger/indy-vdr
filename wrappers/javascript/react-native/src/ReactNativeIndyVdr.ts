@@ -11,8 +11,6 @@ import type {
   GetRevocationRegistryDefinitionRequestOptions,
   GetRevocationRegistryDeltaRequestOptions,
   GetRevocationRegistryRequestOptions,
-  GetRichSchemaObjectByIdRequestOptions,
-  GetRichSchemaObjectByMetadataRequestOptions,
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
@@ -32,7 +30,6 @@ import type {
   RequestSetTxnAuthorAgreementAcceptanceOptions,
   RevocationRegistryDefinitionRequestOptions,
   RevocationRegistryEntryRequestOptions,
-  RichSchemaRequestOptions,
   SchemaRequestOptions,
   TransactionAuthorAgreementRequestOptions,
   Transactions,
@@ -208,21 +205,6 @@ export class ReactNativeIndyVdr implements IndyVdr {
   public buildTxnAuthorAgreementRequest(options: TransactionAuthorAgreementRequestOptions): number {
     const serializedOptions = serializeArguments(options)
     return indyVdrReactNative.buildTxnAuthorAgreementRequest(serializedOptions)
-  }
-
-  public buildRichSchemaRequest(options: RichSchemaRequestOptions): number {
-    const serializedOptions = serializeArguments(options)
-    return indyVdrReactNative.buildRichSchemaRequest(serializedOptions)
-  }
-
-  public buildGetRichSchemaObjectByIdRequest(options: GetRichSchemaObjectByIdRequestOptions): number {
-    const serializedOptions = serializeArguments(options)
-    return indyVdrReactNative.buildGetRichSchemaObjectByIdRequest(serializedOptions)
-  }
-
-  public buildGetRichSchemaObjectByMetadataRequest(options: GetRichSchemaObjectByMetadataRequestOptions): number {
-    const serializedOptions = serializeArguments(options)
-    return indyVdrReactNative.buildGetRichSchemaObjectByMetadataRequest(serializedOptions)
   }
 
   public poolCreate(options: PoolCreateOptions): number {

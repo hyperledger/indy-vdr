@@ -12,8 +12,6 @@ import type {
   GetRevocationRegistryDefinitionRequestOptions,
   GetRevocationRegistryDeltaRequestOptions,
   GetRevocationRegistryRequestOptions,
-  GetRichSchemaObjectByIdRequestOptions,
-  GetRichSchemaObjectByMetadataRequestOptions,
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
@@ -31,7 +29,6 @@ import type {
   RequestSetTxnAuthorAgreementAcceptanceOptions,
   RevocationRegistryDefinitionRequestOptions,
   RevocationRegistryEntryRequestOptions,
-  RichSchemaRequestOptions,
   SchemaRequestOptions,
   TransactionAuthorAgreementRequestOptions,
   Transactions,
@@ -365,21 +362,6 @@ export class NodeJSIndyVdr implements IndyVdr {
     )
 
     return requestHandle.deref() as number
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public buildRichSchemaRequest(_: RichSchemaRequestOptions): number {
-    throw new IndyVdrError({ code: 6, message: 'Method not yet implemented for wrapper' })
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public buildGetRichSchemaObjectByIdRequest(_: GetRichSchemaObjectByIdRequestOptions): number {
-    throw new IndyVdrError({ code: 6, message: 'Method not yet implemented for wrapper' })
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public buildGetRichSchemaObjectByMetadataRequest(_: GetRichSchemaObjectByMetadataRequestOptions): number {
-    throw new IndyVdrError({ code: 6, message: 'Method not yet implemented for wrapper' })
   }
 
   public poolCreate(options: PoolCreateOptions): number {

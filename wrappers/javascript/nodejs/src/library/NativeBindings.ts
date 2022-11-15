@@ -71,24 +71,6 @@ export interface NativeMethods {
   ) => number
   indy_vdr_build_get_txn_author_agreement_request: (arg0: string, arg1: string, requestHandlePtr: Buffer) => number
   indy_vdr_build_get_nym_request: (arg0: string, arg1: string, requestHandlePtr: Buffer) => number
-  indy_vdr_build_get_rich_schema_object_by_id_request: (arg0: string, arg1: string, requestHandlePtr: Buffer) => number
-  indy_vdr_build_get_rich_schema_object_by_metadata_request: (
-    arg0: string,
-    arg1: string,
-    arg2: string,
-    arg3: string,
-    requestHandlePtr: Buffer
-  ) => number
-  indy_vdr_build_rich_schema_request: (
-    arg0: string,
-    arg1: string,
-    arg2: string,
-    arg3: string,
-    arg4: string,
-    arg5: string,
-    arg6: string,
-    requestHandlePtr: Buffer
-  ) => number
   indy_vdr_build_get_txn_request: (arg0: string, arg1: number, arg2: number, requestHandlePtr: Buffer) => number
   indy_vdr_build_get_validator_info_request: (arg0: string, requestHandlePtr: Buffer) => number
   indy_vdr_build_nym_request: (
