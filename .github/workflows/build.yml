@@ -247,14 +247,19 @@ jobs:
           LIB_INDY_VDR_PATH: ../
         run: yarn test
 
-      # TODO: we may want to publish a new version of the library that doesn't need a new native binary
-      # for now we just release when a new github release is created
+      # TODO: this will currently publish the version as defined in the package.json. If the version already
+      # exists on NPM it will skip the publishing. This means if a new version is released, but the version hasn't been
+      # updated in the package.json files yet, it won't publish to NPM (which is kinda nice). We should however add a check
+      # to see if the JS version matches the release version (do we want to keep the js and rust version in sync?)
       - name: Publish JavaScript Wrapper
-        if: github.event_name == 'release'
+      - if: |
+          (github.event_name == 'release' ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.event.inputs.publish == 'true'))
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx lerna publish from-package --no-push --no-private --yes --no-verify-access --no-git-tag-version
+        run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
 
   # build-nodejs:
   #   name: Build and Test NodeJS wrapper
