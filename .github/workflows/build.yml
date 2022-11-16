@@ -121,12 +121,29 @@ jobs:
           name: library-${{ runner.os }}
           path: target/release/${{ matrix.lib }}
 
-      - name: Add library artifacts to release
+      - name: Create library artifacts directory
         if: github.event_name == 'release'
+        run: |
+          mkdir release-artifacts
+          cp target/release/${{ matrix.lib }} release-artifacts/
+
+      - uses: a7ul/tar-action@v1.1.2
+        if: github.event_name == 'release'
+        with:
+          command: c
+          cwd: release-artifacts
+          files: .
+          outPath: "library-${{ matrix.platform }}.tar.gz"
+
+      - name: Add library artifacts to release
+        if: |
+          (github.event_name == 'release' ||
+            (github.event_name == 'workflow_dispatch' &&
+              github.event.inputs.publish == 'true'))
         uses: svenstaro/upload-release-action@v2
         with:
-          file: target/release/${{ matrix.lib }}
-          asset_name: "library-${{ matrix.platform }}-$tag"
+          file: library-${{ matrix.platform }}.tar.gz
+          asset_name: "library-${{ matrix.platform }}.tar.gz"
 
   build-release:
     name: Build Library (MacOS/Win)
@@ -173,12 +190,27 @@ jobs:
           name: library-${{ runner.os }}
           path: target/release/${{ matrix.lib }}
 
+      - name: Create library artifacts directory
+        run: |
+          mkdir release-artifacts
+          cp target/release/${{ matrix.lib }} release-artifacts/
+
+      - uses: a7ul/tar-action@v1.1.2
+        with:
+          command: c
+          cwd: release-artifacts
+          files: .
+          outPath: "library-${{ matrix.platform }}.tar.gz"
+
       - name: Add library artifacts to release
-        if: github.event_name == 'release'
+        if: |
+          (github.event_name == 'release' ||
+            (github.event_name == 'workflow_dispatch' &&
+              github.event.inputs.publish == 'true'))
         uses: svenstaro/upload-release-action@v2
         with:
-          file: target/release/${{ matrix.lib }}
-          asset_name: "library-${{ matrix.platform }}-$tag"
+          file: library-${{ matrix.platform }}.tar.gz
+          asset_name: "library-${{ matrix.platform }}.tar.gz"
 
   build-golang:
     name: Build and Test Go wrapper
@@ -244,21 +276,29 @@ jobs:
 
       - name: Test JavaScript Wrapper
         env:
-          LIB_INDY_VDR_PATH: ../
+          # binary is downloaded to root of repository
+          LIB_INDY_VDR_PATH: ../../../
         run: yarn test
+
+      - name: Set NPM config
+        if: |
+          (github.event_name == 'release' ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.event.inputs.publish == 'true'))
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+          echo "always-auth=true" >> .npmrc
 
       # TODO: this will currently publish the version as defined in the package.json. If the version already
       # exists on NPM it will skip the publishing. This means if a new version is released, but the version hasn't been
       # updated in the package.json files yet, it won't publish to NPM (which is kinda nice). We should however add a check
       # to see if the JS version matches the release version (do we want to keep the js and rust version in sync?)
       - name: Publish JavaScript Wrapper
-      - if: |
+        if: |
           (github.event_name == 'release' ||
             (github.event_name == 'workflow_dispatch' &&
              github.event.inputs.publish == 'true'))
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
 
   # build-nodejs:

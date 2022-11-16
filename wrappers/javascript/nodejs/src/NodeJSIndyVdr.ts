@@ -35,8 +35,6 @@ import type {
   Verifiers,
 } from 'indy-vdr-shared'
 
-import { IndyVdrError } from 'indy-vdr-shared'
-
 import { handleError } from './error'
 import {
   deallocateCallback,

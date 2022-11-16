@@ -42,8 +42,9 @@ const getLibrary = () => {
   // Get the paths specific to the users operating system
   const platformPaths = libPaths[platform]
 
-  // Look for the file in the root of the package. This will be downloaded after installing the package
-  platformPaths.unshift(path.join(__dirname, '../..'))
+  // Look for the file in the native directory of the package.
+  // node-pre-gyp will download the binaries to this directory after installing the package
+  platformPaths.unshift(path.join(__dirname, '../../native'))
 
   // Check if the path from the environment variable is supplied and add it
   // We use unshift here so that when we want to get a valid library path this will be the first to resolve

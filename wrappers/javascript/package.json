@@ -22,7 +22,8 @@
     "react-native": "yarn --cwd react-native",
     "shared": "yarn --cwd shared",
     "nodejs": "yarn --cwd nodejs",
-    "test": "yarn nodejs test"
+    "test": "yarn nodejs test",
+    "set-version": "npx lerna version --exact --no-git-tag-version --no-push --yes"
   },
   "repository": {
     "type": "git",
