@@ -9,10 +9,16 @@ on:
     types: [created]
   workflow_dispatch:
     inputs:
-      publish:
-        description: "Publish packages"
+      publish-binaries:
+        description: "Whether to push the binaries to the ref of the current dispatched workflow"
         required: true
-        default: "false"
+        default: false
+        type: boolean
+      publish-wrappers:
+        description: "Whether to publish the wrappers to the various registries"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   check:
@@ -122,13 +128,17 @@ jobs:
           path: target/release/${{ matrix.lib }}
 
       - name: Create library artifacts directory
-        if: github.event_name == 'release'
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         run: |
           mkdir release-artifacts
           cp target/release/${{ matrix.lib }} release-artifacts/
 
       - uses: a7ul/tar-action@v1.1.2
-        if: github.event_name == 'release'
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         with:
           command: c
           cwd: release-artifacts
@@ -137,9 +147,8 @@ jobs:
 
       - name: Add library artifacts to release
         if: |
-          (github.event_name == 'release' ||
-            (github.event_name == 'workflow_dispatch' &&
-              github.event.inputs.publish == 'true'))
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         uses: svenstaro/upload-release-action@v2
         with:
           file: library-${{ matrix.platform }}.tar.gz
@@ -191,11 +200,17 @@ jobs:
           path: target/release/${{ matrix.lib }}
 
       - name: Create library artifacts directory
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         run: |
           mkdir release-artifacts
           cp target/release/${{ matrix.lib }} release-artifacts/
 
       - uses: a7ul/tar-action@v1.1.2
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         with:
           command: c
           cwd: release-artifacts
@@ -204,9 +219,8 @@ jobs:
 
       - name: Add library artifacts to release
         if: |
-          (github.event_name == 'release' ||
-            (github.event_name == 'workflow_dispatch' &&
-              github.event.inputs.publish == 'true'))
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         uses: svenstaro/upload-release-action@v2
         with:
           file: library-${{ matrix.platform }}.tar.gz
@@ -282,9 +296,8 @@ jobs:
 
       - name: Set NPM config
         if: |
-          (github.event_name == 'release' ||
-            (github.event_name == 'workflow_dispatch' &&
-             github.event.inputs.publish == 'true'))
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
           echo "registry=https://registry.npmjs.org/" >> .npmrc
@@ -296,9 +309,8 @@ jobs:
       # to see if the JS version matches the release version (do we want to keep the js and rust version in sync?)
       - name: Publish JavaScript Wrapper
         if: |
-          (github.event_name == 'release' ||
-            (github.event_name == 'workflow_dispatch' &&
-             github.event.inputs.publish == 'true'))
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
 
   # build-nodejs:
@@ -402,9 +414,8 @@ jobs:
           path: wrappers/python/dist/*
 
       - if: |
-          (github.event_name == 'release' ||
-            (github.event_name == 'workflow_dispatch' &&
-             github.event.inputs.publish == 'true'))
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         name: Publish python package
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
