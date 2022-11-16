@@ -10,12 +10,12 @@ on:
   workflow_dispatch:
     inputs:
       publish-binaries:
-        description: "Whether to push the binaries to the ref of the current dispatched workflow"
+        description: "Publish Binaries to Release (will create a release if no release exits for branch or tag)"
         required: true
         default: false
         type: boolean
       publish-wrappers:
-        description: "Whether to publish the wrappers to the various registries"
+        description: "Publish Wrappers to Registries"
         required: true
         default: false
         type: boolean
