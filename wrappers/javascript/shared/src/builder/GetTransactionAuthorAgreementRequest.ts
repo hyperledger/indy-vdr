@@ -37,7 +37,7 @@ export type GetTransactionAuthorAgreementResponse = {
   }
 }
 
-export class GetTransactionAuthorAgreementRequest extends IndyVdrRequest {
+export class GetTransactionAuthorAgreementRequest extends IndyVdrRequest<GetTransactionAuthorAgreementResponse> {
   public constructor(options: GetTransactionAuthorAgreementRequestOptions) {
     const handle = indyVdr.buildGetTxnAuthorAgreementRequest(options)
     super({ handle })

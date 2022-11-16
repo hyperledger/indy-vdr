@@ -5,7 +5,7 @@ export type GetCredentialDefinitionRequestOptions = {
   credentialDefinitionId: string
 }
 
-export type GetCredentialDefinitionReponse = {
+export type GetCredentialDefinitionResponse = {
   op: 'REPLY'
   result: {
     origin: string

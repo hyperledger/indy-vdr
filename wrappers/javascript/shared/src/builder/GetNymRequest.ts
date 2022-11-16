@@ -33,7 +33,7 @@ export type GetNymResponse = {
   }
 }
 
-export class GetNymRequest extends IndyVdrRequest {
+export class GetNymRequest extends IndyVdrRequest<GetNymResponse> {
   public constructor(options: GetNymRequestOptions) {
     const handle = indyVdr.buildGetNymRequest(options)
     super({ handle })

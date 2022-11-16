@@ -1,4 +1,4 @@
-import type { GetAttribResponse, IndyVdrPool } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-shared'
 
 import { GetAttribRequest } from 'indy-vdr-shared'
 
@@ -12,7 +12,7 @@ describe('GetAttribRequest', () => {
   test('Submit request', async () => {
     const request = new GetAttribRequest({ targetDid: DID, raw: { TODO: { TODO: 'TODO' } } })
 
-    await expect(pool.submitRequest<GetAttribResponse>({ requestHandle: request.handle })).resolves.toMatchObject({
+    await expect(pool.submitRequest(request)).resolves.toMatchObject({
       op: 'REPLY',
     })
   })

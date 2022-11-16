@@ -15,6 +15,6 @@ describe('SchemaRequest', () => {
       schema: { attrNames: ['TODO'], id: SCHEMA_ID, name: 'foo', ver: '1.0', version: '1.0', seqNo: 1 },
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

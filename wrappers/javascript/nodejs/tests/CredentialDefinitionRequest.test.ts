@@ -26,6 +26,6 @@ describe('CredentialDefinitionRequest', () => {
       submitterDid: DID,
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

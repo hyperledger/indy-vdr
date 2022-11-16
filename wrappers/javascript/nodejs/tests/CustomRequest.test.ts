@@ -19,7 +19,7 @@ describe('CustomRequest', () => {
       },
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).resolves.toMatchObject({
+    await expect(pool.submitRequest(request)).resolves.toMatchObject({
       op: 'REPLY',
     })
   })

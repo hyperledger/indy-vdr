@@ -12,6 +12,6 @@ describe('GetValidatorInfoRequest', () => {
   test('Submit request', async () => {
     const request = new GetValidatorInfoRequest({ submitterDid: DID })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).resolves.toMatchObject({})
+    await expect(pool.submitRequest(request)).resolves.toMatchObject({})
   })
 })

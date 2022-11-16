@@ -37,7 +37,7 @@ export type GetSchemaResponse = {
   }
 }
 
-export class GetSchemaRequest extends IndyVdrRequest {
+export class GetSchemaRequest extends IndyVdrRequest<GetSchemaResponse> {
   public constructor(options: GetSchemaRequestOptions) {
     const handle = indyVdr.buildGetSchemaRequest(options)
     super({ handle })

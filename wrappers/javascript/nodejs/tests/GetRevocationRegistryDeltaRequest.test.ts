@@ -1,4 +1,4 @@
-import type { GetRevocationRegistryDeltaResponse, IndyVdrPool } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-shared'
 
 import { GetRevocationRegistryDeltaRequest } from 'indy-vdr-shared'
 
@@ -12,8 +12,8 @@ describe('GetRevocationRegistryDeltaRequest', () => {
   test('Submit request', async () => {
     const request = new GetRevocationRegistryDeltaRequest({ revocationRegistryId: REVOC_REG_DEF_ID, toTs: 1 })
 
-    await expect(
-      pool.submitRequest<GetRevocationRegistryDeltaResponse>({ requestHandle: request.handle })
-    ).resolves.toMatchObject({ op: 'REPLY' })
+    await expect(pool.submitRequest(request)).resolves.toMatchObject({
+      op: 'REPLY',
+    })
   })
 })

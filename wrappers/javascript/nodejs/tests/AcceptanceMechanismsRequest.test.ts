@@ -16,6 +16,6 @@ describe('AcceptanceMechanismsRequest', () => {
       version: '1.0.0',
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

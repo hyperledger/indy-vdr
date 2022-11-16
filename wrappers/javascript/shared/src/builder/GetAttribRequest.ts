@@ -7,6 +7,7 @@ export type GetAttribRequestOptions = {
   raw?: Record<string, unknown>
   enc?: string
 }
+
 export type GetAttribResponse = {
   op: 'REPLY'
   result: {
@@ -36,7 +37,7 @@ export type GetAttribResponse = {
   }
 }
 
-export class GetAttribRequest extends IndyVdrRequest {
+export class GetAttribRequest extends IndyVdrRequest<GetAttribResponse> {
   public constructor(options: GetAttribRequestOptions) {
     const handle = indyVdr.buildGetAttribRequest(options)
     super({ handle })

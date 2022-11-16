@@ -51,7 +51,7 @@ export type GetTransactionResponse = {
   }
 }
 
-export class GetTransactionRequest extends IndyVdrRequest {
+export class GetTransactionRequest extends IndyVdrRequest<GetTransactionResponse> {
   public constructor(options: GetTransactionRequestOptions) {
     const handle = indyVdr.buildGetTxnRequest(options)
     super({ handle })

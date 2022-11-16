@@ -11,10 +11,10 @@ type RevocationRegistryDefinitionV1 = {
   revocDefType: 'CL_ACCUM'
   tag: string
   credDefId: string
-  value: RevocationRegistrtDefinitionValue
+  value: RevocationRegistryDefinitionValue
 }
 
-type RevocationRegistrtDefinitionValue = {
+type RevocationRegistryDefinitionValue = {
   issuanceType: 'ISSUANCE_BY_DEFAULT' | 'ISSUANCE_ON_DEMAND'
   maxCredNum: number
   publicKeys: { accumKey: string }

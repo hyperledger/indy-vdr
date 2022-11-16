@@ -16,6 +16,6 @@ describe('AttribRequest', () => {
       raw: '{ "endpoint": { "ha": "127.0.0.1:5555" } }',
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

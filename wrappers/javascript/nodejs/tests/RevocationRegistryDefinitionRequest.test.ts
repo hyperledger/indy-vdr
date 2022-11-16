@@ -28,6 +28,6 @@ describe('RevocationRegistryDefinitionRequest', () => {
       },
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

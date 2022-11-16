@@ -27,7 +27,7 @@ export type GetAcceptanceMechanismsResponse = {
   }
 }
 
-export class GetAcceptanceMechanismsRequest extends IndyVdrRequest {
+export class GetAcceptanceMechanismsRequest extends IndyVdrRequest<GetAcceptanceMechanismsResponse> {
   public constructor(options: GetAcceptanceMechanismsRequestOptions) {
     const handle = indyVdr.buildGetAcceptanceMechanismsRequest(options)
     super({ handle })

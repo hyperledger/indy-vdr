@@ -1,4 +1,4 @@
-import type { GetSchemaResponse, IndyVdrPool } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-shared'
 
 import { GetSchemaRequest } from 'indy-vdr-shared'
 
@@ -14,7 +14,7 @@ describe('GetSchemaRequest', () => {
       schemaId: SCHEMA_ID,
     })
 
-    await expect(pool.submitRequest<GetSchemaResponse>({ requestHandle: request.handle })).resolves.toMatchObject({
+    await expect(pool.submitRequest(request)).resolves.toMatchObject({
       op: 'REPLY',
     })
   })

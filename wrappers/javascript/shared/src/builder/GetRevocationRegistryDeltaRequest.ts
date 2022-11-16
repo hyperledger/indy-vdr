@@ -21,7 +21,7 @@ export type GetRevocationRegistryDeltaResponse = {
   }
 }
 
-export class GetRevocationRegistryDeltaRequest extends IndyVdrRequest {
+export class GetRevocationRegistryDeltaRequest extends IndyVdrRequest<GetRevocationRegistryDeltaResponse> {
   public constructor(options: GetRevocationRegistryDeltaRequestOptions) {
     const handle = indyVdr.buildGetRevocRegDeltaRequest(options)
     super({ handle })
