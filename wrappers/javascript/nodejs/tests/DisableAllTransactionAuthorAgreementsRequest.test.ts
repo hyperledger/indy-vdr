@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { DisableAllTransactionAuthorAgreementsRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { DisableAllTransactionAuthorAgreementsRequest } from 'indy-vdr-nodejs'
 
 describe('DisableAllTransactionsAuthorAgreementRequest', () => {
   let pool: IndyVdrPool

@@ -10,25 +10,16 @@ Older and newer versions might also work, but they have not been tested.
 ## Installation
 
 ```sh
-yarn add indy-vdr-nodejs indy-vdr-shared
+yarn add indy-vdr-nodejs
 ```
 
-## Setup
+## Usage
 
-In order to work with this module a function from `indy-vdr-shared` has to be
-called to register the native module (indy-vdr-nodejs)
-
-```typescript
-import { registerIndyVdr } from 'indy-vdr-shared'
-import { indyVdrNodeJS } from 'indy-vdr-nodejs'
-
-registerIndyVdr({ vdr: indyVdrNodeJS })
-```
-
-After this setup classes can be built that are imported from `indy-vdr-shared`
-and afterwards be submitted as a ledger request, like so:
+You can import all types and classes from the `indy-vdr-nodejs` library:
 
 ```typescript
+import { PoolCreate, GetSchemaRequest } from 'indy-vdr-nodejs'
+
 const pool = new PoolCreate({
   parameters: {
     transactions: <TRANSACTION_OBJECT>
@@ -39,5 +30,7 @@ const getSchemaRequest = new GetSchemaRequest({
   schemaId: 'J6nTnUo3YLayzc2GUUctb1:2:MyName:1.0',
 })
 
-await pool.submitRequest({ requestHandle: getSchemaRequest.handle })
+const schemaResponse = await pool.submitRequest(getSchemaRequest)
 ```
+
+> **Note**: If you want to use this library in a cross-platform environment you need to import methods from the `indy-vdr-shared` package instead. This is a platform independent package that allows to register the native bindings. The `indy-vdr-react-native` package uses this package under the hood. See the [Indy VDR Shared README](https://github.com/hyperledger/indy-vdr/tree/main/wrappers/javascript/shared/README.md) for documentation on how to use this package.

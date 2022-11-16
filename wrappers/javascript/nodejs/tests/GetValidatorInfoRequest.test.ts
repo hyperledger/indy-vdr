@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { GetValidatorInfoRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { GetValidatorInfoRequest } from 'indy-vdr-nodejs'
 
 describe('GetValidatorInfoRequest', () => {
   let pool: IndyVdrPool

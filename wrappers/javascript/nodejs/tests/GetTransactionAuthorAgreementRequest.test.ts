@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { GetTransactionAuthorAgreementRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { setupPool } from './utils'
+
+import { GetTransactionAuthorAgreementRequest } from 'indy-vdr-nodejs'
 
 describe('GetTransactionAuthorAgreementRequest', () => {
   let pool: IndyVdrPool

@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { SchemaRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, SCHEMA_ID, setupPool } from './utils'
+
+import { SchemaRequest } from 'indy-vdr-nodejs'
 
 describe('SchemaRequest', () => {
   let pool: IndyVdrPool

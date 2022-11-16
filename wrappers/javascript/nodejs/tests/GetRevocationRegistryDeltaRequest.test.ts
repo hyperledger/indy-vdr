@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { GetRevocationRegistryDeltaRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { REVOC_REG_DEF_ID, setupPool } from './utils'
+
+import { GetRevocationRegistryDeltaRequest } from 'indy-vdr-nodejs'
 
 describe('GetRevocationRegistryDeltaRequest', () => {
   let pool: IndyVdrPool

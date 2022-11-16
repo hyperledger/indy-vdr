@@ -1,18 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
-import type { IndyVdrRequest } from 'indy-vdr-shared'
-
-import { registerIndyVdr, GetSchemaRequest } from 'indy-vdr-shared'
-
-import { indyVdrNodeJS } from '../src'
+import type { IndyVdrRequest } from 'indy-vdr-nodejs'
 
 import { DID, SCHEMA_ID } from './utils'
+
+import { GetSchemaRequest } from 'indy-vdr-nodejs'
 
 describe('IndyVdrRequest', () => {
   let request: IndyVdrRequest
 
   beforeAll(() => {
-    registerIndyVdr({ vdr: indyVdrNodeJS })
     request = new GetSchemaRequest({ schemaId: SCHEMA_ID })
   })
 

@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { GetNymRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { GetNymRequest } from 'indy-vdr-nodejs'
 
 describe('GetNymRequest', () => {
   let pool: IndyVdrPool
