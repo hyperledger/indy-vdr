@@ -2,11 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
+import { registerIndyVdr } from 'indy-vdr-shared'
 import { NativeModules } from 'react-native'
 
 import { ReactNativeIndyVdr } from './ReactNativeIndyVdr'
-
-import { registerIndyVdr } from 'indy-vdr-react-native'
 
 const module = NativeModules.IndyVdr
 if (!module.install()) throw Error('Unable to install the turboModule: indyVdr')
