@@ -24,7 +24,7 @@ First make sure you've built the library using the `build.sh` script in the root
 Then run the tests with the following command. Replace `<absolute-path>` with an absolute path to repository root.
 
 ```sh
-IB_INDY_VDR_PATH=/<absolute-path>/indy-vdr/target/release yarn test
+LIB_INDY_VDR_PATH=/<absolute-path>/indy-vdr/target/release yarn test
 ```
 
 ## Releasing
