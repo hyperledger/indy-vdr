@@ -34,7 +34,7 @@ Before calling any methods you then need to make sure you register the platform 
 
 ```typescript
 // register.ts
-import 'indy-vdr-react-native'
+import 'indy-vdr-nodejs'
 ```
 
 ```typescript
