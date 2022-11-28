@@ -1,4 +1,4 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetAcceptanceMechanismsResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { setupPool } from './utils'
 
@@ -11,8 +11,9 @@ describe('GetAcceptanceMechanismsRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetAcceptanceMechanismsRequest({})
+    const response: GetAcceptanceMechanismsResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest(request)).resolves.toMatchObject({
+    expect(response).toMatchObject({
       op: 'REPLY',
     })
   })

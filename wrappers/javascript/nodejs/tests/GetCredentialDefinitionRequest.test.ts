@@ -1,4 +1,4 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetCredentialDefinitionResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { CRED_DEF_ID, setupPool } from './utils'
 
@@ -11,7 +11,8 @@ describe('GetCredentialDefinitionRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetCredentialDefinitionRequest({ credentialDefinitionId: CRED_DEF_ID })
+    const response: GetCredentialDefinitionResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest(request)).resolves.toMatchObject({ op: 'REPLY' })
+    expect(response).toMatchObject({ op: 'REPLY' })
   })
 })

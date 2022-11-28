@@ -1,3 +1,5 @@
+import type { GetRequestResponse, GetRequestResultFoundBase, GetRequestResultNotFoundBase } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetRevocationRegistryDefinitionRequestOptions = {
@@ -5,33 +7,38 @@ export type GetRevocationRegistryDefinitionRequestOptions = {
   revocationRegistryId: string
 }
 
-export type GetRevocationRegistryDefinitionResponse = {
-  op: 'REPLY'
-  result: {
-    txnTime?: unknown
-    state_proof: {
-      multi_signature: {
-        signature: string
-        value: {
-          ledger_id: number
-          state_root_hash: string
-          timestamp: number
-          txn_root_hash: string
-          pool_state_root_hash: string
+interface GetRevocationRegistryDefinitionFoundResult extends GetRequestResultFoundBase {
+  type: '115'
+  data: {
+    value: {
+      // TODO: more specific
+      issuanceType: 'ISSUANCE_BY_DEFAULT' | 'ISSUANCE_ON_DEMAND'
+      tailsHash: string
+      maxCredNum: number
+      publicKeys: {
+        accumKey: {
+          z: string
         }
-        participants: Array<string>
       }
-      root_hash: string
-      proof_nodes: string
+      tailsLocation: string
     }
-    type: string
-    reqId: number
+    revocDefType: 'CL_ACCUM'
     id: string
-    seqNo?: unknown
-    identifier: string
-    data?: unknown
+    credDefId: string
+    tag: string
   }
 }
+
+interface GetRevocationRegistryDefinitionNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '115'
+  data: null
+  id: string
+}
+
+export type GetRevocationRegistryDefinitionResponse = GetRequestResponse<
+  GetRevocationRegistryDefinitionFoundResult,
+  GetRevocationRegistryDefinitionNotFoundResult
+>
 
 export class GetRevocationRegistryDefinitionRequest extends IndyVdrRequest<GetRevocationRegistryDefinitionResponse> {
   public constructor(options: GetRevocationRegistryDefinitionRequestOptions) {

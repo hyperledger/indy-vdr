@@ -135,7 +135,7 @@ export interface IndyVdrNativeBindings {
     text?: string
     version?: string
     taaDigest?: string
-    accMechType: string
+    acceptanceMechanismType: string
     time: number
   }): string
 

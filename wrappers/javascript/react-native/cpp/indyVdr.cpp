@@ -544,13 +544,13 @@ jsi::Value prepareTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
       turboModuleUtility::jsiToValue<std::string>(rt, options, "version");
   std::string taaDigest =
       turboModuleUtility::jsiToValue<std::string>(rt, options, "taaDigest");
-  std::string accMechType =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "accMechType");
+  std::string acceptanceMechanismType =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "acceptanceMechanismType");
   int32_t time = turboModuleUtility::jsiToValue<int32_t>(rt, options, "time");
 
   const char *output;
   ErrorCode code = indy_vdr_prepare_txn_author_agreement_acceptance(
-      text.c_str(), version.c_str(), taaDigest.c_str(), accMechType.c_str(),
+      text.c_str(), version.c_str(), taaDigest.c_str(), acceptanceMechanismType.c_str(),
       time, &output);
   turboModuleUtility::handleError(rt, code);
 

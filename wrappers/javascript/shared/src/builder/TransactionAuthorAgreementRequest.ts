@@ -8,6 +8,7 @@ export type TransactionAuthorAgreementRequestOptions = {
   retirementTs?: number
 }
 
+// TODO: add response type. This call is probably never used, so it's not a priority.
 export class TransactionAuthorAgreementRequest extends IndyVdrRequest {
   public constructor(options: TransactionAuthorAgreementRequestOptions) {
     const handle = indyVdr.buildTxnAuthorAgreementRequest(options)

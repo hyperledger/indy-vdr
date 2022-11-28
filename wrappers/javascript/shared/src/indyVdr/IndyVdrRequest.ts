@@ -1,12 +1,14 @@
 import { indyVdr } from '../indyVdr/indyVdr'
 
 export type RequestSetTxnAuthorAgreementAcceptanceOptions = {
-  acceptance: {
-    mechanism: string
-    taaDigest: string
-    // TODO: should we use date?
-    time: number
-  }
+  acceptance:
+    | {
+        mechanism: string
+        taaDigest: string
+        // TODO: should we use date?
+        time: number
+      }
+    | string
 }
 
 export type RequestSetMultiSignatureOptions = {

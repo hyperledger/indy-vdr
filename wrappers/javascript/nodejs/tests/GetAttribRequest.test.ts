@@ -1,4 +1,4 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetAttribResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
 
@@ -10,9 +10,10 @@ describe('GetAttribRequest', () => {
   beforeAll(() => (pool = setupPool()))
 
   test('Submit request', async () => {
-    const request = new GetAttribRequest({ targetDid: DID, raw: { TODO: { TODO: 'TODO' } } })
+    const request = new GetAttribRequest({ targetDid: DID, raw: 'endpoint' })
+    const response: GetAttribResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest(request)).resolves.toMatchObject({
+    expect(response).toMatchObject({
       op: 'REPLY',
     })
   })

@@ -1,3 +1,5 @@
+import type { GetRequestResultFoundBase, GetRequestResultNotFoundBase, GetRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetRevocationRegistryDeltaRequestOptions = {
@@ -7,19 +9,40 @@ export type GetRevocationRegistryDeltaRequestOptions = {
   toTs: number
 }
 
-export type GetRevocationRegistryDeltaResponse = {
-  op: 'REPLY'
-  result: {
-    revocRegDefId: string
-    to: number
-    type: string
-    reqId: number
-    txnTime?: unknown
-    seqNo?: unknown
-    identifier: string
-    data?: unknown
+interface GetRevocationRegistryDeltaFoundResult extends GetRequestResultFoundBase {
+  type: '117'
+  to: number
+  from?: number
+  data: {
+    value: {
+      accum_to: {
+        seqNo: number
+        value: {
+          accum: string
+        }
+        revocRegDefId: string
+        revocDefType: 'CL_ACCUM'
+        txnTime: number
+      }
+      revoked: number[]
+      issued: number[]
+    }
   }
+  revocRegDefId: string
 }
+
+interface GetRevocationRegistryDeltaNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '117'
+  data: null
+  to: number
+  from?: number
+  revocRegDefId: string
+}
+
+export type GetRevocationRegistryDeltaResponse = GetRequestResponse<
+  GetRevocationRegistryDeltaFoundResult,
+  GetRevocationRegistryDeltaNotFoundResult
+>
 
 export class GetRevocationRegistryDeltaRequest extends IndyVdrRequest<GetRevocationRegistryDeltaResponse> {
   public constructor(options: GetRevocationRegistryDeltaRequestOptions) {

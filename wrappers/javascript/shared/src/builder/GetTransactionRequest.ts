@@ -1,3 +1,5 @@
+import type { GetRequestResultFoundBase, GetRequestResultNotFoundBase, GetRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetTransactionRequestOptions = {
@@ -6,50 +8,31 @@ export type GetTransactionRequestOptions = {
   seqNo: number
 }
 
-export type GetTransactionResponse = {
-  op: 'REPLY'
-  result: {
-    reqId: number
-    seqNo: number
-    data: {
-      auditPath: Array<string>
-      txnMetadata: {
-        seqNo: number
-      }
-      txn: {
-        // TODO: unknown
-        metadata: Record<string, unknown>
-        data: {
-          dest: string
-          alias: string
-          verkey: string
-          role: string
-        }
-        type: string
-      }
-      rootHash: string
-      ver: string
-      ledgerSize: number
-      // TODO: unknown
-      reqSignature: Record<string, unknown>
+interface GetTransactionFoundResult extends GetRequestResultFoundBase {
+  type: '3'
+  data: {
+    auditPath: string[]
+    txnMetadata: {
+      seqNo: number
     }
-    type: string
-    identifier: string
-    state_proof: {
-      multi_signature: {
-        value: {
-          pool_state_root_hash: string
-          state_root_hash: string
-          ledger_id: number
-          timestamp: number
-          txn_root_hash: string
-        }
-        participants: Array<string>
-        signature: string
-      }
+    txn: {
+      metadata: Record<string, unknown>
+      data: unknown
+      type: string
     }
+    rootHash: string
+    ver: string
+    ledgerSize: number
+    reqSignature: Record<string, unknown>
   }
 }
+
+interface GetTransactionNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '3'
+  data: null
+}
+
+export type GetTransactionResponse = GetRequestResponse<GetTransactionFoundResult, GetTransactionNotFoundResult>
 
 export class GetTransactionRequest extends IndyVdrRequest<GetTransactionResponse> {
   public constructor(options: GetTransactionRequestOptions) {

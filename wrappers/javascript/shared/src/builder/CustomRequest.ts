@@ -1,18 +1,12 @@
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
+// TODO: this needs some more work, but need to find a way to use it first.
 export type CustomRequestOptions = {
   customRequest: {
     protocolVersion: 1 | 2
     reqId?: number
     identifier: string
-    operation: {
-      // TODO: unsure about string
-      data: number
-      type: string
-      timestamp: Date
-      from: number
-      to: number
-    }
+    operation: Record<string, unknown>
   }
 }
 

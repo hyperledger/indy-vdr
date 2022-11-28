@@ -1,4 +1,4 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetTransactionResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { setupPool } from './utils'
 
@@ -11,8 +11,9 @@ describe('GetTransactionRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetTransactionRequest({ ledgerType: 1, seqNo: 1 })
+    const response: GetTransactionResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest(request)).resolves.toMatchObject({
+    expect(response).toMatchObject({
       op: 'REPLY',
     })
   })

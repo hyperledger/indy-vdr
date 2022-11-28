@@ -1,4 +1,4 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { IndyVdrPool, GetRevocationRegistryDefinitionResponse } from 'indy-vdr-nodejs'
 
 import { REVOC_REG_DEF_ID, setupPool } from './utils'
 
@@ -11,8 +11,9 @@ describe('GetRevocationRegistryDefinitionRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetRevocationRegistryDefinitionRequest({ revocationRegistryId: REVOC_REG_DEF_ID })
+    const response: GetRevocationRegistryDefinitionResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest(request)).resolves.toMatchObject({
+    expect(response).toMatchObject({
       op: 'REPLY',
     })
   })

@@ -1,4 +1,4 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetSchemaResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { SCHEMA_ID, setupPool } from './utils'
 
@@ -13,8 +13,9 @@ describe('GetSchemaRequest', () => {
     const request = new GetSchemaRequest({
       schemaId: SCHEMA_ID,
     })
+    const response: GetSchemaResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest(request)).resolves.toMatchObject({
+    expect(response).toMatchObject({
       op: 'REPLY',
     })
   })

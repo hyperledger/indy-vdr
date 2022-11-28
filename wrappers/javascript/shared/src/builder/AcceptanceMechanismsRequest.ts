@@ -7,6 +7,7 @@ export type AcceptanceMechanismsRequestOptions = {
   amlContext?: string
 }
 
+// TODO: add response type. This call is probably never used, so it's not a priority.
 export class AcceptanceMechanismsRequest extends IndyVdrRequest {
   public constructor(options: AcceptanceMechanismsRequestOptions) {
     const handle = indyVdr.buildAcceptanceMechanismsRequest(options)

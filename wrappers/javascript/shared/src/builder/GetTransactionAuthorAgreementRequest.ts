@@ -1,3 +1,5 @@
+import type { GetRequestResultFoundBase, GetRequestResultNotFoundBase, GetRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetTransactionAuthorAgreementRequestOptions = {
@@ -5,37 +7,26 @@ export type GetTransactionAuthorAgreementRequestOptions = {
   data?: string
 }
 
-export type GetTransactionAuthorAgreementResponse = {
-  op: 'REPLY'
-  result: {
-    reqId: number
-    seqNo: number
-    type: string
-    state_proof: {
-      proof_nodes: string
-      multi_signature: {
-        participants: Array<string>
-        value: {
-          timestamp: number
-          state_root_hash: string
-          pool_state_root_hash: string
-          txn_root_hash: string
-          ledger_id: number
-        }
-        signature: string
-      }
-      root_hash: string
-    }
-    data: {
-      ratification_ts: number
-      digest: string
-      version: string
-      text: string
-    }
-    txnTime: number
-    identifier: string
+interface GetTransactionAuthorAgreementFoundResult extends GetRequestResultFoundBase {
+  type: '6'
+  data: {
+    ratification_ts: number
+    digest: string
+    version: string
+    text: string
   }
 }
+
+interface GetTransactionAuthorAgreementNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '6'
+  // TODO: verify if this is indeed 0
+  data: null
+}
+
+export type GetTransactionAuthorAgreementResponse = GetRequestResponse<
+  GetTransactionAuthorAgreementFoundResult,
+  GetTransactionAuthorAgreementNotFoundResult
+>
 
 export class GetTransactionAuthorAgreementRequest extends IndyVdrRequest<GetTransactionAuthorAgreementResponse> {
   public constructor(options: GetTransactionAuthorAgreementRequestOptions) {

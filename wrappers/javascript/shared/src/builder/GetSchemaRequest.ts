@@ -1,3 +1,5 @@
+import type { GetRequestResultFoundBase, GetRequestResultNotFoundBase, GetRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetSchemaRequestOptions = {
@@ -5,37 +7,28 @@ export type GetSchemaRequestOptions = {
   schemaId: string
 }
 
-export type GetSchemaResponse = {
-  op: 'REPLY'
-  result: {
-    txnTime: number
-    seqNo: number
-    state_proof: {
-      multi_signature: {
-        signature: string
-        value: {
-          ledger_id: number
-          state_root_hash: string
-          timestamp: number
-          txn_root_hash: string
-          pool_state_root_hash: string
-        }
-        participants: Array<string>
-      }
-      root_hash: string
-      proof_nodes: string
-    }
-    type: string
-    reqId: number
-    dest: string
-    identifier: string
-    data: {
-      attr_names: Array<string>
-      name: string
-      version: string
-    }
+interface GetSchemaFoundResult extends GetRequestResultFoundBase {
+  type: '107'
+  dest: string
+  data: {
+    version: string
+    attr_names: string[]
+    name: string
   }
 }
+
+// If a schema is not found, the data attribute is still populated, the attr_names is just empty
+
+interface GetSchemaNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '107'
+  dest: string
+  data: {
+    version: string
+    name: string
+  }
+}
+
+export type GetSchemaResponse = GetRequestResponse<GetSchemaFoundResult, GetSchemaNotFoundResult>
 
 export class GetSchemaRequest extends IndyVdrRequest<GetSchemaResponse> {
   public constructor(options: GetSchemaRequestOptions) {

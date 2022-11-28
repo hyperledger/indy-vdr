@@ -1,4 +1,4 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetValidatorInfoResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
 
@@ -11,7 +11,8 @@ describe('GetValidatorInfoRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetValidatorInfoRequest({ submitterDid: DID })
+    const response: GetValidatorInfoResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest(request)).resolves.toMatchObject({})
+    expect(response).toMatchObject({})
   })
 })

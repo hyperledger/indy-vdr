@@ -309,7 +309,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { dest, submitterDid, alias, role, verkey } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, alias, role, verkey, requestHandle))
+    handleError(nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, verkey, alias, role, requestHandle))
 
     return requestHandle.deref() as number
   }
@@ -422,14 +422,14 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public prepareTxnAuthorAgreementAcceptance(options: PrepareTxnAuthorAgreementAcceptanceOptions): string {
     const output = allocateString()
-    const { accMechType, time, taaDigest, text, version } = serializeArguments(options)
+    const { acceptanceMechanismType, time, taaDigest, text, version } = serializeArguments(options)
 
     handleError(
       nativeIndyVdr.indy_vdr_prepare_txn_author_agreement_acceptance(
         text,
         version,
         taaDigest,
-        accMechType,
+        acceptanceMechanismType,
         time,
         output
       )

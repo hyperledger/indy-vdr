@@ -1,3 +1,5 @@
+import type { WriteRequestResponse, WriteRequestResultTxnBase } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type CredentialDefinitionRequestOptions = {
@@ -14,6 +16,21 @@ export type CredentialDefinitionRequestOptions = {
     }
   }
 }
+
+interface CredentialDefinitionResultTxn extends WriteRequestResultTxnBase {
+  type: '102'
+  data: {
+    data: {
+      primary: Record<string, unknown>
+      revocation?: unknown
+    }
+    signature_type: 'CL'
+    ref: number
+    tag: string
+  }
+}
+
+export type CredentialDefinitionResponse = WriteRequestResponse<CredentialDefinitionResultTxn>
 
 export class CredentialDefinitionRequest extends IndyVdrRequest {
   public constructor(options: CredentialDefinitionRequestOptions) {

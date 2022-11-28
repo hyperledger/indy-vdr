@@ -1,3 +1,5 @@
+import type { GetRequestResultFoundBase, GetRequestResultNotFoundBase, GetRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetRevocationRegistryRequestOptions = {
@@ -6,35 +8,30 @@ export type GetRevocationRegistryRequestOptions = {
   timestamp: Date
 }
 
-export type GetRevocationRegistryResponse = {
-  op: 'REPLY'
-  result: {
-    revocRegDefId: string
-    seqNo?: unknown
-    state_proof: {
-      multi_signature: {
-        signature: string
-        value: {
-          ledger_id: number
-          state_root_hash: string
-          timestamp: number
-          txn_root_hash: string
-          pool_state_root_hash: string
-        }
-        participants: Array<string>
-      }
-      root_hash: string
-      proof_nodes: string
+interface GetRevocationRegistryFoundResult extends GetRequestResultFoundBase {
+  type: '116'
+  data: {
+    seqNo: number
+    value: {
+      accum: string
     }
-    type: string
-    reqId: number
-    txnTime?: unknown
-    timestamp: number
-    identifier: string
-    data?: unknown
+    revocRegDefId: string
+    txnTime: number
+    revocDefType: 'CL_ACCUM'
   }
+  revocRegDefId: string
 }
 
+interface GetRevocationRegistryNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '116'
+  data: null
+  revocRegDefId: string
+}
+
+export type GetRevocationRegistryResponse = GetRequestResponse<
+  GetRevocationRegistryFoundResult,
+  GetRevocationRegistryNotFoundResult
+>
 export class GetRevocationRegistryRequest extends IndyVdrRequest<GetRevocationRegistryResponse> {
   public constructor(options: GetRevocationRegistryRequestOptions) {
     const handle = indyVdr.buildGetRevocRegRequest(options)

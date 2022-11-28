@@ -24,8 +24,6 @@ import type {
 } from '../builder'
 import type {
   PoolHandle,
-  PoolSubmitActionOptions,
-  PoolSubmitRequestOptions,
   RequestHandle,
   RequestSetEndorserOptions,
   RequestSetMultiSignatureOptions,
@@ -33,7 +31,7 @@ import type {
   RequestSetTxnAuthorAgreementAcceptanceOptions,
 } from '../indyVdr'
 import type { PrepareTxnAuthorAgreementAcceptanceOptions } from './builderTypes'
-import type { PoolStatus, Transactions, Verifiers } from './types'
+import type { PoolStatus, PoolSubmitActionOptions, PoolSubmitRequestOptions, Transactions, Verifiers } from './types'
 
 // TODO: proper documentation
 export interface IndyVdr {
@@ -101,13 +99,9 @@ export interface IndyVdr {
 
   poolGetVerifiers(options: { poolHandle: PoolHandle }): Promise<Verifiers>
 
-  poolSubmitAction<T extends Record<string, unknown>>(
-    options: PoolSubmitActionOptions & { poolHandle: PoolHandle }
-  ): Promise<T>
+  poolSubmitAction<T extends Record<string, unknown>>(options: PoolSubmitActionOptions): Promise<T>
 
-  poolSubmitRequest<T extends Record<string, unknown>>(
-    options: PoolSubmitRequestOptions & { poolHandle: PoolHandle }
-  ): Promise<T>
+  poolSubmitRequest<T extends Record<string, unknown>>(options: PoolSubmitRequestOptions): Promise<T>
 
   poolClose(options: { poolHandle: number }): void
 

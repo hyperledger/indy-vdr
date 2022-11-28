@@ -4,7 +4,9 @@ export type GetValidatorInfoRequestOptions = {
   submitterDid: string
 }
 
-export class GetValidatorInfoRequest extends IndyVdrRequest {
+export type GetValidatorInfoResponse = Record<string, string>
+
+export class GetValidatorInfoRequest extends IndyVdrRequest<GetValidatorInfoResponse> {
   public constructor(options: GetValidatorInfoRequestOptions) {
     const handle = indyVdr.buildGetValidatorInfoRequest(options)
     super({ handle })
