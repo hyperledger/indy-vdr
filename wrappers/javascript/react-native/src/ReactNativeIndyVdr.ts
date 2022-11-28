@@ -14,7 +14,7 @@ import type {
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
-  GetValidatorInfoRequestOptions,
+  GetValidatorInfoActionOptions,
   IndyVdr,
   NymRequestOptions,
   PoolCreateOptions,
@@ -182,7 +182,7 @@ export class ReactNativeIndyVdr implements IndyVdr {
     return indyVdrReactNative.buildGetTxnRequest(serializedOptions)
   }
 
-  public buildGetValidatorInfoRequest(options: GetValidatorInfoRequestOptions): number {
+  public buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number {
     const serializedOptions = serializeArguments(options)
     return indyVdrReactNative.buildGetValidatorInfoRequest(serializedOptions)
   }
