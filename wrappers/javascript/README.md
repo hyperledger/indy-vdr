@@ -21,10 +21,10 @@ yarn install
 
 First make sure you've built the library using the `build.sh` script in the root of the repository.
 
-Then run the tests with the following command. Replace `<absolute-path>` with an absolute path to repository root.
+Then run the tests with the following command. This will automatically use the local build of Indy VDR.
 
 ```sh
-LIB_INDY_VDR_PATH=/<absolute-path>/indy-vdr/target/release yarn test
+yarn test:local-build
 ```
 
 ## Releasing

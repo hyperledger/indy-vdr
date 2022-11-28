@@ -22,7 +22,8 @@
     "react-native": "yarn --cwd react-native",
     "shared": "yarn --cwd shared",
     "nodejs": "yarn --cwd nodejs",
-    "test": "yarn nodejs test",
+    "test": "cross-env yarn nodejs test",
+    "test:local-build": "cross-env LIB_INDY_VDR_PATH=../../../target/release yarn test",
     "set-version": "npx lerna version --exact --no-git-tag-version --no-push --yes"
   },
   "repository": {
@@ -35,6 +36,7 @@
     "@types/eslint": "^8.4.1",
     "@typescript-eslint/eslint-plugin": "^5.11.0",
     "@typescript-eslint/parser": "^5.11.0",
+    "cross-env": "^7.0.3",
     "eslint": "^8.8.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-import-resolver-typescript": "^2.5.0",
