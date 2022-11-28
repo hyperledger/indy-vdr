@@ -15,7 +15,7 @@ import type {
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
-  GetValidatorInfoRequestOptions,
+  GetValidatorInfoActionOptions,
   IndyVdr,
   NymRequestOptions,
   PoolCreateOptions,
@@ -296,7 +296,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     return requestHandle.deref() as number
   }
 
-  public buildGetValidatorInfoRequest(options: GetValidatorInfoRequestOptions): number {
+  public buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number {
     const requestHandle = allocateHandle()
     const { submitterDid } = serializeArguments(options)
 

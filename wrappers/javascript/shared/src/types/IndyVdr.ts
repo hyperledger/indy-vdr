@@ -14,7 +14,7 @@ import type {
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
-  GetValidatorInfoRequestOptions,
+  GetValidatorInfoActionOptions,
   NymRequestOptions,
   PoolCreateOptions,
   RevocationRegistryDefinitionRequestOptions,
@@ -79,7 +79,7 @@ export interface IndyVdr {
 
   buildGetTxnRequest(options: GetTransactionRequestOptions): number
 
-  buildGetValidatorInfoRequest(options: GetValidatorInfoRequestOptions): number
+  buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number
 
   buildNymRequest(options: NymRequestOptions): number
 
