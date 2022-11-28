@@ -19,7 +19,6 @@ interface GetTransactionAuthorAgreementFoundResult extends GetRequestResultFound
 
 interface GetTransactionAuthorAgreementNotFoundResult extends GetRequestResultNotFoundBase {
   type: '6'
-  // TODO: verify if this is indeed 0
   data: null
 }
 

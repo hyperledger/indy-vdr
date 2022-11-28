@@ -5,7 +5,6 @@ export type RequestSetTxnAuthorAgreementAcceptanceOptions = {
     | {
         mechanism: string
         taaDigest: string
-        // TODO: should we use date?
         time: number
       }
     | string

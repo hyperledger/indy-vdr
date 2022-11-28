@@ -11,7 +11,6 @@ interface GetRevocationRegistryDefinitionFoundResult extends GetRequestResultFou
   type: '115'
   data: {
     value: {
-      // TODO: more specific
       issuanceType: 'ISSUANCE_BY_DEFAULT' | 'ISSUANCE_ON_DEMAND'
       tailsHash: string
       maxCredNum: number
