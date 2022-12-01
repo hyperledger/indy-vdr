@@ -8,8 +8,7 @@ license = "Apache-2.0"
 
 [features]
 fetch = ["hyper-tls", "hyper/client"]
-zmq_vendored = ["indy-vdr/zmq_vendored"]
-default = ["fetch", "zmq_vendored"]
+default = ["fetch"]
 
 [dependencies]
 clap = "3.1"

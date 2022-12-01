@@ -18,10 +18,9 @@ crate-type = ["staticlib", "rlib", "cdylib"]
 [features]
 ffi = ["ffi-support", "logger"]
 logger = ["env_logger", "log"]
-zmq_vendored = ["zmq/vendored"]
 local_nodes_pool = []
 rich_schema = ["indy-data-types/rich_schema"]
-default = ["ffi", "log", "zmq_vendored"]
+default = ["ffi", "log"]
 
 [dependencies]
 env_logger = { version = "0.9", optional = true }
@@ -44,7 +43,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha3 = "0.10"
 thiserror = "1.0"
-zmq = "0.9"
+zmq = "0.10"
 
 [dependencies.ursa]
 version = "0.3.5"
