@@ -50,7 +50,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path libindy_vdr/Cargo.toml --features zmq_vendored
+          args: --manifest-path libindy_vdr/Cargo.toml
 
   test-suite:
     name: Run Test Suite
@@ -111,7 +111,6 @@ jobs:
       - name: Build library
         env:
           BUILD_TARGET: ${{ matrix.target }}
-          BUILD_FEATURES: zmq_vendored
         run: sh ./build.sh
 
       - name: Upload library artifacts
@@ -154,7 +153,6 @@ jobs:
         env:
           BUILD_TARGET: ${{ matrix.target }}
           BUILD_TOOLCHAIN: ${{ matrix.toolchain }}
-          BUILD_FEATURES: zmq_vendored
         run: sh ./build.sh
 
       - name: Upload library artifacts
