@@ -1,3 +1,5 @@
+import type { WriteRequestResponse, WriteRequestResultTxnBase } from '../types'
+
 import { IndyVdrRequest, indyVdr } from '../indyVdr'
 
 export type SchemaRequestOptions = {
@@ -12,7 +14,18 @@ export type SchemaRequestOptions = {
   }
 }
 
-export class SchemaRequest extends IndyVdrRequest {
+interface SchemaResultTxn extends WriteRequestResultTxnBase {
+  type: '101'
+  data: {
+    version: string
+    attr_names: string[]
+    name: string
+  }
+}
+
+export type SchemaResponse = WriteRequestResponse<SchemaResultTxn>
+
+export class SchemaRequest extends IndyVdrRequest<SchemaResponse> {
   public constructor(options: SchemaRequestOptions) {
     const handle = indyVdr.buildSchemaRequest(options)
     super({ handle })

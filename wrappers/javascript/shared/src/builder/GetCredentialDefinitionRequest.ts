@@ -1,3 +1,5 @@
+import type { GetRequestResponse, GetRequestResultFoundBase, GetRequestResultNotFoundBase } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetCredentialDefinitionRequestOptions = {
@@ -5,38 +7,34 @@ export type GetCredentialDefinitionRequestOptions = {
   credentialDefinitionId: string
 }
 
-export type GetCredentialDefinitionReponse = {
-  op: 'REPLY'
-  result: {
-    origin: string
-    signature_type: string
-    seqNo?: unknown
-    identifier: string
-    data?: unknown
-    txnTime?: unknown
-    ref: number
-    tag: string
-    type: string
-    reqId: number
-    state_proof: {
-      multi_signature: {
-        signature: string
-        value: {
-          ledger_id: number
-          state_root_hash: string
-          timestamp: number
-          txn_root_hash: string
-          pool_state_root_hash: string
-        }
-        participants: Array<string>
-      }
-      root_hash: string
-      proof_nodes: string
-    }
+interface GetCredentialDefinitionFoundResult extends GetRequestResultFoundBase {
+  type: '108'
+  signature_type: 'CL'
+  tag: string
+  ref: number
+  origin: string
+  data: null
+}
+
+interface GetCredentialDefinitionNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '108'
+  signature_type: 'CL'
+  tag: string
+  ref: number
+  origin: string
+  // TODO: add better typing
+  data: {
+    primary: Record<string, unknown>
+    revocation: Record<string, unknown>
   }
 }
 
-export class GetCredentialDefinitionRequest extends IndyVdrRequest {
+export type GetCredentialDefinitionResponse = GetRequestResponse<
+  GetCredentialDefinitionFoundResult,
+  GetCredentialDefinitionNotFoundResult
+>
+
+export class GetCredentialDefinitionRequest extends IndyVdrRequest<GetCredentialDefinitionResponse> {
   public constructor(options: GetCredentialDefinitionRequestOptions) {
     const handle = indyVdr.buildGetCredDefRequest(options)
     super({ handle })

@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { DisableAllTransactionAuthorAgreementsRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { DisableAllTransactionAuthorAgreementsRequest } from 'indy-vdr-nodejs'
 
 describe('DisableAllTransactionsAuthorAgreementRequest', () => {
   let pool: IndyVdrPool
@@ -12,6 +12,6 @@ describe('DisableAllTransactionsAuthorAgreementRequest', () => {
   test('Submit request', async () => {
     const request = new DisableAllTransactionAuthorAgreementsRequest({ submitterDid: DID })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

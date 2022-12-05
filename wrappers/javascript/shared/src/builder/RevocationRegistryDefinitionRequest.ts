@@ -1,3 +1,5 @@
+import type { WriteRequestResultTxnBase, WriteRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type RevocationRegistryDefinitionRequestOptions = {
@@ -11,18 +13,34 @@ type RevocationRegistryDefinitionV1 = {
   revocDefType: 'CL_ACCUM'
   tag: string
   credDefId: string
-  value: RevocationRegistrtDefinitionValue
+  value: RevocationRegistryDefinitionValue
 }
 
-type RevocationRegistrtDefinitionValue = {
+type RevocationRegistryDefinitionValue = {
   issuanceType: 'ISSUANCE_BY_DEFAULT' | 'ISSUANCE_ON_DEMAND'
   maxCredNum: number
-  publicKeys: { accumKey: string }
+  publicKeys: {
+    accumKey: {
+      z: string
+    }
+  }
   tailsHash: string
   tailsLocation: string
 }
+interface RevocationRegistryDefinitionResultTxn extends WriteRequestResultTxnBase {
+  type: '113'
+  data: {
+    id: string
+    value: RevocationRegistryDefinitionValue
+    credDefId: string
+    revocDefType: 'CL_ACCUM'
+    tag: string
+  }
+}
 
-export class RevocationRegistryDefinitionRequest extends IndyVdrRequest {
+export type RevocationRegistryDefinitionResponse = WriteRequestResponse<RevocationRegistryDefinitionResultTxn>
+
+export class RevocationRegistryDefinitionRequest extends IndyVdrRequest<RevocationRegistryDefinitionResponse> {
   public constructor(options: RevocationRegistryDefinitionRequestOptions) {
     const handle = indyVdr.buildRevocRegDefRequest(options)
     super({ handle })

@@ -9,10 +9,7 @@ export const DID = 'PqdUtwWhuX4GWRa58WSdvn'
 
 export const SCHEMA_ID = 'J6nTnUo3YLayzc2GUUctb1:2:MyName:1.0'
 
-export const CRED_DEF_ID = 'JSVdVn5x7UE4tcqAP9qv1x:3:CL:100669:phh'
-
-export const REVOC_REG_ID =
-  'L5wx9FUxCDpFJEdFc23jcn:4:L5wx9FUxCDpFJEdFc23jcn:3:CL:1954:default:CL_ACCUM:c024e30d-f3eb-42c5-908a-ff885667588d'
+export const CRED_DEF_ID = 'GeUpJLNXHEgTBJEy4nSjnd:3:CL:47756:default'
 
 export const REVOC_REG_DEF_ID =
-  '9MsoDKGgAvYLbz7PLxZRNp:4:9MsoDKGgAvYLbz7PLxZRNp:3:CL:54782:board_certification:CL_ACCUM:TAG1'
+  'EsUFXEDp9uqPL3tMNXhUst:4:EsUFXEDp9uqPL3tMNXhUst:3:CL:63132:Oliu.id:CL_ACCUM:6074b559-164e-458a-8532-2057d5b26946'

@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { CustomRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { CustomRequest } from 'indy-vdr-nodejs'
 
 describe('CustomRequest', () => {
   let pool: IndyVdrPool
@@ -19,7 +19,7 @@ describe('CustomRequest', () => {
       },
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).resolves.toMatchObject({
+    await expect(pool.submitRequest(request)).resolves.toMatchObject({
       op: 'REPLY',
     })
   })

@@ -11,12 +11,10 @@ import type {
   GetRevocationRegistryDefinitionRequestOptions,
   GetRevocationRegistryDeltaRequestOptions,
   GetRevocationRegistryRequestOptions,
-  GetRichSchemaObjectByIdRequestOptions,
-  GetRichSchemaObjectByMetadataRequestOptions,
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
-  GetValidatorInfoRequestOptions,
+  GetValidatorInfoActionOptions,
   IndyVdr,
   NymRequestOptions,
   PoolCreateOptions,
@@ -32,7 +30,6 @@ import type {
   RequestSetTxnAuthorAgreementAcceptanceOptions,
   RevocationRegistryDefinitionRequestOptions,
   RevocationRegistryEntryRequestOptions,
-  RichSchemaRequestOptions,
   SchemaRequestOptions,
   TransactionAuthorAgreementRequestOptions,
   Transactions,
@@ -185,7 +182,7 @@ export class ReactNativeIndyVdr implements IndyVdr {
     return indyVdrReactNative.buildGetTxnRequest(serializedOptions)
   }
 
-  public buildGetValidatorInfoRequest(options: GetValidatorInfoRequestOptions): number {
+  public buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number {
     const serializedOptions = serializeArguments(options)
     return indyVdrReactNative.buildGetValidatorInfoRequest(serializedOptions)
   }
@@ -208,21 +205,6 @@ export class ReactNativeIndyVdr implements IndyVdr {
   public buildTxnAuthorAgreementRequest(options: TransactionAuthorAgreementRequestOptions): number {
     const serializedOptions = serializeArguments(options)
     return indyVdrReactNative.buildTxnAuthorAgreementRequest(serializedOptions)
-  }
-
-  public buildRichSchemaRequest(options: RichSchemaRequestOptions): number {
-    const serializedOptions = serializeArguments(options)
-    return indyVdrReactNative.buildRichSchemaRequest(serializedOptions)
-  }
-
-  public buildGetRichSchemaObjectByIdRequest(options: GetRichSchemaObjectByIdRequestOptions): number {
-    const serializedOptions = serializeArguments(options)
-    return indyVdrReactNative.buildGetRichSchemaObjectByIdRequest(serializedOptions)
-  }
-
-  public buildGetRichSchemaObjectByMetadataRequest(options: GetRichSchemaObjectByMetadataRequestOptions): number {
-    const serializedOptions = serializeArguments(options)
-    return indyVdrReactNative.buildGetRichSchemaObjectByMetadataRequest(serializedOptions)
   }
 
   public poolCreate(options: PoolCreateOptions): number {

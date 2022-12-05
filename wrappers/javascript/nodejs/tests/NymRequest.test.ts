@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { NymRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { NymRequest } from 'indy-vdr-nodejs'
 
 describe('NymRequest', () => {
   let pool: IndyVdrPool
@@ -15,6 +15,6 @@ describe('NymRequest', () => {
       submitterDid: DID,
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

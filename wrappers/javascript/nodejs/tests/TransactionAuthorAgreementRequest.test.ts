@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { TransactionAuthorAgreementRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { TransactionAuthorAgreementRequest } from 'indy-vdr-nodejs'
 
 describe('TransactionAuthorAgreementRequest', () => {
   let pool: IndyVdrPool
@@ -15,6 +15,6 @@ describe('TransactionAuthorAgreementRequest', () => {
       version: 'TODO',
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

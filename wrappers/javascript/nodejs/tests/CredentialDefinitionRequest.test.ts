@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { CredentialDefinitionRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { CredentialDefinitionRequest } from 'indy-vdr-nodejs'
 
 describe('CredentialDefinitionRequest', () => {
   let pool: IndyVdrPool
@@ -26,6 +26,6 @@ describe('CredentialDefinitionRequest', () => {
       submitterDid: DID,
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

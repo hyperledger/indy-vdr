@@ -1,12 +1,7 @@
 import { indyVdr } from '../indyVdr/indyVdr'
 
 export type RequestSetTxnAuthorAgreementAcceptanceOptions = {
-  acceptance: {
-    mechanism: string
-    taaDigest: string
-    // TODO: should we use date?
-    time: number
-  }
+  acceptance: string
 }
 
 export type RequestSetMultiSignatureOptions = {
@@ -22,7 +17,9 @@ export type RequestSetEndorserOptions = {
   endorser: string
 }
 
-export class IndyVdrRequest {
+export type RequestResponseType<Request extends IndyVdrRequest> = NonNullable<Request['__responseType__']>
+
+export class IndyVdrRequest<ResponseType extends Record<string, unknown> = Record<string, unknown>> {
   private _handle: number
 
   public constructor(options: { handle: number }) {
@@ -61,5 +58,9 @@ export class IndyVdrRequest {
 
   public free(): void {
     indyVdr.requestFree({ requestHandle: this.handle })
+  }
+
+  public get __responseType__(): ResponseType | undefined {
+    return undefined
   }
 }

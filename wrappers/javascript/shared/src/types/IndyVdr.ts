@@ -11,24 +11,19 @@ import type {
   GetRevocationRegistryDefinitionRequestOptions,
   GetRevocationRegistryDeltaRequestOptions,
   GetRevocationRegistryRequestOptions,
-  GetRichSchemaObjectByIdRequestOptions,
-  GetRichSchemaObjectByMetadataRequestOptions,
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
-  GetValidatorInfoRequestOptions,
+  GetValidatorInfoActionOptions,
   NymRequestOptions,
   PoolCreateOptions,
   RevocationRegistryDefinitionRequestOptions,
   RevocationRegistryEntryRequestOptions,
-  RichSchemaRequestOptions,
   SchemaRequestOptions,
   TransactionAuthorAgreementRequestOptions,
 } from '../builder'
 import type {
   PoolHandle,
-  PoolSubmitActionOptions,
-  PoolSubmitRequestOptions,
   RequestHandle,
   RequestSetEndorserOptions,
   RequestSetMultiSignatureOptions,
@@ -36,7 +31,7 @@ import type {
   RequestSetTxnAuthorAgreementAcceptanceOptions,
 } from '../indyVdr'
 import type { PrepareTxnAuthorAgreementAcceptanceOptions } from './builderTypes'
-import type { PoolStatus, Transactions, Verifiers } from './types'
+import type { PoolStatus, PoolSubmitActionOptions, PoolSubmitRequestOptions, Transactions, Verifiers } from './types'
 
 // TODO: proper documentation
 export interface IndyVdr {
@@ -84,7 +79,7 @@ export interface IndyVdr {
 
   buildGetTxnRequest(options: GetTransactionRequestOptions): number
 
-  buildGetValidatorInfoRequest(options: GetValidatorInfoRequestOptions): number
+  buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number
 
   buildNymRequest(options: NymRequestOptions): number
 
@@ -93,12 +88,6 @@ export interface IndyVdr {
   buildSchemaRequest(options: SchemaRequestOptions): number
 
   buildTxnAuthorAgreementRequest(options: TransactionAuthorAgreementRequestOptions): number
-
-  buildRichSchemaRequest(options: RichSchemaRequestOptions): number
-
-  buildGetRichSchemaObjectByIdRequest(options: GetRichSchemaObjectByIdRequestOptions): number
-
-  buildGetRichSchemaObjectByMetadataRequest(options: GetRichSchemaObjectByMetadataRequestOptions): number
 
   poolCreate(options: PoolCreateOptions): number
 
@@ -110,13 +99,9 @@ export interface IndyVdr {
 
   poolGetVerifiers(options: { poolHandle: PoolHandle }): Promise<Verifiers>
 
-  poolSubmitAction<T extends Record<string, unknown>>(
-    options: PoolSubmitActionOptions & { poolHandle: PoolHandle }
-  ): Promise<T>
+  poolSubmitAction<T extends Record<string, unknown>>(options: PoolSubmitActionOptions): Promise<T>
 
-  poolSubmitRequest<T extends Record<string, unknown>>(
-    options: PoolSubmitRequestOptions & { poolHandle: PoolHandle }
-  ): Promise<T>
+  poolSubmitRequest<T extends Record<string, unknown>>(options: PoolSubmitRequestOptions): Promise<T>
 
   poolClose(options: { poolHandle: number }): void
 

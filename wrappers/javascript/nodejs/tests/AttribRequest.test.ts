@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { AttribRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { AttribRequest } from 'indy-vdr-nodejs'
 
 describe('AttribRequest', () => {
   let pool: IndyVdrPool
@@ -16,6 +16,6 @@ describe('AttribRequest', () => {
       raw: '{ "endpoint": { "ha": "127.0.0.1:5555" } }',
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

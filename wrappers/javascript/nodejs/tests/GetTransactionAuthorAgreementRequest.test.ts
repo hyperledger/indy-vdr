@@ -1,8 +1,8 @@
-import type { GetTransactionAuthorAgreementResponse, IndyVdrPool } from 'indy-vdr-shared'
-
-import { GetTransactionAuthorAgreementRequest } from 'indy-vdr-shared'
+import type { GetTransactionAuthorAgreementResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { setupPool } from './utils'
+
+import { GetTransactionAuthorAgreementRequest } from 'indy-vdr-nodejs'
 
 describe('GetTransactionAuthorAgreementRequest', () => {
   let pool: IndyVdrPool
@@ -11,9 +11,10 @@ describe('GetTransactionAuthorAgreementRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetTransactionAuthorAgreementRequest({})
+    const response: GetTransactionAuthorAgreementResponse = await pool.submitRequest(request)
 
-    await expect(
-      pool.submitRequest<GetTransactionAuthorAgreementResponse>({ requestHandle: request.handle })
-    ).resolves.toMatchObject({ op: 'REPLY' })
+    expect(response).toMatchObject({
+      op: 'REPLY',
+    })
   })
 })

@@ -1,3 +1,5 @@
+import type { GetRequestResultFoundBase, GetRequestResultNotFoundBase, GetRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetAcceptanceMechanismsRequestOptions = {
@@ -6,28 +8,26 @@ export type GetAcceptanceMechanismsRequestOptions = {
   version?: string
 }
 
-export type GetAcceptanceMechanismsResponse = {
-  op: 'REPLY'
-  result: {
-    reqId: number
-    seqNo: number
-    type: string
-    state_proof: {
-      proof_nodes: string
-      multi_signature: string[]
-      root_hash: string
-    }
-    data: {
-      version: string
-      amlContext: string
-      aml: string[]
-    }
-    txnTime: number
-    identifier: string
+interface GetAcceptanceMechanismsFoundResult extends GetRequestResultFoundBase {
+  type: '7'
+  data: {
+    version: string
+    amlContext: string
+    aml: string[]
   }
 }
 
-export class GetAcceptanceMechanismsRequest extends IndyVdrRequest {
+interface GetAcceptanceMechanismsNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '7'
+  data: null
+}
+
+export type GetAcceptanceMechanismsResponse = GetRequestResponse<
+  GetAcceptanceMechanismsFoundResult,
+  GetAcceptanceMechanismsNotFoundResult
+>
+
+export class GetAcceptanceMechanismsRequest extends IndyVdrRequest<GetAcceptanceMechanismsResponse> {
   public constructor(options: GetAcceptanceMechanismsRequestOptions) {
     const handle = indyVdr.buildGetAcceptanceMechanismsRequest(options)
     super({ handle })

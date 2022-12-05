@@ -419,71 +419,6 @@ jsi::Value buildTxnAuthorAgreementRequest(jsi::Runtime &rt,
   return int(requestHandle);
 };
 
-jsi::Value buildRichSchemaRequest(jsi::Runtime &rt, jsi::Object options) {
-  std::string submitterDid =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
-  std::string rsId =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsId");
-  std::string rsContent =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsContent");
-  std::string rsName =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsName");
-  std::string rsVersion =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsVersion");
-  std::string rsType =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsType");
-  std::string ver =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "ver");
-
-  RequestHandle requestHandle = getNewRequestHandle();
-  // indy_vdr_build_rich_schema_request(
-  //     submitterDid.c_str(), rsId.c_str(), rsContent.c_str(), rsName.c_str(),
-  //     rsVersion.c_str(), rsType.c_str(), ver.c_str(), &requestHandle);
-  ErrorCode code;
-  turboModuleUtility::handleError(rt, code);
-
-  return int(requestHandle);
-};
-
-jsi::Value buildGetRichSchemaObjectByIdRequest(jsi::Runtime &rt,
-                                               jsi::Object options) {
-  std::string submitterDid =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
-  std::string rsId =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsId");
-
-  RequestHandle requestHandle = getNewRequestHandle();
-  // ErrorCode code =
-  // indy_vdr_build_get_rich_schema_object_by_id_request(submitterDid.c_str(),
-  // rsId.c_str(),
-  //                                            &requestHandle);
-  ErrorCode code;
-  turboModuleUtility::handleError(rt, code);
-
-  return int(requestHandle);
-};
-
-jsi::Value buildGetRichSchemaObjectByMetadataRequest(jsi::Runtime &rt,
-                                                     jsi::Object options) {
-  std::string submitterDid =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "submitterDid");
-  std::string rsType =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsType");
-  std::string rsName =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsName");
-  std::string rsVersion =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "rsVersion");
-
-  RequestHandle requestHandle = getNewRequestHandle();
-  // ErrorCode code = indy_vdr_build_get_rich_schema_object_by_metadata_request(
-  //     submitterDid.c_str(), rsType.c_str(), rsName.c_str(),
-  //     rsVersion.c_str(), &requestHandle);
-  ErrorCode code;
-  turboModuleUtility::handleError(rt, code);
-
-  return int(requestHandle);
-};
-
 jsi::Value poolCreate(jsi::Runtime &rt, jsi::Object options) {
   std::string params =
       turboModuleUtility::jsiToValue<std::string>(rt, options, "parameters");
@@ -609,13 +544,13 @@ jsi::Value prepareTxnAuthorAgreementAcceptance(jsi::Runtime &rt,
       turboModuleUtility::jsiToValue<std::string>(rt, options, "version");
   std::string taaDigest =
       turboModuleUtility::jsiToValue<std::string>(rt, options, "taaDigest");
-  std::string accMechType =
-      turboModuleUtility::jsiToValue<std::string>(rt, options, "accMechType");
+  std::string acceptanceMechanismType =
+      turboModuleUtility::jsiToValue<std::string>(rt, options, "acceptanceMechanismType");
   int32_t time = turboModuleUtility::jsiToValue<int32_t>(rt, options, "time");
 
   const char *output;
   ErrorCode code = indy_vdr_prepare_txn_author_agreement_acceptance(
-      text.c_str(), version.c_str(), taaDigest.c_str(), accMechType.c_str(),
+      text.c_str(), version.c_str(), taaDigest.c_str(), acceptanceMechanismType.c_str(),
       time, &output);
   turboModuleUtility::handleError(rt, code);
 

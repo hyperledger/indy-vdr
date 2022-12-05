@@ -1,3 +1,5 @@
+import type { GetRequestResponse, GetRequestResultFoundBase, GetRequestResultNotFoundBase } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetNymRequestOptions = {
@@ -5,35 +7,23 @@ export type GetNymRequestOptions = {
   dest: string
 }
 
-export type GetNymResponse = {
-  op: 'REPLY'
-  result: {
-    reqId: number
-    seqNo: number
-    data: string
-    txnTime: number
-    identifier: string
-    type: string
-    dest: string
-    state_proof: {
-      root_hash: string
-      multi_signature: {
-        value: {
-          pool_state_root_hash: string
-          state_root_hash: string
-          ledger_id: number
-          timestamp: number
-          txn_root_hash: string
-        }
-        participants: Array<string>
-        signature: string
-      }
-      proof_nodes: string
-    }
-  }
+// Get Nym somehow returns the nym data as stringified JSON. It is up to the user of the library
+// to parse the stringified JSON.
+interface GetNymFoundResult extends GetRequestResultFoundBase {
+  type: '105'
+  data: string
+  dest: string
 }
 
-export class GetNymRequest extends IndyVdrRequest {
+interface GetNymNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '105'
+  data: null
+  dest: string
+}
+
+export type GetNymResponse = GetRequestResponse<GetNymFoundResult, GetNymNotFoundResult>
+
+export class GetNymRequest extends IndyVdrRequest<GetNymResponse> {
   public constructor(options: GetNymRequestOptions) {
     const handle = indyVdr.buildGetNymRequest(options)
     super({ handle })

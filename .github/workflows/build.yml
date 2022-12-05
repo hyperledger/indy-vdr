@@ -9,10 +9,16 @@ on:
     types: [created]
   workflow_dispatch:
     inputs:
-      publish:
-        description: "Publish packages"
+      publish-binaries:
+        description: "Publish Binaries to Release (will create a release if no release exits for branch or tag)"
         required: true
-        default: "false"
+        default: false
+        type: boolean
+      publish-wrappers:
+        description: "Publish Wrappers to Registries"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   check:
@@ -91,6 +97,7 @@ jobs:
           - os: ubuntu-latest
             lib: libindy_vdr.so
             container: andrewwhitehead/manylinux2014-base
+            platform: linux
 
     container: ${{ matrix.container }}
     runs-on: ${{ matrix.os }}
@@ -120,6 +127,33 @@ jobs:
           name: library-${{ runner.os }}
           path: target/release/${{ matrix.lib }}
 
+      - name: Create library artifacts directory
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
+        run: |
+          mkdir release-artifacts
+          cp target/release/${{ matrix.lib }} release-artifacts/
+
+      - uses: a7ul/tar-action@v1.1.2
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
+        with:
+          command: c
+          cwd: release-artifacts
+          files: .
+          outPath: "library-${{ matrix.platform }}.tar.gz"
+
+      - name: Add library artifacts to release
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: library-${{ matrix.platform }}.tar.gz
+          asset_name: "library-${{ matrix.platform }}.tar.gz"
+
   build-release:
     name: Build Library (MacOS/Win)
     needs: [check]
@@ -131,9 +165,11 @@ jobs:
             lib: libindy_vdr.dylib
             target: apple-darwin
             toolchain: beta #  beta required for aarch64-apple-darwin target
+            platform: darwin
           - os: windows-latest
             lib: indy_vdr.dll
             toolchain: stable
+            platform: windows
 
     runs-on: ${{ matrix.os }}
 
@@ -163,6 +199,33 @@ jobs:
           name: library-${{ runner.os }}
           path: target/release/${{ matrix.lib }}
 
+      - name: Create library artifacts directory
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
+        run: |
+          mkdir release-artifacts
+          cp target/release/${{ matrix.lib }} release-artifacts/
+
+      - uses: a7ul/tar-action@v1.1.2
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
+        with:
+          command: c
+          cwd: release-artifacts
+          files: .
+          outPath: "library-${{ matrix.platform }}.tar.gz"
+
+      - name: Add library artifacts to release
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: library-${{ matrix.platform }}.tar.gz
+          asset_name: "library-${{ matrix.platform }}.tar.gz"
+
   build-golang:
     name: Build and Test Go wrapper
     needs: [build-manylinux]
@@ -187,6 +250,68 @@ jobs:
           sudo cp libindy_vdr.so /usr/lib/
           cd wrappers/golang
           go run cmd/demo/demo.go
+
+  build-javascript:
+    name: Build and Test JavaScript wrapper
+    needs: [build-manylinux, build-release]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wrappers/javascript
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Node.JS 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+
+      - name: Fetch library artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: library-${{ runner.os }}
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build JavaScript Wrapper
+        run: yarn build
+
+      - name: Lint JavaScript Wrapper
+        run: yarn lint
+
+      - name: Format Check JavaScript Wrapper
+        run: yarn check-format
+
+      - name: Type Check JavaScript Wrapper
+        run: yarn check-types
+
+      - name: Test JavaScript Wrapper
+        env:
+          # binary is downloaded to root of repository
+          LIB_INDY_VDR_PATH: ../../../
+        run: yarn test
+
+      - name: Set NPM config
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+          echo "always-auth=true" >> .npmrc
+
+      # TODO: this will currently publish the version as defined in the package.json. If the version already
+      # exists on NPM it will skip the publishing. This means if a new version is released, but the version hasn't been
+      # updated in the package.json files yet, it won't publish to NPM (which is kinda nice). We should however add a check
+      # to see if the JS version matches the release version (do we want to keep the js and rust version in sync?)
+      - name: Publish JavaScript Wrapper
+        if: |
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
+        run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
 
   # build-nodejs:
   #   name: Build and Test NodeJS wrapper
@@ -289,9 +414,8 @@ jobs:
           path: wrappers/python/dist/*
 
       - if: |
-          (github.event_name == 'release' ||
-            (github.event_name == 'workflow_dispatch' &&
-             github.event.inputs.publish == 'true'))
+          github.event_name == 'release' || 
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         name: Publish python package
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}

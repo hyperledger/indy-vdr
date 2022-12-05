@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-shared'
-
-import { SchemaRequest } from 'indy-vdr-shared'
+import type { IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, SCHEMA_ID, setupPool } from './utils'
+
+import { SchemaRequest } from 'indy-vdr-nodejs'
 
 describe('SchemaRequest', () => {
   let pool: IndyVdrPool
@@ -15,6 +15,6 @@ describe('SchemaRequest', () => {
       schema: { attrNames: ['TODO'], id: SCHEMA_ID, name: 'foo', ver: '1.0', version: '1.0', seqNo: 1 },
     })
 
-    await expect(pool.submitRequest({ requestHandle: request.handle })).rejects.toThrowError('MissingSignature()')
+    await expect(pool.submitRequest(request)).rejects.toThrowError('MissingSignature()')
   })
 })

@@ -55,13 +55,6 @@ FunctionMap TurboModuleHostObject::functionMapping(jsi::Runtime &rt) {
       std::make_tuple("buildSchemaRequest", &indyVdr::buildSchemaRequest));
   fMap.insert(std::make_tuple("buildTxnAuthorAgreementRequest",
                               &indyVdr::buildTxnAuthorAgreementRequest));
-  fMap.insert(std::make_tuple("buildRichSchemaRequest",
-                              &indyVdr::buildRichSchemaRequest));
-  fMap.insert(std::make_tuple("buildGetRichSchemaObjectByIdRequest",
-                              &indyVdr::buildGetRichSchemaObjectByIdRequest));
-  fMap.insert(
-      std::make_tuple("buildGetRichSchemaObjectByMetadataRequest",
-                      &indyVdr::buildGetRichSchemaObjectByMetadataRequest));
 
   fMap.insert(std::make_tuple("poolCreate", &indyVdr::poolCreate));
   fMap.insert(std::make_tuple("poolRefresh", &indyVdr::poolRefresh));

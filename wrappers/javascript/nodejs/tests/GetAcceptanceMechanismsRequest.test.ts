@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import type { GetAcceptanceMechanismsResponse, IndyVdrPool } from 'indy-vdr-shared'
-
-import { GetAcceptanceMechanismsRequest } from 'indy-vdr-shared'
+import type { GetAcceptanceMechanismsResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { setupPool } from './utils'
+
+import { GetAcceptanceMechanismsRequest } from 'indy-vdr-nodejs'
 
 describe('GetAcceptanceMechanismsRequest', () => {
   let pool: IndyVdrPool
@@ -12,10 +11,9 @@ describe('GetAcceptanceMechanismsRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetAcceptanceMechanismsRequest({})
+    const response: GetAcceptanceMechanismsResponse = await pool.submitRequest(request)
 
-    await expect(
-      pool.submitRequest<GetAcceptanceMechanismsResponse>({ requestHandle: request.handle })
-    ).resolves.toMatchObject({
+    expect(response).toMatchObject({
       op: 'REPLY',
     })
   })

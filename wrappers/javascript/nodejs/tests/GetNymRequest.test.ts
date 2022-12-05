@@ -1,8 +1,8 @@
-import type { GetNymResponse, IndyVdrPool } from 'indy-vdr-shared'
-
-import { GetNymRequest } from 'indy-vdr-shared'
+import type { GetNymResponse, IndyVdrPool } from 'indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
+
+import { GetNymRequest } from 'indy-vdr-nodejs'
 
 describe('GetNymRequest', () => {
   let pool: IndyVdrPool
@@ -11,9 +11,8 @@ describe('GetNymRequest', () => {
 
   test('Submit request', async () => {
     const request = new GetNymRequest({ dest: DID })
+    const response: GetNymResponse = await pool.submitRequest(request)
 
-    await expect(pool.submitRequest<GetNymResponse>({ requestHandle: request.handle })).resolves.toMatchObject({
-      op: 'REPLY',
-    })
+    expect(response).toMatchObject({ op: 'REPLY' })
   })
 })

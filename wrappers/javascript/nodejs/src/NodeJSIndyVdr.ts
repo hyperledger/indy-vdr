@@ -12,12 +12,10 @@ import type {
   GetRevocationRegistryDefinitionRequestOptions,
   GetRevocationRegistryDeltaRequestOptions,
   GetRevocationRegistryRequestOptions,
-  GetRichSchemaObjectByIdRequestOptions,
-  GetRichSchemaObjectByMetadataRequestOptions,
   GetSchemaRequestOptions,
   GetTransactionAuthorAgreementRequestOptions,
   GetTransactionRequestOptions,
-  GetValidatorInfoRequestOptions,
+  GetValidatorInfoActionOptions,
   IndyVdr,
   NymRequestOptions,
   PoolCreateOptions,
@@ -31,14 +29,11 @@ import type {
   RequestSetTxnAuthorAgreementAcceptanceOptions,
   RevocationRegistryDefinitionRequestOptions,
   RevocationRegistryEntryRequestOptions,
-  RichSchemaRequestOptions,
   SchemaRequestOptions,
   TransactionAuthorAgreementRequestOptions,
   Transactions,
   Verifiers,
 } from 'indy-vdr-shared'
-
-import { IndyVdrError } from 'indy-vdr-shared'
 
 import { handleError } from './error'
 import {
@@ -301,7 +296,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     return requestHandle.deref() as number
   }
 
-  public buildGetValidatorInfoRequest(options: GetValidatorInfoRequestOptions): number {
+  public buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number {
     const requestHandle = allocateHandle()
     const { submitterDid } = serializeArguments(options)
 
@@ -314,7 +309,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { dest, submitterDid, alias, role, verkey } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, alias, role, verkey, requestHandle))
+    handleError(nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, verkey, alias, role, requestHandle))
 
     return requestHandle.deref() as number
   }
@@ -365,21 +360,6 @@ export class NodeJSIndyVdr implements IndyVdr {
     )
 
     return requestHandle.deref() as number
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public buildRichSchemaRequest(_: RichSchemaRequestOptions): number {
-    throw new IndyVdrError({ code: 6, message: 'Method not yet implemented for wrapper' })
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public buildGetRichSchemaObjectByIdRequest(_: GetRichSchemaObjectByIdRequestOptions): number {
-    throw new IndyVdrError({ code: 6, message: 'Method not yet implemented for wrapper' })
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public buildGetRichSchemaObjectByMetadataRequest(_: GetRichSchemaObjectByMetadataRequestOptions): number {
-    throw new IndyVdrError({ code: 6, message: 'Method not yet implemented for wrapper' })
   }
 
   public poolCreate(options: PoolCreateOptions): number {
@@ -442,14 +422,14 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public prepareTxnAuthorAgreementAcceptance(options: PrepareTxnAuthorAgreementAcceptanceOptions): string {
     const output = allocateString()
-    const { accMechType, time, taaDigest, text, version } = serializeArguments(options)
+    const { acceptanceMechanismType, time, taaDigest, text, version } = serializeArguments(options)
 
     handleError(
       nativeIndyVdr.indy_vdr_prepare_txn_author_agreement_acceptance(
         text,
         version,
         taaDigest,
-        accMechType,
+        acceptanceMechanismType,
         time,
         output
       )

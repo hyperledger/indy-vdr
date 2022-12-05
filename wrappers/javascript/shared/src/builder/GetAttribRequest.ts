@@ -1,42 +1,32 @@
+import type { GetRequestResultFoundBase, GetRequestResultNotFoundBase, GetRequestResponse } from '../types'
+
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
 export type GetAttribRequestOptions = {
   submitterDid?: string
   targetDid: string
   hash?: string
-  raw?: Record<string, unknown>
+  raw?: string
   enc?: string
 }
-export type GetAttribResponse = {
-  op: 'REPLY'
-  result: {
-    reqId: number
-    seqNo: unknown
-    type: string
-    raw: string
-    state_proof: {
-      proof_nodes: string
-      multi_signature: {
-        participants: string[]
-        value: {
-          timestamp: number
-          state_root_hash: string
-          pool_state_root_hash: string
-          txn_root_hash: string
-          ledger_id: number
-        }
-        signature: string
-      }
-      root_hash: string
-    }
-    identifier: string
-    data?: unknown
-    txnTime?: unknown
-    dest: string
-  }
+
+interface GetAttribFoundResult extends GetRequestResultFoundBase {
+  type: '104'
+  dest: string
+  data: string
+  raw?: string
 }
 
-export class GetAttribRequest extends IndyVdrRequest {
+interface GetAttribNotFoundResult extends GetRequestResultNotFoundBase {
+  type: '104'
+  data: null
+  dest: string
+  raw?: string
+}
+
+export type GetAttribResponse = GetRequestResponse<GetAttribFoundResult, GetAttribNotFoundResult>
+
+export class GetAttribRequest extends IndyVdrRequest<GetAttribResponse> {
   public constructor(options: GetAttribRequestOptions) {
     const handle = indyVdr.buildGetAttribRequest(options)
     super({ handle })

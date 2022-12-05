@@ -1,3 +1,4 @@
+/* eslint-disable */
 const path = require('path')
 
 const indyVdrShared = require('../shared/package.json')

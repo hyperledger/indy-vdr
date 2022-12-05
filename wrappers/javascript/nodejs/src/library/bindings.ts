@@ -54,18 +54,6 @@ export const nativeBindings = {
     FFI_ERROR_CODE,
     [FFI_STRING, FFI_STRING, FFI_INT64, FFI_REQUEST_HANDLE_POINTER],
   ],
-  indy_vdr_build_get_rich_schema_object_by_id_request: [
-    FFI_ERROR_CODE,
-    [FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER],
-  ],
-  indy_vdr_build_get_rich_schema_object_by_metadata_request: [
-    FFI_ERROR_CODE,
-    [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER],
-  ],
-  indy_vdr_build_rich_schema_request: [
-    FFI_ERROR_CODE,
-    [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER],
-  ],
   indy_vdr_build_get_schema_request: [FFI_ERROR_CODE, [FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER]],
   indy_vdr_build_txn_author_agreement_request: [
     FFI_ERROR_CODE,
