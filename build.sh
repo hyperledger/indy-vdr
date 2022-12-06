@@ -80,10 +80,11 @@ if [ "$TARGET" = "apple-darwin" ]; then
 		TARGET_LIBS="./target/$target/release/lib${LIB_NAME}.dylib $TARGET_LIBS"
 	done
 
-	mkdir -p ./target/release
-	OUTPUT="./target/release/lib${LIB_NAME}.dylib"
+	mkdir -p "./target/${TARGET}/release" ./target/release
+	OUTPUT="./target/${TARGET}/release/lib${LIB_NAME}.dylib"
 	echo "Combining targets into universal library"
 	lipo -create -output $OUTPUT $TARGET_LIBS
+	cp $OUTPUT ./target/release/
 else
 	# Build normal target
 	echo "Building $PROJECT for toolchain '$BUILD_TOOLCHAIN'.."
