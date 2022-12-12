@@ -17,10 +17,14 @@ export type RequestSetEndorserOptions = {
   endorser: string
 }
 
-export type RequestResponseType<Request extends IndyVdrRequest> = NonNullable<Request['__responseType__']>
+export type RequestResponseType<Request> = Request extends IndyVdrRequest<infer ResponseType> ? ResponseType : never
 
 export class IndyVdrRequest<ResponseType extends Record<string, unknown> = Record<string, unknown>> {
   private _handle: number
+
+  // We need to use the generic that is passed to this class, otherwise TypeScript will lose the generic type passed to IndyVdrRequest
+  // and we cant' infer the response type. The value is private, so it's won't be accessible from outside the class.
+  private __responseType__?: ResponseType
 
   public constructor(options: { handle: number }) {
     const { handle } = options
@@ -58,9 +62,5 @@ export class IndyVdrRequest<ResponseType extends Record<string, unknown> = Recor
 
   public free(): void {
     indyVdr.requestFree({ requestHandle: this.handle })
-  }
-
-  public get __responseType__(): ResponseType | undefined {
-    return undefined
   }
 }
