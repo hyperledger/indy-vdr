@@ -25,7 +25,7 @@ jobs:
     name: Run Checks
     strategy:
       matrix:
-        os: [macos-11, windows-latest, ubuntu-latest]
+        os: [macos-11, windows-latest, ubuntu-20.04]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -61,7 +61,7 @@ jobs:
   test-suite:
     name: Run Test Suite
     needs: [check]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -94,7 +94,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             lib: libindy_vdr.so
             container: andrewwhitehead/manylinux2014-base
             platform: linux
@@ -229,7 +229,7 @@ jobs:
   build-golang:
     name: Build and Test Go wrapper
     needs: [build-manylinux]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout
@@ -254,7 +254,7 @@ jobs:
   build-javascript:
     name: Build and Test JavaScript wrapper
     needs: [build-manylinux, build-release]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     defaults:
       run:
         working-directory: wrappers/javascript
@@ -363,10 +363,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-11, windows-latest]
+        os: [ubuntu-20.04, macos-11, windows-latest]
         python-version: [3.6]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             plat-name: manylinux2014_x86_64
           - os: macos-11
             plat-name: macosx_10_9_universal2 # macosx_10_9_x86_64
