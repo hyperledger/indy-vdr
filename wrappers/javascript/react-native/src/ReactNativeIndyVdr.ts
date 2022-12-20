@@ -36,8 +36,8 @@ import type {
   Verifiers,
 } from 'indy-vdr-shared'
 
-import { indyVdrReactNative } from './library/register'
-import { serializeArguments } from './utils'
+import { indyVdrReactNative } from './library'
+import { serializeArguments } from './serialize'
 
 export class ReactNativeIndyVdr implements IndyVdr {
   private promisify = (method: (cb: (err: number) => void) => void): Promise<void> => {
