@@ -7,6 +7,12 @@
     "strict": true,
     "noEmitOnError": true,
     "lib": ["ESNext"],
+    "baseUrl": ".",
+    "paths": {
+      "indy-vdr-shared": ["shared/src"],
+      "indy-vdr-react-native": ["react-native/src"],
+      "indy-vdr-nodejs": ["nodejs/src"]
+    },
     "types": [],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
