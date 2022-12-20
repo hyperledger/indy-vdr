@@ -4,7 +4,6 @@
   "private": true,
   "license": "Apache-2.0",
   "description": "React Native wrapper for Indy Vdr",
-  "react-native": "build/index",
   "source": "src/index",
   "main": "build/index",
   "homepage": "https://github.com/hyperledger/indy-vdr/tree/main/wrappers/javascript/indy-vdr-react-native",
@@ -36,10 +35,6 @@
     "package.json"
   ],
   "scripts": {
-    "check-types": "tsc --noEmit -p tsconfig.build.json",
-    "check-format": "yarn prettier --check",
-    "format": "yarn prettier --write",
-    "prettier": "prettier --ignore-path .gitignore '**/*+(.js|json|ts|md|yml|yaml)'",
     "build": "yarn clean && yarn compile",
     "clean": "rimraf -rf ./build",
     "compile": "tsc -p tsconfig.build.json",

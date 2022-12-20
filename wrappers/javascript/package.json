@@ -10,7 +10,7 @@
     ]
   },
   "scripts": {
-    "check-types": "yarn workspaces run tsc --noEmit -p tsconfig.build.json",
+    "check-types": "yarn workspaces run tsc --noEmit -p tsconfig.json",
     "build": "yarn workspaces run build",
     "clean": "yarn workspaces run clean",
     "prettier": "prettier --ignore-path .gitignore '**/*.+(js|json|ts|md|yml|yaml)'",
