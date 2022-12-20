@@ -13,7 +13,7 @@ module.exports = {
     project: [
       './tsconfig.eslint.json',
       'shared/tsconfig.json',
-      'react-native/tsconfig.json',
+      'indy-vdr-react-native/tsconfig.json',
       'indy-vdr-nodejs/tsconfig.json',
     ],
   },
@@ -25,11 +25,11 @@ module.exports = {
     'import/resolver': {
       typescript: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
-        project: ['shared/tsconfig.json', 'react-native/tsconfig.json', 'indy-vdr-nodejs/tsconfig.json'],
+        project: ['shared/tsconfig.json', 'indy-vdr-react-native/tsconfig.json', 'indy-vdr-nodejs/tsconfig.json'],
         alwaysTryTypes: true,
       },
       node: {
-        project: ['shared/tsconfig.json', 'react-native/tsconfig.json', 'indy-vdr-nodejs/tsconfig.json'],
+        project: ['shared/tsconfig.json', 'indy-vdr-react-native/tsconfig.json', 'indy-vdr-nodejs/tsconfig.json'],
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
       },
     },
