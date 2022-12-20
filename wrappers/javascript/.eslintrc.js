@@ -12,7 +12,7 @@ module.exports = {
     tsconfigRootDir: __dirname,
     project: [
       './tsconfig.eslint.json',
-      'shared/tsconfig.json',
+      'indy-vdr-shared/tsconfig.json',
       'indy-vdr-react-native/tsconfig.json',
       'indy-vdr-nodejs/tsconfig.json',
     ],
@@ -25,11 +25,19 @@ module.exports = {
     'import/resolver': {
       typescript: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
-        project: ['shared/tsconfig.json', 'indy-vdr-react-native/tsconfig.json', 'indy-vdr-nodejs/tsconfig.json'],
+        project: [
+          'indy-vdr-shared/tsconfig.json',
+          'indy-vdr-react-native/tsconfig.json',
+          'indy-vdr-nodejs/tsconfig.json',
+        ],
         alwaysTryTypes: true,
       },
       node: {
-        project: ['shared/tsconfig.json', 'indy-vdr-react-native/tsconfig.json', 'indy-vdr-nodejs/tsconfig.json'],
+        project: [
+          'indy-vdr-shared/tsconfig.json',
+          'indy-vdr-react-native/tsconfig.json',
+          'indy-vdr-nodejs/tsconfig.json',
+        ],
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
       },
     },
@@ -69,6 +77,9 @@ module.exports = {
       },
       rules: {
         '@typescript-eslint/no-var-requires': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
       },
     },
   ],

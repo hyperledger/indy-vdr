@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "workspaces": {
     "packages": [
-      "shared",
+      "indy-vdr-shared",
       "indy-vdr-react-native",
       "indy-vdr-nodejs"
     ]
@@ -19,9 +19,9 @@
     "lint": "eslint .",
     "validate": "yarn lint && yarn check-types && yarn check-format",
     "reset": "find . -type dir -name node_modules | xargs rm -rf && rm -rf yarn.lock",
-    "react-native": "yarn --cwd react-native",
-    "shared": "yarn --cwd shared",
-    "nodejs": "yarn --cwd nodejs",
+    "react-native": "yarn --cwd indy-vdr-react-native",
+    "shared": "yarn --cwd indy-vdr-shared",
+    "nodejs": "yarn --cwd indy-vdr-nodejs",
     "test": "cross-env yarn nodejs test",
     "test:local-build": "cross-env LIB_INDY_VDR_PATH=../../../target/release yarn test",
     "set-version": "npx lerna version --exact --no-git-tag-version --no-push --yes"

@@ -6,11 +6,11 @@
   "main": "build/index",
   "source": "src/index",
   "types": "build/index",
-  "homepage": "https://github.com/hyperledger/indy-vdr/tree/main/wrappers/javascript/shared",
+  "homepage": "https://github.com/hyperledger/indy-vdr/tree/main/wrappers/javascript/indy-vdr-shared",
   "repository": {
-    "url": "https://github.com/hyperledger/indy-vdr",
     "type": "git",
-    "directory": "wrappers/javascript/shared"
+    "url": "https://github.com/hyperledger/indy-vdr",
+    "directory": "wrappers/javascript/indy-vdr-shared"
   },
   "publishConfig": {
     "access": "public"
