@@ -11,7 +11,7 @@
     "paths": {
       "indy-vdr-shared": ["shared/src"],
       "indy-vdr-react-native": ["react-native/src"],
-      "indy-vdr-nodejs": ["nodejs/src"]
+      "indy-vdr-nodejs": ["indy-vdr-nodejs/src"]
     },
     "types": [],
     "esModuleInterop": true,

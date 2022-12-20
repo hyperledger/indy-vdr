@@ -6,7 +6,7 @@
     "packages": [
       "shared",
       "react-native",
-      "nodejs"
+      "indy-vdr-nodejs"
     ]
   },
   "scripts": {
