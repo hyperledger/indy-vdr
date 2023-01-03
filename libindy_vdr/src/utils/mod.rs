@@ -1,6 +1,8 @@
 #[macro_use]
 mod macros;
 
+pub mod txn_signature;
+
 // re-exports
 pub use indy_utils::{qualifiable, ConversionError, Qualifiable, Validatable, ValidationError};
 
@@ -9,4 +11,3 @@ pub(crate) use indy_utils::base64;
 pub use indy_utils::did;
 pub(crate) use indy_utils::hash;
 pub use indy_utils::keys;
-pub(crate) use indy_utils::txn_signature;
