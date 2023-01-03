@@ -24,6 +24,8 @@ rich_schema = ["indy-data-types/rich_schema"]
 default = ["ffi", "log", "zmq_vendored"]
 
 [dependencies]
+base64_rs = { package = "base64", version = "0.13" }
+bs58 = "0.4"
 env_logger = { version = "0.9", optional = true }
 etcommon-rlp = "0.2.4"
 ffi-support = { version = "0.4", optional = true }
