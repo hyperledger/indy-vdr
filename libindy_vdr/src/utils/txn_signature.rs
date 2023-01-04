@@ -1,6 +1,6 @@
 use serde_json::Value as SJsonValue;
 
-use super::{ValidationError,hash::SHA256};
+use super::{hash::SHA256, ValidationError};
 
 const ATTRIB: &str = "100";
 const GET_ATTR: &str = "104";
