@@ -1,4 +1,4 @@
-name: "Indy-VDR"
+name: 'Indy-VDR'
 
 on:
   push:
@@ -10,12 +10,12 @@ on:
   workflow_dispatch:
     inputs:
       publish-binaries:
-        description: "Publish Binaries to Release (will create a release if no release exits for branch or tag)"
+        description: 'Publish Binaries to Release (will create a release if no release exits for branch or tag)'
         required: true
         default: false
         type: boolean
       publish-wrappers:
-        description: "Publish Wrappers to Registries"
+        description: 'Publish Wrappers to Registries'
         required: true
         default: false
         type: boolean
@@ -149,7 +149,7 @@ jobs:
 
       - name: Create library artifacts directory
         if: |
-          github.event_name == 'release' || 
+          github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         run: |
           mkdir release-artifacts
@@ -157,22 +157,22 @@ jobs:
 
       - uses: a7ul/tar-action@v1.1.2
         if: |
-          github.event_name == 'release' || 
+          github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         with:
           command: c
           cwd: release-artifacts
           files: .
-          outPath: "library-${{ matrix.arch }}.tar.gz"
+          outPath: 'library-${{ matrix.arch }}.tar.gz'
 
       - name: Add library artifacts to release
         if: |
-          github.event_name == 'release' || 
+          github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         uses: svenstaro/upload-release-action@v2
         with:
           file: library-${{ matrix.arch }}.tar.gz
-          asset_name: "library-${{ matrix.arch }}.tar.gz"
+          asset_name: 'library-${{ matrix.arch }}.tar.gz'
 
   build-golang:
     name: Build and Test Go wrapper
@@ -183,10 +183,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: "Use Golang 1.16.x+"
+      - name: 'Use Golang 1.16.x+'
         uses: actions/setup-go@v2
         with:
-          go-version: "^1.16.0"
+          go-version: '^1.16.0'
 
       - name: Fetch library artifacts
         uses: actions/download-artifact@v3
@@ -244,7 +244,7 @@ jobs:
 
       - name: Set NPM config
         if: |
-          github.event_name == 'release' || 
+          github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
@@ -257,9 +257,65 @@ jobs:
       # to see if the JS version matches the release version (do we want to keep the js and rust version in sync?)
       - name: Publish JavaScript Wrapper
         if: |
-          github.event_name == 'release' || 
+          github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
+
+  build-android:
+    name: Build library (Android)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture:
+          [
+            aarch64-linux-android,
+            armv7-linux-androideabi,
+            i686-linux-android,
+            x86_64-linux-android,
+          ]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{matrix.architecture}} --package indy-vdr
+      - name: Save library
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.architecture}}
+          path: target/${{ matrix.architecture }}/release/libindy_vdr.so
+
+  create-android-library:
+    name: Create library (Android)
+    runs-on: ubuntu-latest
+    needs: build-android
+    if: |
+        github.event_name == 'release' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
+    steps:
+      - name: Fetch libraries
+        uses: actions/download-artifact@v3
+      - run: |
+          sudo mkdir ./libs
+          sudo mv aarch64-linux-android   ./libs/arm64-v8a
+          sudo mv armv7-linux-androideabi ./libs/armeabi-v7a
+          sudo mv i686-linux-android      ./libs/x86
+          sudo mv x86_64-linux-android    ./libs/x86_64
+      - name: Save Android library
+        uses: actions/upload-artifact@v2
+        with:
+          name: android-jniLibs
+          path: ./libs
+      - uses: geekyeggo/delete-artifact@v1
+        with:
+          name: |
+            aarch64-linux-android
+            armv7-linux-androideabi
+            i686-linux-android
+            x86_64-linux-android
+          failOnError: false
 
   build-py:
     name: Build and Test Python Wrapper
@@ -332,7 +388,7 @@ jobs:
           path: wrappers/python/dist/*
 
       - if: |
-          github.event_name == 'release' || 
+          github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         name: Publish python package
         env:
