@@ -261,39 +261,92 @@ jobs:
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
 
-  build-android:
-    name: Build library (Android)
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture:
-          [
-            aarch64-linux-android,
-            armv7-linux-androideabi,
-            i686-linux-android,
-            x86_64-linux-android,
-          ]
+  build-ios:
+      name: Build Library (iOS)
+      runs-on: macos-latest
+
+      strategy:
+        matrix:
+          architecture:
+            [aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios]
+
+      steps:
+        - uses: actions/checkout@v3
+        - uses: actions-rs/toolchain@v1
+          with:
+            toolchain: stable
+            target: ${{ matrix.architecture }}
+        - uses: actions-rs/cargo@v1
+          with:
+            command: build
+            args:  --release --target ${{ matrix.architecture }} --package indy-vdr
+        - name: Save library
+          uses: actions/upload-artifact@v2
+          with:
+            name: ${{ matrix.architecture}}
+            path: target/${{ matrix.architecture }}/release/libindy_vdr.dylib
+
+  create-ios-xcframework:
+    name: Create iOS xcframework
+    runs-on: macos-latest
+    needs: build-ios
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/cargo@v1
+      - uses: actions/checkout@v2
+      - name: Fetch static libraries
+        uses: actions/download-artifact@v3
+      - run: >
+          lipo -create aarch64-apple-ios-sim/libindy_vdr.dylib \
+                       x86_64-apple-ios/libindy_vdr.dylib \
+               -output libindy_vdr.dylib
+      - run: >
+          xcodebuild -create-xcframework \
+            -library aarch64-apple-ios/libindy_vdr.dylib -headers ./libindy_vdr/include/libindy_vdr.h \
+            -library libindy_vdr.dylib                   -headers ./libindy_vdr/include/libindy_vdr.h \
+            -output libindy_vdr.xcframework
+      - name: Save xcframework
+        uses: actions/upload-artifact@v3
         with:
-          use-cross: true
-          command: build
-          args: --release --target ${{matrix.architecture}} --package indy-vdr
-      - name: Save library
-        uses: actions/upload-artifact@v2
+          name: libindy_vdr.xcframework
+          path: libindy_vdr.xcframework
+      - uses: geekyeggo/delete-artifact@v1
         with:
-          name: ${{ matrix.architecture}}
-          path: target/${{ matrix.architecture }}/release/libindy_vdr.so
+          name: |
+            aarch64-apple-ios
+            aarch64-apple-ios-sim
+            x86_64-apple-ios
+          failOnError: false
+
+  build-android:
+     name: Build library (Android)
+     runs-on: ubuntu-latest
+     strategy:
+       matrix:
+         architecture:
+           [
+             aarch64-linux-android,
+             armv7-linux-androideabi,
+             i686-linux-android,
+             x86_64-linux-android,
+           ]
+
+     steps:
+       - uses: actions/checkout@v3
+       - uses: actions-rs/cargo@v1
+         with:
+           use-cross: true
+           command: build
+           args: --release --target ${{matrix.architecture}} --package indy-vdr
+       - name: Save library
+         uses: actions/upload-artifact@v2
+         with:
+           name: ${{matrix.architecture}}
+           path: target/${{ matrix.architecture }}/release/libindy_vdr.so
 
   create-android-library:
     name: Create library (Android)
     runs-on: ubuntu-latest
     needs: build-android
-    if: |
-        github.event_name == 'release' ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
     steps:
       - name: Fetch libraries
         uses: actions/download-artifact@v3
@@ -306,7 +359,7 @@ jobs:
       - name: Save Android library
         uses: actions/upload-artifact@v2
         with:
-          name: android-jniLibs
+          name: android-libraries
           path: ./libs
       - uses: geekyeggo/delete-artifact@v1
         with:
@@ -316,6 +369,42 @@ jobs:
             i686-linux-android
             x86_64-linux-android
           failOnError: false
+
+  create-ios-android-release-asset:
+      name: Create iOS and Android Release Assets
+      runs-on: ubuntu-latest
+      needs:
+        - create-ios-xcframework
+        - create-android-library
+      if: |
+        (github.event_name == 'release' ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.event.inputs.publish == 'true'))
+
+      steps:
+        - name: Fetch Android libraries
+          uses: actions/download-artifact@v3
+          with:
+            name: android-libraries
+            path: mobile/android
+
+        - name: Fetch iOS Framework
+          uses: actions/download-artifact@v3
+          with:
+            name: libindy_vdr.xcframework
+            path: mobile/ios
+
+        - uses: a7ul/tar-action@v1.1.2
+          with:
+            command: c
+            files: ./mobile
+            outPath: "library-ios-android.tar.gz"
+
+        - name: Add library artifacts to release
+          uses: svenstaro/upload-release-action@v2
+          with:
+            file: library-ios-android.tar.gz
+            asset_name: "library-ios-android.tar.gz"
 
   build-py:
     name: Build and Test Python Wrapper
