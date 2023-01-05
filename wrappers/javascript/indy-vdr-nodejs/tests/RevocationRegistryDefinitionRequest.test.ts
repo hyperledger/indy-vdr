@@ -21,7 +21,7 @@ describe('RevocationRegistryDefinitionRequest', () => {
         value: {
           issuanceType: 'ISSUANCE_BY_DEFAULT',
           maxCredNum: 0,
-          publicKeys: { accumKey: 'TODO' },
+          publicKeys: { accumKey: { z: 'TODO' } },
           tailsHash: 'TODO',
           tailsLocation: 'TODO',
         },

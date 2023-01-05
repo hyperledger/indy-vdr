@@ -13,7 +13,7 @@ describe('RevocationRegistryEntryRequest', () => {
     const request = new RevocationRegistryEntryRequest({
       revocationRegistryDefinitionType: 'CL_ACCUM',
       revocationRegistryDefinitionId: REVOC_REG_DEF_ID,
-      revocationRegistryEntry: { value: { foo: 'bar', accum: 'foo' }, ver: '1.0' },
+      revocationRegistryEntry: { value: { accum: 'foo' }, ver: '1.0' },
       submitterDid: DID,
     })
 

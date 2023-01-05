@@ -1,13 +1,11 @@
 {
   "extends": "./tsconfig.build.json",
-
   "compilerOptions": {
     "baseUrl": ".",
-    "types": ["node"],
     "paths": {
-      "indy-vdr-shared": ["shared/src"],
-      "indy-vdr-react-native": ["react-native/src"],
-      "indy-vdr-nodejs": ["nodejs/src"]
+      "indy-vdr-shared": ["indy-vdr-shared/src"],
+      "indy-vdr-react-native": ["indy-vdr-react-native/src"],
+      "indy-vdr-nodejs": ["indy-vdr-nodejs/src"]
     }
   },
   "include": [".eslintrc.js"],
