@@ -47,7 +47,7 @@ rootProject.getSubprojects().forEach({project ->
   }
 })
 def nodeModules = findNodeModules(projectDir, isHermesEnabled);
-logger.warn("indy vdr: node modules found at: ${nodemodules}");
+logger.warn("indy vdr: node modules found at: ${nodeModules}");
 
 def reactNative = new File("$nodeModules/react-native")
 
@@ -107,7 +107,7 @@ android {
 
   sourceSets {
     main {
-      jniLibs.srcDirs = ['libs']
+      jniLibs.srcDirs = ['../native/mobile/android']
     }
   }
 }
