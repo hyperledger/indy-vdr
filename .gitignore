@@ -10,3 +10,5 @@ Podfile.lock
 .vscode
 coverage
 *.tgz
+*.so
+.npmrc
