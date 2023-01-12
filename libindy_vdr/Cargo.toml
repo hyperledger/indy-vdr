@@ -20,13 +20,12 @@ crate-type = ["staticlib", "rlib", "cdylib"]
 ffi = ["ffi-support", "logger"]
 logger = ["env_logger", "log"]
 zmq_vendored = ["zmq/vendored"]
+did_indy = []
 local_nodes_pool = []
-local_nodes_pool_did_indy = []
 rich_schema = ["indy-data-types/rich_schema"]
 default = ["ffi", "log", "zmq_vendored"]
 
 [dependencies]
-chrono = "0.4"
 # This is added so we can lock the version that zmq uses
 # 0.1.49 is broken for ios targets
 cmake = { version = "=0.1.48", optional = true }
@@ -37,7 +36,7 @@ futures-channel = "0.3"
 futures-executor = "0.3"
 futures-util = "0.3"
 hex = "0.4"
-hex-literal = "0.3.4"
+hex-literal = "0.3"
 indy-data-types = "0.5"
 indy-utils = { version = "0.5", default-features = false, features = ["base64", "ed25519", "hash", "txn_signature"] }
 once_cell = "1.5"
