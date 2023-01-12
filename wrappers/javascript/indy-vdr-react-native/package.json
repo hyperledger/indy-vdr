@@ -1,6 +1,6 @@
 {
   "name": "indy-vdr-react-native",
-  "version": "0.1.0",
+  "version": "0.1.0-dev.1",
   "private": true,
   "license": "Apache-2.0",
   "description": "React Native wrapper for Indy Vdr",
@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@mapbox/node-pre-gyp": "^1.0.10",
-    "indy-vdr-shared": "0.1.0"
+    "indy-vdr-shared": "0.1.0-dev.1"
   },
   "devDependencies": {
     "@types/react": "^16.9.19",
