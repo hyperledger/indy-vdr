@@ -266,7 +266,7 @@ jobs:
           targets: ${{ matrix.architecture }}
       - run: cargo build --release --target ${{ matrix.architecture }} --package indy-vdr
       - name: Save library
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.architecture}}
           path: target/${{ matrix.architecture }}/release/libindy_vdr.a
@@ -321,7 +321,7 @@ jobs:
           cargo install --bins --git https://github.com/rust-embedded/cross --tag v0.2.4 cross
           cross build --release --target ${{matrix.architecture}} --package indy-vdr
       - name: Save library
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{matrix.architecture}}
           path: target/${{ matrix.architecture }}/release/libindy_vdr.so
@@ -340,7 +340,7 @@ jobs:
           sudo mv i686-linux-android      ./libs/x86
           sudo mv x86_64-linux-android    ./libs/x86_64
       - name: Save Android library
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: android-libraries
           path: ./libs
