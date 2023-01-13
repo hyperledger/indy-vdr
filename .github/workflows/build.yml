@@ -294,7 +294,7 @@ jobs:
         with:
           name: indy_vdr.xcframework
           path: output/
-      - uses: geekyeggo/delete-artifact@v1
+      - uses: geekyeggo/delete-artifact@v2
         with:
           name: |
             aarch64-apple-ios
@@ -344,7 +344,7 @@ jobs:
         with:
           name: android-libraries
           path: ./libs
-      - uses: geekyeggo/delete-artifact@v1
+      - uses: geekyeggo/delete-artifact@v2
         with:
           name: |
             aarch64-linux-android
