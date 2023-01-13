@@ -53,7 +53,7 @@
   "binary": {
     "module_name": "indy_vdr",
     "module_path": "native",
-    "remote_path": "v0.4.0",
+    "remote_path": "v0.4.0-dev.1",
     "host": "https://github.com/hyperledger/indy-vdr/releases/download/",
     "package_name": "library-{platform}.tar.gz"
   }
