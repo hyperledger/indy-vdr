@@ -44,6 +44,7 @@ use super::requests::schema::{
 use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{Request, RequestType};
+use super::requests::ledgers_freeze::{GetFrozenLedgersOperation, LedgersFreezeOperation};
 
 use super::constants::txn_name_to_code;
 
@@ -602,6 +603,23 @@ impl RequestBuilder {
             GetRichSchemaByMetadataOperation::new(get_rs_by_meta),
             Some(identifier),
         )
+    }
+
+    /// Build a `LEDGERS_FREEZE` transaction request
+    pub fn build_ledger_freeze_request(
+        &self,
+        identifier: &DidValue,
+        ledgers_ids: &[u64]
+    ) -> VdrResult<PreparedRequest> {
+        self.build(LedgersFreezeOperation::new(ledgers_ids.to_vec()), Some(identifier))
+    }
+
+    /// Build a `GET_FROZEN_LEDGERS` transaction request
+    pub fn build_get_frozen_ledgers_request(
+        &self,
+        identifier: &DidValue,
+    ) -> VdrResult<PreparedRequest> {
+        self.build(GetFrozenLedgersOperation::new(), Some(identifier))
     }
 }
 
