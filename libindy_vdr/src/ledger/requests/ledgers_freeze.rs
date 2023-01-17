@@ -1,4 +1,4 @@
-use super::constants::{LEDGERS_FREEZE, GET_FROZEN_LEDGERS};
+use super::constants::{GET_FROZEN_LEDGERS, LEDGERS_FREEZE};
 use super::RequestType;
 
 #[derive(Serialize, PartialEq, Debug)]
@@ -12,7 +12,7 @@ impl LedgersFreezeOperation {
     pub fn new(ledgers_ids: Vec<u64>) -> LedgersFreezeOperation {
         LedgersFreezeOperation {
             _type: LEDGERS_FREEZE.to_string(),
-            ledgers_ids
+            ledgers_ids,
         }
     }
 }
@@ -26,13 +26,13 @@ impl RequestType for LedgersFreezeOperation {
 #[derive(Serialize, PartialEq, Debug)]
 pub struct GetFrozenLedgersOperation {
     #[serde(rename = "type")]
-    pub _type: String
+    pub _type: String,
 }
 
 impl GetFrozenLedgersOperation {
     pub fn new() -> GetFrozenLedgersOperation {
         GetFrozenLedgersOperation {
-            _type: GET_FROZEN_LEDGERS.to_string()
+            _type: GET_FROZEN_LEDGERS.to_string(),
         }
     }
 }
