@@ -1,8 +1,8 @@
-import type { GetNymResponse, IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetNymResponse, IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
+
+import { GetNymRequest } from '@hyperledger/indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
-
-import { GetNymRequest } from 'indy-vdr-nodejs'
 
 describe('GetNymRequest', () => {
   let pool: IndyVdrPool

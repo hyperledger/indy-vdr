@@ -1,5 +1,5 @@
 {
-  "name": "indy-vdr-nodejs",
+  "name": "@hyperledger/indy-vdr-nodejs",
   "version": "0.1.0-dev.1",
   "license": "Apache-2.0",
   "description": "Nodejs wrapper for Indy Vdr",
@@ -45,7 +45,7 @@
   "dependencies": {
     "@mapbox/node-pre-gyp": "^1.0.10",
     "ffi-napi": "^4.0.3",
-    "indy-vdr-shared": "0.1.0-dev.1",
+    "@hyperledger/indy-vdr-shared": "0.1.0-dev.1",
     "ref-array-di": "^1.2.2",
     "ref-napi": "^3.0.3",
     "ref-struct-di": "^1.1.1"

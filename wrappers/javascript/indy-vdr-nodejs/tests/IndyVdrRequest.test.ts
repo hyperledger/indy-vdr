@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
-import type { IndyVdrRequest } from 'indy-vdr-nodejs'
+import type { IndyVdrRequest } from '@hyperledger/indy-vdr-nodejs'
+
+import { GetSchemaRequest } from '@hyperledger/indy-vdr-nodejs'
 
 import { DID, SCHEMA_ID } from './utils'
-
-import { GetSchemaRequest } from 'indy-vdr-nodejs'
 
 describe('IndyVdrRequest', () => {
   let request: IndyVdrRequest

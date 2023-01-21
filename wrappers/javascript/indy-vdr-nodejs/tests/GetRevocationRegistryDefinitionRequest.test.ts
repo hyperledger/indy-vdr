@@ -1,8 +1,8 @@
-import type { IndyVdrPool, GetRevocationRegistryDefinitionResponse } from 'indy-vdr-nodejs'
+import type { IndyVdrPool, GetRevocationRegistryDefinitionResponse } from '@hyperledger/indy-vdr-nodejs'
 
 import { REVOC_REG_DEF_ID, setupPool } from './utils'
 
-import { GetRevocationRegistryDefinitionRequest } from 'indy-vdr-nodejs'
+import { GetRevocationRegistryDefinitionRequest } from '@hyperledger/indy-vdr-nodejs'
 
 describe('GetRevocationRegistryDefinitionRequest', () => {
   let pool: IndyVdrPool

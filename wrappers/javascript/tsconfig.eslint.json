@@ -3,9 +3,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "indy-vdr-shared": ["indy-vdr-shared/src"],
-      "indy-vdr-react-native": ["indy-vdr-react-native/src"],
-      "indy-vdr-nodejs": ["indy-vdr-nodejs/src"]
+      "@hyperledger/indy-vdr-shared": ["indy-vdr-shared/src"],
+      "@hyperledger/indy-vdr-react-native": ["indy-vdr-react-native/src"],
+      "@hyperledger/indy-vdr-nodejs": ["indy-vdr-nodejs/src"]
     }
   },
   "include": [".eslintrc.js"],

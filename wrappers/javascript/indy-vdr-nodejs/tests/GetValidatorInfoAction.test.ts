@@ -1,8 +1,8 @@
-import type { GetValidatorInfoResponse, IndyVdrPool } from 'indy-vdr-nodejs'
+import type { GetValidatorInfoResponse, IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
+
+import { GetValidatorInfoAction } from '@hyperledger/indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
-
-import { GetValidatorInfoAction } from 'indy-vdr-nodejs'
 
 describe('GetValidatorInfoAction', () => {
   let pool: IndyVdrPool

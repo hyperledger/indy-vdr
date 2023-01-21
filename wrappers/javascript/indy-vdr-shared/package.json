@@ -1,5 +1,5 @@
 {
-  "name": "indy-vdr-shared",
+  "name": "@hyperledger/indy-vdr-shared",
   "version": "0.1.0-dev.1",
   "license": "Apache-2.0",
   "description": "Shared library for using Indy VDR with NodeJS and React Native",

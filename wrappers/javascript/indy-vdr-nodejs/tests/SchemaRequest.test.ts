@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
 import { DID, SCHEMA_ID, setupPool } from './utils'
 
-import { SchemaRequest } from 'indy-vdr-nodejs'
+import { SchemaRequest } from '@hyperledger/indy-vdr-nodejs'
 
 describe('SchemaRequest', () => {
   let pool: IndyVdrPool
