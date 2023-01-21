@@ -1,8 +1,8 @@
 import type { IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
-import { AcceptanceMechanismsRequest } from '@hyperledger/indy-vdr-nodejs'
-
 import { DID, setupPool } from './utils'
+
+import { AcceptanceMechanismsRequest } from '@hyperledger/indy-vdr-nodejs'
 
 describe('AcceptanceMechanismsRequest', () => {
   let pool: IndyVdrPool

@@ -1,8 +1,8 @@
 import type { GetSchemaResponse, IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
-import { GetSchemaRequest } from '@hyperledger/indy-vdr-nodejs'
-
 import { SCHEMA_ID, setupPool } from './utils'
+
+import { GetSchemaRequest } from '@hyperledger/indy-vdr-nodejs'
 
 describe('GetSchemaRequest', () => {
   let pool: IndyVdrPool

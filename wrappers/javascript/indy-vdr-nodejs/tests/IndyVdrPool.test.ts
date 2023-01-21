@@ -3,9 +3,9 @@
 
 import type { IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
-import { PoolCreate } from '@hyperledger/indy-vdr-nodejs'
-
 import { SOVRIN_GENESIS_TRANSACTION_BUILDER_NET } from './utils'
+
+import { PoolCreate } from '@hyperledger/indy-vdr-nodejs'
 
 describe('IndyVdrPool', () => {
   let pool: IndyVdrPool
