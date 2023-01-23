@@ -1,4 +1,4 @@
-import { PoolCreate } from 'indy-vdr-shared'
+import { PoolCreate } from '@hyperledger/indy-vdr-shared'
 
 import { SOVRIN_GENESIS_TRANSACTION_BUILDER_NET } from './fixtures'
 

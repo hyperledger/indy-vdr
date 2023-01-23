@@ -33,7 +33,7 @@ import type {
   TransactionAuthorAgreementRequestOptions,
   Transactions,
   Verifiers,
-} from 'indy-vdr-shared'
+} from '@hyperledger/indy-vdr-shared'
 
 import { handleError } from './error'
 import {
