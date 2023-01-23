@@ -68,7 +68,7 @@ However the library is used, the `RUST_LOG` environment variable may be set in o
 
 ## How to Contribute
 
-- Join us on the Hyperledger Rocket.Chat at [chat.hyperledger.org](https://chat.hyperledger.org).
+- Join us on the Hyperledger Discord. Guidance at [chat.hyperledger.org](https://chat.hyperledger.org).
 - Developer certificate of origin (DCO) are required in all Hyperledger repositories,
   so to get your pull requests accepted, you must certify your commits by signing off on each commit.
   More information can be found in [Signing Commits](https://github.com/hyperledger/indy-sdk/docs/contributors/signing-commits.md) article.
