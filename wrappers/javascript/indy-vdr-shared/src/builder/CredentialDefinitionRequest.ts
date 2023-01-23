@@ -7,6 +7,7 @@ export type CredentialDefinitionRequestOptions = {
   credentialDefinition: {
     ver: '1.0'
     id: string
+    /** this must be the stringified seqNo, not the schemaId string */
     schemaId: string
     type: 'CL'
     tag: string
