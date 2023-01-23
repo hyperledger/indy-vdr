@@ -27,7 +27,7 @@ mod builder {
             let ledgers_ids = vec![0, 1, 50, 873];
 
             let request = request_builder
-                .build_ledger_freeze_request(&trustee_did, &ledgers_ids)
+                .build_ledgers_freeze_request(&trustee_did, &ledgers_ids)
                 .unwrap();
 
             let expected_operation = json!({

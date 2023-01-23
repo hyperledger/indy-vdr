@@ -606,7 +606,7 @@ impl RequestBuilder {
     }
 
     /// Build a `LEDGERS_FREEZE` transaction request
-    pub fn build_ledger_freeze_request(
+    pub fn build_ledgers_freeze_request(
         &self,
         identifier: &DidValue,
         ledgers_ids: &[u64],

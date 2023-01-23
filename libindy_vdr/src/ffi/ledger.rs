@@ -2,8 +2,10 @@ use crate::common::error::prelude::*;
 #[cfg(any(feature = "rich_schema", test))]
 use crate::ledger::identifiers::RichSchemaId;
 use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
+use crate::ledger::requests::auth_rule::{AuthRules, Constraint};
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::ledger::requests::cred_def::CredentialDefinition;
+use crate::ledger::requests::node::NodeOperationData;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
 #[cfg(any(feature = "rich_schema", test))]
@@ -595,6 +597,199 @@ pub extern "C" fn indy_vdr_build_get_rich_schema_object_by_metadata_request(
         let rs_name = rs_name.into_string();
         let rs_version = rs_version.into_string();
         let req = builder.build_get_rich_schema_by_metadata(&identifier, rs_type, rs_name, rs_version)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_node_request(
+    identifier: FfiStr,
+    dest: FfiStr,
+    data: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build NODE request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(identifier.as_str())?;
+        let dest = DidValue::from_str(dest.as_str())?;
+        let node_data = serde_json::from_str::<NodeOperationData>(data.as_str())
+            .with_input_err("Error deserializing NodeData")?;
+        let req = builder.build_node_request(&identifier, &dest, node_data)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_pool_config(
+    identifier: FfiStr,
+    writes: bool,
+    force: bool,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build POOL_CONFIG request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(identifier.as_str())?;
+        let req = builder.build_pool_config(&identifier, writes, force)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_pool_restart(
+    identifier: FfiStr,
+    action: FfiStr,
+    datetime: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build POOL_RESTART request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(identifier.as_str())?;
+        let action = action.as_str();
+        let datetime = datetime.into_opt_string();
+        let req = builder.build_pool_restart(&identifier, action, datetime.as_deref())?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_auth_rule_request(
+    submitter_did: FfiStr,
+    txn_type: FfiStr,
+    action: FfiStr,
+    field: FfiStr,
+    old_value: FfiStr,
+    new_value: FfiStr,
+    constraint: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build AUTH_RULE request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let submitter_did = DidValue::from_str(submitter_did.as_str())?;
+        let txn_type = txn_type.as_str();
+        let action = action.as_str();
+        let field = field.as_str();
+        let old_value = old_value.into_opt_string();
+        let new_value = new_value.into_opt_string();
+        let constraint = serde_json::from_str::<Constraint>(constraint.as_str())
+            .with_input_err("Error deserializing Constraint")?;
+        let req = builder.build_auth_rule_request(&submitter_did, txn_type.to_string(), action.to_string(),
+                                                   field.to_string(), old_value, new_value, constraint)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_auth_rules_request(
+    submitter_did: FfiStr,
+    rules: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build AUTH_RULES request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let submitter_did = DidValue::from_str(submitter_did.as_str())?;
+        let rules = serde_json::from_str::<AuthRules>(rules.as_str())
+            .with_input_err("Error deserializing AuthRules")?;
+        let req = builder.build_auth_rules_request(&submitter_did, rules)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_auth_rule_request(
+    submitter_did: FfiStr,
+    auth_type: FfiStr,
+    auth_action: FfiStr,
+    field: FfiStr,
+    old_value: FfiStr,
+    new_value: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_AUTH_RULE request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let submitter_did = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
+        let auth_type = auth_type.into_opt_string();
+        let auth_action = auth_action.into_opt_string();
+        let field = field.into_opt_string();
+        let old_value = old_value.into_opt_string();
+        let new_value = new_value.into_opt_string();
+        let req = builder.build_get_auth_rule_request(submitter_did.as_ref(), auth_type, auth_action, field, old_value, new_value)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_ledgers_freeze_request(
+    identifier: FfiStr,
+    ledgers_ids: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build LEDGERS_FREEZE request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(identifier.as_str())?;
+        let ledgers_ids = serde_json::from_str::<Vec<u64>>(ledgers_ids.as_str())
+            .with_input_err("Error deserializing LedgerIDs")?;
+        let req = builder.build_ledgers_freeze_request(&identifier, &ledgers_ids)?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_get_frozen_ledgers_request(
+    identifier: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build GET_FROZEN_LEDGERS request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(identifier.as_str())?;
+        let req = builder.build_get_frozen_ledgers_request(&identifier)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
