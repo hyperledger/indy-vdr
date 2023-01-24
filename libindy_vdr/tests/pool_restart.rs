@@ -90,7 +90,7 @@ mod send_pool_restart {
         // Start Pool Restart
         let mut request = pool
             .request_builder()
-            .build_pool_restart(&trustee.did, "start", Some(&_datetime()))
+            .build_pool_restart_request(&trustee.did, "start", Some(&_datetime()))
             .unwrap();
 
         let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();
@@ -98,7 +98,7 @@ mod send_pool_restart {
         // Cancel Pool Restart
         let mut request = pool
             .request_builder()
-            .build_pool_restart(&trustee.did, "cancel", None)
+            .build_pool_restart_request(&trustee.did, "cancel", None)
             .unwrap();
 
         let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();

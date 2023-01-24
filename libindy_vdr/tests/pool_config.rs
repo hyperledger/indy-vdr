@@ -51,7 +51,7 @@ mod send_pool_config {
         // Send Pool Config
         let mut request = pool
             .request_builder()
-            .build_pool_config(&trustee.did, false, false)
+            .build_pool_config_request(&trustee.did, false, false)
             .unwrap();
 
         let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();
@@ -65,7 +65,7 @@ mod send_pool_config {
         // reset Pool Config
         let mut request = pool
             .request_builder()
-            .build_pool_config(&trustee.did, true, false)
+            .build_pool_config_request(&trustee.did, true, false)
             .unwrap();
 
         let _response = helpers::sign_and_send_request(&trustee, &pool, &mut request).unwrap();

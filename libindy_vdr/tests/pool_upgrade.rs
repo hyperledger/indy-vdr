@@ -176,7 +176,7 @@ mod send_pool_upgrade {
         // Schedule Pool Upgrade
         let mut request = pool
             .request_builder()
-            .build_pool_upgrade(
+            .build_pool_upgrade_request(
                 &trustee.did,
                 NAME,
                 VERSION,
@@ -198,7 +198,7 @@ mod send_pool_upgrade {
         // Cancel Pool Upgrade
         let mut request = pool
             .request_builder()
-            .build_pool_upgrade(
+            .build_pool_upgrade_request(
                 &trustee.did,
                 NAME,
                 VERSION,
