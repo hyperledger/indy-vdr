@@ -37,6 +37,12 @@ impl GetFrozenLedgersOperation {
     }
 }
 
+impl Default for GetFrozenLedgersOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RequestType for GetFrozenLedgersOperation {
     fn get_txn_type<'a>() -> &'a str {
         GET_FROZEN_LEDGERS

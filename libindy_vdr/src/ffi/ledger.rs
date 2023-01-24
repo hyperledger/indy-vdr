@@ -641,7 +641,7 @@ pub extern "C" fn indy_vdr_build_pool_config_request(
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(identifier.as_str())?;
-        let req = builder.build_pool_config(&identifier, writes != 0, force != 0)?;
+        let req = builder.build_pool_config_request(&identifier, writes != 0, force != 0)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
@@ -664,7 +664,7 @@ pub extern "C" fn indy_vdr_build_pool_restart_request(
         let identifier = DidValue::from_str(identifier.as_str())?;
         let action = action.as_str();
         let datetime = datetime.into_opt_string();
-        let req = builder.build_pool_restart(&identifier, action, datetime.as_deref())?;
+        let req = builder.build_pool_restart_request(&identifier, action, datetime.as_deref())?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;

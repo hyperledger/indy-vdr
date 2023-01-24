@@ -65,7 +65,7 @@ mod builder {
             trustee_did: DidValue,
         ) {
             let request = request_builder
-                .build_pool_upgrade(
+                .build_pool_upgrade_request(
                     &trustee_did,
                     NAME,
                     VERSION,
@@ -99,7 +99,7 @@ mod builder {
             trustee_did: DidValue,
         ) {
             let request = request_builder
-                .build_pool_upgrade(
+                .build_pool_upgrade_request(
                     &trustee_did,
                     NAME,
                     VERSION,
@@ -133,7 +133,7 @@ mod builder {
             trustee_did: DidValue,
         ) {
             let request = request_builder
-                .build_pool_upgrade(
+                .build_pool_upgrade_request(
                     &trustee_did,
                     NAME,
                     VERSION,

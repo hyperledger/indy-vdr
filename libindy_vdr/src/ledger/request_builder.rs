@@ -207,7 +207,7 @@ impl RequestBuilder {
     }
 
     /// Build a `POOL_CONFIG` transaction request
-    pub fn build_pool_config(
+    pub fn build_pool_config_request(
         &self,
         identifier: &DidValue,
         writes: bool,
@@ -217,7 +217,7 @@ impl RequestBuilder {
     }
 
     /// Build a `POOL_RESTART` transaction request
-    pub fn build_pool_restart(
+    pub fn build_pool_restart_request(
         &self,
         identifier: &DidValue,
         action: &str,
@@ -230,7 +230,8 @@ impl RequestBuilder {
     }
 
     /// Build a `POOL_UPGRADE` transaction request
-    pub fn build_pool_upgrade(
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_pool_upgrade_request(
         &self,
         identifier: &DidValue,
         name: &str,
@@ -260,6 +261,7 @@ impl RequestBuilder {
     }
 
     /// Build an `AUTH_RULE` transaction request
+    #[allow(clippy::too_many_arguments)]
     pub fn build_auth_rule_request(
         &self,
         submitter_did: &DidValue,
@@ -550,6 +552,7 @@ impl RequestBuilder {
     }
 
     #[cfg(any(feature = "rich_schema", test))]
+    #[allow(clippy::too_many_arguments)]
     /// Build a `RICH_SCHEMA` transaction request
     pub fn build_rich_schema_request(
         &self,

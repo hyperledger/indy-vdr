@@ -32,7 +32,7 @@ mod builder {
         #[rstest]
         fn test_build_pool_restart_request(request_builder: RequestBuilder, trustee_did: DidValue) {
             let request = request_builder
-                .build_pool_restart(&trustee_did, "start", None)
+                .build_pool_restart_request(&trustee_did, "start", None)
                 .unwrap();
 
             let expected_operation = json!({
@@ -48,7 +48,7 @@ mod builder {
             trustee_did: DidValue,
         ) {
             let request = request_builder
-                .build_pool_restart(&trustee_did, "cancel", None)
+                .build_pool_restart_request(&trustee_did, "cancel", None)
                 .unwrap();
 
             let expected_operation = json!({
@@ -64,7 +64,7 @@ mod builder {
             trustee_did: DidValue,
         ) {
             let request = request_builder
-                .build_pool_restart(&trustee_did, "start", Some(&_datetime()))
+                .build_pool_restart_request(&trustee_did, "start", Some(&_datetime()))
                 .unwrap();
 
             let expected_operation = json!({

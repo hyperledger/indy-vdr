@@ -25,7 +25,7 @@ mod builder {
         #[rstest]
         fn test_pool_config_request(request_builder: RequestBuilder, trustee_did: DidValue) {
             let request = request_builder
-                .build_pool_config(&trustee_did, true, false)
+                .build_pool_config_request(&trustee_did, true, false)
                 .unwrap();
 
             let expected_operation = json!({
