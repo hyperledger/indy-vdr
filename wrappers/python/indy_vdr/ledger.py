@@ -1,6 +1,6 @@
 """Methods for generating and working with pool ledger requests."""
 
-from ctypes import byref, c_int32, c_int64, c_uint64, c_bool
+from ctypes import byref, c_int8, c_int32, c_int64, c_uint64
 from datetime import datetime, date
 from enum import IntEnum
 from typing import Optional, Union
@@ -806,9 +806,6 @@ def build_get_rich_schema_object_by_id_request(
     did_p = encode_str(submitter_did)
     rs_id = encode_str(rs_id) if isinstance(rs_id, (str, bytes)) else encode_json(rs_id)
     do_call(
-        "indy_vdr_build_get_schema_object_by_id_request", did_p, rs_id, byref(handle)
-    )
-    do_call(
         "indy_vdr_build_get_rich_schema_object_by_id_request",
         did_p,
         rs_id,
@@ -840,14 +837,6 @@ def build_get_rich_schema_object_by_metadata_request(
     rs_type = encode_str(rs_type)
     rs_name = encode_str(rs_name)
     rs_version = encode_str(rs_version)
-    do_call(
-        "indy_vdr_build_get_schema_object_by_metadata_request",
-        did_p,
-        rs_type,
-        rs_name,
-        rs_version,
-        byref(handle),
-    )
     do_call(
         "indy_vdr_build_get_rich_schema_object_by_metadata_request",
         did_p,
@@ -888,9 +877,7 @@ def build_node_request(
     handle = RequestHandle()
     identifier_p = encode_str(identifier)
     dest_p = encode_str(dest)
-    data_p = (
-        encode_str(data) if isinstance(data, (str, bytes)) else encode_json(data)
-    )
+    data_p = encode_str(data) if isinstance(data, (str, bytes)) else encode_json(data)
     do_call(
         "indy_vdr_build_node_request",
         identifier_p,
@@ -901,7 +888,7 @@ def build_node_request(
     return Request(handle)
 
 
-def build_pool_config(
+def build_pool_config_request(
     identifier: str,
     writes: bool,
     force: bool,
@@ -921,8 +908,8 @@ def build_pool_config(
     """
     handle = RequestHandle()
     identifier_p = encode_str(identifier)
-    c_writes = c_bool(writes)
-    c_force = c_bool(force)
+    c_writes = c_int8(writes)
+    c_force = c_int8(force)
     do_call(
         "indy_vdr_build_pool_config_request",
         identifier_p,
@@ -933,7 +920,7 @@ def build_pool_config(
     return Request(handle)
 
 
-def build_pool_restart(
+def build_pool_restart_request(
     identifier: str,
     action: str,
     datetime: Optional[str],
@@ -1014,7 +1001,9 @@ def build_auth_rule_request(
     old_value_p = encode_str(old_value)
     new_value_p = encode_str(new_value)
     constraint_p = (
-        encode_str(constraint) if isinstance(constraint, (str, bytes)) else encode_json(constraint)
+        encode_str(constraint)
+        if isinstance(constraint, (str, bytes))
+        else encode_json(constraint)
     )
     do_call(
         "indy_vdr_build_auth_rule_request",
@@ -1128,12 +1117,14 @@ def build_ledgers_freeze_request(
     Args:
         identifier: Identifier (DID) of the transaction author as base58-encoded
             string.
-	    ledgers_ids: List of ledgers IDs for freezing.
+            ledgers_ids: List of ledgers IDs for freezing.
     """
     handle = RequestHandle()
     identifier_p = encode_str(identifier)
     ledgers_ids_p = (
-        encode_str(ledgers_ids) if isinstance(ledgers_ids, (str, bytes)) else encode_json(ledgers_ids)
+        encode_str(ledgers_ids)
+        if isinstance(ledgers_ids, (str, bytes))
+        else encode_json(ledgers_ids)
     )
     do_call(
         "indy_vdr_build_ledgers_freeze_request",
@@ -1150,8 +1141,8 @@ def build_get_frozen_ledgers_request(
     """
     Builds an GET_FROZEN_LEDGERS request.
 
-	Request to get list of frozen ledgers.
-	Frozen ledgers are defined by ledgers freeze request.
+        Request to get list of frozen ledgers.
+        Frozen ledgers are defined by ledgers freeze request.
 
     Args:
         identifier: Identifier (DID) of the transaction author as base58-encoded
