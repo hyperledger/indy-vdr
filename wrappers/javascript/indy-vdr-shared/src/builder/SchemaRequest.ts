@@ -17,9 +17,11 @@ export type SchemaRequestOptions = {
 interface SchemaResultTxn extends WriteRequestResultTxnBase {
   type: '101'
   data: {
-    version: string
-    attr_names: string[]
-    name: string
+    data: {
+      version: string
+      attr_names: string[]
+      name: string
+    }
   }
 }
 
