@@ -630,10 +630,10 @@ pub extern "C" fn indy_vdr_build_node_request(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_build_pool_config(
+pub extern "C" fn indy_vdr_build_pool_config_request(
     identifier: FfiStr,
-    writes: bool,
-    force: bool,
+    writes: i8,
+    force: i8,
     handle_p: *mut RequestHandle,
 ) -> ErrorCode {
     catch_err! {
@@ -641,7 +641,7 @@ pub extern "C" fn indy_vdr_build_pool_config(
         check_useful_c_ptr!(handle_p);
         let builder = get_request_builder()?;
         let identifier = DidValue::from_str(identifier.as_str())?;
-        let req = builder.build_pool_config(&identifier, writes, force)?;
+        let req = builder.build_pool_config(&identifier, writes != 0, force != 0)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
@@ -651,7 +651,7 @@ pub extern "C" fn indy_vdr_build_pool_config(
 }
 
 #[no_mangle]
-pub extern "C" fn indy_vdr_build_pool_restart(
+pub extern "C" fn indy_vdr_build_pool_restart_request(
     identifier: FfiStr,
     action: FfiStr,
     datetime: FfiStr,

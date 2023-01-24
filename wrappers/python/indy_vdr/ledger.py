@@ -924,7 +924,7 @@ def build_pool_config(
     c_writes = c_bool(writes)
     c_force = c_bool(force)
     do_call(
-        "indy_vdr_build_pool_config",
+        "indy_vdr_build_pool_config_request",
         identifier_p,
         c_writes,
         c_force,
@@ -955,7 +955,7 @@ def build_pool_restart(
     action_p = encode_str(action)
     datetime_p = encode_str(datetime)
     do_call(
-        "indy_vdr_build_pool_restart",
+        "indy_vdr_build_pool_restart_request",
         identifier_p,
         action_p,
         datetime_p,
