@@ -1,6 +1,6 @@
-import type { IndyVdrErrorObject } from 'indy-vdr-shared'
+import type { IndyVdrErrorObject } from '@hyperledger/indy-vdr-shared'
 
-import { IndyVdrError } from 'indy-vdr-shared'
+import { IndyVdrError } from '@hyperledger/indy-vdr-shared'
 
 import { allocateString } from './ffi'
 import { nativeIndyVdr } from './library'

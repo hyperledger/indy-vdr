@@ -1,4 +1,4 @@
-import type { IndyVdrNativeBindings } from 'indy-vdr-shared'
+import type { IndyVdrNativeBindings } from '@hyperledger/indy-vdr-shared'
 
 // This can already check whether `_indy_vdr` exists on global
 // eslint-disable-next-line @typescript-eslint/no-use-before-define

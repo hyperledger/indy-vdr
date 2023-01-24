@@ -1,8 +1,8 @@
-import type { IndyVdrPool } from 'indy-vdr-nodejs'
+import type { IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
 import { DID, setupPool } from './utils'
 
-import { TransactionAuthorAgreementRequest } from 'indy-vdr-nodejs'
+import { TransactionAuthorAgreementRequest } from '@hyperledger/indy-vdr-nodejs'
 
 describe('TransactionAuthorAgreementRequest', () => {
   let pool: IndyVdrPool
