@@ -1,6 +1,6 @@
 """Methods for generating and working with pool ledger requests."""
 
-from ctypes import byref, c_int32, c_int64, c_uint64
+from ctypes import byref, c_int8, c_int32, c_int64, c_uint64
 from datetime import datetime, date
 from enum import IntEnum
 from typing import Optional, Union
@@ -806,9 +806,6 @@ def build_get_rich_schema_object_by_id_request(
     did_p = encode_str(submitter_did)
     rs_id = encode_str(rs_id) if isinstance(rs_id, (str, bytes)) else encode_json(rs_id)
     do_call(
-        "indy_vdr_build_get_schema_object_by_id_request", did_p, rs_id, byref(handle)
-    )
-    do_call(
         "indy_vdr_build_get_rich_schema_object_by_id_request",
         did_p,
         rs_id,
@@ -841,19 +838,321 @@ def build_get_rich_schema_object_by_metadata_request(
     rs_name = encode_str(rs_name)
     rs_version = encode_str(rs_version)
     do_call(
-        "indy_vdr_build_get_schema_object_by_metadata_request",
+        "indy_vdr_build_get_rich_schema_object_by_metadata_request",
         did_p,
         rs_type,
         rs_name,
         rs_version,
         byref(handle),
     )
+    return Request(handle)
+
+
+def build_node_request(
+    identifier: str,
+    dest: str,
+    data: Union[bytes, str, dict],
+) -> str:
+    """
+    Builds an NODE request.
+
+    Request to add a new node to the pool, or updates existing in the pool.
+
+    Args:
+        identifier: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        dest: Target DID as base58-encoded string for 16 or 32 bit DID value.
+        data: Data associated with the Node:
+          {
+              alias: string - Node's alias
+              blskey: string - (Optional) BLS multi-signature key as base58-encoded string.
+              blskey_pop: string - (Optional) BLS key proof of possession as base58-encoded string.
+              client_ip: string - (Optional) Node's client listener IP address.
+              client_port: string - (Optional) Node's client listener port.
+              node_ip: string - (Optional) The IP address other Nodes use to communicate with this Node.
+              node_port: string - (Optional) The port other Nodes use to communicate with this Node.
+              services: array<string> - (Optional) The service of the Node. VALIDATOR is the only supported one now.
+          }
+    """
+    handle = RequestHandle()
+    identifier_p = encode_str(identifier)
+    dest_p = encode_str(dest)
+    data_p = encode_str(data) if isinstance(data, (str, bytes)) else encode_json(data)
     do_call(
-        "indy_vdr_build_get_rich_schema_object_by_metadata_request",
-        did_p,
-        rs_type,
-        rs_name,
-        rs_version,
+        "indy_vdr_build_node_request",
+        identifier_p,
+        dest_p,
+        data_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_pool_config_request(
+    identifier: str,
+    writes: bool,
+    force: bool,
+) -> str:
+    """
+    Builds an POOL_CONFIG request.
+
+    Request to change Pool's configuration.
+
+    Args:
+        identifier: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        writes: Whether any write requests can be processed by the pool
+                   (if false, then pool goes to read-only state). True by default.
+        force: Whether we should apply transaction (for example, move pool to read-only state)
+                  without waiting for consensus of this transaction
+    """
+    handle = RequestHandle()
+    identifier_p = encode_str(identifier)
+    c_writes = c_int8(writes)
+    c_force = c_int8(force)
+    do_call(
+        "indy_vdr_build_pool_config_request",
+        identifier_p,
+        c_writes,
+        c_force,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_pool_restart_request(
+    identifier: str,
+    action: str,
+    datetime: Optional[str],
+) -> str:
+    """
+    Builds an POOL_RESTART request.
+
+    Request to restart Pool.
+
+    Args:
+        identifier: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        action: Action that pool has to do after received transaction.
+                Can be "start" or "cancel"
+        datetime: (Optional) Time when pool must be restarted.
+    """
+    handle = RequestHandle()
+    identifier_p = encode_str(identifier)
+    action_p = encode_str(action)
+    datetime_p = encode_str(datetime)
+    do_call(
+        "indy_vdr_build_pool_restart_request",
+        identifier_p,
+        action_p,
+        datetime_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_auth_rule_request(
+    submitter_did: str,
+    txn_type: str,
+    action: str,
+    field: str,
+    old_value: Optional[str],
+    new_value: Optional[str],
+    constraint: Union[bytes, str, dict],
+) -> str:
+    """
+    Builds an AUTH_RULE request.
+
+    Request to change authentication rules for a ledger transaction.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        txn_type: ledger transaction alias or associated value.
+        action: type of an action.
+           Can be either "ADD" (to add a new rule) or "EDIT" (to edit an existing one).
+        field: transaction field.
+        old_value: (Optional) old value of a field, which can be changed to a new_value (mandatory for EDIT action).
+        new_value: (Optional) new value that can be used to fill the field.
+        constraint: set of constraints required for execution of an action in the following format:
+            {
+                constraint_id - <string> type of a constraint.
+                    Can be either "ROLE" to specify final constraint or  "AND"/"OR" to combine constraints.
+                role - <string> (optional) role of a user which satisfy to constrain.
+                sig_count - <u32> the number of signatures required to execution action.
+                need_to_be_owner - <bool> (optional) if user must be an owner of transaction (false by default).
+                off_ledger_signature - <bool> (optional) allow signature of unknow for ledger did (false by default).
+                metadata - <object> (optional) additional parameters of the constraint.
+            }
+        can be combined by
+            {
+                'constraint_id': <"AND" or "OR">
+                'auth_constraints': [<constraint_1>, <constraint_2>]
+            }
+
+        Default ledger auth rules: https://github.com/hyperledger/indy-node/blob/master/docs/source/auth_rules.md
+        More about AUTH_RULE request: https://github.com/hyperledger/indy-node/blob/master/docs/source/requests.md#auth_rule
+    """
+    handle = RequestHandle()
+    submitter_did_p = encode_str(submitter_did)
+    txn_type_p = encode_str(txn_type)
+    action_p = encode_str(action)
+    field_p = encode_str(field)
+    old_value_p = encode_str(old_value)
+    new_value_p = encode_str(new_value)
+    constraint_p = (
+        encode_str(constraint)
+        if isinstance(constraint, (str, bytes))
+        else encode_json(constraint)
+    )
+    do_call(
+        "indy_vdr_build_auth_rule_request",
+        submitter_did_p,
+        txn_type_p,
+        action_p,
+        field_p,
+        old_value_p,
+        new_value_p,
+        constraint_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_auth_rules_request(
+    submitter_did: str,
+    rules: Union[bytes, str, dict],
+) -> str:
+    """
+    Builds an AUTH_RULES request.
+
+    Request to change multiple authentication rules for a ledger transaction.
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        data: a list of auth rules: [
+            {
+                "auth_type": ledger transaction alias or associated value,
+                "auth_action": type of an action,
+                "field": transaction field,
+                "old_value": (Optional) old value of a field, which can be changed to a new_value (mandatory for EDIT action),
+                "new_value": (Optional) new value that can be used to fill the field,
+                "constraint": set of constraints required for execution of an action in the format described above for `build_auth_rule_request` function.
+            }
+        ]
+
+        Default ledger auth rules: https://github.com/hyperledger/indy-node/blob/master/docs/source/auth_rules.md
+        More about AUTH_RULE request: https://github.com/hyperledger/indy-node/blob/master/docs/source/requests.md#auth_rules
+    """
+    handle = RequestHandle()
+    submitter_did_p = encode_str(submitter_did)
+    rules_p = (
+        encode_str(rules) if isinstance(rules, (str, bytes)) else encode_json(rules)
+    )
+    do_call(
+        "indy_vdr_build_auth_rules_request",
+        submitter_did_p,
+        rules_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_get_auth_rule_request(
+    submitter_did: Optional[str],
+    auth_type: Optional[str],
+    auth_action: Optional[str],
+    field: Optional[str],
+    old_value: Optional[str],
+    new_value: Optional[str],
+) -> str:
+    """
+    Builds an GET_AUTH_RULE request.
+
+    Request to get authentication rules for a ledger transaction.
+
+    NOTE: Either none or all transaction related parameters must be specified (`old_value` can be skipped for `ADD` action).
+        * none - to get all authentication rules for all ledger transactions
+        * all - to get authentication rules for specific action (`old_value` can be skipped for `ADD` action)
+
+    Args:
+        submitter_did: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        auth_type: target ledger transaction alias or associated value.
+        auth_action: target action type. Can be either "ADD" or "EDIT".
+        field: target transaction field.
+        old_value: (Optional) old value of field, which can be changed to a new_value (must be specified for EDIT action).
+        new_value: (Optional) new value that can be used to fill the field.
+    """
+    handle = RequestHandle()
+    submitter_did_p = encode_str(submitter_did)
+    auth_type_p = encode_str(auth_type)
+    auth_action_p = encode_str(auth_action)
+    field_p = encode_str(field)
+    old_value_p = encode_str(old_value)
+    new_value_p = encode_str(new_value)
+    do_call(
+        "indy_vdr_build_get_auth_rule_request",
+        submitter_did_p,
+        auth_type_p,
+        auth_action_p,
+        field_p,
+        old_value_p,
+        new_value_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_ledgers_freeze_request(
+    identifier: str,
+    ledgers_ids: Union[bytes, str, dict],
+) -> str:
+    """
+    Builds an LEDGERS_FREEZE request.
+
+    Request to freeze list of ledgers.
+
+    Args:
+        identifier: Identifier (DID) of the transaction author as base58-encoded
+            string.
+            ledgers_ids: List of ledgers IDs for freezing.
+    """
+    handle = RequestHandle()
+    identifier_p = encode_str(identifier)
+    ledgers_ids_p = (
+        encode_str(ledgers_ids)
+        if isinstance(ledgers_ids, (str, bytes))
+        else encode_json(ledgers_ids)
+    )
+    do_call(
+        "indy_vdr_build_ledgers_freeze_request",
+        identifier_p,
+        ledgers_ids_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
+def build_get_frozen_ledgers_request(
+    identifier: str,
+) -> str:
+    """
+    Builds an GET_FROZEN_LEDGERS request.
+
+        Request to get list of frozen ledgers.
+        Frozen ledgers are defined by ledgers freeze request.
+
+    Args:
+        identifier: Identifier (DID) of the transaction author as base58-encoded
+            string.
+    """
+    handle = RequestHandle()
+    identifier_p = encode_str(identifier)
+    do_call(
+        "indy_vdr_build_get_frozen_ledgers_request",
+        identifier_p,
         byref(handle),
     )
     return Request(handle)

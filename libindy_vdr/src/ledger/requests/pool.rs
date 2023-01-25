@@ -75,6 +75,7 @@ pub struct PoolUpgradeOperation {
 }
 
 impl PoolUpgradeOperation {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: &str,
         version: &str,
