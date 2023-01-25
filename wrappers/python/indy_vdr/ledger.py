@@ -493,9 +493,9 @@ def build_nym_request(
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     dest_p = encode_str(dest)
-    verkey_p = encode_str(verkey) if verkey else None
-    alias_p = encode_str(alias) if alias else None
-    role_p = encode_str(role) if role else None
+    verkey_p = encode_str(verkey)
+    alias_p = encode_str(alias)
+    role_p = encode_str(role)
     do_call(
         "indy_vdr_build_nym_request",
         did_p,
