@@ -6,6 +6,8 @@ pub const TXN_AUTHR_AGRMT_AML: &str = "5";
 pub const GET_TXN_AUTHR_AGRMT: &str = "6";
 pub const GET_TXN_AUTHR_AGRMT_AML: &str = "7";
 pub const DISABLE_ALL_TXN_AUTHR_AGRMTS: &str = "8";
+pub const LEDGERS_FREEZE: &str = "9";
+pub const GET_FROZEN_LEDGERS: &str = "10";
 pub const ATTRIB: &str = "100";
 pub const SCHEMA: &str = "101";
 pub const CRED_DEF: &str = "102";
@@ -36,7 +38,7 @@ pub const RICH_SCHEMA_PRES_DEF: &str = "205";
 pub const GET_RICH_SCHEMA_BY_ID: &str = "300";
 pub const GET_RICH_SCHEMA_BY_METADATA: &str = "301";
 
-pub const REQUESTS: [&str; 31] = [
+pub const REQUESTS: [&str; 33] = [
     NODE,
     NYM,
     GET_TXN,
@@ -62,6 +64,8 @@ pub const REQUESTS: [&str; 31] = [
     GET_TXN_AUTHR_AGRMT,
     GET_TXN_AUTHR_AGRMT_AML,
     DISABLE_ALL_TXN_AUTHR_AGRMTS,
+    LEDGERS_FREEZE,
+    GET_FROZEN_LEDGERS,
     RICH_SCHEMA_CTX,
     RICH_SCHEMA,
     RICH_SCHEMA_ENCODING,
@@ -132,6 +136,8 @@ pub fn txn_name_to_code(txn: &str) -> Option<&str> {
         "GET_TXN_AUTHR_AGRMT" => Some(GET_TXN_AUTHR_AGRMT),
         "GET_TXN_AUTHR_AGRMT_AML" => Some(GET_TXN_AUTHR_AGRMT_AML),
         "DISABLE_ALL_TXN_AUTHR_AGRMTS" => Some(DISABLE_ALL_TXN_AUTHR_AGRMTS),
+        "LEDGERS_FREEZE" => Some(LEDGERS_FREEZE),
+        "GET_FROZEN_LEDGERS" => Some(GET_FROZEN_LEDGERS),
         val => Some(val),
     }
 }

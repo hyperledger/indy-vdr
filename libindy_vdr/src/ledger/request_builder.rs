@@ -20,6 +20,7 @@ use super::requests::author_agreement::{
     TxnAuthorAgreementOperation, TxnAuthrAgrmtAcceptanceData,
 };
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
+use super::requests::ledgers_freeze::{GetFrozenLedgersOperation, LedgersFreezeOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
 use super::requests::pool::{
@@ -206,7 +207,7 @@ impl RequestBuilder {
     }
 
     /// Build a `POOL_CONFIG` transaction request
-    pub fn build_pool_config(
+    pub fn build_pool_config_request(
         &self,
         identifier: &DidValue,
         writes: bool,
@@ -216,7 +217,7 @@ impl RequestBuilder {
     }
 
     /// Build a `POOL_RESTART` transaction request
-    pub fn build_pool_restart(
+    pub fn build_pool_restart_request(
         &self,
         identifier: &DidValue,
         action: &str,
@@ -229,7 +230,8 @@ impl RequestBuilder {
     }
 
     /// Build a `POOL_UPGRADE` transaction request
-    pub fn build_pool_upgrade(
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_pool_upgrade_request(
         &self,
         identifier: &DidValue,
         name: &str,
@@ -259,6 +261,7 @@ impl RequestBuilder {
     }
 
     /// Build an `AUTH_RULE` transaction request
+    #[allow(clippy::too_many_arguments)]
     pub fn build_auth_rule_request(
         &self,
         submitter_did: &DidValue,
@@ -549,6 +552,7 @@ impl RequestBuilder {
     }
 
     #[cfg(any(feature = "rich_schema", test))]
+    #[allow(clippy::too_many_arguments)]
     /// Build a `RICH_SCHEMA` transaction request
     pub fn build_rich_schema_request(
         &self,
@@ -602,6 +606,26 @@ impl RequestBuilder {
             GetRichSchemaByMetadataOperation::new(get_rs_by_meta),
             Some(identifier),
         )
+    }
+
+    /// Build a `LEDGERS_FREEZE` transaction request
+    pub fn build_ledgers_freeze_request(
+        &self,
+        identifier: &DidValue,
+        ledgers_ids: &[u64],
+    ) -> VdrResult<PreparedRequest> {
+        self.build(
+            LedgersFreezeOperation::new(ledgers_ids.to_vec()),
+            Some(identifier),
+        )
+    }
+
+    /// Build a `GET_FROZEN_LEDGERS` transaction request
+    pub fn build_get_frozen_ledgers_request(
+        &self,
+        identifier: &DidValue,
+    ) -> VdrResult<PreparedRequest> {
+        self.build(GetFrozenLedgersOperation::new(), Some(identifier))
     }
 }
 

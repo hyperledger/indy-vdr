@@ -13,7 +13,7 @@ interface GetAcceptanceMechanismsFoundResult extends GetRequestResultFoundBase {
   data: {
     version: string
     amlContext: string
-    aml: string[]
+    aml: Record<string, string>
   }
 }
 

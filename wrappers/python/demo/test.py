@@ -16,6 +16,14 @@ from indy_vdr.ledger import (
     build_get_revoc_reg_request,
     build_get_revoc_reg_delta_request,
     build_get_schema_request,
+    build_node_request,
+    build_pool_config_request,
+    build_pool_restart_request,
+    build_auth_rule_request,
+    build_auth_rules_request,
+    build_get_auth_rule_request,
+    build_ledgers_freeze_request,
+    build_get_frozen_ledgers_request,
     # build_revoc_reg_entry_request,
     # build_rich_schema_request,
     # build_get_schema_object_by_id_request,
@@ -115,6 +123,68 @@ async def basic_test(transactions_path):
 
     req = build_get_revoc_reg_delta_request(None, revoc_id, from_ts=None, to_ts=1)
     log("Get revoc reg delta request:", req.body)
+
+    identifier = "V4SGRU86Z58d6TV7PBUe6f"
+    dest = "V4SGRU86Z58d6TV7PBUe6f"
+    data = {
+        "node_ip": "ip",
+        "node_port": 1,
+        "client_ip": "ip",
+        "client_port": 1,
+        "alias": "some",
+        "services": ["VALIDATOR"],
+        "blskey": "CnEDk9HrMnmiHXEV1WFgbVCRteYnPqsJwrTdcZaNhFVW",
+    }
+    req = build_node_request(identifier, dest, data)
+    log("Node request:", req.body)
+
+    req = build_pool_config_request(identifier, True, False)
+    log("Pool Config request:", req.body)
+
+    req = build_pool_restart_request(identifier, "start", None)
+    log("Pool Restart request:", req.body)
+
+    txn_type = "NYM"
+    auth_type = "1"
+    auth_action = "ADD"
+    field = "role"
+    old_value = "0"
+    new_value = "101"
+    constraint = {
+        "sig_count": 1,
+        "metadata": {},
+        "role": "0",
+        "constraint_id": "ROLE",
+        "need_to_be_owner": False,
+    }
+    req = build_auth_rule_request(
+        identifier, txn_type, auth_action, field, old_value, new_value, constraint
+    )
+    log("Auth Rule request:", req.body)
+
+    rules = [
+        {
+            "auth_type": auth_type,
+            "auth_action": auth_action,
+            "field": field,
+            "new_value": new_value,
+            "constraint": constraint,
+        },
+    ]
+    req = build_auth_rules_request(identifier, rules)
+    log("Auth Rules request:", req.body)
+
+    req = build_get_auth_rule_request(
+        identifier, auth_type, auth_action, field, None, new_value
+    )
+    log("Get Auth Rule request:", req.body)
+
+    ledgers_ids = [1, 10, 100]
+    req = build_ledgers_freeze_request(identifier, ledgers_ids)
+    log("Ledgers Freeze request:", req.body)
+
+    req = build_get_frozen_ledgers_request(identifier)
+    log("Get Frozen Ledgers request:", req.body)
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"
