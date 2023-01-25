@@ -1,13 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { registerIndyVdr } from '@hyperledger/indy-vdr-shared'
 import { NativeModules } from 'react-native'
 
 import { ReactNativeIndyVdr } from './ReactNativeIndyVdr'
 
-const module = NativeModules.IndyVdr
+type Module = {
+  install: () => boolean
+}
+
+const module = NativeModules.IndyVdr as Module
 if (!module.install()) throw Error('Unable to install the turboModule: indyVdr')
 
 export * from '@hyperledger/indy-vdr-shared'
