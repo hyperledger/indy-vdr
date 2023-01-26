@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
     :USE_HEADERMAP => "No"
   }
 
-  s.ios.vendored_frameworks = "native/mobile/ios/libindy_vdr.xcframework"
+  s.ios.vendored_frameworks = "native/mobile/ios/indy_vdr.xcframework"
 
   s.source_files = "ios/**/*.{h,m,mm}", "cpp/**/*.{h,cpp}"
   

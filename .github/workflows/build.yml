@@ -288,7 +288,7 @@ jobs:
           xcodebuild -create-xcframework \
             -library aarch64-apple-ios/libindy_vdr.a -headers ./libindy_vdr/include/libindy_vdr.h \
             -library libindy_vdr.a                   -headers ./libindy_vdr/include/libindy_vdr.h \
-            -output output/libindy_vdr.xcframework
+            -output output/indy_vdr.xcframework
       - name: Save xcframework
         uses: actions/upload-artifact@v3
         with:
