@@ -1,6 +1,6 @@
 {
   "name": "@hyperledger/indy-vdr-nodejs",
-  "version": "0.1.0-dev.2",
+  "version": "0.1.0-dev.3",
   "license": "Apache-2.0",
   "description": "Nodejs wrapper for Indy Vdr",
   "source": "src/index",
@@ -17,16 +17,14 @@
   },
   "files": [
     "build",
-    "README.md",
-    "LICENSE",
-    "package.json"
+    "scripts"
   ],
   "scripts": {
     "build": "yarn clean && yarn compile",
     "clean": "rimraf -rf ./build",
     "compile": "tsc -p tsconfig.build.json",
     "test": "jest",
-    "install": "node-pre-gyp install"
+    "install": "node-pre-gyp install --target_arch=$(node scripts/arch.js)"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
@@ -43,7 +41,7 @@
     "typescript": "4.5.5"
   },
   "dependencies": {
-    "@hyperledger/indy-vdr-shared": "0.1.0-dev.2",
+    "@hyperledger/indy-vdr-shared": "0.1.0-dev.3",
     "@mapbox/node-pre-gyp": "^1.0.10",
     "ffi-napi": "^4.0.3",
     "ref-array-di": "^1.2.2",
@@ -53,8 +51,8 @@
   "binary": {
     "module_name": "indy_vdr",
     "module_path": "native",
-    "remote_path": "v0.4.0-dev.2",
+    "remote_path": "v0.4.0-dev.3",
     "host": "https://github.com/hyperledger/indy-vdr/releases/download/",
-    "package_name": "library-{platform}.tar.gz"
+    "package_name": "library-{platform}-{arch}.tar.gz"
   }
 }
