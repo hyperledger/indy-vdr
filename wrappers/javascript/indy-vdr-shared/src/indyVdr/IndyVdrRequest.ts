@@ -23,7 +23,7 @@ export class IndyVdrRequest<ResponseType extends Record<string, unknown> = Recor
   private _handle: number
 
   // We need to use the generic that is passed to this class, otherwise TypeScript will lose the generic type passed to IndyVdrRequest
-  // and we cant' infer the response type. The value is protected, so it's won't be accessible from outside the class.
+  // and we can't infer the response type. The value is protected, so it's won't be accessible from outside the class.
   protected __responseType__?: ResponseType
 
   public constructor(options: { handle: number }) {
