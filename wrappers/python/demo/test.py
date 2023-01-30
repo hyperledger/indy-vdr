@@ -24,6 +24,7 @@ from indy_vdr.ledger import (
     build_get_auth_rule_request,
     build_ledgers_freeze_request,
     build_get_frozen_ledgers_request,
+    build_pool_upgrade_request,
     # build_revoc_reg_entry_request,
     # build_rich_schema_request,
     # build_get_schema_object_by_id_request,
@@ -185,6 +186,9 @@ async def basic_test(transactions_path):
 
     req = build_get_frozen_ledgers_request(identifier)
     log("Get Frozen Ledgers request:", req.body)
+
+    req = build_pool_upgrade_request(identifier, 'up', '2.0.0', 'start', 'abc', None, {}, None, False, False, None)
+    log("Pool Upgrade request:", req.body)
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"
