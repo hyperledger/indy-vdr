@@ -13,7 +13,11 @@ interface GetCredentialDefinitionFoundResult extends GetRequestResultFoundBase {
   tag: string
   ref: number
   origin: string
-  data: null
+  // TODO: add better typing
+  data: {
+    primary: Record<string, unknown>
+    revocation: Record<string, unknown>
+  }
 }
 
 interface GetCredentialDefinitionNotFoundResult extends GetRequestResultNotFoundBase {
@@ -22,11 +26,7 @@ interface GetCredentialDefinitionNotFoundResult extends GetRequestResultNotFound
   tag: string
   ref: number
   origin: string
-  // TODO: add better typing
-  data: {
-    primary: Record<string, unknown>
-    revocation: Record<string, unknown>
-  }
+  data: null
 }
 
 export type GetCredentialDefinitionResponse = GetRequestResponse<
