@@ -18,7 +18,6 @@ interface GetSchemaFoundResult extends GetRequestResultFoundBase {
 }
 
 // If a schema is not found, the data attribute is still populated, the attr_names is just empty
-
 interface GetSchemaNotFoundResult extends GetRequestResultNotFoundBase {
   type: '107'
   dest: string
