@@ -951,6 +951,74 @@ def build_pool_restart_request(
     return Request(handle)
 
 
+def build_pool_upgrade_request(
+    identifier: str,
+    name: str,
+    version: str,
+    action: str,
+    sha256: str,
+    timeout: Optional[int],
+    schedule: Optional[Union[bytes, str, dict]],
+    justification: Optional[str],
+    reinstall: bool,
+    force: bool,
+    package: Optional[str]
+) -> str:
+    """
+    Builds an POOL_UPGRADE request.
+
+    Request to upgrade Pool.
+
+    Args:
+        identifier: Identifier (DID) of the transaction author as base58-encoded
+            string.
+        name: Human-readable name for the upgrade.
+        version: The version of indy-node package we perform upgrade to.
+                    Must be greater than existing one (or equal if reinstall flag is True).
+        action: Either `start` or `cancel`.
+        sha256: hash of the package.
+        timeout: (Optional) Limits upgrade time on each Node.
+        schedule: (Optional) Schedule of when to perform upgrade on each node. Map Node DIDs to upgrade time.
+        justification: (Optional) justification string for this particular Upgrade.
+        reinstall: Whether it's allowed to re-install the same version. False by default.
+        force: Whether we should apply transaction (schedule Upgrade) without waiting
+                  for consensus of this transaction.
+        package: (Optional) Package to be upgraded.
+    """
+    handle = RequestHandle()
+    identifier_p = encode_str(identifier)
+    name_p = encode_str(name)
+    version_p = encode_str(version)
+    action_p = encode_str(action)
+    sha256_p = encode_str(sha256)
+    timeout_p = c_int32(timeout) if timeout else c_int32(-1)
+    schedule_p = (
+        encode_str(schedule)
+        if isinstance(schedule, (str, bytes))
+        else encode_json(schedule)
+    )
+    justification_p = encode_str(justification)
+    c_reinstall = c_int8(reinstall)
+    c_force = c_int8(force)
+    package_p = encode_str(package)
+    do_call(
+        "indy_vdr_build_pool_upgrade_request",
+        identifier_p,
+        name_p,
+        version_p,
+        action_p,
+        sha256_p,
+        timeout_p,
+        schedule_p,
+        justification_p,
+        c_reinstall,
+        c_force,
+        package_p,
+        byref(handle),
+    )
+    return Request(handle)
+
+
 def build_auth_rule_request(
     submitter_did: str,
     txn_type: str,

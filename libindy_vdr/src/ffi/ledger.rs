@@ -6,6 +6,7 @@ use crate::ledger::requests::auth_rule::{AuthRules, Constraint};
 use crate::ledger::requests::author_agreement::{AcceptanceMechanisms, GetTxnAuthorAgreementData};
 use crate::ledger::requests::cred_def::CredentialDefinition;
 use crate::ledger::requests::node::NodeOperationData;
+use crate::ledger::requests::pool::Schedule;
 use crate::ledger::requests::rev_reg::RevocationRegistryDelta;
 use crate::ledger::requests::rev_reg_def::{RegistryType, RevocationRegistryDefinition};
 #[cfg(any(feature = "rich_schema", test))]
@@ -665,6 +666,50 @@ pub extern "C" fn indy_vdr_build_pool_restart_request(
         let action = action.as_str();
         let datetime = datetime.into_opt_string();
         let req = builder.build_pool_restart_request(&identifier, action, datetime.as_deref())?;
+        let handle = add_request(req)?;
+        unsafe {
+            *handle_p = handle;
+        }
+        Ok(ErrorCode::Success)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn indy_vdr_build_pool_upgrade_request(
+    identifier: FfiStr,
+    name: FfiStr,
+    version: FfiStr,
+    action: FfiStr,
+    sha256: FfiStr,
+    timeout: i32,
+    schedule: FfiStr,
+    justification: FfiStr,
+    reinstall: i8,
+    force: i8,
+    package: FfiStr,
+    handle_p: *mut RequestHandle,
+) -> ErrorCode {
+    catch_err! {
+        trace!("Build POOL_UPGRADE request");
+        check_useful_c_ptr!(handle_p);
+        let builder = get_request_builder()?;
+        let identifier = DidValue::from_str(identifier.as_str())?;
+        let name = name.as_str();
+        let version = version.as_str();
+        let action = action.as_str();
+        let sha256 = sha256.as_str();
+        let timeout = if timeout == -1 { None } else { Some(timeout as u32) };
+        let schedule = match schedule.as_opt_str() {
+            Some(s) => {
+                let schedule: Schedule = serde_json::from_str(s).with_input_err("Error deserializing Schedule value as JSON")?;
+                Some(schedule)
+            }
+            None => None,
+        };
+        let justification = justification.into_opt_string();
+        let package = package.into_opt_string();
+        let req = builder.build_pool_upgrade_request(&identifier, name, version, action, sha256, timeout, schedule,
+            justification.as_deref(), reinstall != 0, force != 0, package.as_deref())?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
