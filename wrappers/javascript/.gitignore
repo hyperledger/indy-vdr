@@ -47,5 +47,4 @@ android/keystores/debug.keystore
 react-native/android/gradle*
 
 **/build
-**/native/android
-**/native/ios
+**/native/mobile

@@ -1,6 +1,6 @@
 #include <turboModuleUtility.h>
 
-namespace turboModuleUtility {
+namespace IndyVdrTurboModuleUtility {
 
 std::shared_ptr<react::CallInvoker> invoker;
 
@@ -9,7 +9,7 @@ void registerTurboModule(jsi::Runtime &rt,
   // Setting the callInvoker for async code
   invoker = jsCallInvoker;
   // Create a TurboModuleRustHostObject
-  auto instance = std::make_shared<TurboModuleHostObject>(rt);
+  auto instance = std::make_shared<IndyVdrTurboModuleHostObject>(rt);
   // Create a JS equivalent object of the instance
   jsi::Object jsInstance = jsi::Object::createFromHostObject(rt, instance);
   // Register the object on global
@@ -183,4 +183,4 @@ ByteBuffer jsiToValue<ByteBuffer>(jsi::Runtime &rt, jsi::Object &options,
   throw jsi::JSError(rt, errorPrefix + name + errorInfix + "Uint8Array");
 }
 
-} // namespace turboModuleUtility
+} // namespace indyVdrTurboModuleUtility
