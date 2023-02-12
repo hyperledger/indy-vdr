@@ -269,7 +269,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.architecture}}
-          path: target/${{ matrix.architecture }}/release/libindy_vdr.a
+          path: target/${{ matrix.architecture }}/release/libindy_vdr.dylib
 
   create-ios-xcframework:
     name: Create iOS xcframework
@@ -278,22 +278,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Fetch static libraries
+      - name: Fetch dynamic libraries
         uses: actions/download-artifact@v3
       - run: >
-          lipo -create aarch64-apple-ios-sim/libindy_vdr.a \
-                       x86_64-apple-ios/libindy_vdr.a \
-               -output libindy_vdr.a
-      - run: >
-          xcodebuild -create-xcframework \
-            -library aarch64-apple-ios/libindy_vdr.a -headers ./libindy_vdr/include/libindy_vdr.h \
-            -library libindy_vdr.a                   -headers ./libindy_vdr/include/libindy_vdr.h \
-            -output output/indy_vdr.xcframework
+          ./build-xcframework.sh aarch64-apple-ios \
+                                 aarch64-apple-ios-sim \
+                                 x86_64-apple-ios \
+                                 include
       - name: Save xcframework
         uses: actions/upload-artifact@v3
         with:
           name: indy_vdr.xcframework
-          path: output/
+          path: out
       - uses: geekyeggo/delete-artifact@v2
         with:
           name: |
