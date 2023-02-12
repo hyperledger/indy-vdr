@@ -1,6 +1,6 @@
 #include <indyVdr.h>
 
-using namespace turboModuleUtility;
+using namespace indyVdrTurboModuleUtility;
 
 namespace indyVdr {
 
