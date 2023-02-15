@@ -23,7 +23,7 @@ OUT_PATH="out"
 AARCH64_APPLE_IOS_PATH="./target/aarch64-apple-ios/release"
 AARCH64_APPLE_IOS_SIM_PATH="./target/aarch64-apple-ios-sim/release"
 X86_64_APPLE_IOS_PATH="./target/x86_64-apple-ios/release"
-HEADER_PATH="./include"
+HEADER_PATH="./libindy_vdr/include"
 
 # Simple helper command to display some information
 Help() {
