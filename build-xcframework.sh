@@ -69,25 +69,25 @@ fi
 if [ ! -f $AARCH64_APPLE_IOS_SIM_PATH/$LIBRARY_NAME ]
 then
     echo "$AARCH64_APPLE_IOS_SIM_PATH/$LIBRARY_NAME does not exist!"
-    exit
+    exit 1
 fi
 
 if [ ! -f $AARCH64_APPLE_IOS_PATH/$LIBRARY_NAME ]
 then
     echo "$AARCH64_APPLE_IOS_PATH/$LIBRARY_NAME does not exist!"
-    exit
+    exit 1
 fi
 
 if [ ! -f $X86_64_APPLE_IOS_PATH/$LIBRARY_NAME ]
 then
     echo "$X86_64_APPLE_IOS_PATH/$LIBRARY_NAME does not exist!"
-    exit
+    exit 1
 fi
 
 if [ ! -f $HEADER_PATH/$HEADER_NAME ]
 then
     echo "$HEADER_PATH/$HEADER_NAME does not exist!"
-    exit
+    exit 1
 fi
 
 # Displaying the supplied paths to the user 
