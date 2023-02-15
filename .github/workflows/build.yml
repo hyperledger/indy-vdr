@@ -283,8 +283,7 @@ jobs:
       - run: >
           ./build-xcframework.sh aarch64-apple-ios \
                                  aarch64-apple-ios-sim \
-                                 x86_64-apple-ios \
-                                 include
+                                 x86_64-apple-ios
       - name: Save xcframework
         uses: actions/upload-artifact@v3
         with:
