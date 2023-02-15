@@ -64,22 +64,21 @@ mod builder {
 #[cfg(feature = "local_nodes_pool")]
 mod send_flag {
     use super::*;
+    use crate::utils::crypto::Identity;
     use crate::utils::pool::TestPool;
 
     #[rstest]
-    fn test_pool_send_flag(pool: TestPool) {
-        let identity = helpers::new_ledger_identity(&pool, None);
-
+    fn test_pool_send_flag(pool: TestPool, trustee: Identity) {
         // Create Flag Request
         let mut flag_request = pool
             .request_builder()
-            .build_flag_request(&identity.did, FLAG_NAME.to_string(), FLAG_VALUE.to_string())
+            .build_flag_request(&trustee.did, FLAG_NAME.to_string(), FLAG_VALUE.to_string())
             .unwrap();
         // Send Flag Request
         let flag_response =
-            helpers::sign_and_send_request(&identity, &pool, &mut flag_request).unwrap();
+            helpers::sign_and_send_request(&trustee, &pool, &mut flag_request).unwrap();
 
-        // Create get_flag request
+        // Create get_flag request -> This should return the FLAG_VALUE written previously
         let get_flag_request = pool
             .request_builder()
             .build_get_flag_request(None, FLAG_NAME.to_string(), None, None)
@@ -87,6 +86,19 @@ mod send_flag {
         let response = pool
             .send_request_with_retries(&get_flag_request, &flag_response)
             .unwrap();
-        helpers::get_response_data(&response).unwrap_err();
+        let data = helpers::get_response_data(&response).unwrap();
+        assert_eq!(data["value"].as_str().unwrap(), FLAG_VALUE.to_string());
+
+        // Crate historic get_flag request -> this should error (transaction did not exist at that pont in time)
+        let timestamp = data["lut"].as_u64().unwrap();
+        let get_flag_request = pool
+            .request_builder()
+            .build_get_flag_request(None, FLAG_NAME.to_string(), None, Some(timestamp - 1))
+            .unwrap();
+        let response = pool
+            .send_request_with_retries(&get_flag_request, &flag_response)
+            .unwrap();
+        let data = helpers::get_response_data(&response);
+        assert_eq!(true, data.is_err())
     }
 }
