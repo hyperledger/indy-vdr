@@ -1,6 +1,6 @@
 #include <turboModuleUtility.h>
 
-namespace IndyVdrTurboModuleUtility {
+namespace indyVdrTurboModuleUtility {
 
 std::shared_ptr<react::CallInvoker> invoker;
 

@@ -94,7 +94,7 @@ jsi::Function IndyVdrTurboModuleHostObject::call(jsi::Runtime &rt, const char *n
       [this, cb](jsi::Runtime &rt, const jsi::Value &thisValue,
                  const jsi::Value *arguments, size_t count) -> jsi::Value {
         const jsi::Value *val = &arguments[0];
-        turboModuleUtility::assertValueIsObject(rt, val);
+        indyVdrTurboModuleUtility::assertValueIsObject(rt, val);
         return (*cb)(rt, val->getObject(rt));
       });
 };
