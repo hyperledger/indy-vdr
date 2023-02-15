@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <vector>
 
-IndyVdrTurboModuleHostObject::IndyVdrTurboModuleHostObject(jsi::Runtime &rt) { return; }
+IndyVdrTurboModuleHostObject::IndyVdrTurboModuleHostObject(jsi::Runtime &rt) {
+  return;
+}
 
 FunctionMap IndyVdrTurboModuleHostObject::functionMapping(jsi::Runtime &rt) {
   FunctionMap fMap;
@@ -87,8 +89,8 @@ FunctionMap IndyVdrTurboModuleHostObject::functionMapping(jsi::Runtime &rt) {
   return fMap;
 }
 
-jsi::Function IndyVdrTurboModuleHostObject::call(jsi::Runtime &rt, const char *name,
-                                          Cb cb) {
+jsi::Function IndyVdrTurboModuleHostObject::call(jsi::Runtime &rt,
+                                                 const char *name, Cb cb) {
   return jsi::Function::createFromHostFunction(
       rt, jsi::PropNameID::forAscii(rt, name), 1,
       [this, cb](jsi::Runtime &rt, const jsi::Value &thisValue,
@@ -110,8 +112,9 @@ IndyVdrTurboModuleHostObject::getPropertyNames(jsi::Runtime &rt) {
   return result;
 }
 
-jsi::Value IndyVdrTurboModuleHostObject::get(jsi::Runtime &rt,
-                                      const jsi::PropNameID &propNameId) {
+jsi::Value
+IndyVdrTurboModuleHostObject::get(jsi::Runtime &rt,
+                                  const jsi::PropNameID &propNameId) {
   auto propName = propNameId.utf8(rt);
   auto fMap = IndyVdrTurboModuleHostObject::functionMapping(rt);
   for (FunctionMap::iterator it = fMap.begin(); it != fMap.end(); ++it) {
