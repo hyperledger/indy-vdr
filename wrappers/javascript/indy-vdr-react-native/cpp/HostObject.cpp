@@ -9,6 +9,7 @@ IndyVdrTurboModuleHostObject::IndyVdrTurboModuleHostObject(jsi::Runtime &rt) {
 FunctionMap IndyVdrTurboModuleHostObject::functionMapping(jsi::Runtime &rt) {
   FunctionMap fMap;
   fMap.insert(std::make_pair("version", &indyVdr::version));
+  fMap.insert(std::make_tuple("getCurrentError", &indyVdr::getCurrentError));
   fMap.insert(std::make_tuple("setConfig", &indyVdr::setConfig));
   fMap.insert(std::make_tuple("setDefaultLogger", &indyVdr::setDefaultLogger));
   fMap.insert(
