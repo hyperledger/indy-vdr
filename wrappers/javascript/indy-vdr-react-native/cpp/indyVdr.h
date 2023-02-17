@@ -10,7 +10,7 @@ using namespace facebook;
 namespace indyVdr {
 
 jsi::Value version(jsi::Runtime &rt, jsi::Object options);
-jsi::Value getCurrentError(jsi::Runtime &rt);
+jsi::Value getCurrentError(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setConfig(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setDefaultLogger(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setProtocolVersion(jsi::Runtime &rt, jsi::Object options);

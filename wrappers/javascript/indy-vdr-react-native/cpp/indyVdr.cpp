@@ -23,7 +23,7 @@ jsi::Value version(jsi::Runtime &rt, jsi::Object options) {
   return jsi::String::createFromAscii(rt, indy_vdr_version());
 }
 
-jsi::Value getCurrentError(jsi::Runtime &rt) {
+jsi::Value getCurrentError(jsi::Runtime &rt, jsi::Object options) {
   const char *errorMessage;
   indy_vdr_get_current_error(&errorMessage);
 
@@ -139,11 +139,12 @@ jsi::Value buildGetAttribRequest(jsi::Runtime &rt, jsi::Object options) {
 jsi::Value buildCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid =
       jsiToValue<std::string>(rt, options, "submitterDid");
-  std::string credDef = jsiToValue<std::string>(rt, options, "credDef");
+  std::string credentialDefinition =
+      jsiToValue<std::string>(rt, options, "credentialDefinition");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_cred_def_request(
-      submitterDid.c_str(), credDef.c_str(), &requestHandle);
+      submitterDid.c_str(), credentialDefinition.c_str(), &requestHandle);
   handleError(rt, code);
 
   return int(requestHandle);
@@ -152,12 +153,13 @@ jsi::Value buildCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
 jsi::Value buildGetCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
   std::string submitterDid =
       jsiToValue<std::string>(rt, options, "submitterDid", true);
-  std::string credDefId = jsiToValue<std::string>(rt, options, "credDefId");
+  std::string credentialDefinitionId =
+      jsiToValue<std::string>(rt, options, "credentialDefinitionId");
 
   RequestHandle requestHandle = getNewRequestHandle();
   ErrorCode code = indy_vdr_build_get_cred_def_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr,
-      credDefId.c_str(), &requestHandle);
+      credentialDefinitionId.c_str(), &requestHandle);
   handleError(rt, code);
 
   return int(requestHandle);
