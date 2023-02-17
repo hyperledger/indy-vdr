@@ -24,7 +24,7 @@ void handleError(jsi::Runtime &rt, ErrorCode code) {
   if (code == ErrorCode::Success)
     return;
 
-  jsi::Value errorMessage = indyVdr::getCurrentError(rt);
+  jsi::Value errorMessage = indyVdr::getCurrentError(rt, jsi::Object(rt));
 
   jsi::Object JSON = rt.global().getPropertyAsObject(rt, "JSON");
   jsi::Function JSONParse = JSON.getPropertyAsFunction(rt, "parse");
