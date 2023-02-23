@@ -16,7 +16,7 @@ impl Identity {
         Identity::new(Some(TRUSTEE_SEED), None)
     }
 
-    pub fn new(seed: Option<[u8; 32]>, version: Option<usize>) -> Identity {
+    pub fn new(seed: Option<[u8; 32]>, _version: Option<usize>) -> Identity {
         let (short_did, private_key, public_key) =
             // generate_did(seed.as_ref().map(|s| &s[..]), version).unwrap();
             // FIXME: Use commented method, as soon as indy-utils is updated

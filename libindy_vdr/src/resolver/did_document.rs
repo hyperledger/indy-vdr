@@ -176,30 +176,21 @@ fn merge_diddoc(base: &mut SJsonValue, content: &SJsonValue) {
 
 // Returns raw verkey in case of conversion errors, otherwise 'default' indy handling
 pub fn expand_verkey(id: &str, verkey: &str) -> String {
-    expand_verkey_indy(id, verkey).unwrap_or(verkey.to_string())
+    expand_verkey_indy(id, verkey).unwrap_or_else(|_| verkey.to_string())
 }
 
 pub fn expand_verkey_indy(id: &str, verkey: &str) -> VdrResult<String> {
     // separate optional crypto_type from verkey part
-    let (key, key_type) = if verkey.contains(":") {
-        let vec: Vec<&str> = verkey.split(":").collect();
-        match vec.len() {
-            2 => {
-                let key = vec[0];
-                let key_type = vec[1];
-                if key.len() == 0 || key_type.len() == 0 {
-                    return Err(input_err("Unexpected verkey format"));
-                }
-                (key, Some(key_type))
-            }
-            _ => return Err(input_err("Unexpected verkey format")),
-        }
-    } else {
-        (verkey, None)
-    };
+    let mut parts = verkey.split(':');
+    let key = parts.next().unwrap_or_default();
+    let key_type = parts.next();
+    let remain = parts.next().is_some();
+    if remain || key.is_empty() || key_type == Some("") {
+        return Err(input_err("Unexpected verkey format"));
+    }
     // Decode parts from base58 and re-encode
     let mut result: String;
-    if key.starts_with("~") && key.len() >= 2 {
+    if key.starts_with('~') && key.len() >= 2 {
         let mut decoded = base58::decode(id)?;
         let mut keys = key.chars();
         keys.next();
@@ -210,8 +201,9 @@ pub fn expand_verkey_indy(id: &str, verkey: &str) -> VdrResult<String> {
         result = verkey.to_string();
     };
     // Add key type if it was used
-    if key_type.is_some() && key_type.unwrap() != "" {
-        result = format!("{}:{}", result, key_type.unwrap());
+    if let Some(key_type) = key_type {
+        result.push(':');
+        result.push_str(key_type);
     }
     Ok(result)
 }

@@ -368,9 +368,7 @@ impl DidUrl {
                 let did = DidUrl {
                     namespace: cap.get(1).unwrap().as_str().to_string(),
                     id: DidValue::new(cap.get(2).unwrap().as_str(), Option::None),
-                    path: cap
-                        .get(3)
-                        .and_then(|p| Some(decode(p.as_str()).unwrap().to_string())),
+                    path: cap.get(3).map(|p| decode(p.as_str()).unwrap().to_string()),
                     query: query_pairs,
                     url: input.to_string(),
                 };
