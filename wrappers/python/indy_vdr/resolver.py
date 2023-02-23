@@ -61,20 +61,28 @@ class Resolver:
                 )
         pool_handle = getattr(pool, "handle")
         result = json.loads(await bindings.resolve(pool_handle, did))
-        
-        reply_data = json.loads(result["didDocumentMetadata"]["nodeResponse"]["result"]["data"])
+
+        reply_data = json.loads(
+            result["didDocumentMetadata"]["nodeResponse"]["result"]["data"]
+        )
         diddoc_content = reply_data.get("diddocContent", None)
 
         # Handle legacy case, where diddocContent is not present and we want to check for
-        # associated ATTRIB endpoints. We can't handle in this in libindy_vdr directly. 
+        # associated ATTRIB endpoints. We can't handle in this in libindy_vdr directly.
         if not diddoc_content:
             unqualified_did = reply_data["dest"]
             # Find out if specific version was requested
-            seq_no = result["didDocumentMetadata"]["nodeResponse"]["result"].get("seqNo", None)
-            timestamp = result["didDocumentMetadata"]["nodeResponse"]["result"].get("timestamp", None)
+            seq_no = result["didDocumentMetadata"]["nodeResponse"]["result"].get(
+                "seqNo", None
+            )
+            timestamp = result["didDocumentMetadata"]["nodeResponse"]["result"].get(
+                "timestamp", None
+            )
             if timestamp:
                 seq_no = None
-            req = build_get_attrib_request(None, unqualified_did, "endpoint", None, None, seq_no, timestamp)
+            req = build_get_attrib_request(
+                None, unqualified_did, "endpoint", None, None, seq_no, timestamp
+            )
             res = await pool.submit_request(req)
             data = res.get("data", None)
             if data:
@@ -86,24 +94,29 @@ class Resolver:
                     for (service_type, service_endpoint) in endpoints.items():
                         if service_type == "endpoint":
 
-                            services.append({
-                            "id": f"did:indy:{namespace}:{unqualified_did}#did-communication",
-                            "type": "did-communication",
-                            "recipientKeys": [f"did:indy:{namespace}:{unqualified_did}#verkey"] ,
-                            "routingKeys": [],
-                            "priority": 0
-                            })
-                        
+                            services.append(
+                                {
+                                    "id": f"did:indy:{namespace}:{unqualified_did}#did-communication",
+                                    "type": "did-communication",
+                                    "recipientKeys": [
+                                        f"did:indy:{namespace}:{unqualified_did}#verkey"
+                                    ],
+                                    "routingKeys": [],
+                                    "priority": 0,
+                                }
+                            )
+
                         else:
 
-                            services.append({
-                            "id": f"did:indy:{namespace}:{unqualified_did}#{service_type}",
-                            "type": service_type,
-                            "serviceEndpoint": service_endpoint 
+                            services.append(
+                                {
+                                    "id": f"did:indy:{namespace}:{unqualified_did}#{service_type}",
+                                    "type": service_type,
+                                    "serviceEndpoint": service_endpoint,
+                                }
+                            )
+                    result["didDocument"]["services"] = services
 
-                            })
-                    result["didDocument"]["services"] = services;
-                    
         return result
 
     async def dereference(self, did_url: str) -> Dict:
