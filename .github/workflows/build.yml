@@ -88,7 +88,7 @@ jobs:
           docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
 
       - name: Run tests
-        run: cargo test --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool,did_indy
+        run: cargo test --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool
 
   build-release:
     name: Build library

@@ -272,7 +272,6 @@ mod send {
         assert_eq!(expected_data, parse_get_nym_response(&response));
     }
 
-    #[cfg(feature = "did_indy")]
     #[rstest]
     fn test_pool_send_nym_request_with_diddoc_content(
         pool: TestPool,
@@ -326,7 +325,6 @@ mod send {
         assert_eq!(expected_data, serde_json::to_value(data).unwrap());
     }
 
-    #[cfg(feature = "did_indy")]
     #[rstest]
     fn test_pool_send_nym_request_with_version_2_fails(
         pool: TestPool,
@@ -350,7 +348,6 @@ mod send {
         let _err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap_err();
     }
 
-    #[cfg(feature = "did_indy")]
     #[rstest]
     fn test_pool_send_nym_request_with_non_self_cert_did_fails(
         pool: TestPool,
@@ -400,7 +397,6 @@ mod send {
         let _err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
     }
 
-    #[cfg(feature = "did_indy")]
     #[rstest]
     fn test_pool_send_nym_request_with_version_0_works(
         pool: TestPool,
