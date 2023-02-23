@@ -60,7 +60,7 @@ pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<Prepar
                             .query
                             .get(&QueryParameter::From)
                             .and_then(|d| OffsetDateTime::parse(d, &Rfc3339).ok())
-                            .and_then(|d| Some(d.unix_timestamp()));
+                            .map(|d| d.unix_timestamp());
                     }
 
                     let to = parse_or_now(did.query.get(&QueryParameter::To))?;
@@ -112,7 +112,7 @@ pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<Prepar
                         .query
                         .get(&QueryParameter::From)
                         .and_then(|d| OffsetDateTime::parse(d, &Rfc3339).ok())
-                        .and_then(|d| Some(d.unix_timestamp()));
+                        .map(|d| d.unix_timestamp());
                 }
 
                 let to = parse_or_now(did.query.get(&QueryParameter::To))?;
@@ -145,8 +145,8 @@ pub fn build_request(did: &DidUrl, builder: &RequestBuilder) -> VdrResult<Prepar
             .query
             .get(&QueryParameter::VersionTime)
             .and_then(|d| OffsetDateTime::parse(d, &Rfc3339).ok())
-            .and_then(|d| Some(d.unix_timestamp()))
-            .and_then(|d| Some(d as u64));
+            .map(|d| d.unix_timestamp())
+            .map(|d| d as u64);
 
         builder.build_get_nym_request(Option::None, &did.id, seq_no, timestamp)
     };
