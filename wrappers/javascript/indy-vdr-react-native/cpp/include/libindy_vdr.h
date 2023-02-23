@@ -275,6 +275,8 @@ ErrorCode indy_vdr_build_nym_request(FfiStr submitter_did,
                                      FfiStr verkey,
                                      FfiStr alias,
                                      FfiStr role,
+                                     FfiStr diddoc_content,
+                                     int32_t version,
                                      RequestHandle *handle_p);
 
 ErrorCode indy_vdr_build_revoc_reg_def_request(FfiStr submitter_did,
