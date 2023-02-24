@@ -8,6 +8,8 @@ export type NymRequestOptions = {
   verkey?: string
   alias?: string
   role?: 'STEWARD' | 'TRUSTEE' | 'ENDORSER' | 'NETWORK_MONITOR'
+  diddocContent?: string
+  version?: number
 }
 
 interface NymResultTxn extends WriteRequestResultTxnBase {
