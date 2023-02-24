@@ -2,7 +2,6 @@ extern crate percent_encoding;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::rc::Rc;
 use std::time::UNIX_EPOCH;
 
@@ -89,7 +88,7 @@ fn format_json_reply(message: String, pretty: bool) -> String {
 }
 
 pub fn escape_html(val: &str) -> String {
-    val.replace("&", "&amp;").replace("<", "&lt;")
+    val.replace('&', "&amp;").replace('<', "&lt;")
 }
 
 fn html_template(main: String, timing: Option<TimingResult>) -> String {
@@ -265,10 +264,7 @@ fn get_pool_status(state: Rc<RefCell<AppState>>, namespace: &str) -> VdrResult<R
     let pool_states = &state.borrow().pool_states;
     let opt_pool = &pool_states
         .get(namespace)
-        .ok_or(err_msg(
-            VdrErrorKind::Input,
-            format!("Unkown ledger: {}", namespace),
-        ))?
+        .ok_or_else(|| err_msg(VdrErrorKind::Input, format!("Unkown ledger: {}", namespace)))?
         .pool;
     let (status, mt_root, mt_size, nodes) = if let Some(pool) = opt_pool {
         let (mt_root, mt_size) = pool.get_merkle_tree_info();
@@ -454,32 +450,30 @@ pub async fn handle_request<T: Pool>(
         ResponseFormat::Html
     } else if query == Some("raw") {
         ResponseFormat::Raw
-    } else {
-        if let Some(Ok(accept)) = req.headers().get("accept").map(|h| h.to_str()) {
-            let accept = accept.to_ascii_lowercase();
-            let html_pos = accept.find("text/html");
-            let json_pos = accept.find("/json");
-            match (html_pos, json_pos) {
-                (Some(h), Some(j)) => {
-                    if h < j {
-                        ResponseFormat::Html
-                    } else {
-                        ResponseFormat::Raw
-                    }
+    } else if let Some(Ok(accept)) = req.headers().get("accept").map(|h| h.to_str()) {
+        let accept = accept.to_ascii_lowercase();
+        let html_pos = accept.find("text/html");
+        let json_pos = accept.find("/json");
+        match (html_pos, json_pos) {
+            (Some(h), Some(j)) => {
+                if h < j {
+                    ResponseFormat::Html
+                } else {
+                    ResponseFormat::Raw
                 }
-                (Some(_), None) => ResponseFormat::Html,
-                _ => ResponseFormat::Raw,
             }
-        } else {
-            ResponseFormat::Raw
+            (Some(_), None) => ResponseFormat::Html,
+            _ => ResponseFormat::Raw,
         }
+    } else {
+        ResponseFormat::Raw
     };
 
     let mut namespace = if state.borrow().is_multiple {
         parts.next().unwrap_or_else(|| "".to_owned())
     } else {
         let pool_states = &state.borrow().pool_states;
-        let (ns, _) = pool_states.into_iter().next().unwrap();
+        let (ns, _) = pool_states.iter().next().unwrap();
         ns.to_owned()
     };
     let fst = parts.next().unwrap_or_else(|| "".to_owned());
@@ -490,11 +484,7 @@ pub async fn handle_request<T: Pool>(
 
     let uri = req.uri().to_string();
     let captures = resolver_regex.captures(uri.as_str());
-    let did = if let Some(cap) = captures {
-        Some(cap.get(1).unwrap().as_str())
-    } else {
-        None
-    };
+    let did = captures.map(|cap| cap.get(1).unwrap().as_str());
 
     if did.is_some() {
         namespace = match DidUrl::parse(did.unwrap()) {
@@ -503,13 +493,11 @@ pub async fn handle_request<T: Pool>(
                 return format_result(http_status(StatusCode::BAD_REQUEST), format);
             }
         };
-    } else {
-        if (req_method, fst.is_empty()) == (&Method::GET, true) {
-            if namespace == "" {
-                return format_result(get_ledgers(state.clone()), format);
-            } else {
-                return format_result(get_pool_status(state.clone(), &namespace), format);
-            }
+    } else if (req_method, fst.is_empty()) == (&Method::GET, true) {
+        if namespace.is_empty() {
+            return format_result(get_ledgers(state.clone()), format);
+        } else {
+            return format_result(get_pool_status(state.clone(), &namespace), format);
         }
     }
 
@@ -535,8 +523,8 @@ pub async fn handle_request<T: Pool>(
     let result = if did.is_some() {
         let did = did.unwrap();
         let resolver = Resolver::new(pool);
-        // is   DID Url
-        if did.find("/").is_some() {
+        // is DID Url
+        if did.find('/').is_some() {
             match resolver.dereference(did).await {
                 Ok(result) => Ok(ResponseType::Resolver(result)),
                 Err(err) => http_status_msg(StatusCode::BAD_REQUEST, err.to_string()),

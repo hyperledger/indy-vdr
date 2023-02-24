@@ -35,7 +35,7 @@ pub fn init_pool_state_from_folder_structure(
     for entry in entries {
         let entry = entry.unwrap();
         // filter hidden directories starting with "." and files
-        if !entry.file_name().to_str().unwrap().starts_with(".")
+        if !entry.file_name().to_str().unwrap().starts_with('.')
             && entry.metadata().unwrap().is_dir()
         {
             let namespace = entry.path().file_name().unwrap().to_owned();
