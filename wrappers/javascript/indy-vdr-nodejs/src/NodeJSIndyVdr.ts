@@ -307,9 +307,21 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public buildNymRequest(options: NymRequestOptions): number {
     const requestHandle = allocateHandle()
-    const { dest, submitterDid, alias, role, verkey } = serializeArguments(options)
+    const { dest, submitterDid, alias, role, verkey, diddocContent } = serializeArguments(options)
+    const version = options.version || -1
 
-    handleError(nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, verkey, alias, role, requestHandle))
+    handleError(
+      nativeIndyVdr.indy_vdr_build_nym_request(
+        submitterDid,
+        dest,
+        verkey,
+        alias,
+        role,
+        diddocContent,
+        version,
+        requestHandle
+      )
+    )
 
     return requestHandle.deref() as number
   }

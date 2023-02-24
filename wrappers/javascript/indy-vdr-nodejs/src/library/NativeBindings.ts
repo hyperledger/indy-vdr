@@ -79,6 +79,8 @@ export interface NativeMethods {
     arg2: string,
     arg3: string,
     arg4: string,
+    arg5: string,
+    arg6: number,
     requestHandlePtr: Buffer
   ) => number
   indy_vdr_pool_create: (arg0: string, poolHandlePtr: Buffer) => number

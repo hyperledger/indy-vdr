@@ -67,7 +67,7 @@ export const nativeBindings = {
   indy_vdr_build_get_validator_info_request: [FFI_ERROR_CODE, [FFI_STRING, FFI_REQUEST_HANDLE_POINTER]],
   indy_vdr_build_nym_request: [
     FFI_ERROR_CODE,
-    [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER],
+    [FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_STRING, FFI_INT32, FFI_REQUEST_HANDLE_POINTER],
   ],
   indy_vdr_build_revoc_reg_def_request: [FFI_ERROR_CODE, [FFI_STRING, FFI_STRING, FFI_REQUEST_HANDLE_POINTER]],
   indy_vdr_build_revoc_reg_entry_request: [
