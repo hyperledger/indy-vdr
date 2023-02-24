@@ -92,10 +92,8 @@ pub fn load_config() -> Result<Config, String> {
         if matches.occurrences_of("host") > 0 {
             return Err("Cannot specify both host and socket".to_owned());
         }
-    } else {
-        if matches.occurrences_of("port") == 0 {
-            return Err("Port number or socket must be specified".to_owned());
-        }
+    } else if matches.occurrences_of("port") == 0 {
+        return Err("Port number or socket must be specified".to_owned());
     }
 
     #[cfg(unix)]

@@ -1,3 +1,5 @@
+#![allow(clippy::await_holding_refcell_ref)] // using a single-threaded executor
+
 #[macro_use]
 extern crate serde_json;
 
@@ -49,13 +51,13 @@ fn main() {
 
     env_logger::init();
 
-    let mut rt = tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("build runtime");
 
     let local = tokio::task::LocalSet::new();
-    if let Err(err) = local.block_on(&mut rt, init_server(config)) {
+    if let Err(err) = local.block_on(&rt, init_server(config)) {
         eprintln!("{}", err);
         exit(1);
     }
@@ -105,7 +107,7 @@ async fn init_app_state(
     let mut pool_states: HashMap<String, PoolState> = HashMap::new();
 
     let state = if !is_multiple {
-        let genesis = genesis.unwrap_or(String::from("genesis.txn"));
+        let genesis = genesis.unwrap_or_else(|| String::from("genesis.txn"));
         let transactions = if genesis.starts_with("http:") || genesis.starts_with("https:") {
             fetch_transactions(genesis).await?
         } else {
@@ -122,7 +124,7 @@ async fn init_app_state(
             pool_states,
         }
     } else {
-        let genesis = genesis.unwrap_or(String::from(INDY_NETWORKS_GITHUB));
+        let genesis = genesis.unwrap_or_else(|| String::from(INDY_NETWORKS_GITHUB));
         let pool_states = if genesis.starts_with("https:") {
             let repo_url = genesis;
             let mut just_cloned = false;
@@ -153,7 +155,7 @@ async fn init_app_state(
 
             let path = repo.path().parent().unwrap().to_owned();
 
-            init_pool_state_from_folder_structure(PathBuf::from(path))?
+            init_pool_state_from_folder_structure(path)?
         } else {
             init_pool_state_from_folder_structure(PathBuf::from(genesis))?
         };
@@ -174,27 +176,24 @@ async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_re
                 let pool = Some(pool.clone());
                 PoolState {
                     pool: pool.clone(),
-                    last_refresh: pool_state.last_refresh.clone(),
-                    transactions: pool_state.transactions.clone()
+                    last_refresh: pool_state.last_refresh,
+                    transactions: pool_state.transactions.clone(),
                 }
             }
             Err(err) => {
                 eprintln!("Error initializing pool {} with error : {}", namespace, err);
                 PoolState {
                     pool: None,
-                    last_refresh: pool_state.last_refresh.clone(),
-                    transactions: pool_state.transactions.clone()
+                    last_refresh: pool_state.last_refresh,
+                    transactions: pool_state.transactions.clone(),
                 }
             }
         };
 
         pool_states.insert(namespace.to_owned(), pool_state);
-
     }
 
     state.borrow_mut().pool_states = pool_states;
-
-
 
     let shutdown = shutdown_signal().fuse().shared();
     if interval_refresh > 0 {
@@ -227,9 +226,7 @@ async fn shutdown_signal() {
     let mut term = tokio::signal::unix::signal(SignalKind::terminate())
         .expect("failed to install SIGTERM handler");
     select! {
-        _ = term.recv() => {
-            ()
-        }
+        _ = term.recv() => {}
         ctlc = tokio::signal::ctrl_c() => {
             ctlc.expect("failed to install Ctrl-C handler")
         }
@@ -269,7 +266,7 @@ async fn refresh_pools(
     let pool_states = &state.borrow().pool_states;
     for (namespace, pool_state) in pool_states {
         if let Some(pool) = &pool_state.pool {
-            let upd_pool = match refresh_pool(state.clone(), &namespace, &pool, delay_mins).await {
+            let upd_pool = match refresh_pool(state.clone(), namespace, pool, delay_mins).await {
                 Ok(p) => p,
                 Err(err) => {
                     eprintln!(
@@ -280,7 +277,7 @@ async fn refresh_pools(
                 }
             };
             let upd_pool_state = PoolState {
-                pool: upd_pool.or(Some(pool.clone())),
+                pool: upd_pool.or_else(|| Some(pool.clone())),
                 last_refresh: Some(SystemTime::now()),
                 transactions: pool_state.transactions.clone(),
             };
@@ -335,10 +332,9 @@ async fn init_server(config: app::Config) -> Result<(), String> {
 
     #[cfg(unix)]
     if let Some(socket) = &config.socket {
-        fs::remove_file(socket)
-            .map_err(|err| format!("Error removing socket: {}", err.to_string()))?;
+        fs::remove_file(socket).map_err(|err| format!("Error removing socket: {}", err))?;
         let uc: UnixConnector = tokio::net::UnixListener::bind(socket)
-            .map_err(|err| format!("Error binding UNIX socket: {}", err.to_string()))?
+            .map_err(|err| format!("Error binding UNIX socket: {}", err))?
             .into();
         return run_server(
             Server::builder(uc),
@@ -356,8 +352,8 @@ async fn init_server(config: app::Config) -> Result<(), String> {
         .parse::<IpAddr>()
         .map_err(|_| "Error parsing host IP")?;
     let addr = (ip, config.port.unwrap()).into();
-    let builder = Server::try_bind(&addr)
-        .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
+    let builder =
+        Server::try_bind(&addr).map_err(|err| format!("Error binding TCP socket: {}", err))?;
     run_server(builder, state, format!("http://{}", addr), config).await
 }
 
