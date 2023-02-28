@@ -298,7 +298,7 @@ pub async fn fetch_legacy_endpoint<T: Pool>(
 #[cfg(test)]
 mod tests {
 
-    use urlencoding::encode;
+    use percent_encoding::percent_encode;
 
     use time::format_description::well_known::Rfc3339;
     use time::OffsetDateTime;
@@ -410,7 +410,8 @@ mod tests {
     #[rstest]
     fn build_get_schema_request_with_whitespace(request_builder: RequestBuilder) {
         let name = "My Schema";
-        let encoded_schema_name = encode(name).to_string();
+        let encoded_schema_name =
+            percent_encode(name.as_bytes(), percent_encoding::NON_ALPHANUMERIC).to_string();
         let did_url_string = format!(
             "did:indy:idunion:Dk1fRRTtNazyMuK2cr64wp/anoncreds/v0/SCHEMA/{}/1.0",
             encoded_schema_name
