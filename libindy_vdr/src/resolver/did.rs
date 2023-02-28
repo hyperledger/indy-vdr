@@ -1,10 +1,12 @@
-use crate::common::error::prelude::*;
-use crate::utils::did::DidValue;
+use std::collections::HashMap;
+
+use once_cell::sync::Lazy;
+use percent_encoding::percent_decode;
 use regex::Regex;
 use url::Url;
-use urlencoding::decode;
 
-use std::collections::HashMap;
+use crate::common::error::prelude::*;
+use crate::utils::did::DidValue;
 
 // Patterns to build regular expressions for ledger objects
 static DID_INDY_PREFIX: &str = "did:indy";
@@ -21,6 +23,17 @@ static ANONCREDSV0_OBJECTS_PATTERN: &str =
 static CLIENT_DEFINED_NAME_PATTERN: &str = "([\\w -]*)";
 static SEQ_NO_PATTERN: &str = "(\\d*)";
 static VERSION_PATTERN: &str = "((\\d*\\.){1,2}\\d*)";
+
+static DID_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        format!(
+            r"{}:{}:{}([^\?]+)?(?:\?(.+))?$",
+            DID_INDY_PREFIX, NAMESPACE_PATTERN, INDY_UNQUALIFIED_DID_PATTERN
+        )
+        .as_str(),
+    )
+    .unwrap()
+});
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum QueryParameter {
@@ -342,15 +355,6 @@ pub struct DidUrl {
 
 impl DidUrl {
     pub fn parse(input: &str) -> VdrResult<DidUrl> {
-        let did_regex = Regex::new(
-            format!(
-                r"{}:{}:{}([^\?]+)?(?:\?(.+))?$",
-                DID_INDY_PREFIX, NAMESPACE_PATTERN, INDY_UNQUALIFIED_DID_PATTERN
-            )
-            .as_str(),
-        )
-        .unwrap();
-
         let url = Url::parse(input)
             .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse DID Url"))?;
         let mut query_pairs: HashMap<QueryParameter, String> = HashMap::new();
@@ -362,13 +366,22 @@ impl DidUrl {
             query_pairs.insert(qp, v.to_string());
         }
 
-        let captures = did_regex.captures(input.trim());
+        let captures = DID_REGEX.captures(input.trim());
         match captures {
             Some(cap) => {
+                let path = cap
+                    .get(3)
+                    .map(|p| {
+                        percent_decode(p.as_str().as_bytes())
+                            .decode_utf8()
+                            .map(|p| p.into_owned())
+                    })
+                    .transpose()
+                    .map_err(|_| err_msg(VdrErrorKind::Resolver, "Invalid DID Url path"))?;
                 let did = DidUrl {
-                    namespace: cap.get(1).unwrap().as_str().to_string(),
-                    id: DidValue::new(cap.get(2).unwrap().as_str(), Option::None),
-                    path: cap.get(3).map(|p| decode(p.as_str()).unwrap().to_string()),
+                    namespace: cap[1].to_string(),
+                    id: DidValue::new(&cap[2], Option::None),
+                    path,
                     query: query_pairs,
                     url: input.to_string(),
                 };
