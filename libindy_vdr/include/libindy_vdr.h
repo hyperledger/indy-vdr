@@ -5,6 +5,8 @@
 #include <stdlib.h>
 
 
+#define DEFAULT 0
+
 #define DEFAULT_ACK_TIMEOUT 20
 
 #define DEFAULT_CONN_ACTIVE_TIMEOUT 5
@@ -16,6 +18,10 @@
 #define DEFAULT_REPLY_TIMEOUT 60
 
 #define DEFAULT_REQUEST_READ_NODES 2
+
+#define DID_INDY 2
+
+#define DID_SOV 1
 
 enum ErrorCode
 #ifdef __cplusplus
@@ -34,9 +40,25 @@ enum ErrorCode
   PoolNoConsensus = 30,
   PoolRequestFailed = 31,
   PoolTimeout = 32,
+  Resolver = 9,
 };
 #ifndef __cplusplus
 typedef int64_t ErrorCode;
+#endif // __cplusplus
+
+/**
+ * The Indy Node communication protocol version
+ */
+enum ProtocolVersion
+#ifdef __cplusplus
+  : int64_t
+#endif // __cplusplus
+ {
+  Node1_3 = 1,
+  Node1_4 = 2,
+};
+#ifndef __cplusplus
+typedef int64_t ProtocolVersion;
 #endif // __cplusplus
 
 /**
@@ -178,6 +200,8 @@ typedef struct ByteBuffer {
   uint8_t *data;
 } ByteBuffer;
 
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -194,6 +218,19 @@ ErrorCode indy_vdr_build_attrib_request(FfiStr submitter_did,
                                         FfiStr raw,
                                         FfiStr enc,
                                         RequestHandle *handle_p);
+
+ErrorCode indy_vdr_build_auth_rule_request(FfiStr submitter_did,
+                                           FfiStr txn_type,
+                                           FfiStr action,
+                                           FfiStr field,
+                                           FfiStr old_value,
+                                           FfiStr new_value,
+                                           FfiStr constraint,
+                                           RequestHandle *handle_p);
+
+ErrorCode indy_vdr_build_auth_rules_request(FfiStr submitter_did,
+                                            FfiStr rules,
+                                            RequestHandle *handle_p);
 
 ErrorCode indy_vdr_build_cred_def_request(FfiStr submitter_did,
                                           FfiStr cred_def,
@@ -214,14 +251,28 @@ ErrorCode indy_vdr_build_get_attrib_request(FfiStr submitter_did,
                                             FfiStr raw,
                                             FfiStr hash,
                                             FfiStr enc,
+                                            int32_t seq_no,
+                                            int64_t timestamp,
                                             RequestHandle *handle_p);
+
+ErrorCode indy_vdr_build_get_auth_rule_request(FfiStr submitter_did,
+                                               FfiStr auth_type,
+                                               FfiStr auth_action,
+                                               FfiStr field,
+                                               FfiStr old_value,
+                                               FfiStr new_value,
+                                               RequestHandle *handle_p);
 
 ErrorCode indy_vdr_build_get_cred_def_request(FfiStr submitter_did,
                                               FfiStr cred_def_id,
                                               RequestHandle *handle_p);
 
+ErrorCode indy_vdr_build_get_frozen_ledgers_request(FfiStr identifier, RequestHandle *handle_p);
+
 ErrorCode indy_vdr_build_get_nym_request(FfiStr submitter_did,
                                          FfiStr dest,
+                                         int32_t seq_no,
+                                         int64_t timestamp,
                                          RequestHandle *handle_p);
 
 ErrorCode indy_vdr_build_get_revoc_reg_def_request(FfiStr submitter_did,
@@ -268,12 +319,46 @@ ErrorCode indy_vdr_build_get_txn_request(FfiStr submitter_did,
 
 ErrorCode indy_vdr_build_get_validator_info_request(FfiStr submitter_did, RequestHandle *handle_p);
 
+ErrorCode indy_vdr_build_ledgers_freeze_request(FfiStr identifier,
+                                                FfiStr ledgers_ids,
+                                                RequestHandle *handle_p);
+
+ErrorCode indy_vdr_build_node_request(FfiStr identifier,
+                                      FfiStr dest,
+                                      FfiStr data,
+                                      RequestHandle *handle_p);
+
 ErrorCode indy_vdr_build_nym_request(FfiStr submitter_did,
                                      FfiStr dest,
                                      FfiStr verkey,
                                      FfiStr alias,
                                      FfiStr role,
+                                     FfiStr diddoc_content,
+                                     int32_t version,
                                      RequestHandle *handle_p);
+
+ErrorCode indy_vdr_build_pool_config_request(FfiStr identifier,
+                                             int8_t writes,
+                                             int8_t force,
+                                             RequestHandle *handle_p);
+
+ErrorCode indy_vdr_build_pool_restart_request(FfiStr identifier,
+                                              FfiStr action,
+                                              FfiStr datetime,
+                                              RequestHandle *handle_p);
+
+ErrorCode indy_vdr_build_pool_upgrade_request(FfiStr identifier,
+                                              FfiStr name,
+                                              FfiStr version,
+                                              FfiStr action,
+                                              FfiStr sha256,
+                                              int32_t timeout,
+                                              FfiStr schedule,
+                                              FfiStr justification,
+                                              int8_t reinstall,
+                                              int8_t force,
+                                              FfiStr package,
+                                              RequestHandle *handle_p);
 
 ErrorCode indy_vdr_build_revoc_reg_def_request(FfiStr submitter_did,
                                                FfiStr revoc_reg_def,
@@ -306,6 +391,11 @@ ErrorCode indy_vdr_build_txn_author_agreement_request(FfiStr submitter_did,
                                                       int64_t ratification_ts,
                                                       int64_t retirement_ts,
                                                       RequestHandle *handle_p);
+
+ErrorCode indy_vdr_dereference(PoolHandle pool_handle,
+                               FfiStr did_url,
+                               void (*cb)(int64_t cb_id, ErrorCode err, const char *response),
+                               int64_t cb_id);
 
 ErrorCode indy_vdr_get_current_error(const char **error_json_p);
 
@@ -378,6 +468,11 @@ ErrorCode indy_vdr_request_set_signature(RequestHandle request_handle, struct By
 
 ErrorCode indy_vdr_request_set_txn_author_agreement_acceptance(RequestHandle request_handle,
                                                                FfiStr acceptance);
+
+ErrorCode indy_vdr_resolve(PoolHandle pool_handle,
+                           FfiStr did,
+                           void (*cb)(int64_t cb_id, ErrorCode err, const char *response),
+                           int64_t cb_id);
 
 ErrorCode indy_vdr_set_config(FfiStr config);
 

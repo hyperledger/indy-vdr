@@ -8,6 +8,8 @@ export type GetAttribRequestOptions = {
   hash?: string
   raw?: string
   enc?: string
+  seqNo?: number
+  timestamp?: number
 }
 
 interface GetAttribFoundResult extends GetRequestResultFoundBase {
