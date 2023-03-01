@@ -5,6 +5,8 @@ import { indyVdr, IndyVdrRequest } from '../indyVdr'
 export type GetNymRequestOptions = {
   submitterDid?: string
   dest: string
+  seqNo?: number
+  timestamp?: number
 }
 
 // Get Nym somehow returns the nym data as stringified JSON. It is up to the user of the library

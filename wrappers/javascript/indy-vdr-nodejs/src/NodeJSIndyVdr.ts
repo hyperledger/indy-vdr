@@ -163,9 +163,21 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public buildGetAttribRequest(options: GetAttribRequestOptions): number {
     const requestHandle = allocateHandle()
-    const { submitterDid, targetDid, raw, hash, enc } = serializeArguments(options)
+    const { submitterDid, targetDid, raw, hash, enc, seqNo, timestamp } = serializeArguments(options)
+    const convertedTimestamp = timestamp ?? -1
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_attrib_request(submitterDid, targetDid, raw, hash, enc, requestHandle))
+    handleError(
+      nativeIndyVdr.indy_vdr_build_get_attrib_request(
+        submitterDid,
+        targetDid,
+        raw,
+        hash,
+        enc,
+        seqNo,
+        convertedTimestamp,
+        requestHandle
+      )
+    )
 
     return requestHandle.deref() as number
   }
@@ -262,9 +274,12 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public buildGetNymRequest(options: GetNymRequestOptions): number {
     const requestHandle = allocateHandle()
-    const { dest, submitterDid } = serializeArguments(options)
+    const { dest, submitterDid, seqNo, timestamp } = serializeArguments(options)
+    const convertedTimestamp = timestamp ?? -1
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_nym_request(submitterDid, dest, requestHandle))
+    handleError(
+      nativeIndyVdr.indy_vdr_build_get_nym_request(submitterDid, dest, seqNo, convertedTimestamp, requestHandle)
+    )
 
     return requestHandle.deref() as number
   }

@@ -47,6 +47,8 @@ export interface IndyVdrNativeBindings {
     raw?: string
     hash?: string
     enc?: string
+    seqNo?: number
+    timestamp?: number
   }): RequestHandle
 
   buildCredDefRequest(options: { submitterDid: string; credentialDefinition: string }): RequestHandle
@@ -74,7 +76,12 @@ export interface IndyVdrNativeBindings {
 
   buildDisableAllTxnAuthorAgreementsRequest(options: { submitterDid: string }): RequestHandle
 
-  buildGetNymRequest(options: { submitterDid?: string; dest: string }): RequestHandle
+  buildGetNymRequest(options: {
+    submitterDid?: string
+    dest: string
+    didDocContent?: string
+    version?: number
+  }): RequestHandle
 
   buildGetSchemaRequest(options: { submitterDid?: string; schemaId: string }): RequestHandle
 
