@@ -10,7 +10,8 @@ then
 fi
 
 NAME="indy_vdr"
-VERSION=$(cargo generate-lockfile && cargo pkgid | sed -e "s/^.*#//")
+VERSION=$(cargo generate-lockfile && cargo pkgid indy-vdr | sed -e "s/^.*[#@]//")
+echo $VERSION
 BUNDLE_IDENTIFIER="org.hyperledger.$NAME"
 LIBRARY_NAME="lib$NAME.dylib"
 XC_FRAMEWORK_NAME="$NAME.xcframework"
