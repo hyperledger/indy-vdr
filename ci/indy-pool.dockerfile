@@ -1,49 +1,5 @@
-FROM ubuntu:16.04
-
-ARG uid=1000
-
-# Install environment
-RUN apt-get update -y && apt-get install -y \
-	git \
-	wget \
-	python3.5 \
-	python3-nacl \
-	python3-pip \
-	python3-setuptools \
-	apt-transport-https \
-	ca-certificates \
-	software-properties-common
-
-RUN pip3 install -U \
-	"pip~=9.0" \
-	"setuptools~=50.0" \
-	"supervisor~=4.2"
-
-RUN add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu xenial main universe" && \
-	apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys CE7709D068DB5E88
-ARG indy_stream=master
-RUN add-apt-repository "deb https://repo.sovrin.org/deb xenial ${indy_stream}" && \
-	add-apt-repository "deb https://repo.sovrin.org/sdk/deb xenial stable"
-
-RUN useradd -ms /bin/bash -u $uid indy
-
-ARG indy_plenum_ver=1.13.0.dev1032
-ARG indy_node_ver=1.13.0.dev1221
-
-RUN apt-get update -y && apt-get install -y \
-	libsodium18 \
-	libbz2-dev \
-	zlib1g-dev \
-	liblz4-dev \
-	libsnappy-dev \
-	rocksdb=5.8.8 \
-	libindy \
-	ursa \
-	vim
-
-RUN pip3 install \
-	indy-plenum==${indy_plenum_ver} \
-	indy-node==${indy_node_ver}
+FROM ghcr.io/hyperledger/indy-node-container/indy_node:1.13.2-rc5-ubuntu20-main
+RUN pip3 install "supervisor~=4.2"
 
 RUN echo "[supervisord]\n\
 logfile = /tmp/supervisord.log\n\
