@@ -35,7 +35,7 @@ jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
 }
 
 template <>
-jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code, int64_t* out) {
+jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code, int64_t *out) {
   auto object = jsi::Object(rt);
 
   if (code == ErrorCode::Success) {
@@ -49,10 +49,9 @@ jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code, int64_t* out) {
   return object;
 }
 
-
 template <>
 jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
-                             const char ** value) {
+                             const char **value) {
   auto object = jsi::Object(rt);
 
   if (code == ErrorCode::Success) {
@@ -69,7 +68,7 @@ jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
 
 template <>
 jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
-                             const char * const* value) {
+                             const char *const *value) {
   auto object = jsi::Object(rt);
 
   if (code == ErrorCode::Success) {
