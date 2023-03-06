@@ -55,7 +55,8 @@ jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
   auto object = jsi::Object(rt);
 
   if (code == ErrorCode::Success) {
-    auto valueWithoutNullptr = value == nullptr
+    auto isNullptr = value == nullptr || *value == nullptr;
+    auto valueWithoutNullptr = isNullptr
                                    ? jsi::Value::null()
                                    : jsi::String::createFromAscii(rt, *value);
     object.setProperty(rt, "value", valueWithoutNullptr);
@@ -72,7 +73,8 @@ jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
   auto object = jsi::Object(rt);
 
   if (code == ErrorCode::Success) {
-    auto valueWithoutNullptr = value == nullptr
+    auto isNullptr = value == nullptr || *value == nullptr;
+    auto valueWithoutNullptr = isNullptr
                                    ? jsi::Value::null()
                                    : jsi::String::createFromAscii(rt, *value);
     object.setProperty(rt, "value", valueWithoutNullptr);
