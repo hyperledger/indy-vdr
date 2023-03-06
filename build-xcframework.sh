@@ -3,14 +3,15 @@
 set -eo pipefail
 
 # Check if lipo and xcodebuild exist
-if [ -z `command -v lipo` ] || [ -z `command -v xcodebuild` ] || [ -z `command -v jq` ]
+if [ -z `command -v lipo` ] || [ -z `command -v xcodebuild` ]
 then
-    echo "!!! lipo, xcodebuild or jq could not be found !!!"
+    echo "!!! lipo or xcodebuild could not be found !!!"
     help
 fi
 
 NAME="indy_vdr"
-VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[]  | select(.name == "indy-vdr") | .version')
+VERSION=$(cargo generate-lockfile && cargo pkgid indy-vdr | sed -e "s/^.*[#@]//")
+echo $VERSION
 BUNDLE_IDENTIFIER="org.hyperledger.$NAME"
 LIBRARY_NAME="lib$NAME.dylib"
 XC_FRAMEWORK_NAME="$NAME.xcframework"
@@ -29,17 +30,16 @@ HEADER_PATH="./libindy_vdr/include"
 Help() {
   echo "required dependencies:"
   echo "  - lipo"
-  echo "  - jq"
   echo "  - xcodebuild"
   echo "To build an xcframework with underlying Frameworks"
   echo "the following can be passed in as positional arguments"
-  echo "  1. Path to the aarch64-apple-ios where the dylib is stored"
-  echo "  2. Path to the aarch64-apple-ios-sim where the dylib is stored"
-  echo "  3. Path to the x86_64-apple-ios where the dylib is stored"
+  echo "  1. Path to the aarch64-apple-ios directory where the $LIBRARY is stored"
+  echo "  2. Path to the aarch64-apple-ios-sim directory where the $LIBRARY is stored"
+  echo "  3. Path to the x86_64-apple-ios directory where the $LIBRARY is stored"
   echo "  4. Path to the header file, excluding the header"
   echo "Make sure to add the 'release' section of the path for a"
   echo "release build."
-  exit
+  exit 1
 }
 
 # override if its provided
