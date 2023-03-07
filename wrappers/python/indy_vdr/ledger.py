@@ -214,11 +214,11 @@ def build_get_acceptance_mechanisms_request(
 def build_get_attrib_request(
     submitter_did: Optional[str],
     target_did: str,
-    raw: Optional[str],
-    xhash: Optional[str],
-    enc: Optional[str],
-    seq_no: Optional[int],
-    timestamp: Optional[int],
+    raw: Optional[str] = None,
+    xhash: Optional[str] = None,
+    enc: Optional[str] = None,
+    seq_no: Optional[int] = None,
+    timestamp: Optional[int] = None,
 ) -> str:
     """
     Builds a GET_ATTRIB request.
@@ -279,8 +279,8 @@ def build_get_cred_def_request(
 def build_get_nym_request(
     submitter_did: Optional[str],
     dest: str,
-    seq_no: Optional[int],
-    timestamp: Optional[int],
+    seq_no: Optional[int] = None,
+    timestamp: Optional[int] = None,
 ) -> Request:
     """
     Builds a GET_NYM request to get information about a DID (NYM).
