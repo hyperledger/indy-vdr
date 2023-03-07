@@ -38,7 +38,7 @@ import type {
   Verifiers,
 } from '@hyperledger/indy-vdr-shared'
 
-import { IndyVdrError } from '@hyperledger/indy-vdr-shared'
+import { handleInvalidNullResponse, IndyVdrError } from '@hyperledger/indy-vdr-shared'
 
 import { indyVdrReactNative } from './library'
 import { handleError, serializeArguments } from './utils'
@@ -58,7 +58,7 @@ export class ReactNativeIndyVdr implements IndyVdr {
   private promisifyWithResponse = <Return>(
     method: (cb: CallbackWithResponse<Return>) => void,
     isStream = false
-  ): Promise<Return> => {
+  ): Promise<Return | null> => {
     return new Promise((resolve, reject) => {
       const _cb: CallbackWithResponse = ({ value, errorCode }) => {
         if (errorCode !== 0) reject(new IndyVdrError(JSON.parse(this.getCurrentError()) as IndyVdrErrorObject))
@@ -67,6 +67,8 @@ export class ReactNativeIndyVdr implements IndyVdr {
         //should be a list
         if (typeof value === 'string' && isStream) {
           const mappedResponse = isStream ? '[' + value.replace(/\n/g, ',') + ']' : value
+
+          if (mappedResponse.length === 0) return resolve(null)
           resolve(JSON.parse(mappedResponse) as Return)
         } else {
           resolve(value as Return)
@@ -106,114 +108,122 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   public buildAcceptanceMechanismsRequest(options: AcceptanceMechanismsRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildAcceptanceMechanismsRequest(serializedOptions))
+    return handleInvalidNullResponse(
+      handleError(indyVdrReactNative.buildAcceptanceMechanismsRequest(serializedOptions))
+    )
   }
 
   public buildGetAcceptanceMechanismsRequest(options: GetAcceptanceMechanismsRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetAcceptanceMechanismsRequest(serializedOptions))
+    return handleInvalidNullResponse(
+      handleError(indyVdrReactNative.buildGetAcceptanceMechanismsRequest(serializedOptions))
+    )
   }
 
   public buildAttribRequest(options: AttribRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildAttribRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildAttribRequest(serializedOptions)))
   }
 
   public buildGetAttribRequest(options: GetAttribRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetAttribRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetAttribRequest(serializedOptions)))
   }
 
   public buildCredDefRequest(options: CredentialDefinitionRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildCredDefRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildCredDefRequest(serializedOptions)))
   }
 
   public buildGetCredDefRequest(options: GetCredentialDefinitionRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetCredDefRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetCredDefRequest(serializedOptions)))
   }
 
   public buildGetRevocRegDefRequest(options: GetRevocationRegistryDefinitionRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetRevocRegDefRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetRevocRegDefRequest(serializedOptions)))
   }
 
   public buildGetRevocRegRequest(options: GetRevocationRegistryRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetRevocRegRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetRevocRegRequest(serializedOptions)))
   }
 
   public buildGetRevocRegDeltaRequest(options: GetRevocationRegistryDeltaRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetRevocRegDeltaRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetRevocRegDeltaRequest(serializedOptions)))
   }
 
   public buildRevocRegDefRequest(options: RevocationRegistryDefinitionRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildRevocRegDefRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildRevocRegDefRequest(serializedOptions)))
   }
 
   public buildCustomRequest(options: CustomRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildCustomRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildCustomRequest(serializedOptions)))
   }
 
   public buildDisableAllTxnAuthorAgreementsRequest(
     options: DisableAllTransactionAuthorAgreementsRequestOptions
   ): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildDisableAllTxnAuthorAgreementsRequest(serializedOptions))
+    return handleInvalidNullResponse(
+      handleError(indyVdrReactNative.buildDisableAllTxnAuthorAgreementsRequest(serializedOptions))
+    )
   }
 
   public buildGetNymRequest(options: GetNymRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetNymRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetNymRequest(serializedOptions)))
   }
 
   public buildGetSchemaRequest(options: GetSchemaRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetSchemaRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetSchemaRequest(serializedOptions)))
   }
 
   public buildGetTxnAuthorAgreementRequest(options: GetTransactionAuthorAgreementRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetTxnAuthorAgreementRequest(serializedOptions))
+    return handleInvalidNullResponse(
+      handleError(indyVdrReactNative.buildGetTxnAuthorAgreementRequest(serializedOptions))
+    )
   }
 
   public buildGetTxnRequest(options: GetTransactionRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetTxnRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetTxnRequest(serializedOptions)))
   }
 
   public buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildGetValidatorInfoRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildGetValidatorInfoRequest(serializedOptions)))
   }
 
   public buildNymRequest(options: NymRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildNymRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildNymRequest(serializedOptions)))
   }
 
   public buildRevocRegEntryRequest(options: RevocationRegistryEntryRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildRevocRegEntryRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildRevocRegEntryRequest(serializedOptions)))
   }
 
   public buildSchemaRequest(options: SchemaRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildSchemaRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildSchemaRequest(serializedOptions)))
   }
 
   public buildTxnAuthorAgreementRequest(options: TransactionAuthorAgreementRequestOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.buildTxnAuthorAgreementRequest(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.buildTxnAuthorAgreementRequest(serializedOptions)))
   }
 
   public poolCreate(options: PoolCreateOptions): number {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.poolCreate(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.poolCreate(serializedOptions)))
   }
 
   public async poolRefresh(options: { poolHandle: PoolHandle }): Promise<void> {
@@ -223,8 +233,10 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   public async poolGetStatus(options: { poolHandle: PoolHandle }): Promise<PoolStatus> {
     const { poolHandle } = serializeArguments(options)
-    const result = await this.promisifyWithResponse<string>((cb) =>
-      handleError(indyVdrReactNative.poolGetStatus({ cb, poolHandle }))
+    const result = handleInvalidNullResponse(
+      await this.promisifyWithResponse<string>((cb) =>
+        handleError(indyVdrReactNative.poolGetStatus({ cb, poolHandle }))
+      )
     )
 
     return JSON.parse(result) as PoolStatus
@@ -232,9 +244,8 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   public async poolGetTransactions(options: { poolHandle: PoolHandle }): Promise<Transactions> {
     const { poolHandle } = serializeArguments(options)
-    const result = await this.promisifyWithResponse<string>(
-      (cb) => indyVdrReactNative.poolGetTransactions({ cb, poolHandle }),
-      true
+    const result = handleInvalidNullResponse(
+      await this.promisifyWithResponse<string>((cb) => indyVdrReactNative.poolGetTransactions({ cb, poolHandle }), true)
     )
 
     return JSON.parse(result) as Transactions
@@ -242,8 +253,8 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   public async poolGetVerifiers(options: { poolHandle: PoolHandle }): Promise<Verifiers> {
     const { poolHandle } = serializeArguments(options)
-    const result = await this.promisifyWithResponse<string>((cb) =>
-      indyVdrReactNative.poolGetVerifiers({ cb, poolHandle })
+    const result = handleInvalidNullResponse(
+      await this.promisifyWithResponse<string>((cb) => indyVdrReactNative.poolGetVerifiers({ cb, poolHandle }))
     )
 
     return JSON.parse(result) as Verifiers
@@ -253,8 +264,10 @@ export class ReactNativeIndyVdr implements IndyVdr {
     options: PoolSubmitActionOptions & { poolHandle: PoolHandle }
   ): Promise<T> {
     const serializedOptions = serializeArguments(options)
-    const result = await this.promisifyWithResponse<string>((cb) =>
-      indyVdrReactNative.poolSubmitAction({ cb, ...serializedOptions })
+    const result = handleInvalidNullResponse(
+      await this.promisifyWithResponse<string>((cb) =>
+        indyVdrReactNative.poolSubmitAction({ cb, ...serializedOptions })
+      )
     )
 
     return JSON.parse(result) as T
@@ -264,8 +277,10 @@ export class ReactNativeIndyVdr implements IndyVdr {
     options: PoolSubmitRequestOptions & { poolHandle: PoolHandle }
   ): Promise<T> {
     const serializedOptions = serializeArguments(options)
-    const result = await this.promisifyWithResponse<string>((cb) =>
-      indyVdrReactNative.poolSubmitRequest({ cb, ...serializedOptions })
+    const result = handleInvalidNullResponse(
+      await this.promisifyWithResponse<string>((cb) =>
+        indyVdrReactNative.poolSubmitRequest({ cb, ...serializedOptions })
+      )
     )
 
     return JSON.parse(result) as T
@@ -278,7 +293,9 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   public prepareTxnAuthorAgreementAcceptance(options: PrepareTxnAuthorAgreementAcceptanceOptions): string {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.prepareTxnAuthorAgreementAcceptance(serializedOptions))
+    return handleInvalidNullResponse(
+      handleError(indyVdrReactNative.prepareTxnAuthorAgreementAcceptance(serializedOptions))
+    )
   }
 
   public requestFree(options: { requestHandle: number }): void {
@@ -294,7 +311,7 @@ export class ReactNativeIndyVdr implements IndyVdr {
 
   public requestGetSignatureInput(options: { requestHandle: number }): string {
     const serializedOptions = serializeArguments(options)
-    return handleError(indyVdrReactNative.requestGetSignatureInput(serializedOptions))
+    return handleInvalidNullResponse(handleError(indyVdrReactNative.requestGetSignatureInput(serializedOptions)))
   }
 
   public requestSetEndorser(options: RequestSetEndorserOptions & { requestHandle: RequestHandle }): void {

@@ -107,7 +107,7 @@ void callbackWithResponse(CallbackId result, ErrorCode code,
     jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
 
     auto out = createReturnValue(*rt, code, &response);
-    cb->call(*rt, int(code), response);
+    cb->call(*rt, out);
   });
 }
 

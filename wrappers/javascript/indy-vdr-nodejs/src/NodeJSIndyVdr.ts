@@ -75,10 +75,10 @@ export class NodeJSIndyVdr implements IndyVdr {
     })
   }
 
-  private promisifyWithResponse = async <T>(
+  private promisifyWithResponse = async <Return>(
     method: (nativeCallbackWithResponsePtr: Buffer, id: number) => void,
     isStream = false
-  ): Promise<T | null> => {
+  ): Promise<Return | null> => {
     return new Promise((resolve, reject) => {
       const cb: NativeCallbackWithResponse = (id, errorCode, response) => {
         deallocateCallback(id)
@@ -95,7 +95,7 @@ export class NodeJSIndyVdr implements IndyVdr {
           const mappedResponse = isStream ? '[' + response.replace(/\n/g, ',') + ']' : response
 
           if (mappedResponse.length === 0) return resolve(null)
-          resolve(JSON.parse(mappedResponse) as T)
+          resolve(JSON.parse(mappedResponse) as Return)
         } catch (error) {
           reject(error)
         }
