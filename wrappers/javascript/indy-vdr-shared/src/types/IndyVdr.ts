@@ -23,15 +23,21 @@ import type {
   TransactionAuthorAgreementRequestOptions,
 } from '../builder'
 import type {
-  PoolHandle,
-  RequestHandle,
   RequestSetEndorserOptions,
   RequestSetMultiSignatureOptions,
   RequestSetSignatureOptions,
   RequestSetTxnAuthorAgreementAcceptanceOptions,
 } from '../indyVdr'
 import type { PrepareTxnAuthorAgreementAcceptanceOptions } from './builderTypes'
-import type { PoolStatus, PoolSubmitActionOptions, PoolSubmitRequestOptions, Transactions, Verifiers } from './types'
+import type {
+  PoolHandle,
+  PoolStatus,
+  PoolSubmitActionOptions,
+  PoolSubmitRequestOptions,
+  RequestHandle,
+  Transactions,
+  Verifiers,
+} from './types'
 
 // TODO: proper documentation
 export interface IndyVdr {

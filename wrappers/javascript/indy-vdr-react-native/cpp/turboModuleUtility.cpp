@@ -20,23 +20,70 @@ void assertValueIsObject(jsi::Runtime &rt, const jsi::Value *val) {
   val->asObject(rt);
 }
 
-void handleError(jsi::Runtime &rt, ErrorCode code) {
-  if (code == ErrorCode::Success)
-    return;
+template <>
+jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
+                             nullptr_t value) {
+  auto object = jsi::Object(rt);
 
-  jsi::Value errorMessage = indyVdr::getCurrentError(rt, jsi::Object(rt));
-
-  jsi::Object JSON = rt.global().getPropertyAsObject(rt, "JSON");
-  jsi::Function JSONParse = JSON.getPropertyAsFunction(rt, "parse");
-  jsi::Object parsedErrorObject =
-      JSONParse.call(rt, errorMessage).getObject(rt);
-  jsi::Value message = parsedErrorObject.getProperty(rt, "message");
-  if (message.isString()) {
-    throw jsi::JSError(rt, message.getString(rt).utf8(rt));
+  if (code == ErrorCode::Success) {
+    object.setProperty(rt, "value", jsi::Value::null());
   }
-  throw jsi::JSError(rt, "Could not get message with code: " +
-                             std::to_string(code));
-};
+
+  object.setProperty(rt, "errorCode", int(code));
+
+  return object;
+}
+
+template <>
+jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code, int64_t *out) {
+  auto object = jsi::Object(rt);
+
+  if (code == ErrorCode::Success) {
+    auto valueWithoutNullptr =
+        out == nullptr ? jsi::Value::null() : jsi::Value(rt, int(*out));
+    object.setProperty(rt, "value", valueWithoutNullptr);
+  }
+
+  object.setProperty(rt, "errorCode", int(code));
+
+  return object;
+}
+
+template <>
+jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
+                             const char **value) {
+  auto object = jsi::Object(rt);
+
+  if (code == ErrorCode::Success) {
+    auto isNullptr = value == nullptr || *value == nullptr;
+    auto valueWithoutNullptr = isNullptr
+                                   ? jsi::Value::null()
+                                   : jsi::String::createFromAscii(rt, *value);
+    object.setProperty(rt, "value", valueWithoutNullptr);
+  }
+
+  object.setProperty(rt, "errorCode", int(code));
+
+  return object;
+}
+
+template <>
+jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code,
+                             const char *const *value) {
+  auto object = jsi::Object(rt);
+
+  if (code == ErrorCode::Success) {
+    auto isNullptr = value == nullptr || *value == nullptr;
+    auto valueWithoutNullptr = isNullptr
+                                   ? jsi::Value::null()
+                                   : jsi::String::createFromAscii(rt, *value);
+    object.setProperty(rt, "value", valueWithoutNullptr);
+  }
+
+  object.setProperty(rt, "errorCode", int(code));
+
+  return object;
+}
 
 void callback(CallbackId result, ErrorCode code) {
   invoker->invokeAsync([result, code]() {
@@ -45,7 +92,9 @@ void callback(CallbackId result, ErrorCode code) {
     jsi::Function *cb = &state->cb;
     jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
 
-    cb->call(*rt, int(code));
+    auto object = jsi::Object(*rt);
+    object.setProperty(*rt, "errorCode", int(code));
+    cb->call(*rt, object);
   });
 }
 
@@ -57,7 +106,8 @@ void callbackWithResponse(CallbackId result, ErrorCode code,
     jsi::Function *cb = &state->cb;
     jsi::Runtime *rt = reinterpret_cast<jsi::Runtime *>(state->rt);
 
-    cb->call(*rt, int(code), response);
+    auto out = createReturnValue(*rt, code, &response);
+    cb->call(*rt, out);
   });
 }
 
