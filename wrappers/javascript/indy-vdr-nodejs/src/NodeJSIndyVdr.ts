@@ -35,6 +35,8 @@ import type {
   Verifiers,
 } from '@hyperledger/indy-vdr-shared'
 
+import { handleInvalidNullResponse, IndyVdrError } from '@hyperledger/indy-vdr-shared'
+
 import { handleError } from './error'
 import {
   deallocateCallback,
@@ -45,6 +47,14 @@ import {
   serializeArguments,
 } from './ffi'
 import { nativeIndyVdr } from './library'
+
+function handleReturnPointer<Return>(returnValue: Buffer): Return {
+  if (returnValue.address() === 0) {
+    throw IndyVdrError.customError({ message: 'Unexpected null pointer' })
+  }
+
+  return returnValue.deref() as Return
+}
 
 export class NodeJSIndyVdr implements IndyVdr {
   private promisify = async (method: (nativeCallbackPtr: Buffer, id: number) => void): Promise<void> => {
@@ -65,10 +75,10 @@ export class NodeJSIndyVdr implements IndyVdr {
     })
   }
 
-  private promisifyWithResponse = async <T>(
+  private promisifyWithResponse = async <Return>(
     method: (nativeCallbackWithResponsePtr: Buffer, id: number) => void,
     isStream = false
-  ): Promise<T> => {
+  ): Promise<Return | null> => {
     return new Promise((resolve, reject) => {
       const cb: NativeCallbackWithResponse = (id, errorCode, response) => {
         deallocateCallback(id)
@@ -83,7 +93,9 @@ export class NodeJSIndyVdr implements IndyVdr {
           //this is required to add array brackets, and commas, to an invalid json object that
           // should be a list
           const mappedResponse = isStream ? '[' + response.replace(/\n/g, ',') + ']' : response
-          resolve(JSON.parse(mappedResponse) as T)
+
+          if (mappedResponse.length === 0) return resolve(null)
+          resolve(JSON.parse(mappedResponse) as Return)
         } catch (error) {
           reject(error)
         }
@@ -96,7 +108,8 @@ export class NodeJSIndyVdr implements IndyVdr {
   public getCurrentError(): string {
     const error = allocateString()
     handleError(nativeIndyVdr.indy_vdr_get_current_error(error))
-    return error.deref() as string
+
+    return handleReturnPointer<string>(error)
   }
 
   public version(): string {
@@ -130,7 +143,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       nativeIndyVdr.indy_vdr_build_acceptance_mechanisms_request(submitterDid, aml, version, amlContext, requestHandle)
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetAcceptanceMechanismsRequest(options: GetAcceptanceMechanismsRequestOptions): number {
@@ -149,7 +162,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       )
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildAttribRequest(options: AttribRequestOptions): number {
@@ -158,7 +171,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_attrib_request(submitterDid, targetDid, hash, raw, enc, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetAttribRequest(options: GetAttribRequestOptions): number {
@@ -167,7 +180,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_get_attrib_request(submitterDid, targetDid, raw, hash, enc, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildCredDefRequest(options: CredentialDefinitionRequestOptions): number {
@@ -176,7 +189,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_cred_def_request(submitterDid, credentialDefinition, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetCredDefRequest(options: GetCredentialDefinitionRequestOptions): number {
@@ -185,7 +198,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_get_cred_def_request(submitterDid, credentialDefinitionId, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetRevocRegDefRequest(options: GetRevocationRegistryDefinitionRequestOptions): number {
@@ -196,7 +209,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       nativeIndyVdr.indy_vdr_build_get_revoc_reg_def_request(submitterDid, revocationRegistryId, requestHandle)
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetRevocRegRequest(options: GetRevocationRegistryRequestOptions): number {
@@ -207,7 +220,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       nativeIndyVdr.indy_vdr_build_get_revoc_reg_request(submitterDid, revocationRegistryId, timestamp, requestHandle)
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetRevocRegDeltaRequest(options: GetRevocationRegistryDeltaRequestOptions): number {
@@ -226,7 +239,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       )
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildRevocRegDefRequest(options: RevocationRegistryDefinitionRequestOptions): number {
@@ -237,7 +250,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       nativeIndyVdr.indy_vdr_build_revoc_reg_def_request(submitterDid, revocationRegistryDefinition, requestHandle)
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildCustomRequest(options: CustomRequestOptions): number {
@@ -246,7 +259,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_custom_request(customRequest, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildDisableAllTxnAuthorAgreementsRequest(
@@ -257,7 +270,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_disable_all_txn_author_agreements_request(submitterDid, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetNymRequest(options: GetNymRequestOptions): number {
@@ -266,7 +279,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_get_nym_request(submitterDid, dest, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetSchemaRequest(options: GetSchemaRequestOptions): number {
@@ -275,7 +288,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_get_schema_request(submitterDid, schemaId, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetTxnAuthorAgreementRequest(options: GetTransactionAuthorAgreementRequestOptions): number {
@@ -284,7 +297,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_get_txn_author_agreement_request(submitterDid, data, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetTxnRequest(options: GetTransactionRequestOptions): number {
@@ -293,7 +306,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_get_txn_request(submitterDid, ledgerType, seqNo, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildGetValidatorInfoRequest(options: GetValidatorInfoActionOptions): number {
@@ -302,7 +315,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_get_validator_info_request(submitterDid, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildNymRequest(options: NymRequestOptions): number {
@@ -311,7 +324,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, verkey, alias, role, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildRevocRegEntryRequest(options: RevocationRegistryEntryRequestOptions): number {
@@ -329,7 +342,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       )
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildSchemaRequest(options: SchemaRequestOptions): number {
@@ -338,7 +351,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_build_schema_request(submitterDid, schema, requestHandle))
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public buildTxnAuthorAgreementRequest(options: TransactionAuthorAgreementRequestOptions): number {
@@ -359,7 +372,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       )
     )
 
-    return requestHandle.deref() as number
+    return handleReturnPointer<number>(requestHandle)
   }
 
   public poolCreate(options: PoolCreateOptions): number {
@@ -368,7 +381,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_pool_create(parameters, poolHandle))
 
-    return poolHandle.deref() as number
+    return handleReturnPointer<number>(poolHandle)
   }
 
   public async poolRefresh(options: { poolHandle: number }): Promise<void> {
@@ -377,41 +390,55 @@ export class NodeJSIndyVdr implements IndyVdr {
     return this.promisify((cbPtr, id) => nativeIndyVdr.indy_vdr_pool_refresh(poolHandle, cbPtr, id))
   }
 
-  public poolGetStatus(options: { poolHandle: number }): Promise<PoolStatus> {
+  public async poolGetStatus(options: { poolHandle: number }): Promise<PoolStatus> {
     const { poolHandle } = serializeArguments(options)
 
-    return this.promisifyWithResponse((cbPtr, id) => nativeIndyVdr.indy_vdr_pool_get_status(poolHandle, cbPtr, id))
+    const poolStatus = await this.promisifyWithResponse<PoolStatus>((cbPtr, id) =>
+      nativeIndyVdr.indy_vdr_pool_get_status(poolHandle, cbPtr, id)
+    )
+
+    return handleInvalidNullResponse(poolStatus)
   }
 
   public async poolGetTransactions(options: { poolHandle: number }): Promise<Transactions> {
     const { poolHandle } = serializeArguments(options)
 
-    return this.promisifyWithResponse<Transactions>(
+    const transactions = await this.promisifyWithResponse<Transactions>(
       (cbPtr, id) => nativeIndyVdr.indy_vdr_pool_get_transactions(poolHandle, cbPtr, id),
       true
     )
+
+    return handleInvalidNullResponse(transactions)
   }
 
   public async poolGetVerifiers(options: { poolHandle: number }): Promise<Verifiers> {
     const { poolHandle } = serializeArguments(options)
 
-    return this.promisifyWithResponse((cbPtr, id) => nativeIndyVdr.indy_vdr_pool_get_verifiers(poolHandle, cbPtr, id))
+    const verifiers = await this.promisifyWithResponse<Verifiers>((cbPtr, id) =>
+      nativeIndyVdr.indy_vdr_pool_get_verifiers(poolHandle, cbPtr, id)
+    )
+
+    return handleInvalidNullResponse(verifiers)
   }
 
   public async poolSubmitAction<T>(options: PoolSubmitActionOptions & { poolHandle: number }): Promise<T> {
     const { requestHandle, poolHandle, nodes, timeout } = serializeArguments(options)
 
-    return this.promisifyWithResponse((cbPtr, id) =>
+    const response = await this.promisifyWithResponse<T>((cbPtr, id) =>
       nativeIndyVdr.indy_vdr_pool_submit_action(poolHandle, requestHandle, nodes, timeout, cbPtr, id)
     )
+
+    return handleInvalidNullResponse(response)
   }
 
   public async poolSubmitRequest<T>(options: PoolSubmitRequestOptions & { poolHandle: number }): Promise<T> {
     const { requestHandle, poolHandle } = serializeArguments(options)
 
-    return this.promisifyWithResponse((cbPtr, id) =>
+    const response = await this.promisifyWithResponse<T>((cbPtr, id) =>
       nativeIndyVdr.indy_vdr_pool_submit_request(poolHandle, requestHandle, cbPtr, id)
     )
+
+    return handleInvalidNullResponse(response)
   }
 
   public poolClose(options: { poolHandle: number }): void {
@@ -435,7 +462,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       )
     )
 
-    return output.deref() as string
+    return handleReturnPointer<string>(output)
   }
 
   public requestFree(options: { requestHandle: number }): void {
@@ -450,7 +477,8 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_request_get_body(requestHandle, output))
 
-    return JSON.parse(output.deref() as string) as T
+    const outputString = handleReturnPointer<string>(output)
+    return JSON.parse(outputString) as T
   }
 
   public requestGetSignatureInput(options: { requestHandle: number }): string {
@@ -459,7 +487,7 @@ export class NodeJSIndyVdr implements IndyVdr {
 
     handleError(nativeIndyVdr.indy_vdr_request_get_signature_input(requestHandle, output))
 
-    return output.deref() as string
+    return handleReturnPointer<string>(output)
   }
 
   public requestSetEndorser(options: RequestSetEndorserOptions & { requestHandle: number }): void {
