@@ -70,8 +70,6 @@ const getLibrary = () => {
   return Library(validLibraryPath, nativeBindings)
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 let nativeIndyVdr: NativeMethods | undefined = undefined
 export const getNativeIndyVdr = () => {
   if (!nativeIndyVdr) nativeIndyVdr = getLibrary() as unknown as NativeMethods
