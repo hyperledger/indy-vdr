@@ -46,7 +46,7 @@ import {
   toNativeCallbackWithResponse,
   serializeArguments,
 } from './ffi'
-import { nativeIndyVdr } from './library'
+import { getNativeIndyVdr } from './library'
 
 function handleReturnPointer<Return>(returnValue: Buffer): Return {
   if (returnValue.address() === 0) {
@@ -105,34 +105,38 @@ export class NodeJSIndyVdr implements IndyVdr {
     })
   }
 
+  public get nativeIndyVdr() {
+    return getNativeIndyVdr()
+  }
+
   public getCurrentError(): string {
     const error = allocateString()
-    handleError(nativeIndyVdr.indy_vdr_get_current_error(error))
+    handleError(this.nativeIndyVdr.indy_vdr_get_current_error(error))
 
     return handleReturnPointer<string>(error)
   }
 
   public version(): string {
-    return nativeIndyVdr.indy_vdr_version()
+    return this.nativeIndyVdr.indy_vdr_version()
   }
 
   public setConfig(options: { config: Record<string, unknown> }): void {
     const { config } = serializeArguments(options)
-    handleError(nativeIndyVdr.indy_vdr_set_config(config))
+    handleError(this.nativeIndyVdr.indy_vdr_set_config(config))
   }
 
   public setDefaultLogger(): void {
-    handleError(nativeIndyVdr.indy_vdr_set_default_logger())
+    handleError(this.nativeIndyVdr.indy_vdr_set_default_logger())
   }
 
   public setProtocolVersion(options: { version: number }): void {
     const { version } = serializeArguments(options)
-    handleError(nativeIndyVdr.indy_vdr_set_protocol_version(version))
+    handleError(this.nativeIndyVdr.indy_vdr_set_protocol_version(version))
   }
 
   public setSocksProxy(options: { socksProxy: string }): void {
     const { socksProxy } = serializeArguments(options)
-    handleError(nativeIndyVdr.indy_vdr_set_socks_proxy(socksProxy))
+    handleError(this.nativeIndyVdr.indy_vdr_set_socks_proxy(socksProxy))
   }
 
   public buildAcceptanceMechanismsRequest(options: AcceptanceMechanismsRequestOptions): number {
@@ -140,7 +144,13 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { version, aml, submitterDid, amlContext } = serializeArguments(options)
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_acceptance_mechanisms_request(submitterDid, aml, version, amlContext, requestHandle)
+      this.nativeIndyVdr.indy_vdr_build_acceptance_mechanisms_request(
+        submitterDid,
+        aml,
+        version,
+        amlContext,
+        requestHandle
+      )
     )
 
     return handleReturnPointer<number>(requestHandle)
@@ -154,7 +164,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const convertedTimestamp = timestamp ?? -1
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_get_acceptance_mechanisms_request(
+      this.nativeIndyVdr.indy_vdr_build_get_acceptance_mechanisms_request(
         submitterDid,
         convertedTimestamp,
         version,
@@ -169,7 +179,9 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { submitterDid, targetDid, raw, hash, enc } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_attrib_request(submitterDid, targetDid, hash, raw, enc, requestHandle))
+    handleError(
+      this.nativeIndyVdr.indy_vdr_build_attrib_request(submitterDid, targetDid, hash, raw, enc, requestHandle)
+    )
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -178,7 +190,9 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { submitterDid, targetDid, raw, hash, enc } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_attrib_request(submitterDid, targetDid, raw, hash, enc, requestHandle))
+    handleError(
+      this.nativeIndyVdr.indy_vdr_build_get_attrib_request(submitterDid, targetDid, raw, hash, enc, requestHandle)
+    )
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -187,7 +201,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { credentialDefinition, submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_cred_def_request(submitterDid, credentialDefinition, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_cred_def_request(submitterDid, credentialDefinition, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -196,7 +210,9 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { credentialDefinitionId, submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_cred_def_request(submitterDid, credentialDefinitionId, requestHandle))
+    handleError(
+      this.nativeIndyVdr.indy_vdr_build_get_cred_def_request(submitterDid, credentialDefinitionId, requestHandle)
+    )
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -206,7 +222,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { revocationRegistryId, submitterDid } = serializeArguments(options)
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_get_revoc_reg_def_request(submitterDid, revocationRegistryId, requestHandle)
+      this.nativeIndyVdr.indy_vdr_build_get_revoc_reg_def_request(submitterDid, revocationRegistryId, requestHandle)
     )
 
     return handleReturnPointer<number>(requestHandle)
@@ -217,7 +233,12 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { revocationRegistryId, timestamp, submitterDid } = serializeArguments(options)
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_get_revoc_reg_request(submitterDid, revocationRegistryId, timestamp, requestHandle)
+      this.nativeIndyVdr.indy_vdr_build_get_revoc_reg_request(
+        submitterDid,
+        revocationRegistryId,
+        timestamp,
+        requestHandle
+      )
     )
 
     return handleReturnPointer<number>(requestHandle)
@@ -230,7 +251,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const convertedFromTs = fromTs ?? -1
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_get_revoc_reg_delta_request(
+      this.nativeIndyVdr.indy_vdr_build_get_revoc_reg_delta_request(
         submitterDid,
         revocationRegistryId,
         convertedFromTs,
@@ -247,7 +268,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { submitterDid, revocationRegistryDefinitionV1: revocationRegistryDefinition } = serializeArguments(options)
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_revoc_reg_def_request(submitterDid, revocationRegistryDefinition, requestHandle)
+      this.nativeIndyVdr.indy_vdr_build_revoc_reg_def_request(submitterDid, revocationRegistryDefinition, requestHandle)
     )
 
     return handleReturnPointer<number>(requestHandle)
@@ -257,7 +278,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { customRequest } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_custom_request(customRequest, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_custom_request(customRequest, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -268,7 +289,9 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_disable_all_txn_author_agreements_request(submitterDid, requestHandle))
+    handleError(
+      this.nativeIndyVdr.indy_vdr_build_disable_all_txn_author_agreements_request(submitterDid, requestHandle)
+    )
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -277,7 +300,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { dest, submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_nym_request(submitterDid, dest, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_get_nym_request(submitterDid, dest, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -286,7 +309,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { schemaId, submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_schema_request(submitterDid, schemaId, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_get_schema_request(submitterDid, schemaId, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -295,7 +318,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { data, submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_txn_author_agreement_request(submitterDid, data, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_get_txn_author_agreement_request(submitterDid, data, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -304,7 +327,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { ledgerType, seqNo, submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_txn_request(submitterDid, ledgerType, seqNo, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_get_txn_request(submitterDid, ledgerType, seqNo, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -313,7 +336,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_get_validator_info_request(submitterDid, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_get_validator_info_request(submitterDid, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -322,7 +345,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { dest, submitterDid, alias, role, verkey } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, verkey, alias, role, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, verkey, alias, role, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -333,7 +356,7 @@ export class NodeJSIndyVdr implements IndyVdr {
       serializeArguments(options)
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_revoc_reg_entry_request(
+      this.nativeIndyVdr.indy_vdr_build_revoc_reg_entry_request(
         submitterDid,
         revocationRegistryDefinitionId,
         revocationRegistryDefinitionType,
@@ -349,7 +372,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const requestHandle = allocateHandle()
     const { schema, submitterDid } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_build_schema_request(submitterDid, schema, requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_build_schema_request(submitterDid, schema, requestHandle))
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -362,7 +385,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const convertedRetirementTs = retirementTs ?? -1
 
     handleError(
-      nativeIndyVdr.indy_vdr_build_txn_author_agreement_request(
+      this.nativeIndyVdr.indy_vdr_build_txn_author_agreement_request(
         submitterDid,
         text,
         version,
@@ -379,7 +402,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const poolHandle = allocateHandle()
     const { parameters } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_pool_create(parameters, poolHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_pool_create(parameters, poolHandle))
 
     return handleReturnPointer<number>(poolHandle)
   }
@@ -387,14 +410,14 @@ export class NodeJSIndyVdr implements IndyVdr {
   public async poolRefresh(options: { poolHandle: number }): Promise<void> {
     const { poolHandle } = serializeArguments(options)
 
-    return this.promisify((cbPtr, id) => nativeIndyVdr.indy_vdr_pool_refresh(poolHandle, cbPtr, id))
+    return this.promisify((cbPtr, id) => this.nativeIndyVdr.indy_vdr_pool_refresh(poolHandle, cbPtr, id))
   }
 
   public async poolGetStatus(options: { poolHandle: number }): Promise<PoolStatus> {
     const { poolHandle } = serializeArguments(options)
 
     const poolStatus = await this.promisifyWithResponse<PoolStatus>((cbPtr, id) =>
-      nativeIndyVdr.indy_vdr_pool_get_status(poolHandle, cbPtr, id)
+      this.nativeIndyVdr.indy_vdr_pool_get_status(poolHandle, cbPtr, id)
     )
 
     return handleInvalidNullResponse(poolStatus)
@@ -404,7 +427,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { poolHandle } = serializeArguments(options)
 
     const transactions = await this.promisifyWithResponse<Transactions>(
-      (cbPtr, id) => nativeIndyVdr.indy_vdr_pool_get_transactions(poolHandle, cbPtr, id),
+      (cbPtr, id) => this.nativeIndyVdr.indy_vdr_pool_get_transactions(poolHandle, cbPtr, id),
       true
     )
 
@@ -415,7 +438,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { poolHandle } = serializeArguments(options)
 
     const verifiers = await this.promisifyWithResponse<Verifiers>((cbPtr, id) =>
-      nativeIndyVdr.indy_vdr_pool_get_verifiers(poolHandle, cbPtr, id)
+      this.nativeIndyVdr.indy_vdr_pool_get_verifiers(poolHandle, cbPtr, id)
     )
 
     return handleInvalidNullResponse(verifiers)
@@ -425,7 +448,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { requestHandle, poolHandle, nodes, timeout } = serializeArguments(options)
 
     const response = await this.promisifyWithResponse<T>((cbPtr, id) =>
-      nativeIndyVdr.indy_vdr_pool_submit_action(poolHandle, requestHandle, nodes, timeout, cbPtr, id)
+      this.nativeIndyVdr.indy_vdr_pool_submit_action(poolHandle, requestHandle, nodes, timeout, cbPtr, id)
     )
 
     return handleInvalidNullResponse(response)
@@ -435,7 +458,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { requestHandle, poolHandle } = serializeArguments(options)
 
     const response = await this.promisifyWithResponse<T>((cbPtr, id) =>
-      nativeIndyVdr.indy_vdr_pool_submit_request(poolHandle, requestHandle, cbPtr, id)
+      this.nativeIndyVdr.indy_vdr_pool_submit_request(poolHandle, requestHandle, cbPtr, id)
     )
 
     return handleInvalidNullResponse(response)
@@ -444,7 +467,7 @@ export class NodeJSIndyVdr implements IndyVdr {
   public poolClose(options: { poolHandle: number }): void {
     const { poolHandle } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_pool_close(poolHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_pool_close(poolHandle))
   }
 
   public prepareTxnAuthorAgreementAcceptance(options: PrepareTxnAuthorAgreementAcceptanceOptions): string {
@@ -452,7 +475,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const { acceptanceMechanismType, time, taaDigest, text, version } = serializeArguments(options)
 
     handleError(
-      nativeIndyVdr.indy_vdr_prepare_txn_author_agreement_acceptance(
+      this.nativeIndyVdr.indy_vdr_prepare_txn_author_agreement_acceptance(
         text,
         version,
         taaDigest,
@@ -468,14 +491,14 @@ export class NodeJSIndyVdr implements IndyVdr {
   public requestFree(options: { requestHandle: number }): void {
     const { requestHandle } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_request_free(requestHandle))
+    handleError(this.nativeIndyVdr.indy_vdr_request_free(requestHandle))
   }
 
   public requestGetBody<T extends Record<string, unknown>>(options: { requestHandle: number }): T {
     const output = allocateString()
     const { requestHandle } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_request_get_body(requestHandle, output))
+    handleError(this.nativeIndyVdr.indy_vdr_request_get_body(requestHandle, output))
 
     const outputString = handleReturnPointer<string>(output)
     return JSON.parse(outputString) as T
@@ -485,7 +508,7 @@ export class NodeJSIndyVdr implements IndyVdr {
     const output = allocateString()
     const { requestHandle } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_request_get_signature_input(requestHandle, output))
+    handleError(this.nativeIndyVdr.indy_vdr_request_get_signature_input(requestHandle, output))
 
     return handleReturnPointer<string>(output)
   }
@@ -493,19 +516,19 @@ export class NodeJSIndyVdr implements IndyVdr {
   public requestSetEndorser(options: RequestSetEndorserOptions & { requestHandle: number }): void {
     const { endorser, requestHandle } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_request_set_endorser(requestHandle, endorser))
+    handleError(this.nativeIndyVdr.indy_vdr_request_set_endorser(requestHandle, endorser))
   }
 
   public requestSetMultiSignature(options: RequestSetMultiSignatureOptions & { requestHandle: number }): void {
     const { identifier, requestHandle, signature } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_request_set_multi_signature(requestHandle, identifier, signature))
+    handleError(this.nativeIndyVdr.indy_vdr_request_set_multi_signature(requestHandle, identifier, signature))
   }
 
   public requestSetSignature(options: RequestSetSignatureOptions & { requestHandle: number }): void {
     const { requestHandle, signature } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_request_set_signature(requestHandle, signature))
+    handleError(this.nativeIndyVdr.indy_vdr_request_set_signature(requestHandle, signature))
   }
 
   public requestSetTxnAuthorAgreementAcceptance(
@@ -513,6 +536,6 @@ export class NodeJSIndyVdr implements IndyVdr {
   ): void {
     const { acceptance, requestHandle } = serializeArguments(options)
 
-    handleError(nativeIndyVdr.indy_vdr_request_set_txn_author_agreement_acceptance(requestHandle, acceptance))
+    handleError(this.nativeIndyVdr.indy_vdr_request_set_txn_author_agreement_acceptance(requestHandle, acceptance))
   }
 }
