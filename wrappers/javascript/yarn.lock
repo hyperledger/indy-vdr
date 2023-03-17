@@ -1461,10 +1461,10 @@
     "@types/scheduler" "*"
     csstype "^3.0.2"
 
-"@types/ref-array-di@^1.2.3":
-  version "1.2.3"
-  resolved "https://registry.yarnpkg.com/@types/ref-array-di/-/ref-array-di-1.2.3.tgz#81d29ccd38dccd9416ad4f6110e129378b79a966"
-  integrity sha512-vD2JoXDSe4p4NDTWHLcwfb+y17fkJ6wOWu2q9B7wYBwXZ2qoWHRyHc2zuZdz6Xr1/gC+Asp09tuNbDGeWupQ7A==
+"@types/ref-array-di@^1.2.5":
+  version "1.2.5"
+  resolved "https://registry.yarnpkg.com/@types/ref-array-di/-/ref-array-di-1.2.5.tgz#822b9be5b934398fafd5c26264d8de80d487747d"
+  integrity sha512-dA/Himb7ca/Tf5vqLOhi7LewAAoOXghlocw7gAqvNrmLybAtu+w2BLzEsbFWAtx5ElNzMEHDaRybueYViFROjQ==
   dependencies:
     "@types/ref-napi" "*"
 

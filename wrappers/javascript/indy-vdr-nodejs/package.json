@@ -43,6 +43,7 @@
   "dependencies": {
     "@hyperledger/indy-vdr-shared": "0.1.0-dev.11",
     "@mapbox/node-pre-gyp": "^1.0.10",
+    "@types/ref-array-di": "^1.2.5",
     "ffi-napi": "^4.0.3",
     "ref-array-di": "^1.2.2",
     "ref-napi": "^3.0.3",
