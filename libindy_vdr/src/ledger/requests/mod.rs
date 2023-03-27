@@ -6,6 +6,8 @@ pub mod auth_rule;
 pub mod author_agreement;
 /// Credential definition operations
 pub mod cred_def;
+/// FLAG transactions operations
+pub mod flag;
 /// Frozen Ledger operations
 pub mod ledgers_freeze;
 /// NODE transactions operations
