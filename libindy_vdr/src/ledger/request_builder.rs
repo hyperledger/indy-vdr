@@ -20,6 +20,7 @@ use super::requests::author_agreement::{
     TxnAuthorAgreementOperation, TxnAuthrAgrmtAcceptanceData,
 };
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
+use super::requests::flag::{FlagOperation, GetFlagOperation};
 use super::requests::ledgers_freeze::{GetFrozenLedgersOperation, LedgersFreezeOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
@@ -120,6 +121,30 @@ impl RequestBuilder {
             body,
             method,
         ))
+    }
+
+    /// Build a `FLAG` transaction request
+    pub fn build_flag_request(
+        &self,
+        identifier: &DidValue,
+        name: String,
+        value: String,
+    ) -> VdrResult<PreparedRequest> {
+        let operation = FlagOperation::new(name, value);
+        self.build(operation, Some(identifier))
+    }
+
+    /// Build a `GET_FLAG` transaction request
+    /// Use only one of seq_no and timestamp
+    pub fn build_get_flag_request(
+        &self,
+        identifier: Option<&DidValue>,
+        name: String,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
+    ) -> VdrResult<PreparedRequest> {
+        let operation = GetFlagOperation::new(name, seq_no, timestamp);
+        self.build(operation, identifier)
     }
 
     /// Build a `NYM` transaction request
