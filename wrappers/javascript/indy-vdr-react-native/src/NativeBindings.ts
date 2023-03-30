@@ -43,13 +43,9 @@ export interface NativeBindings {
     raw?: string
     hash?: string
     enc?: string
-<<<<<<< HEAD:wrappers/javascript/indy-vdr-react-native/src/library/NativeBindings.ts
-  }): ReturnObject<RequestHandle>
-=======
     seqNo?: number
     timestamp?: number
-  }): RequestHandle
->>>>>>> 8f534e1 (quick fix for ffi bindings):wrappers/javascript/indy-vdr-shared/src/indyVdr/IndyVdrNativeBindings.ts
+  }): ReturnObject<RequestHandle>
 
   buildCredDefRequest(options: { submitterDid: string; credentialDefinition: string }): ReturnObject<RequestHandle>
 
@@ -85,16 +81,12 @@ export interface NativeBindings {
 
   buildDisableAllTxnAuthorAgreementsRequest(options: { submitterDid: string }): ReturnObject<RequestHandle>
 
-<<<<<<< HEAD:wrappers/javascript/indy-vdr-react-native/src/library/NativeBindings.ts
-  buildGetNymRequest(options: { submitterDid?: string; dest: string }): ReturnObject<RequestHandle>
-=======
   buildGetNymRequest(options: {
     submitterDid?: string
     dest: string
     didDocContent?: string
     version?: number
-  }): RequestHandle
->>>>>>> 8f534e1 (quick fix for ffi bindings):wrappers/javascript/indy-vdr-shared/src/indyVdr/IndyVdrNativeBindings.ts
+  }): ReturnObject<RequestHandle>
 
   buildGetSchemaRequest(options: { submitterDid?: string; schemaId: string }): ReturnObject<RequestHandle>
 
