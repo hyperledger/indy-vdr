@@ -145,13 +145,13 @@ jsi::Value buildGetCredDefRequest(jsi::Runtime &rt, jsi::Object options) {
 jsi::Value buildGetRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
   auto submitterDid =
       jsiToValue<std::string>(rt, options, "submitterDid", true);
-  auto revocRegId = jsiToValue<std::string>(rt, options, "revocRegId");
+  auto revocationRegistryId = jsiToValue<std::string>(rt, options, "revocationRegistryId");
 
   RequestHandle out;
 
   ErrorCode code = indy_vdr_build_get_revoc_reg_def_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr,
-      revocRegId.c_str(), &out);
+      revocationRegistryId.c_str(), &out);
 
   return createReturnValue(rt, code, &out);
 };
@@ -159,14 +159,14 @@ jsi::Value buildGetRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
 jsi::Value buildGetRevocRegRequest(jsi::Runtime &rt, jsi::Object options) {
   auto submitterDid =
       jsiToValue<std::string>(rt, options, "submitterDid", true);
-  auto revocRegId = jsiToValue<std::string>(rt, options, "revocRegId");
+  auto revocationRegistryId = jsiToValue<std::string>(rt, options, "revocationRegistryId");
   auto timestamp = jsiToValue<int64_t>(rt, options, "timestamp");
 
   RequestHandle out;
 
   ErrorCode code = indy_vdr_build_get_revoc_reg_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr,
-      revocRegId.c_str(), timestamp, &out);
+      revocationRegistryId.c_str(), timestamp, &out);
 
   return createReturnValue(rt, code, &out);
 };
@@ -174,7 +174,7 @@ jsi::Value buildGetRevocRegRequest(jsi::Runtime &rt, jsi::Object options) {
 jsi::Value buildGetRevocRegDeltaRequest(jsi::Runtime &rt, jsi::Object options) {
   auto submitterDid =
       jsiToValue<std::string>(rt, options, "submitterDid", true);
-  auto revocRegId = jsiToValue<std::string>(rt, options, "revocRegId");
+  auto revocationRegistryId = jsiToValue<std::string>(rt, options, "revocationRegistryId");
   auto fromTs = jsiToValue<int64_t>(rt, options, "fromTs", true);
   auto toTs = jsiToValue<int64_t>(rt, options, "toTs");
 
@@ -182,19 +182,19 @@ jsi::Value buildGetRevocRegDeltaRequest(jsi::Runtime &rt, jsi::Object options) {
 
   ErrorCode code = indy_vdr_build_get_revoc_reg_delta_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr,
-      revocRegId.c_str(), fromTs, toTs, &out);
+      revocationRegistryId.c_str(), fromTs, toTs, &out);
 
   return createReturnValue(rt, code, &out);
 };
 
 jsi::Value buildRevocRegDefRequest(jsi::Runtime &rt, jsi::Object options) {
   auto submitterDid = jsiToValue<std::string>(rt, options, "submitterDid");
-  auto revocRegId = jsiToValue<std::string>(rt, options, "revocRegId");
+  auto revocationRegistryId = jsiToValue<std::string>(rt, options, "revocationRegistryId");
 
   RequestHandle out;
 
   ErrorCode code = indy_vdr_build_revoc_reg_def_request(
-      submitterDid.c_str(), revocRegId.c_str(), &out);
+      submitterDid.c_str(), revocationRegistryId.c_str(), &out);
 
   return createReturnValue(rt, code, &out);
 };
