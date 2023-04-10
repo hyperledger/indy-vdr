@@ -511,14 +511,13 @@ export class NodeJSIndyVdr implements IndyVdr {
     this.handleError(this.nativeIndyVdr.indy_vdr_request_free(requestHandle))
   }
 
-  public requestGetBody<T extends Record<string, unknown>>(options: { requestHandle: number }): T {
+  public requestGetBody(options: { requestHandle: number }): string {
     const output = allocateString()
     const { requestHandle } = serializeArguments(options)
 
     this.handleError(this.nativeIndyVdr.indy_vdr_request_get_body(requestHandle, output))
 
-    const outputString = handleReturnPointer<string>(output)
-    return JSON.parse(outputString) as T
+    return handleReturnPointer<string>(output)
   }
 
   public requestGetSignatureInput(options: { requestHandle: number }): string {
