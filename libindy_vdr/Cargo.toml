@@ -1,6 +1,6 @@
 [package]
 name = "indy-vdr"
-version = "0.4.0-dev.13"
+version = "0.4.0-dev.14"
 authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
 description = "A library for interacting with Hyperledger Indy Node, a distributed ledger for self-sovereign identity (https://www.hyperledger.org/use/hyperledger-indy)."
 edition = "2021"
