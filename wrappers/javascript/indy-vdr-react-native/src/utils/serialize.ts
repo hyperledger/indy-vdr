@@ -19,6 +19,8 @@ export type SerializedOptions<Type> = {
     ? number
     : Type[Property] extends Record<string, unknown>
     ? string
+    : Type[Property] extends string | Record<string, unknown>
+    ? string
     : Type[Property] extends Array<unknown>
     ? string
     : Type[Property] extends Array<unknown> | undefined
