@@ -20,7 +20,8 @@ describe('IndyVdrRequest', () => {
   })
 
   test('Get request body', () => {
-    expect(request.body).toMatchObject({
+    expect(typeof request.body).toEqual('string')
+    expect(JSON.parse(request.body)).toMatchObject({
       identifier: 'LibindyDid111111111111',
       operation: {
         data: { name: 'MyName', version: '1.0' },

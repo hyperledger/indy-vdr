@@ -115,7 +115,7 @@ export interface IndyVdr {
 
   requestFree(options: { requestHandle: number }): void
 
-  requestGetBody<T extends Record<string, unknown>>(options: { requestHandle: number }): T
+  requestGetBody(options: { requestHandle: number }): string
 
   requestGetSignatureInput(options: { requestHandle: number }): string
 

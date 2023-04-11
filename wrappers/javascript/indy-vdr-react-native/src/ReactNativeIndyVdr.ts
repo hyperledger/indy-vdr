@@ -303,10 +303,9 @@ export class ReactNativeIndyVdr implements IndyVdr {
     indyVdrReactNative.requestFree(serializedOptions)
   }
 
-  public requestGetBody<T extends Record<string, unknown>>(options: { requestHandle: number }): T {
+  public requestGetBody(options: { requestHandle: number }): string {
     const serializedOptions = serializeArguments(options)
-    const result = handleError(indyVdrReactNative.requestGetBody(serializedOptions))
-    return JSON.parse(result) as T
+    return handleError(indyVdrReactNative.requestGetBody(serializedOptions))
   }
 
   public requestGetSignatureInput(options: { requestHandle: number }): string {
