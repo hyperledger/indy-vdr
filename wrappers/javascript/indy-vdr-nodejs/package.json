@@ -24,7 +24,7 @@
     "clean": "rimraf -rf ./build",
     "compile": "tsc -p tsconfig.build.json",
     "test": "jest",
-    "install": "node-pre-gyp install --target_arch=$(node scripts/arch.js)"
+    "install": "node-pre-gyp install --target_arch=$(node scripts/arch.js) --target_platform=$(node scripts/platform.js)"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
