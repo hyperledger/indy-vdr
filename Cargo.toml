@@ -4,6 +4,7 @@ resolver = "2"
 members = [
     "libindy_vdr",
     "indy-vdr-proxy",
+    "indy-vdr-proxy-client",
 ]
 
 [profile.release]
