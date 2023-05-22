@@ -16,8 +16,12 @@ use std::path::PathBuf;
 use std::process::exit;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
+#[cfg(feature = "tls")]
+use std::{fs::File, io::BufReader, sync::Arc};
 
 use futures_util::future::FutureExt;
+#[cfg(feature = "tls")]
+use futures_util::stream;
 use git2::Repository;
 
 #[cfg(feature = "fetch")]
@@ -32,9 +36,18 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
+#[cfg(feature = "tls")]
+use rustls_pemfile::{certs, pkcs8_private_keys};
+#[cfg(feature = "tls")]
+use tokio::net::TcpListener;
 use tokio::select;
 #[cfg(unix)]
 use tokio::signal::unix::SignalKind;
+#[cfg(feature = "tls")]
+use tokio_rustls::{
+    rustls::{Certificate, PrivateKey, ServerConfig},
+    TlsAcceptor,
+};
 
 use indy_vdr::common::error::prelude::*;
 use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolBuilder, PoolTransactions};
@@ -352,9 +365,62 @@ async fn init_server(config: app::Config) -> Result<(), String> {
         .parse::<IpAddr>()
         .map_err(|_| "Error parsing host IP")?;
     let addr = (ip, config.port.unwrap()).into();
-    let builder =
-        Server::try_bind(&addr).map_err(|err| format!("Error binding TCP socket: {}", err))?;
+
+    #[cfg(feature = "tls")]
+    if let (Some(tls_cert_path), Some(tls_key_path)) = (&config.tls_cert_path, &config.tls_key_path)
+    {
+        let tls_cfg = build_tls_config(&tls_cert_path, &tls_key_path)?;
+        let tls_acceptor = TlsAcceptor::from(Arc::new(tls_cfg));
+        let tcp_listener = TcpListener::bind(&addr)
+            .await
+            .map_err(|err| format!("Error binding TCP socket: {}", err))?;
+
+        let incoming_tls_stream = stream::try_unfold(tcp_listener, move |tcp_listener| {
+            let tls_acceptor = tls_acceptor.clone();
+            async move {
+                match tcp_listener.accept().await {
+                    Ok((socket, _)) => Ok(Some((
+                        tls_acceptor.clone().accept(socket).await?,
+                        tcp_listener,
+                    ))),
+                    Err(err) => Err(err),
+                }
+            }
+        });
+        let builder = Server::builder(hyper::server::accept::from_stream(incoming_tls_stream));
+        return run_server(builder, state, format!("https://{}", addr), config).await;
+    }
+
+    let builder = Server::try_bind(&addr)
+        .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
     run_server(builder, state, format!("http://{}", addr), config).await
+}
+
+#[cfg(feature = "tls")]
+fn build_tls_config(cert_path: &str, key_path: &str) -> Result<ServerConfig, String> {
+    let certs = certs(&mut BufReader::new(
+        File::open(cert_path)
+            .map_err(|err| format!("Error opening TLS certificate file: {}", err))?,
+    ))
+    .map_err(|err| format!("Error parsing TLS certificate file: {}", err))?;
+    let keys = pkcs8_private_keys(&mut BufReader::new(
+        File::open(key_path).map_err(|err| format!("Error opening TLS key file: {}", err))?,
+    ))
+    .map_err(|err| format!("Error parsing TLS key file: {}", err))?;
+    ServerConfig::builder()
+        .with_safe_defaults()
+        .with_no_client_auth()
+        .with_single_cert(
+            vec![Certificate(certs.into_iter().next().ok_or_else(|| {
+                "Error parsing TLS certificate file: no certificates found".to_string()
+            })?)],
+            PrivateKey(
+                keys.into_iter()
+                    .next()
+                    .ok_or_else(|| "Error parsing TLS key file: no keys found".to_string())?,
+            ),
+        )
+        .map_err(|err| format!("Error building TLS config: {}", err.to_string()))
 }
 
 async fn run_server<I>(
