@@ -337,6 +337,9 @@ jobs:
   build-android:
     name: Build library (Android)
     needs: [checks]
+    env:
+      RUST_VERSION: "1.64.0" # Overriding the rust version here for lower NDK support
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
