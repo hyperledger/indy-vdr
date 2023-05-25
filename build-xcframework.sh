@@ -3,22 +3,25 @@
 set -eo pipefail
 
 # Check if lipo and xcodebuild exist
-if [ -z `command -v lipo` ] || [ -z `command -v xcodebuild` ]
+if [ -z `command -v lipo` ] || [ -z `command -v xcodebuild` ] || [ -z `command -v sed` ]
+
 then
-    echo "!!! lipo or xcodebuild could not be found !!!"
+    echo "!!! lipo, xcodebuild or sed could not be found !!!"
     help
 fi
 
 NAME="indy_vdr"
+BUNDLE_NAME="indy-vdr"
 VERSION=$(cargo generate-lockfile && cargo pkgid indy-vdr | sed -e "s/^.*[#@]//")
 echo $VERSION
-BUNDLE_IDENTIFIER="org.hyperledger.$NAME"
-LIBRARY_NAME="lib$NAME.dylib"
+BUNDLE_IDENTIFIER="org.hyperledger.$BUNDLE_NAME"
+LIBRARY_NAME="lib$NAME.a"
 XC_FRAMEWORK_NAME="$NAME.xcframework"
 FRAMEWORK_LIBRARY_NAME=$NAME
 FRAMEWORK_NAME="$FRAMEWORK_LIBRARY_NAME.framework"
 HEADER_NAME="lib$NAME.h"
 OUT_PATH="out"
+MIN_IOS_VERSION="12.0"
 
 # Setting some default paths
 AARCH64_APPLE_IOS_PATH="./target/aarch64-apple-ios/release"
@@ -33,9 +36,9 @@ Help() {
   echo "  - xcodebuild"
   echo "To build an xcframework with underlying Frameworks"
   echo "the following can be passed in as positional arguments"
-  echo "  1. Path to the aarch64-apple-ios directory where the $LIBRARY is stored"
-  echo "  2. Path to the aarch64-apple-ios-sim directory where the $LIBRARY is stored"
-  echo "  3. Path to the x86_64-apple-ios directory where the $LIBRARY is stored"
+  echo "  1. Path to the aarch64-apple-ios directory where the $LIBRARY_NAME is stored"
+  echo "  2. Path to the aarch64-apple-ios-sim directory where the $LIBRARY_NAME is stored"
+  echo "  3. Path to the x86_64-apple-ios directory where the $LIBRARY_NAME is stored"
   echo "  4. Path to the header file, excluding the header"
   echo "Make sure to add the 'release' section of the path for a"
   echo "release build."
@@ -156,6 +159,8 @@ cat <<EOT >> Info.plist
 	<string>$VERSION</string>
 	<key>NSPrincipalClass</key>
 	<string></string>
+  <key>MinimumOSVersion</key>
+  <string>$MIN_IOS_VERSION</string>
 </dict>
 </plist>
 EOT
@@ -178,9 +183,5 @@ xcodebuild -create-xcframework \
 
 echo "cleaning up..."
 rm -rf $FRAMEWORK_NAME real sim
-
-echo "Fixing the identifiers of the dylib..."
-install_name_tool -id  @rpath/$NAME.framework/$FRAMEWORK_LIBRARY_NAME $XC_FRAMEWORK_NAME/ios-arm64/$FRAMEWORK_NAME/$FRAMEWORK_LIBRARY_NAME
-install_name_tool -id  @rpath/$NAME.framework/$FRAMEWORK_LIBRARY_NAME $XC_FRAMEWORK_NAME/ios-arm64_x86_64-simulator/$FRAMEWORK_NAME/$FRAMEWORK_LIBRARY_NAME
 
 echo "Framework written to $OUT_PATH/$XC_FRAMEWORK_NAME"
