@@ -1,9 +1,6 @@
-// TODO: this should be turned off at a eslint config level for tests
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 import type { IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
-import { SOVRIN_GENESIS_TRANSACTION_BUILDER_NET } from './utils'
+import { genesisTxnPath } from './utils'
 
 import { PoolCreate } from '@hyperledger/indy-vdr-nodejs'
 
@@ -11,7 +8,7 @@ describe('IndyVdrPool', () => {
   let pool: IndyVdrPool
 
   beforeAll(() => {
-    pool = new PoolCreate({ parameters: { transactions: SOVRIN_GENESIS_TRANSACTION_BUILDER_NET } })
+    pool = new PoolCreate({ parameters: { transactions_path: genesisTxnPath } })
   })
 
   test('Get pool handle', () => {
