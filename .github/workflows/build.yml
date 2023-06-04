@@ -243,6 +243,15 @@ jobs:
       - name: Check types
         run: yarn check-types
 
+      - name: Run local node pool
+        run: |
+          cd ../../
+          docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
+          docker network create --subnet=10.0.0.0/8 indy-sdk-network
+          docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+          cd wrappers/javascript
+          docker exec $(docker ps -aqf "ancestor=test_pool") cat /var/lib/indy/sandbox/pool_transactions_genesis >> genesis.txn
+
       - name: Run tests
         env:
           # binary is downloaded to root of repository
@@ -335,6 +344,9 @@ jobs:
   build-android:
     name: Build library (Android)
     needs: [checks]
+    env:
+      RUST_VERSION: "1.64.0" # Overriding the rust version here for lower NDK support
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -349,6 +361,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Build
         run: |

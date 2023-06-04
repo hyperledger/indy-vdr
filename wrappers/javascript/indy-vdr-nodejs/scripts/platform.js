@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable no-undef */
 const os = require('os')
 
 // Find appropriate target architecture for retrieving the anoncreds library
