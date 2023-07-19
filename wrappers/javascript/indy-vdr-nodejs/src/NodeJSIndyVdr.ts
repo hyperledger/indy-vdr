@@ -322,10 +322,17 @@ export class NodeJSIndyVdr implements IndyVdr {
   public buildGetNymRequest(options: GetNymRequestOptions): number {
     const requestHandle = allocateHandle()
     const { dest, submitterDid, seqNo, timestamp } = serializeArguments(options)
+    const convertedSeqNo = seqNo ?? -1
     const convertedTimestamp = timestamp ?? -1
 
     this.handleError(
-      this.nativeIndyVdr.indy_vdr_build_get_nym_request(submitterDid, dest, seqNo, convertedTimestamp, requestHandle)
+      this.nativeIndyVdr.indy_vdr_build_get_nym_request(
+        submitterDid,
+        dest,
+        convertedSeqNo,
+        convertedTimestamp,
+        requestHandle
+      )
     )
 
     return handleReturnPointer<number>(requestHandle)
