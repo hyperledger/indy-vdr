@@ -6,6 +6,7 @@ env:
 
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
   release:
@@ -22,6 +23,10 @@ on:
         required: true
         default: false
         type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   checks:
