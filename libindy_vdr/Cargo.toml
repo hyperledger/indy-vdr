@@ -38,7 +38,7 @@ futures-executor = "0.3"
 futures-util = "0.3"
 hex = "0.4"
 hex-literal = "0.4"
-indy-data-types = { version = "0.6", features = ["merkle_tree"] }
+indy-data-types = { version = "0.6", features = ["merkle_tree", "vendored"] }
 indy-utils = { version = "0.5.2", default-features = false, features = [
     "base64",
     "ed25519",
