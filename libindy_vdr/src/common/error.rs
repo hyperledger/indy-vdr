@@ -46,7 +46,7 @@ pub enum VdrErrorKind {
     PoolRequestFailed(String),
     #[error("Pool timeout")]
     PoolTimeout,
-    #[error("Resolver error ")]
+    #[error("Resolver error")]
     Resolver,
 }
 

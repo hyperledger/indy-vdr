@@ -712,7 +712,7 @@ mod tests {
 
     #[fixture]
     fn prepared_request(request_json: String) -> PreparedRequest {
-        PreparedRequest::from_request_json(&request_json).unwrap()
+        PreparedRequest::from_request_json(request_json).unwrap()
     }
 
     #[fixture]
@@ -730,7 +730,7 @@ mod tests {
 
         #[rstest]
         fn test_prepared_request_from_request_json(request_json: String) {
-            let request = PreparedRequest::from_request_json(&request_json).unwrap();
+            let request = PreparedRequest::from_request_json(request_json).unwrap();
             assert_eq!(request.protocol_version, _protocol_version());
             assert_eq!(request.txn_type, TYPE);
             assert_eq!(request.req_id, REQ_ID.to_string());
@@ -748,7 +748,7 @@ mod tests {
             mut request: serde_json::Value,
         ) {
             request[field] = serde_json::Value::Null;
-            let _err = PreparedRequest::from_request_json(&request.to_string()).unwrap_err();
+            let _err = PreparedRequest::from_request_json(request.to_string()).unwrap_err();
         }
 
         #[rstest]

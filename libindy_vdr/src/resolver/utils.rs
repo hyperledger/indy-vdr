@@ -227,10 +227,9 @@ pub fn handle_internal_resolution_result(
 pub fn parse_ledger_data(ledger_data: &str) -> VdrResult<(SJsonValue, SJsonValue, SJsonValue)> {
     let v: SJsonValue = serde_json::from_str(ledger_data)
         .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse ledger response"))?;
-    // Unwrap should be safe here
-    let txn_type = (&v["result"]["type"]).to_owned();
-    let data = (&v["result"]["data"]).to_owned();
-    if data == SJsonValue::Null {
+    let txn_type = v["result"]["type"].to_owned();
+    let data = v["result"]["data"].to_owned();
+    if data.is_null() {
         Err(err_msg(VdrErrorKind::Resolver, "Object not found"))
     } else {
         Ok((v, txn_type, data))

@@ -70,11 +70,11 @@ impl<T: Pool> PoolResolver<T> {
                         let mut seq_no = None;
                         let mut timestamp = None;
 
-                        if *j_seq_no != serde_json::Value::Null {
+                        if !j_seq_no.is_null() {
                             seq_no = j_seq_no.as_u64().map(|v| v as i32);
                         }
 
-                        if *j_timestamp != serde_json::Value::Null {
+                        if !j_timestamp.is_null() {
                             timestamp = j_timestamp.as_u64();
                             // Use timestamp if possible
                             if timestamp.is_some() {
