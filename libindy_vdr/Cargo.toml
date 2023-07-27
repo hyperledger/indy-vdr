@@ -1,7 +1,9 @@
 [package]
 name = "indy-vdr"
 version = "0.4.0-dev.16"
-authors = ["Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>"]
+authors = [
+    "Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>",
+]
 description = "A library for interacting with Hyperledger Indy Node, a distributed ledger for self-sovereign identity (https://www.hyperledger.org/use/hyperledger-indy)."
 edition = "2021"
 rust-version = "1.63"
@@ -35,9 +37,14 @@ futures-channel = "0.3"
 futures-executor = "0.3"
 futures-util = "0.3"
 hex = "0.4"
-hex-literal = "0.3"
-indy-data-types = "0.5"
-indy-utils = { version = "0.5", default-features = false, features = ["base64", "ed25519", "hash", "txn_signature"] }
+hex-literal = "0.4"
+indy-data-types = { version = "0.6", features = ["merkle_tree"] }
+indy-utils = { version = "0.5.2", default-features = false, features = [
+    "base64",
+    "ed25519",
+    "hash",
+    "txn_signature",
+] }
 once_cell = "1.5"
 log = { version = "0.4", optional = true }
 percent-encoding = "2.2"
@@ -59,7 +66,9 @@ default-features = false
 features = ["bls_bn254"]
 
 [dev-dependencies]
-rstest = "0.16"
+rstest = "0.18"
 time = "0.3"
-indy-data-types = { version = "0.5", default-features = false, features = ["rich_schema"] }
+indy-data-types = { version = "0.6", default-features = false, features = [
+    "rich_schema",
+] }
 indy-test-utils = { version = "0.1" }
