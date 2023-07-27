@@ -142,17 +142,22 @@ jobs:
           shared-key: deps
           save-if: false
 
-      - name: Build
-        shell: sh
+      - if: ${{ matrix.use_cross }}
+        name: Build (cross)
         run: |
-          if [ -n "${{ matrix.use_cross }}" ]; then
-            cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
-            cross build --lib --release --target ${{ matrix.target }}
-          elif [ "${{ matrix.architecture }}" == "darwin-universal" ]; then
-            ./build-universal.sh
-          else
-            cargo build --lib --release --target ${{ matrix.target }}
-          fi
+          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
+          cross build --lib --release --target ${{ matrix.target }}
+
+      - if: ${{ !matrix.use_cross && matrix.architecture == 'darwin-universal' }}
+        name: Build (mac)
+        run: ./build-universal.sh
+
+      # Requires using the default shell on Windows, otherwise it will complain:
+      # "This perl implementation doesn't produce Windows like paths"
+      - if: ${{ !matrix.use_cross && matrix.architecture != 'darwin-universal' }}
+        name: Build (standard)
+        run: |
+          cargo build --lib --release --target ${{ matrix.target }}
 
       - name: Upload library artifacts
         uses: actions/upload-artifact@v3
