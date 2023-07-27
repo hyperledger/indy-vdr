@@ -9,7 +9,7 @@ fn empty() {
 }
 
 #[cfg(test)]
-#[cfg(feature = "local_nodes_pool")]
+// #[cfg(feature = "local_nodes_pool")]
 mod send_resolver {
     use futures_executor::block_on;
     use indy_vdr::resolver::PoolResolver as Resolver;
@@ -89,13 +89,26 @@ mod send_resolver {
             )
             .unwrap();
 
-        let _nym_response =
+        let nym_response =
             helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        println!("nym response: {nym_response}");
+
+        // Get NYM to make sure it was written before it gets resolved
+        let get_nym_request = pool
+            .request_builder()
+            .build_get_nym_request(None, &identity.did, None, None)
+            .unwrap();
+
+        let response = pool
+            .send_request_with_retries(&get_nym_request, &nym_response)
+            .unwrap();
+        println!("get nym response: {nym_response}");
+        let seq_no = TestPool::extract_seq_no_from_reply(response.as_str()).unwrap();
 
         // Resolve DID
         let resolver = Resolver::new(pool.pool);
         let qualified_did = format!("did:indy:test:{}", &identity.did);
-        let did_url = format!("{}?versionId=1", qualified_did);
+        let did_url = format!("{}?versionId={}", qualified_did, seq_no);
         let result = block_on(resolver.resolve(&did_url)).unwrap();
 
         let v: serde_json::Value = serde_json::from_str(result.as_str()).unwrap();
