@@ -449,62 +449,60 @@ mod send {
         assert_eq!(expected_data, serde_json::to_value(data).unwrap());
     }
 
-    // FIXME: Uncomment as soon as indy-utils is updated
-    // #[cfg(feature = "did_indy")]
-    // #[rstest]
-    // fn test_pool_send_nym_request_with_version_2_works(
-    //     pool: TestPool,
-    //     trustee: Identity,
-    //     identity_v2: Identity,
-    //     diddoc_content: serde_json::Value,
-    // ) {
-    //     // Send NYM
-    //     let identity = identity_v2;
-    //     let mut nym_request = pool
-    //         .request_builder()
-    //         .build_nym_request(
-    //             &trustee.did,
-    //             &identity.did,
-    //             Some(identity.verkey.to_string()),
-    //             Some(ALIAS.to_string()),
-    //             Some(ROLE.to_string()),
-    //             Some(&diddoc_content),
-    //             Some(2),
-    //         )
-    //         .unwrap();
+    #[rstest]
+    fn test_pool_send_nym_request_with_version_2_works(
+        pool: TestPool,
+        trustee: Identity,
+        identity_v2: Identity,
+        diddoc_content: serde_json::Value,
+    ) {
+        // Send NYM
+        let identity = identity_v2;
+        let mut nym_request = pool
+            .request_builder()
+            .build_nym_request(
+                &trustee.did,
+                &identity.did,
+                Some(identity.verkey.to_string()),
+                Some(ALIAS.to_string()),
+                Some(ROLE.to_string()),
+                Some(&diddoc_content),
+                Some(2),
+            )
+            .unwrap();
 
-    //     let nym_response =
-    //         helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
+        let nym_response =
+            helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap();
 
-    //     // Get NYM
-    //     let get_nym_request = pool
-    //         .request_builder()
-    //         .build_get_nym_request(None, &identity.did, None, None)
-    //         .unwrap();
+        // Get NYM
+        let get_nym_request = pool
+            .request_builder()
+            .build_get_nym_request(None, &identity.did, None, None)
+            .unwrap();
 
-    //     let response = pool
-    //         .send_request_with_retries(&get_nym_request, &nym_response)
-    //         .unwrap();
+        let response = pool
+            .send_request_with_retries(&get_nym_request, &nym_response)
+            .unwrap();
 
-    //     let expected_data = json!({
-    //         "identifier": &trustee.did,
-    //         "dest": &identity.did,
-    //         "verkey": &identity.verkey,
-    //         "role": role_to_code(Some(String::from(ROLE))).unwrap(),
-    //         "diddocContent": &diddoc_content.to_string(),
-    //         "version": 2,
-    //     });
+        let expected_data = json!({
+            "identifier": &trustee.did,
+            "dest": &identity.did,
+            "verkey": &identity.verkey,
+            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "diddocContent": &diddoc_content.to_string(),
+            "version": 2,
+        });
 
-    //     let data: GetNymResultV1 = serde_json::from_str(
-    //         helpers::get_response_data(&response)
-    //             .unwrap()
-    //             .as_str()
-    //             .unwrap(),
-    //     )
-    //     .unwrap();
+        let data: GetNymResultV1 = serde_json::from_str(
+            helpers::get_response_data(&response)
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
 
-    //     assert_eq!(expected_data, serde_json::to_value(data).unwrap());
-    // }
+        assert_eq!(expected_data, serde_json::to_value(data).unwrap());
+    }
 
     #[rstest(
         role,
@@ -707,7 +705,7 @@ mod send {
 
     fn parse_get_nym_response(response: &str) -> serde_json::Value {
         let data = helpers::get_response_data(response).unwrap();
-        let data: serde_json::Value = serde_json::from_str(&data.as_str().unwrap()).unwrap();
+        let data: serde_json::Value = serde_json::from_str(data.as_str().unwrap()).unwrap();
         json!({
             "dest": data["dest"],
             "verkey": data["verkey"],

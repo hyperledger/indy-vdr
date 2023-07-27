@@ -50,12 +50,11 @@ pub fn identity() -> Identity {
     Identity::new(None, None)
 }
 
-// FIXME: Uncomment as soon as indy-utils is updated
-// #[fixture]
-// // did:indy self-certified DID
-// pub fn identity_v2() -> Identity {
-//     Identity::new(None, Some(2))
-// }
+#[fixture]
+// did:indy self-certified DID
+pub fn identity_v2() -> Identity {
+    Identity::new(None, Some(2))
+}
 
 #[fixture]
 // Generate a random DID without relation to the pubkey
