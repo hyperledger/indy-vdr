@@ -9,8 +9,8 @@ use indy_vdr::utils::did::DidValue;
 use crate::utils::fixtures::*;
 use crate::utils::helpers;
 
-const FLAG_NAME: &'static str = r#"REV_STRATEGY_USE_COMPAT_ORDERING"#;
-const FLAG_VALUE: &'static str = r#"True"#;
+const FLAG_NAME: &str = r#"REV_STRATEGY_USE_COMPAT_ORDERING"#;
+const FLAG_VALUE: &str = r#"True"#;
 
 #[test]
 fn empty() {

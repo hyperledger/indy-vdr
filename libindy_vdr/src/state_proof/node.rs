@@ -476,6 +476,6 @@ mod tests {
 
     #[test]
     fn node_serialize_works_for_emtpy() {
-        assert_eq!(base64::encode(&rlp::encode_list(&[Node::Blank])), "wYA=");
+        assert_eq!(base64::encode(rlp::encode_list(&[Node::Blank])), "wYA=");
     }
 }

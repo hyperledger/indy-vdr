@@ -421,7 +421,7 @@ async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> VdrResult<Respon
     Ok(result.into())
 }
 
-pub async fn handle_request<T: Pool>(
+pub async fn handle_request(
     req: Request<Body>,
     state: Rc<RefCell<AppState>>,
 ) -> Result<Response<Body>, hyper::Error> {
@@ -562,7 +562,7 @@ pub async fn handle_request<T: Pool>(
                     let timestamp: Option<u64> = query_params
                         .get("timestamp")
                         .and_then(|ts| ts.as_str().parse().ok());
-                    get_attrib(&pool, &*dest, &*attrib, seq_no, timestamp).await
+                    get_attrib(&pool, &dest, &attrib, seq_no, timestamp).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
@@ -586,7 +586,7 @@ pub async fn handle_request<T: Pool>(
             }
             (&Method::GET, "cred_def") => {
                 if let Some(cred_def_id) = parts.next() {
-                    get_cred_def(&pool, &*cred_def_id).await
+                    get_cred_def(&pool, &cred_def_id).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
@@ -599,35 +599,35 @@ pub async fn handle_request<T: Pool>(
                     let timestamp: Option<u64> = query_params
                         .get("timestamp")
                         .and_then(|ts| ts.as_str().parse().ok());
-                    get_nym(&pool, &*nym, seq_no, timestamp).await
+                    get_nym(&pool, &nym, seq_no, timestamp).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "rev_reg_def") => {
                 if let Some(rev_reg_def_id) = parts.next() {
-                    get_revoc_reg_def(&pool, &*rev_reg_def_id).await
+                    get_revoc_reg_def(&pool, &rev_reg_def_id).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "rev_reg") => {
                 if let Some(rev_reg_def_id) = parts.next() {
-                    get_revoc_reg(&pool, &*rev_reg_def_id).await
+                    get_revoc_reg(&pool, &rev_reg_def_id).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "rev_reg_delta") => {
                 if let Some(rev_reg_def_id) = parts.next() {
-                    get_revoc_reg_delta(&pool, &*rev_reg_def_id).await
+                    get_revoc_reg_delta(&pool, &rev_reg_def_id).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "schema") => {
                 if let Some(schema_id) = parts.next() {
-                    get_schema(&pool, &*schema_id).await
+                    get_schema(&pool, &schema_id).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }

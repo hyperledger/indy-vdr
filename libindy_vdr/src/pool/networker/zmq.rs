@@ -512,7 +512,7 @@ impl ZMQConnection {
     }
 
     fn fetch_event(&self, index: usize, poll_item: &zmq::PollItem) -> Option<ConnectionEvent> {
-        if let (&Some(ref s), rn) = (&self.sockets[index], &self.remotes[index]) {
+        if let (Some(ref s), rn) = (&self.sockets[index], &self.remotes[index]) {
             if poll_item.is_readable() {
                 if let Ok(Ok(msg)) = s.recv_string(zmq::DONTWAIT) {
                     trace!("Socket reply {} {}", &rn.name, &msg);
@@ -645,7 +645,7 @@ impl ZMQConnection {
                     && !self
                         .socket_timeouts
                         .keys()
-                        .any(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
+                        .any(|(ref req_id_timeout, _)| req_id == req_id_timeout)
                 {
                     self.set_idle_timeout(req_id.to_string())
                 }
@@ -655,7 +655,7 @@ impl ZMQConnection {
                     .socket_timeouts
                     .keys()
                     .cloned()
-                    .filter(|&(ref req_id_timeout, _)| req_id == req_id_timeout)
+                    .filter(|(ref req_id_timeout, _)| req_id == req_id_timeout)
                     .collect();
                 keys_to_remove.iter().for_each(|key| {
                     self.socket_timeouts.remove(key);
@@ -721,7 +721,7 @@ impl RemoteNode {
         socks_proxy: Option<String>,
     ) -> VdrResult<ZSocket> {
         let s = ctx.socket(zmq::SocketType::DEALER)?;
-        s.set_identity(base64::encode(&key_pair.public_key).as_bytes())?;
+        s.set_identity(base64::encode(key_pair.public_key).as_bytes())?;
         s.set_curve_secretkey(&key_pair.secret_key)?;
         s.set_curve_publickey(&key_pair.public_key)?;
         s.set_curve_serverkey(

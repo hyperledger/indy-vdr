@@ -732,7 +732,7 @@ fn _parse_reply_for_sp(
         let proof = if let Some(path) = parsed_data["auditPath"].as_array() {
             let path_str = json!(path).to_string();
             trace!("parse_reply_for_builtin_sp: proof: {:?}", path);
-            base64::encode(&path_str)
+            base64::encode(path_str)
         } else {
             return Err(input_err("No proof"));
         };
@@ -928,7 +928,7 @@ fn _verify_merkle_tree(
         return false;
     }
     let seq_no = in_closure! {
-        let key = base64::decode(&key).map_err_string()?;
+        let key = base64::decode(key).map_err_string()?;
         let key = std::str::from_utf8(&key).map_err_string()?;
         key.parse::<u64>().map_err_string()
     };
@@ -1103,7 +1103,7 @@ fn _verify_proof_range(
         } else {
             vals_with_from.as_slice()
         };
-        let vals_prepared: Vec<(String, Option<String>)> = vals_slice.iter().map(|&(_, ref pair)| pair.clone()).collect();
+        let vals_prepared: Vec<(String, Option<String>)> = vals_slice.iter().map(|(_, ref pair)| pair.clone()).collect();
         vals_prepared[..] == kvs[..]
     }).unwrap_or(false)
 }
@@ -2008,7 +2008,7 @@ mod tests {
             }
         });
 
-        let nodes_str = base64::encode(&json!(["1", "2"]).to_string());
+        let nodes_str = base64::encode(json!(["1", "2"]).to_string());
 
         let mut parsed_sps =
             super::parse_generic_reply_for_proof_checking(json_msg, "", Some("2".as_bytes()), None)
@@ -2045,7 +2045,7 @@ mod tests {
                     }
                 });
 
-        let nodes_str = base64::encode(&json!(["1", "2"]).to_string());
+        let nodes_str = base64::encode(json!(["1", "2"]).to_string());
 
         let mut parsed_sps =
             super::parse_generic_reply_for_proof_checking(json_msg, "", Some("2".as_bytes()), None)
@@ -2108,7 +2108,7 @@ mod tests {
                     }
                 });
 
-        let nodes_str = base64::encode(&json!(["1", "2"]).to_string());
+        let nodes_str = base64::encode(json!(["1", "2"]).to_string());
 
         let mut parsed_sps =
             super::parse_generic_reply_for_proof_checking(json_msg, "", Some("2".as_bytes()), None)

@@ -374,7 +374,7 @@ where
         async move {
             let state = state.clone();
             Ok::<_, hyper::Error>(service_fn(move |req| {
-                handlers::handle_request::<LocalPool>(req, state.to_owned())
+                handlers::handle_request(req, state.to_owned())
             }))
         }
     });

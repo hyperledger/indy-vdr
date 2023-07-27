@@ -59,9 +59,7 @@ impl RequestType for GetFlagOperation {
         if !self.name.is_empty() {
             let marker = get_sp_key_marker(2, _protocol_version);
             return Ok(Some(
-                format!("{}:{}", marker, self.name.to_string())
-                    .as_bytes()
-                    .to_vec(),
+                format!("{}:{}", marker, self.name).as_bytes().to_vec(),
             ));
         }
         Ok(None)
