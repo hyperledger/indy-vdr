@@ -8,6 +8,10 @@ pub fn decode<T: AsRef<[u8]>>(val: T) -> Result<Vec<u8>, ConversionError> {
         .map_err(|err| ("Error decoding base64 data", err))?)
 }
 
+pub fn encode<T: AsRef<[u8]>>(val: T) -> String {
+    base64_rs::engine::general_purpose::STANDARD.encode(val)
+}
+
 pub fn decode_urlsafe<T: AsRef<[u8]>>(val: T) -> Result<Vec<u8>, ConversionError> {
     Ok(base64_rs::engine::general_purpose::URL_SAFE
         .decode(val)

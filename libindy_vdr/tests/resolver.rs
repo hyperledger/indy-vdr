@@ -9,7 +9,7 @@ fn empty() {
 }
 
 #[cfg(test)]
-// #[cfg(feature = "local_nodes_pool")]
+#[cfg(feature = "local_nodes_pool")]
 mod send_resolver {
     use futures_executor::block_on;
     use indy_vdr::resolver::PoolResolver as Resolver;

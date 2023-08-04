@@ -7,18 +7,16 @@ pub(crate) mod types;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use indy_data_types::merkle_tree::{MerkleTree, Positioned};
 use rlp::UntrustedRlp;
 use serde_json::Value as SJsonValue;
+use sha2::{Digest, Sha256};
 use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
 use crate::common::error::prelude::*;
 use crate::pool::{ProtocolVersion, VerifierKeys};
 use crate::utils::base58;
 use crate::utils::base64;
-use crate::utils::hash::{
-    TreeHash,
-    SHA256::{self, DigestType as Sha256},
-};
 
 use self::constants::{
     REQUESTS_FOR_MULTI_STATE_PROOFS, REQUESTS_FOR_STATE_PROOFS,
@@ -81,6 +79,7 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn check_state_proof(
     msg_result: &SJsonValue,
     f: usize,
@@ -395,7 +394,7 @@ pub(crate) fn parse_key_from_request_for_builtin_sp(
                 );
 
                 let marker = if is_node_1_3 { '\x01' } else { '1' };
-                let hash = SHA256::digest(attr_name.as_bytes());
+                let hash = Sha256::digest(attr_name.as_bytes());
                 format!(":{}:{}", marker, hex::encode(hash))
             } else {
                 trace!("parse_key_from_request_for_builtin_sp: <<< GET_ATTR No key suffix");
@@ -563,7 +562,7 @@ pub(crate) fn parse_key_from_request_for_builtin_sp(
     let key_prefix = match type_ {
         constants::GET_NYM => {
             if let Some(dest) = dest {
-                SHA256::digest(dest.as_bytes())
+                Sha256::digest(dest.as_bytes()).to_vec()
             } else {
                 debug!("parse_key_from_request_for_builtin_sp: <<< No dest");
                 return None;
@@ -905,6 +904,23 @@ fn _verify_merkle_tree(
     kvs: &[(String, Option<String>)],
     length: u64,
 ) -> bool {
+    let (key, value) = &kvs[0];
+    if value.is_none() {
+        debug!("No value for merkle tree hash");
+        return false;
+    }
+    let seq_no = in_closure! {
+        let key = base64::decode(key).map_err_string()?;
+        let key = std::str::from_utf8(&key).map_err_string()?;
+        key.parse::<u64>().map_err_string()
+    };
+    let seq_no = unwrap_or_map_return!(seq_no, |err| {
+        debug!("Error while parsing merkle tree seq_no: {}", err);
+        false
+    });
+
+    let turns = _calculate_turns(length, seq_no - 1);
+
     let nodes = match std::str::from_utf8(proof_nodes) {
         Ok(res) => res,
         Err(err) => {
@@ -922,22 +938,6 @@ fn _verify_merkle_tree(
 
     trace!("_verify_merkle_tree >> hashes: {:?}", hashes);
 
-    let (key, value) = &kvs[0];
-    if value.is_none() {
-        debug!("No value for merkle tree hash");
-        return false;
-    }
-    let seq_no = in_closure! {
-        let key = base64::decode(key).map_err_string()?;
-        let key = std::str::from_utf8(&key).map_err_string()?;
-        key.parse::<u64>().map_err_string()
-    };
-    let seq_no = unwrap_or_map_return!(seq_no, |err| {
-        debug!("Error while parsing merkle tree seq_no: {}", err);
-        false
-    });
-
-    let turns = _calculate_turns(length, seq_no - 1);
     trace!(
         "_verify_merkle_tree >> seq_no: {}, turns: {:?}",
         seq_no,
@@ -949,49 +949,45 @@ fn _verify_merkle_tree(
         return false;
     }
 
-    let hashes_with_turns = hashes.iter().zip(turns).collect::<Vec<(&String, bool)>>();
+    let mut path = Vec::with_capacity(hashes.len());
+    for (hash, t_right) in hashes.into_iter().zip(turns) {
+        let hash = unwrap_or_return!(base58::decode(hash), {
+            debug!("Error decoding hash as base58");
+            false
+        });
+        path.push(if t_right {
+            Positioned::Right(hash)
+        } else {
+            Positioned::Left(hash)
+        });
+    }
 
-    let hash = in_closure! {
+    let leaf_value = in_closure! {
         let val = value.as_ref().unwrap();
         let val = serde_json::from_str::<serde_json::Value>(val).map_err_string()?;
-        let val = rmp_serde::to_vec(&val).map_err_string()?;
-        Sha256::hash_leaf(&val).map_err_string()
+        rmp_serde::to_vec(&val).map_err_string()
     };
-    let mut hash = unwrap_or_map_return!(hash, |err| {
-        debug!("Error while hashing merkle tree leaf: {:?}", err);
+    let leaf_value = unwrap_or_map_return!(leaf_value, |err| {
+        debug!("Error while decoding merkle tree leaf: {:?}", err);
         false
     });
 
-    trace!("Hashed leaf in b58: {}", base58::encode(&hash));
+    trace!("Leaf value: {}", base58::encode(&leaf_value));
 
-    for (next_hash, turn_right) in hashes_with_turns {
-        let _next_hash = unwrap_or_return!(base58::decode(next_hash), {
-            debug!("Error decoding next hash as base58");
+    match MerkleTree::check_inclusion_proof(root_hash, &leaf_value, &path) {
+        Ok(true) => {
+            trace!("Matched root hash: {}", base58::encode(root_hash));
+            true
+        }
+        Ok(false) => {
+            debug!("Merkle tree hash mismatch");
             false
-        });
-        let turned_hash = if turn_right {
-            Sha256::hash_nodes(&hash, &_next_hash)
-        } else {
-            Sha256::hash_nodes(&_next_hash, &hash)
-        };
-        hash = unwrap_or_map_return!(turned_hash, |err| {
-            debug!("Error while hashing: {:?}", err);
+        }
+        Err(err) => {
+            trace!("Error checking merkle tree root hash: {}", err);
             false
-        })
+        }
     }
-
-    let result = hash.as_slice() == root_hash;
-    if !result {
-        debug!(
-            "Merkle tree hash mismatch: {} != {}",
-            base58::encode(hash),
-            base58::encode(root_hash)
-        );
-    } else {
-        trace!("Matched root hash: {}", base58::encode(root_hash))
-    }
-
-    result
 }
 
 // true is right
@@ -1067,6 +1063,7 @@ fn _verify_proof_range(
         };
         // Preparation of data for verification
         // Fetch numerical suffixes
+        #[allow(clippy::type_complexity)]
         let vals_for_sort_check: Vec<Option<(u64, (String, Option<String>))>> = vals.into_iter()
             .filter(|(key, _)| key.starts_with(prefix))
             .map(|(key, value)| {
@@ -1212,14 +1209,14 @@ fn _parse_reply_for_proof_value(
                             value["txn"]["data"]["raw"] = SJsonValue::from("");
                         } else {
                             value["txn"]["data"]["raw"] =
-                                SJsonValue::from(hex::encode(SHA256::digest(raw.as_bytes())));
+                                SJsonValue::from(hex::encode(Sha256::digest(raw.as_bytes())));
                         }
                     } else if let Some(enc) = value["txn"]["data"]["enc"].as_str() {
                         if enc.is_empty() {
                             value["txn"]["data"]["enc"] = SJsonValue::from("");
                         } else {
                             value["txn"]["data"]["enc"] =
-                                SJsonValue::from(hex::encode(SHA256::digest(enc.as_bytes())));
+                                SJsonValue::from(hex::encode(Sha256::digest(enc.as_bytes())));
                         }
                     }
                 }
@@ -1230,7 +1227,7 @@ fn _parse_reply_for_proof_value(
                 value["verkey"] = parsed_data["verkey"].clone();
             }
             constants::GET_ATTR => {
-                value["val"] = SJsonValue::String(hex::encode(SHA256::digest(data.as_bytes())));
+                value["val"] = SJsonValue::String(hex::encode(Sha256::digest(data.as_bytes())));
             }
             constants::GET_CRED_DEF
             | constants::GET_REVOC_REG_DEF
@@ -1297,7 +1294,7 @@ fn _parse_reply_for_proof_value(
 
 fn _calculate_taa_digest(text: &str, version: &str) -> VdrResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    Ok(SHA256::digest(content.as_bytes()))
+    Ok(Sha256::digest(content.as_bytes()).to_vec())
 }
 
 fn _is_full_taa_state_value_expected(expected_state_key: &[u8]) -> bool {

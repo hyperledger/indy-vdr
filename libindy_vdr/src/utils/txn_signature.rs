@@ -1,6 +1,7 @@
 use serde_json::Value as SJsonValue;
+use sha2::{Digest, Sha256};
 
-use super::{hash::SHA256, ValidationError};
+use super::ValidationError;
 
 const ATTRIB: &str = "100";
 const GET_ATTR: &str = "104";
@@ -25,7 +26,7 @@ fn _serialize_signature(
         SJsonValue::Number(value) => Ok(value.to_string()),
         SJsonValue::String(value) => Ok(value.to_string()),
         SJsonValue::Array(array) => array
-            .into_iter()
+            .iter()
             .map(|element| _serialize_signature(element, false, _type))
             .collect::<Result<Vec<String>, ValidationError>>()
             .map(|res| res.join(",")),
@@ -47,8 +48,8 @@ fn _serialize_signature(
                     && (key == "raw" || key == "hash" || key == "enc")
                 {
                     // do it only for attribute related request
-                    let hash = SHA256::digest(
-                        &value
+                    let hash = Sha256::digest(
+                        value
                             .as_str()
                             .ok_or_else(|| invalid!("Cannot update hash context"))?
                             .as_bytes(),

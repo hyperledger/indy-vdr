@@ -1,10 +1,10 @@
 use hex::FromHex;
 use serde_json::{self, Value as SJsonValue};
+use sha2::{Digest, Sha256};
 
 use crate::common::error::prelude::*;
 use crate::pool::{new_request_id, PreparedRequest, ProtocolVersion, RequestMethod};
 use crate::utils::did::{DidValue, DEFAULT_LIBINDY_DID};
-use crate::utils::hash::SHA256;
 use crate::utils::Qualifiable;
 
 #[cfg(any(feature = "rich_schema", test))]
@@ -56,7 +56,7 @@ fn datetime_to_date_timestamp(time: u64) -> u64 {
 
 fn calculate_hash(text: &str, version: &str) -> VdrResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    Ok(SHA256::digest(content.as_bytes()))
+    Ok(Sha256::digest(content.as_bytes()).to_vec())
 }
 
 fn compare_hash(text: &str, version: &str, hash: &str) -> VdrResult<()> {
@@ -149,6 +149,7 @@ impl RequestBuilder {
 
     /// Build a `NYM` transaction request
     /// diddoc_content is only supported for did:indy compliant ledgers
+    #[allow(clippy::too_many_arguments)]
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
@@ -203,6 +204,7 @@ impl RequestBuilder {
     /// Build a `GET_ATTRIB` transaction request
     /// seq_no and timestamp are only supported for did:indy compliant ledgers
     /// Use only one of seq_no and timestamp
+    #[allow(clippy::too_many_arguments)]
     pub fn build_get_attrib_request(
         &self,
         identifier: Option<&DidValue>,
