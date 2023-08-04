@@ -30,7 +30,7 @@ default = ["ffi", "log", "zmq_vendored"]
 # This is added so we can lock the version that zmq uses
 # 0.1.49 is broken for ios targets
 cmake = { version = "=0.1.48", optional = true }
-base64_rs = { package = "base64", version = "0.13" }
+base64_rs = { package = "base64", version = "0.21" }
 bs58 = "0.5"
 etcommon-rlp = "0.2.4"
 env_logger = { version = "0.10", optional = true }
