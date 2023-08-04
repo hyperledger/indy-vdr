@@ -146,6 +146,7 @@ impl rlp::Decodable for Node {
 type NodeHash = GenericArray<u8, <Sha3_256 as OutputSizeUser>::OutputSize>;
 pub type TrieDB<'a> = HashMap<NodeHash, &'a Node>;
 
+#[allow(clippy::needless_lifetimes)]
 impl Node {
     pub fn get_hash(&self) -> NodeHash {
         let encoded = rlp::encode(self);

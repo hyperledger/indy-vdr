@@ -447,6 +447,7 @@ impl ZMQThread {
             })
     }
 
+    #[allow(clippy::type_complexity)]
     fn get_timeout(&self) -> (Option<(ZMQConnectionHandle, Option<(String, String)>)>, i64) {
         self.pool_connections
             .iter()
