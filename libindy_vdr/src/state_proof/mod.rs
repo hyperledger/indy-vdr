@@ -7,11 +7,11 @@ pub(crate) mod types;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use indy_blssignatures::{Bls, Generator, MultiSignature, VerKey};
 use indy_data_types::merkle_tree::{MerkleTree, Positioned};
 use rlp::UntrustedRlp;
 use serde_json::Value as SJsonValue;
 use sha2::{Digest, Sha256};
-use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
 use crate::common::error::prelude::*;
 use crate::pool::{ProtocolVersion, VerifierKeys};
