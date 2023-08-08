@@ -276,7 +276,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
                 .to_vec();
 
             let client_addr = match (&txn.txn.data.data.client_ip, &txn.txn.data.data.client_port) {
-                (&Some(ref client_ip), &Some(ref client_port)) => {
+                (Some(ref client_ip), Some(ref client_port)) => {
                     format!("tcp://{}:{}", client_ip, client_port)
                 }
                 _ => {
@@ -288,7 +288,7 @@ pub fn build_verifiers(txn_map: NodeTransactionMap) -> VdrResult<Verifiers> {
             };
 
             let node_addr = match (&txn.txn.data.data.node_ip, &txn.txn.data.data.node_port) {
-                (&Some(ref node_ip), &Some(ref node_port)) => {
+                (Some(ref node_ip), Some(ref node_port)) => {
                     format!("tcp://{}:{}", node_ip, node_port)
                 }
                 _ => {
@@ -379,7 +379,7 @@ mod tests {
         }
 
         pub fn _merkle_tree() -> MerkleTree {
-            PoolTransactions::from_json_transactions(&_transactions())
+            PoolTransactions::from_json_transactions(_transactions())
                 .unwrap()
                 .merkle_tree()
                 .unwrap()
@@ -390,7 +390,7 @@ mod tests {
             let transaction = GenesisTransactions::new(None);
 
             let transactions: PoolTransactions =
-                PoolTransactions::from_json_transactions(&transaction.transactions).unwrap();
+                PoolTransactions::from_json_transactions(transaction.transactions).unwrap();
 
             assert_eq!(
                 transactions.encode_json().unwrap(),
@@ -403,7 +403,7 @@ mod tests {
             let mut transaction = GenesisTransactions::new(None);
             let file = transaction.store_to_file();
 
-            let transactions: PoolTransactions = PoolTransactions::from_json_file(&file).unwrap();
+            let transactions: PoolTransactions = PoolTransactions::from_json_file(file).unwrap();
 
             assert_eq!(
                 transactions.encode_json().unwrap(),
@@ -418,12 +418,12 @@ mod tests {
                 transaction.store_to_file()
             };
 
-            let _err = PoolTransactions::from_json_file(&file).unwrap_err();
+            let _err = PoolTransactions::from_json_file(file).unwrap_err();
         }
 
         #[test]
         fn test_pool_transactions_from_file_for_invalid_transactions() {
-            let mut txns = GenesisTransactions::from_transactions(&[r#"{invalid}"#]);
+            let mut txns = GenesisTransactions::from_transactions([r#"{invalid}"#]);
             let _err = PoolTransactions::from_json_file(txns.store_to_file()).unwrap_err();
         }
 

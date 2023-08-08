@@ -146,6 +146,7 @@ impl rlp::Decodable for Node {
 type NodeHash = GenericArray<u8, <Sha3_256 as OutputSizeUser>::OutputSize>;
 pub type TrieDB<'a> = HashMap<NodeHash, &'a Node>;
 
+#[allow(clippy::needless_lifetimes)]
 impl Node {
     pub fn get_hash(&self) -> NodeHash {
         let encoded = rlp::encode(self);
@@ -476,6 +477,6 @@ mod tests {
 
     #[test]
     fn node_serialize_works_for_emtpy() {
-        assert_eq!(base64::encode(&rlp::encode_list(&[Node::Blank])), "wYA=");
+        assert_eq!(base64::encode(rlp::encode_list(&[Node::Blank])), "wYA=");
     }
 }

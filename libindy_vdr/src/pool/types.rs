@@ -559,7 +559,7 @@ impl Message {
     }
 
     pub fn serialize(&self) -> VdrResult<serde_json::Value> {
-        serde_json::to_value(&self).with_input_err("Cannot serialize message")
+        serde_json::to_value(self).with_input_err("Cannot serialize message")
     }
 }
 

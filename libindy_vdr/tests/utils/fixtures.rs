@@ -1,3 +1,6 @@
+use indy_utils::base58;
+use rand::{thread_rng, Rng};
+
 use crate::utils::constants::*;
 use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
@@ -8,7 +11,7 @@ use rstest::*;
 
 #[fixture]
 pub fn trustee() -> Identity {
-    Identity::new(Some(TRUSTEE_SEED))
+    Identity::new(Some(TRUSTEE_SEED), None)
 }
 
 #[fixture]
@@ -42,8 +45,41 @@ pub fn fq_my_did() -> DidValue {
 }
 
 #[fixture]
+// did:sov self-certified DID
 pub fn identity() -> Identity {
-    Identity::new(None)
+    Identity::new(None, None)
+}
+
+#[fixture]
+// did:indy self-certified DID
+pub fn identity_v2() -> Identity {
+    Identity::new(None, Some(2))
+}
+
+#[fixture]
+// Generate a random DID without relation to the pubkey
+pub fn non_self_cert_identity() -> Identity {
+    let mut id = Identity::new(None, None);
+    let mut rng = thread_rng();
+    let rand_arr: [u8; 16] = rng.gen();
+    let did = base58::encode(rand_arr);
+    id.did = DidValue(did);
+    id
+}
+
+#[fixture]
+pub fn diddoc_content() -> serde_json::Value {
+    serde_json::json!({
+    "service": [
+      {
+        "id": "did:indy:sovrin:123456#did-communication",
+        "type": "did-communication",
+        "serviceEndpoint": "https://example.com",
+        "recipientKeys": [ "#verkey" ],
+        "routingKeys": [ ]
+      }
+    ]
+    })
 }
 
 #[fixture]

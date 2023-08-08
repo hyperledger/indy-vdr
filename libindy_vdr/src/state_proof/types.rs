@@ -35,21 +35,16 @@ pub struct KeyValueSimpleData {
 }
 
 /// Options for the common state proof check process
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum KeyValueSimpleDataVerificationType {
     /* key should be base64-encoded string */
+    #[default]
     Simple,
     /* key should be plain string */
     NumericalSuffixAscendingNoGaps(NumericalSuffixAscendingNoGapsData),
     /* nodes are from a simple merkle tree */
     MerkleTree(u64),
-}
-
-impl Default for KeyValueSimpleDataVerificationType {
-    fn default() -> Self {
-        KeyValueSimpleDataVerificationType::Simple
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]

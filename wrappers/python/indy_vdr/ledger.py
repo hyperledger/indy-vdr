@@ -214,9 +214,11 @@ def build_get_acceptance_mechanisms_request(
 def build_get_attrib_request(
     submitter_did: Optional[str],
     target_did: str,
-    raw: Optional[str],
-    xhash: Optional[str],
-    enc: Optional[str],
+    raw: Optional[str] = None,
+    xhash: Optional[str] = None,
+    enc: Optional[str] = None,
+    seq_no: Optional[int] = None,
+    timestamp: Optional[int] = None,
 ) -> str:
     """
     Builds a GET_ATTRIB request.
@@ -230,6 +232,8 @@ def build_get_attrib_request(
         xhash: (Optional) Requested attribute name.
         raw: (Optional) Requested attribute hash.
         enc: (Optional) Requested attribute encrypted value.
+        seq_no: (Optional) Version of NYM as sepecified by txn sequence number
+        timestamp: (Optional) Version of NYM as sepecified by timestamp
     """
 
     handle = RequestHandle()
@@ -238,6 +242,8 @@ def build_get_attrib_request(
     raw_p = encode_str(raw)
     hash_p = encode_str(xhash)
     enc_p = encode_str(enc)
+    seq_no_c = c_int32(seq_no if seq_no is not None else -1)
+    timestamp_c = c_int64(timestamp if timestamp is not None else -1)
     do_call(
         "indy_vdr_build_get_attrib_request",
         did_p,
@@ -245,6 +251,8 @@ def build_get_attrib_request(
         raw_p,
         hash_p,
         enc_p,
+        seq_no_c,
+        timestamp_c,
         byref(handle),
     )
     return Request(handle)
@@ -268,7 +276,12 @@ def build_get_cred_def_request(
     return Request(handle)
 
 
-def build_get_nym_request(submitter_did: Optional[str], dest: str) -> Request:
+def build_get_nym_request(
+    submitter_did: Optional[str],
+    dest: str,
+    seq_no: Optional[int] = None,
+    timestamp: Optional[int] = None,
+) -> Request:
     """
     Builds a GET_NYM request to get information about a DID (NYM).
 
@@ -276,11 +289,22 @@ def build_get_nym_request(submitter_did: Optional[str], dest: str) -> Request:
         submitter_did: (Optional) DID of the read request sender. If not provided
             then the default Libindy DID will be use)
         target_did: Target DID as base58-encoded string for 16 or 32 bit DID value
+        seq_no: (Optional) Version of NYM as sepecified by txn sequence number
+        timestamp: (Optional) Version of NYM as sepecified by timestamp
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
     dest_p = encode_str(dest)
-    do_call("indy_vdr_build_get_nym_request", did_p, dest_p, byref(handle))
+    seq_no_c = c_int32(seq_no if seq_no is not None else -1)
+    timestamp_c = c_int64(timestamp if timestamp is not None else -1)
+    do_call(
+        "indy_vdr_build_get_nym_request",
+        did_p,
+        dest_p,
+        seq_no_c,
+        timestamp_c,
+        byref(handle),
+    )
     return Request(handle)
 
 
@@ -471,6 +495,8 @@ def build_nym_request(
     verkey: str = None,
     alias: str = None,
     role: str = None,
+    diddoc_content: str = None,
+    version: int = None,
 ) -> Request:
     """
     Builds a NYM request to create new DID on the ledger.
@@ -489,6 +515,11 @@ def build_nym_request(
             ENDORSER - equal to TRUST_ANCHOR that will be removed soon
             NETWORK_MONITOR
             empty string to reset role
+        diddoc_content: (Optional) The DIDDoc content
+        version: (Optional) Version/method of self-certification
+            0 - no self-certification enforced by the ledger
+            1 - legacy self-certification
+            2 - self-certification according to did:indy method spec
     """
     handle = RequestHandle()
     did_p = encode_str(submitter_did)
@@ -496,6 +527,8 @@ def build_nym_request(
     verkey_p = encode_str(verkey)
     alias_p = encode_str(alias)
     role_p = encode_str(role)
+    diddoc_content_p = encode_str(diddoc_content)
+    version_c = c_int32(version if version is not None else -1)
     do_call(
         "indy_vdr_build_nym_request",
         did_p,
@@ -503,6 +536,8 @@ def build_nym_request(
         verkey_p,
         alias_p,
         role_p,
+        diddoc_content_p,
+        version_c,
         byref(handle),
     )
     return Request(handle)
@@ -962,7 +997,7 @@ def build_pool_upgrade_request(
     justification: Optional[str],
     reinstall: bool,
     force: bool,
-    package: Optional[str]
+    package: Optional[str],
 ) -> str:
     """
     Builds an POOL_UPGRADE request.

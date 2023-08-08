@@ -1,4 +1,5 @@
 use futures_util::stream::StreamExt;
+use std::cmp::Ordering;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -131,30 +132,32 @@ fn try_to_catch_up(
     let cur_mt_size = merkle_tree.count();
     let cur_mt_hash = base58::encode(merkle_tree.root_hash());
 
-    if target_mt_size == cur_mt_size {
-        if cur_mt_hash.eq(target_mt_root) {
-            Ok(CatchupProgress::NotNeeded)
-        } else {
-            Err(input_err(
-                "Ledger merkle tree is not acceptable for current tree.",
+    match target_mt_size.cmp(&cur_mt_size) {
+        Ordering::Equal => {
+            if cur_mt_hash.eq(target_mt_root) {
+                Ok(CatchupProgress::NotNeeded)
+            } else {
+                Err(input_err(
+                    "Ledger merkle tree is not acceptable for current tree.",
+                ))
+            }
+        }
+        Ordering::Greater => {
+            let target_mt_root = base58::decode(target_mt_root)
+                .with_input_err("Can't parse target MerkleTree hash from nodes responses")?;
+
+            match *hashes {
+                None => (),
+                Some(ref hashes) => {
+                    check_cons_proofs(merkle_tree, hashes, &target_mt_root, target_mt_size)?
+                }
+            };
+
+            Ok(CatchupProgress::ShouldBeStarted(
+                target_mt_root,
+                target_mt_size,
             ))
         }
-    } else if target_mt_size > cur_mt_size {
-        let target_mt_root = base58::decode(target_mt_root)
-            .with_input_err("Can't parse target MerkleTree hash from nodes responses")?;
-
-        match *hashes {
-            None => (),
-            Some(ref hashes) => {
-                check_cons_proofs(merkle_tree, hashes, &target_mt_root, target_mt_size)?
-            }
-        };
-
-        Ok(CatchupProgress::ShouldBeStarted(
-            target_mt_root,
-            target_mt_size,
-        ))
-    } else {
-        Err(input_err("Local merkle tree greater than mt from ledger"))
+        _ => Err(input_err("Local merkle tree greater than mt from ledger")),
     }
 }

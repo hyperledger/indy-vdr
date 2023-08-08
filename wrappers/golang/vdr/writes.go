@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// FIXME: Expose optional diddoc_content and version field on did:indy compliant ledgers
 func (r *Client) CreateNym(did, verkey, role, from string, signer Signer) error {
 	nymRequest := NewNym(did, verkey, from, role)
 

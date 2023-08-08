@@ -1,10 +1,10 @@
 use hex::FromHex;
 use serde_json::{self, Value as SJsonValue};
+use sha2::{Digest, Sha256};
 
 use crate::common::error::prelude::*;
 use crate::pool::{new_request_id, PreparedRequest, ProtocolVersion, RequestMethod};
 use crate::utils::did::{DidValue, DEFAULT_LIBINDY_DID};
-use crate::utils::hash::SHA256;
 use crate::utils::Qualifiable;
 
 #[cfg(any(feature = "rich_schema", test))]
@@ -20,6 +20,7 @@ use super::requests::author_agreement::{
     TxnAuthorAgreementOperation, TxnAuthrAgrmtAcceptanceData,
 };
 use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredDefOperation};
+use super::requests::flag::{FlagOperation, GetFlagOperation};
 use super::requests::ledgers_freeze::{GetFrozenLedgersOperation, LedgersFreezeOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
 use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
@@ -55,7 +56,7 @@ fn datetime_to_date_timestamp(time: u64) -> u64 {
 
 fn calculate_hash(text: &str, version: &str) -> VdrResult<Vec<u8>> {
     let content: String = version.to_string() + text;
-    Ok(SHA256::digest(content.as_bytes()))
+    Ok(Sha256::digest(content.as_bytes()).to_vec())
 }
 
 fn compare_hash(text: &str, version: &str, hash: &str) -> VdrResult<()> {
@@ -122,7 +123,33 @@ impl RequestBuilder {
         ))
     }
 
+    /// Build a `FLAG` transaction request
+    pub fn build_flag_request(
+        &self,
+        identifier: &DidValue,
+        name: String,
+        value: String,
+    ) -> VdrResult<PreparedRequest> {
+        let operation = FlagOperation::new(name, value);
+        self.build(operation, Some(identifier))
+    }
+
+    /// Build a `GET_FLAG` transaction request
+    /// Use only one of seq_no and timestamp
+    pub fn build_get_flag_request(
+        &self,
+        identifier: Option<&DidValue>,
+        name: String,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
+    ) -> VdrResult<PreparedRequest> {
+        let operation = GetFlagOperation::new(name, seq_no, timestamp);
+        self.build(operation, identifier)
+    }
+
     /// Build a `NYM` transaction request
+    /// diddoc_content is only supported for did:indy compliant ledgers
+    #[allow(clippy::too_many_arguments)]
     pub fn build_nym_request(
         &self,
         identifier: &DidValue,
@@ -130,20 +157,33 @@ impl RequestBuilder {
         verkey: Option<String>,
         alias: Option<String>,
         role: Option<String>,
+        diddoc_content: Option<&SJsonValue>,
+        version: Option<i32>,
     ) -> VdrResult<PreparedRequest> {
         let role = role_to_code(role)?;
-        let operation = NymOperation::new(dest.to_short(), verkey, alias, role);
+        let operation = NymOperation::new(
+            dest.to_short(),
+            verkey,
+            alias,
+            role,
+            diddoc_content.map(SJsonValue::to_string),
+            version,
+        );
         self.build(operation, Some(identifier))
     }
 
     /// Build a `GET_NYM` transaction request
+    /// seq_no and timestamp are only supported for did:indy compliant ledgers
+    /// Use only one of seq_no and timestamp
     pub fn build_get_nym_request(
         &self,
         identifier: Option<&DidValue>,
         dest: &DidValue,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
     ) -> VdrResult<PreparedRequest> {
         let dest = dest.to_short();
-        let operation = GetNymOperation::new(dest);
+        let operation = GetNymOperation::new(dest, seq_no, timestamp);
         self.build(operation, identifier)
     }
 
@@ -162,6 +202,9 @@ impl RequestBuilder {
     }
 
     /// Build a `GET_ATTRIB` transaction request
+    /// seq_no and timestamp are only supported for did:indy compliant ledgers
+    /// Use only one of seq_no and timestamp
+    #[allow(clippy::too_many_arguments)]
     pub fn build_get_attrib_request(
         &self,
         identifier: Option<&DidValue>,
@@ -169,8 +212,10 @@ impl RequestBuilder {
         raw: Option<String>,
         hash: Option<String>,
         enc: Option<String>,
+        seq_no: Option<i32>,
+        timestamp: Option<u64>,
     ) -> VdrResult<PreparedRequest> {
-        let operation = GetAttribOperation::new(dest.to_short(), raw, hash, enc);
+        let operation = GetAttribOperation::new(dest.to_short(), raw, hash, enc, seq_no, timestamp);
         self.build(operation, identifier)
     }
 
@@ -669,7 +714,7 @@ mod tests {
 
     #[fixture]
     fn prepared_request(request_json: String) -> PreparedRequest {
-        PreparedRequest::from_request_json(&request_json).unwrap()
+        PreparedRequest::from_request_json(request_json).unwrap()
     }
 
     #[fixture]
@@ -687,7 +732,7 @@ mod tests {
 
         #[rstest]
         fn test_prepared_request_from_request_json(request_json: String) {
-            let request = PreparedRequest::from_request_json(&request_json).unwrap();
+            let request = PreparedRequest::from_request_json(request_json).unwrap();
             assert_eq!(request.protocol_version, _protocol_version());
             assert_eq!(request.txn_type, TYPE);
             assert_eq!(request.req_id, REQ_ID.to_string());
@@ -705,7 +750,7 @@ mod tests {
             mut request: serde_json::Value,
         ) {
             request[field] = serde_json::Value::Null;
-            let _err = PreparedRequest::from_request_json(&request.to_string()).unwrap_err();
+            let _err = PreparedRequest::from_request_json(request.to_string()).unwrap_err();
         }
 
         #[rstest]
@@ -713,7 +758,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_nym_request(&_identifier(), &_dest(), None, None, None)
+                .build_nym_request(&_identifier(), &_dest(), None, None, None, None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::NYM);
@@ -725,7 +770,7 @@ mod tests {
             request_builder: RequestBuilder,
         ) {
             let request = request_builder
-                .build_get_nym_request(None, &_dest())
+                .build_get_nym_request(None, &_dest(), None, None)
                 .unwrap();
 
             assert_eq!(request.txn_type, constants::GET_NYM);
@@ -935,7 +980,7 @@ mod tests {
     )]
     fn test_prepare_request_for_different_protocol_versions(protocol_version: ProtocolVersion) {
         let request = RequestBuilder::new(protocol_version)
-            .build_get_nym_request(None, &_dest())
+            .build_get_nym_request(None, &_dest(), None, None)
             .unwrap();
 
         assert_eq!(request.protocol_version, protocol_version);

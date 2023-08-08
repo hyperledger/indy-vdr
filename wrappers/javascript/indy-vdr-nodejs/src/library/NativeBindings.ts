@@ -48,6 +48,8 @@ export interface NativeMethods {
     arg2: string,
     arg3: string,
     arg4: string,
+    arg5: number,
+    arg6: number,
     requestHandlePtr: Buffer
   ) => number
   indy_vdr_build_node_request: (arg0: string, arg1: string, arg2: string, requestHandlePtr: Buffer) => number
@@ -70,7 +72,13 @@ export interface NativeMethods {
     requestHandlePtr: Buffer
   ) => number
   indy_vdr_build_get_txn_author_agreement_request: (arg0: string, arg1: string, requestHandlePtr: Buffer) => number
-  indy_vdr_build_get_nym_request: (arg0: string, arg1: string, requestHandlePtr: Buffer) => number
+  indy_vdr_build_get_nym_request: (
+    arg0: string,
+    arg1: string,
+    arg2: number,
+    arg3: number,
+    requestHandlePtr: Buffer
+  ) => number
   indy_vdr_build_get_txn_request: (arg0: string, arg1: number, arg2: number, requestHandlePtr: Buffer) => number
   indy_vdr_build_get_validator_info_request: (arg0: string, requestHandlePtr: Buffer) => number
   indy_vdr_build_nym_request: (
@@ -79,6 +87,8 @@ export interface NativeMethods {
     arg2: string,
     arg3: string,
     arg4: string,
+    arg5: string,
+    arg6: number,
     requestHandlePtr: Buffer
   ) => number
   indy_vdr_pool_create: (arg0: string, poolHandlePtr: Buffer) => number

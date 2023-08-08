@@ -127,11 +127,15 @@ func (r *Client) Submit(request []byte) (*ReadReply, error) {
 }
 
 //GetNym fetches the NYM transaction associated with a DID
+//FIXME: Expose optional seq_no and timestamp to get specific NYM versions
+// on did:indy compliant ledgers
 func (r *Client) GetNym(did string) (*ReadReply, error) {
 	var nymreq C.int64_t
 	var none *C.char
+	var none32 C.int32_t = -1 // seq_no
+	var none64 C.int64_t = -1 // timestamp
 	cdid := C.CString(did)
-	result := C.indy_vdr_build_get_nym_request(none, cdid, &nymreq)
+	result := C.indy_vdr_build_get_nym_request(none, cdid, none32, none64, &nymreq)
 	C.free(unsafe.Pointer(cdid))
 	if result != 0 {
 		return nil, fmt.Errorf("invalid get nym request: (Indy error code: [%v])", result)

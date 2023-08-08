@@ -3,7 +3,7 @@
 from .bindings import set_config, set_protocol_version, version
 from .error import VdrError, VdrErrorCode
 from .ledger import LedgerType
-from .pool import open_pool, Pool
+from .pool import Pool, open_pool
 from .request import Request
 
 __all__ = [
