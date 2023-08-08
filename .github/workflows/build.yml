@@ -1,7 +1,7 @@
 name: "Indy-VDR"
 
 env:
-  RUST_VERSION: "1.63.0"
+  RUST_VERSION: "1.65.0"
   CROSS_VERSION: "0.2.4"
 
 on:
@@ -243,6 +243,15 @@ jobs:
       - name: Check types
         run: yarn check-types
 
+      - name: Run local node pool
+        run: |
+          cd ../../
+          docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
+          docker network create --subnet=10.0.0.0/8 indy-sdk-network
+          docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+          cd wrappers/javascript
+          docker exec $(docker ps -aqf "ancestor=test_pool") cat /var/lib/indy/sandbox/pool_transactions_genesis >> genesis.txn
+
       - name: Run tests
         env:
           # binary is downloaded to root of repository
@@ -283,16 +292,14 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          # First version with support for cdylib: https://github.com/rust-lang/rust/pull/100636
-          toolchain: "1.65.0"
+          toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target }}
 
-      # Not useful unless the toolchain version matches the default
-      # - name: Cache cargo resources
-      #   uses: Swatinem/rust-cache@v2
-      #   with:
-      #     shared-key: deps
-      #     save-if: false
+      - name: Cache cargo resources
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: deps
+          save-if: false
 
       - name: Build
         run: |
@@ -302,7 +309,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: library-${{ matrix.target}}
-          path: target/${{ matrix.target }}/release/libindy_vdr.dylib
+          path: target/${{ matrix.target }}/release/libindy_vdr.a
 
   create-ios-xcframework:
     name: Create iOS xcframework
@@ -313,7 +320,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Fetch dynamic libraries
+      - name: Fetch static libraries
         uses: actions/download-artifact@v3
 
       - run: >
@@ -337,6 +344,9 @@ jobs:
   build-android:
     name: Build library (Android)
     needs: [checks]
+    env:
+      RUST_VERSION: "1.64.0" # Overriding the rust version here for lower NDK support
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -351,6 +361,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Build
         run: |

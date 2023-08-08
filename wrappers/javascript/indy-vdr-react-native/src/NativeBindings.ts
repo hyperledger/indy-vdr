@@ -1,4 +1,4 @@
-import type { Callback, CallbackWithResponse, ReturnObject } from '../utils'
+import type { Callback, CallbackWithResponse, ReturnObject } from './serialize'
 
 export type PoolHandle = number
 export type RequestHandle = number
