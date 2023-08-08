@@ -849,21 +849,5 @@ mod tests {
             f.sync_all().unwrap();
         }
     }
-
-    mod other {
-        use super::*;
-
-        #[test]
-        fn get_f_works() {
-            test::cleanup_storage("get_f_works");
-
-            assert_eq!(_get_f(0), 0);
-            assert_eq!(_get_f(3), 0);
-            assert_eq!(_get_f(4), 1);
-            assert_eq!(_get_f(5), 1);
-            assert_eq!(_get_f(6), 1);
-            assert_eq!(_get_f(7), 2);
-        }
-    }
     */
 }
