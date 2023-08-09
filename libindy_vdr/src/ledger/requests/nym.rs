@@ -3,8 +3,8 @@ use sha2::{Digest, Sha256};
 use super::constants::{GET_NYM, NYM};
 use super::did::ShortDidValue;
 use super::{ProtocolVersion, RequestType};
-use crate::common::error::{input_err, VdrResult};
-use crate::ledger::constants::{ENDORSER, NETWORK_MONITOR, ROLES, ROLE_REMOVE, STEWARD, TRUSTEE};
+use crate::common::error::VdrResult;
+use crate::ledger::constants::UpdateRole;
 
 #[derive(Serialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -16,7 +16,7 @@ pub struct NymOperation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<::serde_json::Value>,
+    pub role: Option<UpdateRole>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diddoc_content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -28,7 +28,7 @@ impl NymOperation {
         dest: ShortDidValue,
         verkey: Option<String>,
         alias: Option<String>,
-        role: Option<::serde_json::Value>,
+        role: Option<UpdateRole>,
         diddoc_content: Option<String>,
         version: Option<i32>,
     ) -> NymOperation {
@@ -84,24 +84,5 @@ impl RequestType for GetNymOperation {
     fn get_sp_key(&self, _protocol_version: ProtocolVersion) -> VdrResult<Option<Vec<u8>>> {
         let hash = Sha256::digest(self.dest.as_bytes()).to_vec();
         Ok(Some(hash))
-    }
-}
-
-pub fn role_to_code(role: Option<String>) -> VdrResult<Option<serde_json::Value>> {
-    if let Some(r) = role {
-        Ok(Some(if r == ROLE_REMOVE {
-            serde_json::Value::Null
-        } else {
-            json!(match r.as_str() {
-                "STEWARD" => STEWARD,
-                "TRUSTEE" => TRUSTEE,
-                "TRUST_ANCHOR" | "ENDORSER" => ENDORSER,
-                "NETWORK_MONITOR" => NETWORK_MONITOR,
-                role if ROLES.contains(&role) => role,
-                role => return Err(input_err(format!("Invalid role: {}", role))),
-            })
-        }))
-    } else {
-        Ok(None)
     }
 }

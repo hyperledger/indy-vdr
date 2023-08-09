@@ -4,7 +4,7 @@ mod utils;
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
-use indy_vdr::ledger::requests::nym::role_to_code;
+use indy_vdr::ledger::constants::LedgerRole;
 use indy_vdr::utils::did::DidValue;
 
 use crate::utils::crypto::Identity;
@@ -12,7 +12,7 @@ use crate::utils::fixtures::*;
 use crate::utils::helpers;
 
 const ALIAS: &str = "alias";
-const ROLE: &str = "TRUSTEE";
+const ROLE: LedgerRole = LedgerRole::Trustee;
 
 #[test]
 fn empty() {
@@ -25,6 +25,8 @@ mod builder {
     use indy_vdr::ledger::RequestBuilder;
 
     mod nym {
+        use indy_vdr::ledger::constants::UpdateRole;
+
         use super::*;
 
         #[rstest]
@@ -59,7 +61,7 @@ mod builder {
                     &identity.did,
                     Some(identity.verkey.clone()),
                     Some(ALIAS.to_string()),
-                    Some(ROLE.to_string()),
+                    Some(UpdateRole::Set(ROLE)),
                     Some(&diddoc_content),
                     None,
                 )
@@ -70,7 +72,7 @@ mod builder {
                 "dest": identity.did,
                 "verkey": identity.verkey,
                 "alias": ALIAS,
-                "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+                "role": ROLE.to_usize().to_string(),
                 "diddocContent": diddoc_content.to_string(),
             });
 
@@ -89,7 +91,7 @@ mod builder {
                     &my_did,
                     None,
                     None,
-                    Some(String::from("")),
+                    Some(UpdateRole::Reset),
                     None,
                     None,
                 )
@@ -121,27 +123,6 @@ mod builder {
             });
 
             helpers::check_request_operation(&nym_request, expected_result);
-        }
-
-        #[rstest]
-        fn test_build_nym_request_works_for_invalid_role(
-            request_builder: RequestBuilder,
-            trustee_did: DidValue,
-            identity: Identity,
-        ) {
-            let role = "INALID_ROLE_ALIAS";
-
-            let _err = request_builder
-                .build_nym_request(
-                    &trustee_did,
-                    &identity.did,
-                    Some(identity.verkey),
-                    None,
-                    Some(role.to_string()),
-                    None,
-                    None,
-                )
-                .unwrap_err();
         }
     }
 
