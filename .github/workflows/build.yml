@@ -24,6 +24,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   checks:
     name: Run checks
@@ -54,7 +58,7 @@ jobs:
       - name: Cargo fmt
         run: cargo fmt --all -- --check
 
-      - if: "runner.os == 'Linux'"
+      - if: ${{ runner.os == 'Linux' }}
         name: Pre-install cross
         run: |
           cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
@@ -83,12 +87,14 @@ jobs:
 
       - name: Run local node pool
         run: |
-          docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
-          docker network create --subnet=10.0.0.0/8 indy-sdk-network
-          docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+          ./ci/test.sh up
 
       - name: Run tests
         run: cargo test --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool
+
+      - name: Stop local node pool
+        run: |
+          ./ci/test.sh down
 
   build-release:
     name: Build library
@@ -136,17 +142,22 @@ jobs:
           shared-key: deps
           save-if: false
 
-      - name: Build
-        shell: sh
+      - if: ${{ matrix.use_cross }}
+        name: Build (cross)
         run: |
-          if [ -n "${{ matrix.use_cross }}" ]; then
-            cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
-            cross build --lib --release --target ${{ matrix.target }}
-          elif [ "${{ matrix.architecture }}" == "darwin-universal" ]; then
-            ./build-universal.sh
-          else
-            cargo build --lib --release --target ${{ matrix.target }}
-          fi
+          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
+          cross build --lib --release --target ${{ matrix.target }}
+
+      - if: ${{ !matrix.use_cross && matrix.architecture == 'darwin-universal' }}
+        name: Build (mac)
+        run: ./build-universal.sh
+
+      # Requires using the default shell on Windows, otherwise it will complain:
+      # "This perl implementation doesn't produce Windows like paths"
+      - if: ${{ !matrix.use_cross && matrix.architecture != 'darwin-universal' }}
+        name: Build (standard)
+        run: |
+          cargo build --lib --release --target ${{ matrix.target }}
 
       - name: Upload library artifacts
         uses: actions/upload-artifact@v3
@@ -417,7 +428,7 @@ jobs:
     if: |
       (github.event_name == 'release' ||
       (github.event_name == 'workflow_dispatch' &&
-       github.event.inputs.publish == 'true'))
+       github.event.inputs.publish-binaries == 'true'))
 
     steps:
       - name: Fetch Android libraries
@@ -498,14 +509,14 @@ jobs:
       - name: Test python package
         # FIXME cross platform test the python package
         # maybe use the cross docker image?
-        if: "matrix.architecture != 'linux-aarch64'"
+        if: ${{ matrix.architecture != 'linux-aarch64' }}
         shell: sh
         run: |
           pip install dist/*
           python -m demo.test
         working-directory: wrappers/python
 
-      - if: "runner.os == 'Linux'"
+      - if: ${{ runner.os == 'Linux' }}
         name: Audit wheel
         run: |
           auditwheel show wrappers/python/dist/* | tee auditwheel.log

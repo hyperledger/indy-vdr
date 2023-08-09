@@ -314,13 +314,15 @@ mod author_agreement {
     use indy_vdr::pool::PreparedRequest;
 
     fn _build_nym_request(pool: &TestPool, trustee: &Identity) -> PreparedRequest {
-        let new_identity = Identity::new(None);
+        let new_identity = Identity::new(None, None);
 
         pool.request_builder()
             .build_nym_request(
                 &trustee.did,
                 &new_identity.did,
                 Some(new_identity.verkey.to_string()),
+                None,
+                None,
                 None,
                 None,
             )
@@ -362,7 +364,7 @@ mod author_agreement {
         let _get_taa_response = helpers::taa::get_taa(&pool, &response, &taa_version);
 
         // Try to publish new NYM without accepting TAA
-        let new_identity = Identity::new(None);
+        let new_identity = Identity::new(None, None);
 
         let mut nym_request = _build_nym_request(&pool, &trustee);
         let err = helpers::sign_and_send_request(&trustee, &pool, &mut nym_request).unwrap_err();
@@ -377,7 +379,7 @@ mod author_agreement {
         // Ensure NYM is written
         let get_nym_request = pool
             .request_builder()
-            .build_get_nym_request(None, &new_identity.did)
+            .build_get_nym_request(None, &new_identity.did, None, None)
             .unwrap();
 
         let _response = pool

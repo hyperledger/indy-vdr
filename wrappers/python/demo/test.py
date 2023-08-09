@@ -1,20 +1,19 @@
 import asyncio
 import json
-import sys
 import os
+import sys
 import urllib.request
 
+from indy_vdr.error import VdrError
 from indy_vdr.bindings import version
 from indy_vdr.ledger import (
+    LedgerType,
     build_custom_request,
-    build_get_txn_request,
     build_get_acceptance_mechanisms_request,
-    build_get_txn_author_agreement_request,
-    build_get_validator_info_request,
     build_get_cred_def_request,
     build_get_revoc_reg_def_request,
-    build_get_revoc_reg_request,
     build_get_revoc_reg_delta_request,
+    build_get_revoc_reg_request,
     build_get_schema_request,
     build_node_request,
     build_pool_config_request,
@@ -29,10 +28,13 @@ from indy_vdr.ledger import (
     # build_rich_schema_request,
     # build_get_schema_object_by_id_request,
     # build_get_schema_object_by_metadata_request,
+    build_get_txn_author_agreement_request,
+    build_get_txn_request,
+    build_get_validator_info_request,
     prepare_txn_author_agreement_acceptance,
-    LedgerType,
 )
 from indy_vdr.pool import Pool, open_pool
+from indy_vdr.resolver import Resolver
 
 
 def log(*args):
@@ -187,8 +189,32 @@ async def basic_test(transactions_path):
     req = build_get_frozen_ledgers_request(identifier)
     log("Get Frozen Ledgers request:", req.body)
 
-    req = build_pool_upgrade_request(identifier, 'up', '2.0.0', 'start', 'abc', None, {}, None, False, False, None)
+    req = build_pool_upgrade_request(
+        identifier, "up", "2.0.0", "start", "abc", None, {}, None, False, False, None
+    )
     log("Pool Upgrade request:", req.body)
+
+    # --- DID Resolution ---
+
+    # The DID resolver can be initialized with a dict containing namespaces and pool instances:
+    # pool_map = await open_pools(ledgers=["idunion", "sovrin:builder"])
+    # resolver = Resolver(pool_map)
+
+    # In addition, the the DID resolver can be started with autopilot = True.
+    # Then it will try to fetch a genesis file from the did indy networks Github repo
+    # for the given did:indy namespace.
+    resolver = Resolver(autopilot=True)
+
+    log("Resolve DID did:indy:idunion:test:APs6Xd2GH8FNwCaXDw6Qm2")
+    doc = await resolver.resolve("did:indy:idunion:test:Fhbr2wQrJeB1UcZeFKpG5F")
+    log(json.dumps(doc, indent=2))
+
+    try:
+        doc = await resolver.resolve("did:indy:idunion:test:APs6Xd2GH8FNwCaXDw6Qm2")
+    except VdrError as err:
+        print(err)
+
+    # --- Rich Schema ---
 
     # req = build_rich_schema_request(
     #     None, "did:sov:some_hash", '{"some": 1}', "test", "version", "sch", "1.0.0"

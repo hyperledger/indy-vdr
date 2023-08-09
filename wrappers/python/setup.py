@@ -1,6 +1,7 @@
 """Module setup."""
 
 import runpy
+
 from setuptools import find_packages, setup
 
 PACKAGE_NAME = "indy_vdr"

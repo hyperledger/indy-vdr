@@ -199,10 +199,20 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public buildGetAttribRequest(options: GetAttribRequestOptions): number {
     const requestHandle = allocateHandle()
-    const { submitterDid, targetDid, raw, hash, enc } = serializeArguments(options)
+    const { submitterDid, targetDid, raw, hash, enc, seqNo, timestamp } = serializeArguments(options)
+    const convertedTimestamp = timestamp ?? -1
 
     this.handleError(
-      this.nativeIndyVdr.indy_vdr_build_get_attrib_request(submitterDid, targetDid, raw, hash, enc, requestHandle)
+      this.nativeIndyVdr.indy_vdr_build_get_attrib_request(
+        submitterDid,
+        targetDid,
+        raw,
+        hash,
+        enc,
+        seqNo,
+        convertedTimestamp,
+        requestHandle
+      )
     )
 
     return handleReturnPointer<number>(requestHandle)
@@ -311,9 +321,19 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public buildGetNymRequest(options: GetNymRequestOptions): number {
     const requestHandle = allocateHandle()
-    const { dest, submitterDid } = serializeArguments(options)
+    const { dest, submitterDid, seqNo, timestamp } = serializeArguments(options)
+    const convertedSeqNo = seqNo ?? -1
+    const convertedTimestamp = timestamp ?? -1
 
-    this.handleError(this.nativeIndyVdr.indy_vdr_build_get_nym_request(submitterDid, dest, requestHandle))
+    this.handleError(
+      this.nativeIndyVdr.indy_vdr_build_get_nym_request(
+        submitterDid,
+        dest,
+        convertedSeqNo,
+        convertedTimestamp,
+        requestHandle
+      )
+    )
 
     return handleReturnPointer<number>(requestHandle)
   }
@@ -358,10 +378,20 @@ export class NodeJSIndyVdr implements IndyVdr {
 
   public buildNymRequest(options: NymRequestOptions): number {
     const requestHandle = allocateHandle()
-    const { dest, submitterDid, alias, role, verkey } = serializeArguments(options)
+    const { dest, submitterDid, alias, role, verkey, diddocContent } = serializeArguments(options)
+    const version = options.version || -1
 
     this.handleError(
-      this.nativeIndyVdr.indy_vdr_build_nym_request(submitterDid, dest, verkey, alias, role, requestHandle)
+      this.nativeIndyVdr.indy_vdr_build_nym_request(
+        submitterDid,
+        dest,
+        verkey,
+        alias,
+        role,
+        diddocContent,
+        version,
+        requestHandle
+      )
     )
 
     return handleReturnPointer<number>(requestHandle)

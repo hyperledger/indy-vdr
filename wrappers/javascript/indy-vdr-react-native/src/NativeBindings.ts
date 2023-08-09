@@ -43,6 +43,8 @@ export interface NativeBindings {
     raw?: string
     hash?: string
     enc?: string
+    seqNo?: number
+    timestamp?: number
   }): ReturnObject<RequestHandle>
 
   buildCredDefRequest(options: { submitterDid: string; credentialDefinition: string }): ReturnObject<RequestHandle>
@@ -79,7 +81,12 @@ export interface NativeBindings {
 
   buildDisableAllTxnAuthorAgreementsRequest(options: { submitterDid: string }): ReturnObject<RequestHandle>
 
-  buildGetNymRequest(options: { submitterDid?: string; dest: string }): ReturnObject<RequestHandle>
+  buildGetNymRequest(options: {
+    submitterDid?: string
+    dest: string
+    didDocContent?: string
+    version?: number
+  }): ReturnObject<RequestHandle>
 
   buildGetSchemaRequest(options: { submitterDid?: string; schemaId: string }): ReturnObject<RequestHandle>
 

@@ -14,15 +14,19 @@ default = ["fetch", "zmq_vendored"]
 
 [dependencies]
 clap = "3.1"
-env_logger = "0.9"
+env_logger = "0.10"
+futures-executor = "0.3"
 futures-util = "0.3"
+indy-vdr = { path = "../libindy_vdr", default-features = false, features = ["log"] }
+git2 = "0.14.2"
 hyper = { version = "0.14", features = ["http1", "http2", "server"] }
 hyper-tls = { version = "0.5", optional = true }
 log = "0.4.8"
 percent-encoding = "2"
+regex = "1.5.4"
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "signal"] }
-indy-vdr = { path = "../libindy_vdr", default-features = false, features = ["log"] }
+url = "2.2.2"
 
 [target.'cfg(unix)'.dependencies]
 hyper-unix-connector = "0.2"

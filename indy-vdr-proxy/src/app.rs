@@ -2,13 +2,15 @@ extern crate clap;
 use clap::{Arg, Command};
 
 pub struct Config {
-    pub genesis: String,
+    pub genesis: Option<String>,
+    pub namespace: String,
     #[cfg(unix)]
     pub socket: Option<String>,
     pub host: Option<String>,
     pub port: Option<u16>,
     pub init_refresh: bool,
     pub interval_refresh: u32,
+    pub is_multiple: bool,
 }
 
 pub fn load_config() -> Result<Config, String> {
@@ -23,6 +25,18 @@ pub fn load_config() -> Result<Config, String> {
                 .takes_value(true)
                 .value_name("GENESIS")
                 .help("Path to the ledger genesis transactions")
+        )
+        .arg(
+            Arg::new("name")
+                .short('n')
+                .long("name")
+                .takes_value(true)
+                .value_name("NAMESPACE")
+                .help("Namespace of ledger for DID resolution. Only needed if not multiple-ledgers")
+        )
+        .arg(
+            Arg::new("multiple-ledgers")
+                .help("Support multiple ledgers")
         )
         .arg(
             Arg::new("host")
@@ -68,19 +82,18 @@ pub fn load_config() -> Result<Config, String> {
 
     let matches = app.get_matches();
 
-    let genesis = matches
-        .value_of("genesis")
-        .unwrap_or("genesis.txn")
-        .to_owned();
+    let genesis = matches.value_of("genesis").map(|v| v.to_owned());
+
+    let namespace = matches.value_of("name").unwrap_or("test").to_owned();
+
+    let is_multiple = matches.is_present("multiple-ledgers");
 
     if matches.occurrences_of("socket") > 0 {
         if matches.occurrences_of("host") > 0 {
             return Err("Cannot specify both host and socket".to_owned());
         }
-    } else {
-        if matches.occurrences_of("port") == 0 {
-            return Err("Port number or socket must be specified".to_owned());
-        }
+    } else if matches.occurrences_of("port") == 0 {
+        return Err("Port number or socket must be specified".to_owned());
     }
 
     #[cfg(unix)]
@@ -101,11 +114,13 @@ pub fn load_config() -> Result<Config, String> {
 
     Ok(Config {
         genesis,
+        namespace,
         #[cfg(unix)]
         socket,
         host,
         port,
         init_refresh,
         interval_refresh,
+        is_multiple,
     })
 }
