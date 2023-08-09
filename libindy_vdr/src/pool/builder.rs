@@ -1,6 +1,6 @@
 use super::genesis::PoolTransactions;
+use super::manager::{LocalPool, SharedPool};
 use super::networker::{MakeLocal, MakeShared, ZMQNetworkerFactory};
-use super::pool::{LocalPool, SharedPool};
 use super::runner::PoolRunner;
 
 use crate::common::error::prelude::*;
