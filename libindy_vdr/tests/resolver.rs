@@ -14,8 +14,6 @@ mod send_resolver {
     use futures_executor::block_on;
     use indy_vdr::resolver::PoolResolver as Resolver;
 
-    use super::*;
-
     use crate::utils::crypto::Identity;
     use crate::utils::fixtures::*;
     use crate::utils::helpers;

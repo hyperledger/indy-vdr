@@ -72,7 +72,7 @@ mod builder {
                 "dest": identity.did,
                 "verkey": identity.verkey,
                 "alias": ALIAS,
-                "role": ROLE.to_usize().to_string(),
+                "role": ROLE.to_code(),
                 "diddocContent": diddoc_content.to_string(),
             });
 
@@ -173,7 +173,8 @@ mod builder {
 mod send {
     use super::*;
     use crate::utils::pool::TestPool;
-    use indy_vdr::ledger::{constants::ROLE_REMOVE, responses::GetNymResultV1};
+    use indy_vdr::ledger::{constants::UpdateRole, responses::GetNymResultV1};
+    use std::str::FromStr;
 
     #[rstest]
     fn test_pool_send_nym_request(pool: TestPool, trustee: Identity, identity: Identity) {
@@ -226,7 +227,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 None,
             )
@@ -248,7 +249,7 @@ mod send {
         let expected_data = json!({
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
         });
         assert_eq!(expected_data, parse_get_nym_response(&response));
     }
@@ -268,7 +269,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 Some(&diddoc_content),
                 None,
             )
@@ -291,7 +292,7 @@ mod send {
             "identifier": &trustee.did,
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
             "diddocContent": &diddoc_content.to_string()
         });
 
@@ -320,7 +321,7 @@ mod send {
                 &identity.did, // Self-cert version 1 identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 Some(2), // Claim Self-cert version 2
             )
@@ -344,7 +345,7 @@ mod send {
                 &identity.did, // Non self-cert identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 Some(2), // Claim Self-cert version 2
             )
@@ -369,7 +370,7 @@ mod send {
                 &identity.did, // Non self-cert identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 None,
             )
@@ -392,7 +393,7 @@ mod send {
                 &identity.did, // Self-cert version 1 identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 Some(0), // Claim Self-cert version 0
             )
@@ -415,7 +416,7 @@ mod send {
             "identifier": &trustee.did,
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
             "version": 0,
         });
 
@@ -446,7 +447,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 Some(&diddoc_content),
                 Some(2),
             )
@@ -469,7 +470,7 @@ mod send {
             "identifier": &trustee.did,
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
             "diddocContent": &diddoc_content.to_string(),
             "version": 2,
         });
@@ -499,6 +500,7 @@ mod send {
         role: &str,
     ) {
         let new_identity = Identity::new(None, None);
+        let upd_role = UpdateRole::from_str(role).unwrap();
 
         // Send NYM
         let mut nym_request = pool
@@ -508,7 +510,7 @@ mod send {
                 &new_identity.did,
                 Some(new_identity.verkey.to_string()),
                 None,
-                Some(role.to_string()),
+                Some(upd_role),
                 None,
                 None,
             )
@@ -530,7 +532,7 @@ mod send {
         let expected_data = json!({
             "dest": &new_identity.did,
             "verkey": &new_identity.verkey,
-            "role": role_to_code(Some(role.to_string())).unwrap(),
+            "role": LedgerRole::from_str(role).unwrap().to_code(),
         });
         assert_eq!(expected_data, parse_get_nym_response(&response));
     }
@@ -549,7 +551,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 None,
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 None,
             )
@@ -571,7 +573,7 @@ mod send {
         let expected_data = json!({
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
         });
         assert_eq!(expected_data, parse_get_nym_response(&response));
 
@@ -583,7 +585,7 @@ mod send {
                 &identity.did,
                 None,
                 None,
-                Some(ROLE_REMOVE.to_string()),
+                Some(UpdateRole::Reset),
                 None,
                 None,
             )

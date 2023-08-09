@@ -16,10 +16,11 @@ mod endorse_transaction {
     use crate::utils::fixtures::*;
     use crate::utils::helpers;
     use crate::utils::pool::TestPool;
+    use indy_vdr::ledger::constants;
 
     #[rstest]
     fn test_pool_send_request_by_endorser(pool: TestPool) {
-        let endorser = helpers::new_ledger_identity(&pool, Some(String::from("ENDORSER")));
+        let endorser = helpers::new_ledger_identity(&pool, Some(constants::LedgerRole::Endorser));
 
         // Endorse Schema.  Multi sign + Multi Sign.
         let author = helpers::new_ledger_identity(&pool, None);
@@ -48,7 +49,7 @@ mod endorse_transaction {
     #[rstest]
     fn test_pool_send_request_by_endorser_for_missed_one_of_signatures(pool: TestPool) {
         let author = helpers::new_ledger_identity(&pool, None);
-        let endorser = helpers::new_ledger_identity(&pool, Some(String::from("ENDORSER")));
+        let endorser = helpers::new_ledger_identity(&pool, Some(constants::LedgerRole::Endorser));
 
         // Endorse Schema signed by author only
 

@@ -144,6 +144,10 @@ impl LedgerRole {
             Self::Custom(val) => val,
         }
     }
+
+    pub fn to_code(self) -> String {
+        self.to_usize().to_string()
+    }
 }
 
 impl fmt::Display for LedgerRole {
