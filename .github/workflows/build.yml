@@ -55,6 +55,9 @@ jobs:
       - name: Cargo check
         run: cargo check
 
+      - name: Cargo check TLS support
+        run: cargo check --package indy-vdr-proxy --features tls
+
       - name: Cargo fmt
         run: cargo fmt --all -- --check
 

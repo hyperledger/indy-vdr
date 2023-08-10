@@ -391,8 +391,8 @@ async fn init_server(config: app::Config) -> Result<(), String> {
         return run_server(builder, state, format!("https://{}", addr), config).await;
     }
 
-    let builder = Server::try_bind(&addr)
-        .map_err(|err| format!("Error binding TCP socket: {}", err.to_string()))?;
+    let builder =
+        Server::try_bind(&addr).map_err(|err| format!("Error binding TCP socket: {}", err))?;
     run_server(builder, state, format!("http://{}", addr), config).await
 }
 
