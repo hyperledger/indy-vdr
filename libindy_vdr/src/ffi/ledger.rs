@@ -1,4 +1,7 @@
+use std::str::FromStr;
+
 use crate::common::error::prelude::*;
+use crate::ledger::constants::UpdateRole;
 #[cfg(any(feature = "rich_schema", test))]
 use crate::ledger::identifiers::RichSchemaId;
 use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
@@ -419,14 +422,8 @@ pub extern "C" fn indy_vdr_build_nym_request(
         let dest = DidValue::from_str(dest.as_str())?;
         let verkey = verkey.into_opt_string();
         let alias = alias.into_opt_string();
-        let role = role.into_opt_string();
-        let diddoc_content = match diddoc_content.as_opt_str() {
-            Some(s) => {
-                let js = serde_json::from_str(s).with_input_err("Error deserializing raw value as JSON")?;
-                Some(js)
-            }
-            None => None,
-        };
+        let role = role.as_opt_str().map(UpdateRole::from_str).transpose()?;
+        let diddoc_content = diddoc_content.as_opt_str().map(serde_json::from_str).transpose().with_input_err("Error deserializing raw value as JSON")?;
         let version = if version == -1 { None } else { Some(version) };
         let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role, diddoc_content.as_ref(), version)?;
         let handle = add_request(req)?;

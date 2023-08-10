@@ -19,7 +19,7 @@ const VALUE: &str = "0";
 fn _role_constraint() -> Constraint {
     Constraint::RoleConstraint(RoleConstraint {
         sig_count: 1,
-        role: Some(constants::TRUSTEE.to_string()),
+        role: Some(constants::LedgerRole::Trustee),
         metadata: Some(json!({})),
         need_to_be_owner: false,
         off_ledger_signature: false,
@@ -35,7 +35,7 @@ fn _complex_constraint() -> Constraint {
                     _role_constraint(),
                     Constraint::RoleConstraint(RoleConstraint {
                         sig_count: 2,
-                        role: Some("2".to_string()),
+                        role: Some(constants::LedgerRole::Custom(2)),
                         metadata: None,
                         need_to_be_owner: true,
                         off_ledger_signature: false,
