@@ -64,7 +64,7 @@ jsi::Value buildAcceptanceMechanismsRequest(jsi::Runtime &rt,
 
 jsi::Value buildGetAcceptanceMechanismsRequest(jsi::Runtime &rt,
                                                jsi::Object options) {
-  auto submitterDid = jsiToValue<std::string>(rt, options, "submitterDid");
+  auto submitterDid = jsiToValue<std::string>(rt, options, "submitterDid", true);
   auto timestamp = jsiToValue<int64_t>(rt, options, "timestamp", true);
   auto version = jsiToValue<std::string>(rt, options, "version", true);
 
