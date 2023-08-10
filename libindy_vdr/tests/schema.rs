@@ -130,7 +130,7 @@ mod send_schema {
 
     #[rstest]
     fn test_pool_schema_requests(pool: TestPool) {
-        let identity = helpers::new_ledger_identity(&pool, Some(String::from("TRUSTEE")));
+        let identity = helpers::new_ledger_identity(&pool, Some(constants::LedgerRole::Endorser));
         let schema = helpers::schema::default_schema(&identity.did);
 
         // Send Schema

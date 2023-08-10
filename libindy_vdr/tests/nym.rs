@@ -4,7 +4,7 @@ mod utils;
 inject_dependencies!();
 
 use indy_vdr::ledger::constants;
-use indy_vdr::ledger::requests::nym::role_to_code;
+use indy_vdr::ledger::constants::LedgerRole;
 use indy_vdr::utils::did::DidValue;
 
 use crate::utils::crypto::Identity;
@@ -12,7 +12,7 @@ use crate::utils::fixtures::*;
 use crate::utils::helpers;
 
 const ALIAS: &str = "alias";
-const ROLE: &str = "TRUSTEE";
+const ROLE: LedgerRole = LedgerRole::Trustee;
 
 #[test]
 fn empty() {
@@ -25,6 +25,8 @@ mod builder {
     use indy_vdr::ledger::RequestBuilder;
 
     mod nym {
+        use indy_vdr::ledger::constants::UpdateRole;
+
         use super::*;
 
         #[rstest]
@@ -59,7 +61,7 @@ mod builder {
                     &identity.did,
                     Some(identity.verkey.clone()),
                     Some(ALIAS.to_string()),
-                    Some(ROLE.to_string()),
+                    Some(UpdateRole::Set(ROLE)),
                     Some(&diddoc_content),
                     None,
                 )
@@ -70,7 +72,7 @@ mod builder {
                 "dest": identity.did,
                 "verkey": identity.verkey,
                 "alias": ALIAS,
-                "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+                "role": ROLE.to_code(),
                 "diddocContent": diddoc_content.to_string(),
             });
 
@@ -89,7 +91,7 @@ mod builder {
                     &my_did,
                     None,
                     None,
-                    Some(String::from("")),
+                    Some(UpdateRole::Reset),
                     None,
                     None,
                 )
@@ -121,27 +123,6 @@ mod builder {
             });
 
             helpers::check_request_operation(&nym_request, expected_result);
-        }
-
-        #[rstest]
-        fn test_build_nym_request_works_for_invalid_role(
-            request_builder: RequestBuilder,
-            trustee_did: DidValue,
-            identity: Identity,
-        ) {
-            let role = "INALID_ROLE_ALIAS";
-
-            let _err = request_builder
-                .build_nym_request(
-                    &trustee_did,
-                    &identity.did,
-                    Some(identity.verkey),
-                    None,
-                    Some(role.to_string()),
-                    None,
-                    None,
-                )
-                .unwrap_err();
         }
     }
 
@@ -192,7 +173,8 @@ mod builder {
 mod send {
     use super::*;
     use crate::utils::pool::TestPool;
-    use indy_vdr::ledger::{constants::ROLE_REMOVE, responses::GetNymResultV1};
+    use indy_vdr::ledger::{constants::UpdateRole, responses::GetNymResultV1};
+    use std::str::FromStr;
 
     #[rstest]
     fn test_pool_send_nym_request(pool: TestPool, trustee: Identity, identity: Identity) {
@@ -245,7 +227,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 None,
             )
@@ -267,7 +249,7 @@ mod send {
         let expected_data = json!({
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
         });
         assert_eq!(expected_data, parse_get_nym_response(&response));
     }
@@ -287,7 +269,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 Some(&diddoc_content),
                 None,
             )
@@ -310,7 +292,7 @@ mod send {
             "identifier": &trustee.did,
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
             "diddocContent": &diddoc_content.to_string()
         });
 
@@ -339,7 +321,7 @@ mod send {
                 &identity.did, // Self-cert version 1 identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 Some(2), // Claim Self-cert version 2
             )
@@ -363,7 +345,7 @@ mod send {
                 &identity.did, // Non self-cert identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 Some(2), // Claim Self-cert version 2
             )
@@ -388,7 +370,7 @@ mod send {
                 &identity.did, // Non self-cert identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 None,
             )
@@ -411,7 +393,7 @@ mod send {
                 &identity.did, // Self-cert version 1 identifier
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 Some(0), // Claim Self-cert version 0
             )
@@ -434,7 +416,7 @@ mod send {
             "identifier": &trustee.did,
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
             "version": 0,
         });
 
@@ -465,7 +447,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 Some(ALIAS.to_string()),
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 Some(&diddoc_content),
                 Some(2),
             )
@@ -488,7 +470,7 @@ mod send {
             "identifier": &trustee.did,
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
             "diddocContent": &diddoc_content.to_string(),
             "version": 2,
         });
@@ -518,6 +500,7 @@ mod send {
         role: &str,
     ) {
         let new_identity = Identity::new(None, None);
+        let upd_role = UpdateRole::from_str(role).unwrap();
 
         // Send NYM
         let mut nym_request = pool
@@ -527,7 +510,7 @@ mod send {
                 &new_identity.did,
                 Some(new_identity.verkey.to_string()),
                 None,
-                Some(role.to_string()),
+                Some(upd_role),
                 None,
                 None,
             )
@@ -549,7 +532,7 @@ mod send {
         let expected_data = json!({
             "dest": &new_identity.did,
             "verkey": &new_identity.verkey,
-            "role": role_to_code(Some(role.to_string())).unwrap(),
+            "role": LedgerRole::from_str(role).unwrap().to_code(),
         });
         assert_eq!(expected_data, parse_get_nym_response(&response));
     }
@@ -568,7 +551,7 @@ mod send {
                 &identity.did,
                 Some(identity.verkey.to_string()),
                 None,
-                Some(ROLE.to_string()),
+                Some(UpdateRole::Set(ROLE)),
                 None,
                 None,
             )
@@ -590,7 +573,7 @@ mod send {
         let expected_data = json!({
             "dest": &identity.did,
             "verkey": &identity.verkey,
-            "role": role_to_code(Some(String::from(ROLE))).unwrap(),
+            "role": ROLE.to_code(),
         });
         assert_eq!(expected_data, parse_get_nym_response(&response));
 
@@ -602,7 +585,7 @@ mod send {
                 &identity.did,
                 None,
                 None,
-                Some(ROLE_REMOVE.to_string()),
+                Some(UpdateRole::Reset),
                 None,
                 None,
             )

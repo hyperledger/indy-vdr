@@ -109,21 +109,19 @@ impl rlp::Decodable for Node {
                 }
             }
             RlpPrototype::List(Node::FULL_SIZE) => {
-                let mut nodes: [Option<Box<Node>>; Node::RADIX] = [
-                    None, None, None, None, None, None, None, None, None, None, None, None, None,
-                    None, None, None,
-                ];
-                for i in 0..Node::RADIX {
-                    let cur = rlp.at(i)?;
+                let mut nodes: [Option<Box<Node>>; Node::RADIX] = Default::default();
+                for (idx, node) in nodes.iter_mut().enumerate() {
+                    let cur = rlp.at(idx)?;
                     match cur.prototype()? {
                         RlpPrototype::Data(0) => continue,
                         _ => {
-                            nodes[i] = Some(Box::new(cur.as_val()?));
+                            *node = Some(Box::new(cur.as_val()?));
                         }
                     }
                 }
-                let value: Option<Vec<u8>> = if !rlp.at(Node::RADIX)?.is_empty() {
-                    Some(rlp.at(Node::RADIX)?.as_val()?)
+                let tail = rlp.at(Node::RADIX)?;
+                let value: Option<Vec<u8>> = if !tail.is_empty() {
+                    Some(tail.as_val()?)
                 } else {
                     None
                 };

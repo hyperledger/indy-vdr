@@ -30,7 +30,7 @@ default = ["ffi", "log", "zmq_vendored"]
 # This is added so we can lock the version that zmq uses
 # 0.1.49 is broken for ios targets
 cmake = { version = "=0.1.48", optional = true }
-base64_rs = { package = "base64", version = "0.21" }
+base64 = "0.21"
 bs58 = "0.5"
 etcommon-rlp = "0.2.4"
 env_logger = { version = "0.10", optional = true }
@@ -39,7 +39,7 @@ futures-channel = "0.3"
 futures-executor = "0.3"
 futures-util = "0.3"
 hex = "0.4"
-hex-literal = "0.4"
+indy-blssignatures = "0.1"
 indy-data-types = { version = "0.6.1", default-features = false, features = [
     "anoncreds",
     "merkle_tree",
@@ -62,11 +62,6 @@ thiserror = "1.0"
 time = { version = "=0.3.20", features = ["parsing"] }
 url = "2.2.2"
 zmq = "0.9"
-
-[dependencies.ursa]
-version = "0.3.5"
-default-features = false
-features = ["bls_bn254"]
 
 [dev-dependencies]
 rstest = "0.18"

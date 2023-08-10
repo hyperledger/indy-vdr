@@ -223,3 +223,18 @@ pub(crate) fn build_pool_catchup_request(
     };
     Ok(Message::CatchupReq(cr))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn min_consensus_works() {
+        assert_eq!(min_consensus(0), 0);
+        assert_eq!(min_consensus(3), 0);
+        assert_eq!(min_consensus(4), 1);
+        assert_eq!(min_consensus(5), 1);
+        assert_eq!(min_consensus(6), 1);
+        assert_eq!(min_consensus(7), 2);
+    }
+}

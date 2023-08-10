@@ -64,7 +64,7 @@ jsi::Value buildAcceptanceMechanismsRequest(jsi::Runtime &rt,
 
 jsi::Value buildGetAcceptanceMechanismsRequest(jsi::Runtime &rt,
                                                jsi::Object options) {
-  auto submitterDid = jsiToValue<std::string>(rt, options, "submitterDid");
+  auto submitterDid = jsiToValue<std::string>(rt, options, "submitterDid", true);
   auto timestamp = jsiToValue<int64_t>(rt, options, "timestamp", true);
   auto version = jsiToValue<std::string>(rt, options, "version", true);
 
@@ -107,8 +107,9 @@ jsi::Value buildGetAttribRequest(jsi::Runtime &rt, jsi::Object options) {
 
   ErrorCode code = indy_vdr_build_get_attrib_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr,
-      targetDid.c_str(), hash.length() > 0 ? hash.c_str() : nullptr,
+      targetDid.c_str(),
       raw.length() > 0 ? raw.c_str() : nullptr,
+      hash.length() > 0 ? hash.c_str() : nullptr,
       enc.length() > 0 ? enc.c_str() : nullptr, &out);
 
   return createReturnValue(rt, code, &out);

@@ -23,7 +23,7 @@ use super::requests::cred_def::{CredDefOperation, CredentialDefinition, GetCredD
 use super::requests::flag::{FlagOperation, GetFlagOperation};
 use super::requests::ledgers_freeze::{GetFrozenLedgersOperation, LedgersFreezeOperation};
 use super::requests::node::{NodeOperation, NodeOperationData};
-use super::requests::nym::{role_to_code, GetNymOperation, NymOperation};
+use super::requests::nym::{GetNymOperation, NymOperation};
 use super::requests::pool::{
     PoolConfigOperation, PoolRestartOperation, PoolUpgradeOperation, Schedule,
 };
@@ -47,7 +47,7 @@ use super::requests::txn::GetTxnOperation;
 use super::requests::validator_info::GetValidatorInfoOperation;
 use super::requests::{Request, RequestType};
 
-use super::constants::txn_name_to_code;
+use super::constants::{txn_name_to_code, UpdateRole};
 
 fn datetime_to_date_timestamp(time: u64) -> u64 {
     const SEC_IN_DAY: u64 = 86400;
@@ -156,11 +156,10 @@ impl RequestBuilder {
         dest: &DidValue,
         verkey: Option<String>,
         alias: Option<String>,
-        role: Option<String>,
+        role: Option<UpdateRole>,
         diddoc_content: Option<&SJsonValue>,
         version: Option<i32>,
     ) -> VdrResult<PreparedRequest> {
-        let role = role_to_code(role)?;
         let operation = NymOperation::new(
             dest.to_short(),
             verkey,

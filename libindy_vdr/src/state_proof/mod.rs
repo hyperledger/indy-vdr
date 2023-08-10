@@ -7,11 +7,11 @@ pub(crate) mod types;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use indy_blssignatures::{Bls, Generator, MultiSignature, VerKey};
 use indy_data_types::merkle_tree::{MerkleTree, Positioned};
 use rlp::UntrustedRlp;
 use serde_json::Value as SJsonValue;
 use sha2::{Digest, Sha256};
-use ursa::bls::{Bls, Generator, MultiSignature, VerKey};
 
 use crate::common::error::prelude::*;
 use crate::pool::{ProtocolVersion, VerifierKeys};
@@ -1307,6 +1307,8 @@ fn _if_rev_delta_multi_state_proof_expected(sp_key: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::{config::constants::DEFAULT_GENERATOR, pool::VerifierKey};
+
     use super::*;
 
     use hex::FromHex;
@@ -2268,5 +2270,30 @@ mod tests {
                     ),
             })
         );
+    }
+
+    #[test]
+    fn check_state_proof_valid() {
+        let raw_msg = r#"{"op":"REPLY","result":{"identifier":"LibindyDid111111111111","reqId":1691520834828315000,"type":"3","data":{"reqSignature":{},"txn":{"data":{"dest":"V4SGRU86Z58d6TV7PBUe6f","role":"0","verkey":"~CoRER63DVYnWZtK8uAzNbx"},"metadata":{},"type":"1"},"txnMetadata":{"seqNo":1},"ver":"1","rootHash":"DxX9E3XxEPHbb3JjakcmSduPc2bBcWsFhZZGp5aa842q","auditPath":["3XtSyZ8CQPJUYbc5mFKvUendLZSt4ybG2Y4zRtJEewSL","96irBGYpWrTvrVATexGGvktPrT3WicixwT8BtoZTtkYX","HqXD3TkLbpRuRU7CrrvrBeZwKuNFVCfta1ez7X7jGjtF","3fsGMWtrpYdNiLZKRKGmhGUJTUkdC2yn2yNd8MPGjwdq","BwS8ttPxJXQ4yn5RDy6spyxrFRZkukr9dbs9bjfskz1U","3wvhiYWLX3fRwGp1SoLeMQas6xtRHK8n7a3WqLPiwyMc","8oJHS289uuhcmgrvrzVtXvRGFfoXRnTWZnHQRYopDtUG","B5yx8ExTWjkgaDHuYWbosaoPhuq15uBx1jmp6npp6cKa","41vHGCg6qKUEtLAveyeWLMNdhZoH89Ym6xymFvSj64ER","APznt6o24yBWCNs5tVF4fC6h6rMz1Joj9BYWQuXJH1V5","3EByMrinqTxqaC7VEnQj4bKn29Gg357MoaTJxhZJvAbv","CV3xU14oTyGxemt6ZzLGhcBoTEcQ9MivEgo4fREPJbax","9MvXyCYNaPnTWV5ZW6E8hkPnjEurmTGmzTTUJJ9sGZ3L","8T7istFjSSxgYzZoxcJLtBm1hW48kTpGXBqbXMigopZ5"],"ledgerSize":12713},"state_proof":{"multi_signature":{"signature":"RRM4P551uBWUUZrz1AnspaL2n4ar65WBLn1ANS2XUPWir8bEq5LWdowmdjYvp3scEHPEMxGgJTB5ffVevBsoMVgtyB2SUxr6ZTAAtmE73RETGVwRCQnz3k2gEGaYyAxVSon51RHW5Jg9hEgyMWR2j3aib5o7fFDZFhBy2oB1bS46go","participants":["Node3","Node2","Node1"],"value":{"ledger_id":1,"pool_state_root_hash":"7siDH8Qanh82UviK4zjBSfLXcoCvLaeGkrByi1ow9Tsm","state_root_hash":"8AasPY2KBtPLiVnvePAZhPZKAfRozAR9CBUYAXFBhdXo","timestamp":1691520806,"txn_root_hash":"DxX9E3XxEPHbb3JjakcmSduPc2bBcWsFhZZGp5aa842q"}}},"seqNo":1}}"#;
+        let f = 1;
+        let mut bls_keys = HashMap::new();
+        bls_keys.insert("Node1".to_owned(), VerifierKey::from_bytes(&hex::decode("20e085f100560896f50ea75e681a780275e9e39d645fcf8a48bc771dd41e304d099f5a5c009f5ac95776c7534ac4ec2550a0fa0da8422aa4b28a5ab76b34ba16054995a826fceef2fc619732c6971e5ca39a49f41b117e33868551c8f3f481751e34851a6c913a6f4e8c1d5ae13ac5460b69378b7d94a07f46fa92445dc8eecd").unwrap()).unwrap());
+        bls_keys.insert("Node2".to_owned(), VerifierKey::from_bytes(&hex::decode("14b2c1cb385e56510cc8f050317580bcaf792ba555f29f7a8454d4367d63ea8020e9a34506a173320a5d0a4dff36cdda7d1d7848495e8e0c2a420d55c5704efc0dd8cec3869e061728abc55ce9948085358c1661799a2e289ea2fda0d8d083640ade487d5787924a6ed0cd7cbe727b9296ea66e8acc7b47fa9e1254ac6ee2827").unwrap()).unwrap());
+        bls_keys.insert("Node3".to_owned(), VerifierKey::from_bytes(&hex::decode("187945bb8673691a57fa719dbc93653c909f359da42281b22b2b2e2748abc4d71ff796348e496d6be919bc3710f1b11d04fe9c436fb3c80ac5da556e94a73ba617d9180856dd73c6c30b9716ec0546ccebda8a80cd9058c88af45079a45ad35921cb2e6488caab9c4f35dbef9efdc22ece8769c60f82b38c78d547f7ad866016").unwrap()).unwrap());
+        bls_keys.insert("Node4".to_owned(), VerifierKey::from_bytes(&hex::decode("136feaf1ad5b81d70de5c5287b0ef24746b8db60dba8ec502aeb213ae5c9f1900b59ff8e6f38e00e5d4cf2a45fb3317a0ccfc710806d368acb2267e097ed696611cc9295d2bbca32d1e176f026a66f02f70a8851ec71f2f4321dc62f00b5cf071f32e6fc3a1f63278360c7dd8285224ed482ff59ab5063aee3117a111fc9ffd2").unwrap()).unwrap());
+        let reply: serde_json::Value = serde_json::from_str(raw_msg).unwrap();
+        let msg_result = &reply["result"];
+        assert!(check_state_proof(
+            msg_result,
+            f,
+            &DEFAULT_GENERATOR,
+            &bls_keys,
+            raw_msg,
+            Some(&[49]),
+            (None, Some(0)),
+            1691520806,
+            300,
+            None,
+        ));
     }
 }

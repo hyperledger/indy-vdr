@@ -8,7 +8,7 @@ use super::handlers::{
     build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
     handle_consensus_request, handle_full_request, handle_status_request, CatchupTarget,
 };
-use super::pool::Pool;
+use super::manager::Pool;
 use super::requests::{PreparedRequest, RequestMethod};
 use super::types::{NodeReplies, RequestResult, TimingResult};
 

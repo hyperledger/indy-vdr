@@ -99,6 +99,6 @@ mod send_flag {
             .send_request_with_retries(&get_flag_request, &flag_response)
             .unwrap();
         let data = helpers::get_response_data(&response);
-        assert_eq!(true, data.is_err())
+        assert!(data.is_err())
     }
 }

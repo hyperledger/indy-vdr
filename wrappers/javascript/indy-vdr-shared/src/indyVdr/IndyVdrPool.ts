@@ -1,5 +1,5 @@
-import type { PoolStatus, Transactions, Verifiers } from '../types'
 import type { IndyVdrRequest, RequestResponseType } from './IndyVdrRequest'
+import type { PoolStatus, Transactions, Verifiers } from '../types'
 
 import { indyVdr } from './indyVdr'
 
