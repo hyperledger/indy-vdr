@@ -11,6 +11,8 @@ pub struct Config {
     pub init_refresh: bool,
     pub interval_refresh: u32,
     pub is_multiple: bool,
+    pub tls_cert_path: Option<String>,
+    pub tls_key_path: Option<String>,
 }
 
 pub fn load_config() -> Result<Config, String> {
@@ -66,6 +68,20 @@ pub fn load_config() -> Result<Config, String> {
                 .takes_value(true)
                 .value_name("INTERVAL")
                 .help("Set the interval in minutes between validator node refresh attempts (0 to disable refresh, default 120)"),
+        )
+        .arg(
+            Arg::new("tls-cert")
+                .long("tls-cert")
+                .takes_value(true)
+                .value_name("CERT")
+                .help("Path to the TLS certificate file")
+        )
+        .arg(
+            Arg::new("tls-key")
+                .long("tls-key")
+                .takes_value(true)
+                .value_name("KEY")
+                .help("Path to the TLS private key file")
         );
 
     #[cfg(unix)]
@@ -112,6 +128,9 @@ pub fn load_config() -> Result<Config, String> {
         .transpose()?
         .unwrap_or(120);
 
+    let tls_cert_path = matches.value_of("tls-cert").map(str::to_owned);
+    let tls_key_path = matches.value_of("tls-key").map(str::to_owned);
+
     Ok(Config {
         genesis,
         namespace,
@@ -122,5 +141,7 @@ pub fn load_config() -> Result<Config, String> {
         init_refresh,
         interval_refresh,
         is_multiple,
+        tls_cert_path,
+        tls_key_path,
     })
 }
