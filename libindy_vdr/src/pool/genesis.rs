@@ -370,151 +370,81 @@ fn _decode_transaction(
 mod tests {
     use super::*;
 
-    mod pool_transactions_tests {
-        use super::*;
-        use indy_test_utils::genesis::GenesisTransactions;
+    const NODE1: &str = r#"{"reqSignature":{},"txn":{"data":{"data":{"alias":"Node1","blskey":"4N8aUNHSgjQVgkpm8nhNEfDf6txHznoYREg9kirmJrkivgL4oSEimFF6nsQ6M41QvhM2Z33nves5vfSn9n1UwNFJBYtWVnHYMATn76vLuL3zU88KyeAYcHfsih3He6UHcXDxcaecHVz6jhCYz1P2UZn2bDVruL5wXpehgBfBaLKm3Ba","blskey_pop":"RahHYiCvoNCtPTrVtP7nMC5eTYrsUA8WjXbdhNc8debh1agE9bGiJxWBXYNFbnJXoXhWFMvyqhqhRoq737YQemH5ik9oL7R4NTTCz2LEZhkgLJzB3QRQqJyBNyv7acbdHrAT8nQ9UkLbaVL9NBpnWXBTw4LEMePaSHEw66RzPNdAX1","client_ip":"127.0.0.1","client_port":9702,"node_ip":"127.0.0.1","node_port":9701,"services":["VALIDATOR"]},"dest":"Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"},"metadata":{"from":"Th7MpTaRZVRYnPiabds81Y"},"type":"0"},"txnMetadata":{"seqNo":1,"txnId":"fea82e10e894419fe2bea7d96296a6d46f50f93f9eeda954ec461b2ed2950b62"},"ver":"1"}"#;
+    const NODE2: &str = r#"{"reqSignature":{},"txn":{"data":{"data":{"alias":"Node2","blskey":"37rAPpXVoxzKhz7d9gkUe52XuXryuLXoM6P6LbWDB7LSbG62Lsb33sfG7zqS8TK1MXwuCHj1FKNzVpsnafmqLG1vXN88rt38mNFs9TENzm4QHdBzsvCuoBnPH7rpYYDo9DZNJePaDvRvqJKByCabubJz3XXKbEeshzpz4Ma5QYpJqjk","blskey_pop":"Qr658mWZ2YC8JXGXwMDQTzuZCWF7NK9EwxphGmcBvCh6ybUuLxbG65nsX4JvD4SPNtkJ2w9ug1yLTj6fgmuDg41TgECXjLCij3RMsV8CwewBVgVN67wsA45DFWvqvLtu4rjNnE9JbdFTc1Z4WCPA3Xan44K1HoHAq9EVeaRYs8zoF5","client_ip":"127.0.0.1","client_port":9704,"node_ip":"127.0.0.1","node_port":9703,"services":["VALIDATOR"]},"dest":"8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"},"metadata":{"from":"EbP4aYNeTHL6q385GuVpRV"},"type":"0"},"txnMetadata":{"seqNo":2,"txnId":"1ac8aece2a18ced660fef8694b61aac3af08ba875ce3026a160acbc3a3af35fc"},"ver":"1"}"#;
+    const NODE3: &str = r#"{"reqSignature":{},"txn":{"data":{"data":{"alias":"Node3","blskey":"3WFpdbg7C5cnLYZwFZevJqhubkFALBfCBBok15GdrKMUhUjGsk3jV6QKj6MZgEubF7oqCafxNdkm7eswgA4sdKTRc82tLGzZBd6vNqU8dupzup6uYUf32KTHTPQbuUM8Yk4QFXjEf2Usu2TJcNkdgpyeUSX42u5LqdDDpNSWUK5deC5","blskey_pop":"QwDeb2CkNSx6r8QC8vGQK3GRv7Yndn84TGNijX8YXHPiagXajyfTjoR87rXUu4G4QLk2cF8NNyqWiYMus1623dELWwx57rLCFqGh7N4ZRbGDRP4fnVcaKg1BcUxQ866Ven4gw8y4N56S5HzxXNBZtLYmhGHvDtk6PFkFwCvxYrNYjh","client_ip":"127.0.0.1","client_port":9706,"node_ip":"127.0.0.1","node_port":9705,"services":["VALIDATOR"]},"dest":"DKVxG2fXXTU8yT5N7hGEbXB3dfdAnYv1JczDUHpmDxya"},"metadata":{"from":"4cU41vWW82ArfxJxHkzXPG"},"type":"0"},"txnMetadata":{"seqNo":3,"txnId":"7e9f355dffa78ed24668f0e0e369fd8c224076571c51e2ea8be5f26479edebe4"},"ver":"1"}"#;
+    const NODE1_OLD: &str = r#"{"data":{"alias":"Node1","client_ip":"192.168.1.35","client_port":9702,"node_ip":"192.168.1.35","node_port":9701,"services":["VALIDATOR"]},"dest":"Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv","identifier":"FYmoFw55GeQH7SRFa37dkx1d2dZ3zUF8ckg7wmL7ofN4","txnId":"fea82e10e894419fe2bea7d96296a6d46f50f93f9eeda954ec461b2ed2950b62","type":"0"}"#;
+    const NODE2_OLD: &str = r#"{"data":{"alias":"Node2","client_ip":"192.168.1.35","client_port":9704,"node_ip":"192.168.1.35","node_port":9703,"services":["VALIDATOR"]},"dest":"8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb","identifier":"8QhFxKxyaFsJy4CyxeYX34dFH8oWqyBv1P4HLQCsoeLy","txnId":"1ac8aece2a18ced660fef8694b61aac3af08ba875ce3026a160acbc3a3af35fc","type":"0"}"#;
 
-        pub fn _transactions() -> Vec<String> {
-            GenesisTransactions::new(Some(4)).transactions
-        }
-
-        pub fn _merkle_tree() -> MerkleTree {
-            PoolTransactions::from_json_transactions(_transactions())
-                .unwrap()
-                .merkle_tree()
-                .unwrap()
-        }
-
-        #[test]
-        fn test_pool_transactions_from_transactions_json_works() {
-            let transaction = GenesisTransactions::new(None);
-
-            let transactions: PoolTransactions =
-                PoolTransactions::from_json_transactions(transaction.transactions).unwrap();
-
-            assert_eq!(
-                transactions.encode_json().unwrap(),
-                GenesisTransactions::default_transactions()
-            )
-        }
-
-        #[test]
-        fn test_pool_transactions_from_file_works() {
-            let mut transaction = GenesisTransactions::new(None);
-            let file = transaction.store_to_file();
-
-            let transactions: PoolTransactions = PoolTransactions::from_json_file(file).unwrap();
-
-            assert_eq!(
-                transactions.encode_json().unwrap(),
-                GenesisTransactions::default_transactions()
-            )
-        }
-
-        #[test]
-        fn test_pool_transactions_from_file_for_unknown_file() {
-            let file = {
-                let mut transaction = GenesisTransactions::new(None);
-                transaction.store_to_file()
-            };
-
-            let _err = PoolTransactions::from_json_file(file).unwrap_err();
-        }
-
-        #[test]
-        fn test_pool_transactions_from_file_for_invalid_transactions() {
-            let mut txns = GenesisTransactions::from_transactions([r#"{invalid}"#]);
-            let _err = PoolTransactions::from_json_file(txns.store_to_file()).unwrap_err();
-        }
-
-        #[test]
-        fn test_merkle_tree_from_transactions_works() {
-            let merkle_tree = _merkle_tree();
-
-            assert_eq!(merkle_tree.count(), 4, "test restored MT size");
-            assert_eq!(
-                merkle_tree.root_hash_hex(),
-                "ef25b5d33e511d2b8e3fbf267cc4496a77cf522976d5ac158878f787190d9a97",
-                "test restored MT root hash"
-            );
-        }
+    pub fn _merkle_tree() -> MerkleTree {
+        PoolTransactions::from_json_transactions(&[NODE1, NODE2, NODE3])
+            .unwrap()
+            .merkle_tree()
+            .unwrap()
     }
 
-    mod build_node_transaction_map_tests {
-        use super::*;
-        use crate::pool::genesis::tests::pool_transactions_tests::{_merkle_tree, _transactions};
+    #[test]
+    fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_4() {
+        let txn_map = build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_4).unwrap();
 
-        pub const NODE1_OLD: &str = r#"{"data":{"alias":"Node1","client_ip":"192.168.1.35","client_port":9702,"node_ip":"192.168.1.35","node_port":9701,"services":["VALIDATOR"]},"dest":"Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv","identifier":"FYmoFw55GeQH7SRFa37dkx1d2dZ3zUF8ckg7wmL7ofN4","txnId":"fea82e10e894419fe2bea7d96296a6d46f50f93f9eeda954ec461b2ed2950b62","type":"0"}"#;
-        pub const NODE2_OLD: &str = r#"{"data":{"alias":"Node2","client_ip":"192.168.1.35","client_port":9704,"node_ip":"192.168.1.35","node_port":9703,"services":["VALIDATOR"]},"dest":"8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb","identifier":"8QhFxKxyaFsJy4CyxeYX34dFH8oWqyBv1P4HLQCsoeLy","txnId":"1ac8aece2a18ced660fef8694b61aac3af08ba875ce3026a160acbc3a3af35fc","type":"0"}"#;
+        assert_eq!(3, txn_map.len());
+        assert!(txn_map.contains_key("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"));
+        assert!(txn_map.contains_key("8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"));
 
-        #[test]
-        fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_4() {
-            let txn_map =
-                build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_4).unwrap();
+        let node1: NodeTransactionV1 = serde_json::from_str(NODE1).unwrap();
+        let node2: NodeTransactionV1 = serde_json::from_str(NODE2).unwrap();
 
-            assert_eq!(4, txn_map.len());
-            assert!(txn_map.contains_key("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"));
-            assert!(txn_map.contains_key("8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"));
+        assert_eq!(
+            txn_map["Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"],
+            node1
+        );
+        assert_eq!(
+            txn_map["8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"],
+            node2
+        );
+    }
 
-            let node1: NodeTransactionV1 = serde_json::from_str(&_transactions()[0]).unwrap();
-            let node2: NodeTransactionV1 = serde_json::from_str(&_transactions()[1]).unwrap();
+    #[test]
+    fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_3() {
+        let _err =
+            build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_3).unwrap_err();
+    }
 
-            assert_eq!(
-                txn_map["Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"],
-                node1
-            );
-            assert_eq!(
-                txn_map["8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"],
-                node2
-            );
-        }
+    #[test]
+    fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_3() {
+        let merkle_tree = PoolTransactions::from_json_transactions(&[NODE1_OLD, NODE2_OLD])
+            .unwrap()
+            .merkle_tree()
+            .unwrap();
 
-        #[test]
-        fn test_build_node_transaction_map_works_for_node_1_4_and_protocol_version_1_3() {
-            let _err =
-                build_node_transaction_map(_merkle_tree(), ProtocolVersion::Node1_3).unwrap_err();
-        }
+        let txn_map = build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_3).unwrap();
 
-        #[test]
-        fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_3() {
-            let merkle_tree = PoolTransactions::from_json_transactions(vec![NODE1_OLD, NODE2_OLD])
-                .unwrap()
-                .merkle_tree()
-                .unwrap();
+        assert_eq!(2, txn_map.len());
+        assert!(txn_map.contains_key("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"));
+        assert!(txn_map.contains_key("8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"));
 
-            let txn_map =
-                build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_3).unwrap();
+        let node1: NodeTransactionV1 =
+            NodeTransactionV1::from(serde_json::from_str::<NodeTransactionV0>(NODE1_OLD).unwrap());
+        let node2: NodeTransactionV1 =
+            NodeTransactionV1::from(serde_json::from_str::<NodeTransactionV0>(NODE2_OLD).unwrap());
 
-            assert_eq!(2, txn_map.len());
-            assert!(txn_map.contains_key("Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"));
-            assert!(txn_map.contains_key("8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"));
+        assert_eq!(
+            txn_map["Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"],
+            node1
+        );
+        assert_eq!(
+            txn_map["8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"],
+            node2
+        );
+    }
 
-            let node1: NodeTransactionV1 = NodeTransactionV1::from(
-                serde_json::from_str::<NodeTransactionV0>(NODE1_OLD).unwrap(),
-            );
-            let node2: NodeTransactionV1 = NodeTransactionV1::from(
-                serde_json::from_str::<NodeTransactionV0>(NODE2_OLD).unwrap(),
-            );
+    #[test]
+    fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_4() {
+        let merkle_tree = PoolTransactions::from_json_transactions(&[NODE1_OLD, NODE2_OLD])
+            .unwrap()
+            .merkle_tree()
+            .unwrap();
 
-            assert_eq!(
-                txn_map["Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"],
-                node1
-            );
-            assert_eq!(
-                txn_map["8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb"],
-                node2
-            );
-        }
-
-        #[test]
-        fn test_build_node_transaction_map_works_for_node_1_3_and_protocol_version_1_4() {
-            let merkle_tree = PoolTransactions::from_json_transactions(vec![NODE1_OLD, NODE2_OLD])
-                .unwrap()
-                .merkle_tree()
-                .unwrap();
-
-            let _err =
-                build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_4).unwrap_err();
-        }
+        let _err = build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_4).unwrap_err();
     }
 }

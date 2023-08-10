@@ -69,4 +69,3 @@ time = "0.3"
 indy-data-types = { version = "0.6.1", default-features = false, features = [
     "rich_schema",
 ] }
-indy-test-utils = { version = "0.1" }
