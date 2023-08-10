@@ -1,6 +1,7 @@
 use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
 use indy_vdr::common::error::VdrResult;
+use indy_vdr::ledger::constants::{LedgerRole, UpdateRole};
 use indy_vdr::pool::{NodeReplies, PreparedRequest};
 use indy_vdr::utils::did::DidValue;
 use rand::distributions::Alphanumeric;
@@ -31,7 +32,7 @@ pub fn get_response_data(response: &str) -> Result<serde_json::Value, String> {
     Err(String::from("Cannot get response data"))
 }
 
-pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
+pub fn new_ledger_identity(pool: &TestPool, role: Option<LedgerRole>) -> Identity {
     let trustee = Identity::trustee();
     let new_identity = Identity::new(None, None);
 
@@ -43,7 +44,7 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
             &new_identity.did,
             Some(new_identity.verkey.to_string()),
             None,
-            role,
+            role.map(UpdateRole::Set),
             None,
             None,
         )
