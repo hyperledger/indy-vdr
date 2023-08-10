@@ -73,14 +73,12 @@ pub fn load_config() -> Result<Config, String> {
         .arg(
             Arg::new("tls-cert")
                 .long("tls-cert")
-                .takes_value(true)
                 .value_name("CERT")
                 .help("Path to the TLS certificate file")
         )
         .arg(
             Arg::new("tls-key")
                 .long("tls-key")
-                .takes_value(true)
                 .value_name("KEY")
                 .help("Path to the TLS private key file")
         );
@@ -139,8 +137,8 @@ pub fn load_config() -> Result<Config, String> {
         .transpose()?
         .unwrap_or(120);
 
-    let tls_cert_path = matches.value_of("tls-cert").map(str::to_owned);
-    let tls_key_path = matches.value_of("tls-key").map(str::to_owned);
+    let tls_cert_path = matches.get_one::<String>("tls-cert").cloned();
+    let tls_key_path = matches.get_one::<String>("tls-key").cloned();
 
     Ok(Config {
         genesis,
