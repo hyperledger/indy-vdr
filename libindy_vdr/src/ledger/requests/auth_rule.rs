@@ -4,6 +4,7 @@ use std::ops::Not;
 use super::constants::{AUTH_RULE, AUTH_RULES, GET_AUTH_RULE};
 use super::{ProtocolVersion, RequestType};
 use crate::common::error::prelude::*;
+use crate::ledger::constants::LedgerRole;
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug, Serialize, PartialEq)]
@@ -54,7 +55,7 @@ pub enum Constraint {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct RoleConstraint {
     pub sig_count: u32,
-    pub role: Option<String>,
+    pub role: Option<LedgerRole>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
     #[serde(default)]
