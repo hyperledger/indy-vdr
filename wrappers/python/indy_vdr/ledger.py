@@ -1,5 +1,6 @@
 """Methods for generating and working with pool ledger requests."""
 
+import pytz as timezone
 from ctypes import byref, c_int8, c_int32, c_int64, c_uint64
 from datetime import datetime, date
 from enum import IntEnum
@@ -760,7 +761,7 @@ def prepare_txn_author_agreement_acceptance(
     if not accepted_time:
         # rough timestamp
         accepted_time = int(
-            datetime.combine(date.today(), datetime.min.time()).timestamp()
+            datetime.combine(date.today(), datetime.min.time(), tzinfo=timezone.utc).timestamp()
         )
     result = lib_string()
     do_call(
