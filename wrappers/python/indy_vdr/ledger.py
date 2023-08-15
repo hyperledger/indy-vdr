@@ -761,7 +761,9 @@ def prepare_txn_author_agreement_acceptance(
     if not accepted_time:
         # rough timestamp
         accepted_time = int(
-            datetime.combine(date.today(), datetime.min.time(), tzinfo=timezone.utc).timestamp()
+            datetime.combine(
+                date.today(), datetime.min.time(), timezone.utc
+            ).timestamp()
         )
     result = lib_string()
     do_call(
