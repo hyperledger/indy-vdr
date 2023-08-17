@@ -1,4 +1,4 @@
-import { alloc } from 'ref-napi'
+import { alloc } from '@2060.io/ref-napi'
 
 import { FFI_HANDLE, FFI_STRING } from './primitives'
 
