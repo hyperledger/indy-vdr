@@ -55,5 +55,8 @@
     "remote_path": "v0.4.0-dev.16",
     "host": "https://github.com/hyperledger/indy-vdr/releases/download/",
     "package_name": "library-{platform}-{arch}.tar.gz"
+  },
+  "engines": {
+    "node": ">= 18"
   }
 }
