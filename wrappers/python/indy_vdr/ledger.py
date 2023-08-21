@@ -1,7 +1,7 @@
 """Methods for generating and working with pool ledger requests."""
 
 from ctypes import byref, c_int8, c_int32, c_int64, c_uint64
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import IntEnum
 from typing import Optional, Union
 
