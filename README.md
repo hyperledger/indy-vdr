@@ -50,13 +50,13 @@ To start the proxy server with the standard configuration of indy ledgers use th
 `indy-vdr-proxy -p <PORT> -- --multiple-ledgers`
 This will get the ledger configuration from `https://github.com/IDunion/indy-did-networks`
 
-A custom ledger configuration can be provided either by specificing a Github repo or a local folder:
+A custom ledger configuration can be provided either by specifying a Github repo or a local folder:
 ```
 indy-vdr-proxy -p <PORT> -g <GITHUB_URL or PATH_TO_FOLDER> -- --multiple-ledgers
 ```
 The structure needs to be as follows `<NAMESPACE>/OPTIONAL<SUB_NAMESPACE>/pool_transactions_genesis.json`, e.g. `/sovrin/staging/pool_transactions_genesis.json`
 
-Responses can be formatted in either HTML or JSON formats. HTML formatting is selected when the `text/html` content type is requested according to the Accept header (as sent by web browsers) or the request query string is set to `?html`. JSON formatting is selected otherwise, and may be explitly selected by using the query string `?raw`. For most ledger requests, JSON responses include information regarding which nodes were contacted is returned in the `X-Requests` header.
+Responses can be formatted in either HTML or JSON formats. HTML formatting is selected when the `text/html` content type is requested according to the Accept header (as sent by web browsers) or the request query string is set to `?html`. JSON formatting is selected otherwise, and may be explicitly selected by using the query string `?raw`. For most ledger requests, JSON responses include information regarding which nodes were contacted is returned in the `X-Requests` header.
 
 Sending prepared requests to the ledger is performed by delivering a POST request to the `{LEDGER}/submit` endpoint, where the body of the request is the JSON-formatted payload. Additional endpoints are provided as shortcuts for ledger read transactions:
 - `/` Return configured ledgers 
