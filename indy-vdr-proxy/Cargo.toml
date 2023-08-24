@@ -16,7 +16,7 @@ tls = ["rustls-pemfile", "tokio-rustls", "hyper/stream"]
 default = ["fetch", "zmq_vendored"]
 
 [dependencies]
-clap = "4.3"
+clap = "~4.2"
 env_logger = "0.10"
 futures-executor = "0.3"
 futures-util = "0.3"
