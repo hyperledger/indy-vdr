@@ -1,5 +1,5 @@
+import * as ref from '@2060.io/ref-napi'
 import refArray from 'ref-array-di'
-import * as ref from 'ref-napi'
 import refStruct from 'ref-struct-di'
 
 const Struct = refStruct(ref)

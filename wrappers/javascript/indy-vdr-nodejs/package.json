@@ -29,10 +29,11 @@
   "devDependencies": {
     "@babel/core": "^7.12.9",
     "@babel/runtime": "^7.12.5",
-    "@types/ffi-napi": "^4.0.5",
+    "@types/2060.io__ffi-napi": "npm:@types/ffi-napi",
+    "@types/2060.io__ref-napi": "npm:@types/ref-napi",
     "@types/jest": "^27.4.1",
     "@types/node": "^17.0.26",
-    "@types/ref-array-di": "^1.2.3",
+    "@types/ref-array-di": "^1.2.5",
     "@types/ref-struct-di": "^1.1.6",
     "babel-plugin-module-resolver": "^4.0.0",
     "jest": "^28.0.2",
@@ -43,10 +44,9 @@
   "dependencies": {
     "@hyperledger/indy-vdr-shared": "0.1.0",
     "@mapbox/node-pre-gyp": "^1.0.10",
-    "@types/ref-array-di": "^1.2.5",
-    "ffi-napi": "^4.0.3",
+    "@2060.io/ffi-napi": "4.0.5",
+    "@2060.io/ref-napi": "3.0.4",
     "ref-array-di": "^1.2.2",
-    "ref-napi": "^3.0.3",
     "ref-struct-di": "^1.1.1"
   },
   "binary": {
@@ -55,5 +55,8 @@
     "remote_path": "v0.4.0-dev.16",
     "host": "https://github.com/hyperledger/indy-vdr/releases/download/",
     "package_name": "library-{platform}-{arch}.tar.gz"
+  },
+  "engines": {
+    "node": ">= 18"
   }
 }
