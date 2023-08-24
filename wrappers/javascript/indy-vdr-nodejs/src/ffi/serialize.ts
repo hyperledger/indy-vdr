@@ -1,6 +1,6 @@
 import type { ByteBuffer } from './structures'
 
-import { NULL } from 'ref-napi'
+import { NULL } from '@2060.io/ref-napi'
 
 import { uint8ArrayToByteBuffer } from './conversion'
 
