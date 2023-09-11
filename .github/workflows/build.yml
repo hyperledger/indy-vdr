@@ -385,7 +385,7 @@ jobs:
       - name: Build
         run: |
           cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
-          cross build --release --target ${{matrix.target}} --package indy-vdr
+          cross build --lib --release --target ${{matrix.target}} --package indy-vdr
 
       - name: Save library
         uses: actions/upload-artifact@v3
