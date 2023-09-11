@@ -1,7 +1,7 @@
 name: "Indy-VDR"
 
 env:
-  RUST_VERSION: "1.65.0"
+  RUST_VERSION: "1.70.0"
   CROSS_VERSION: "0.2.4"
 
 on:
@@ -359,6 +359,8 @@ jobs:
     name: Build library (Android)
     needs: [checks]
     # NB: RUST_VERSION must be <1.68 here to support NDK 17
+    env:
+      RUST_VERSION: "1.67"
 
     runs-on: ubuntu-latest
     strategy:
