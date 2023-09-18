@@ -1,15 +1,33 @@
 _Generating the C header:_
 
-Install [cbindgen](https://github.com/eqrion/cbindgen/):
+
+1. use `nightly` instead of `stable`
+
+```sh
+rustup default nightly
+```
+> **Note**: If you run into _'unknown feature'_ issues by using latest nightly, force it to 1.72.0 by executing: `rustup default nightly-2023-06-15`
+
+2. Install [cbindgen](https://github.com/eqrion/cbindgen/)
 
 ```sh
 cargo install cbindgen
 ```
 
-From the `libindy_vdr` directory, generate the header file:
+3. Install [cargo expand](https://github.com/dtolnay/cargo-expand)
 
 ```sh
-cbindgen --config include/cbindgen.toml --crate indy-vdr --output include/libindy_vdr.h
+cargo install cargo-expand
 ```
 
-Note that a few types are currently defined manually, such as `ByteBuffer`, because of limitations in the binding generator.
+4. Generate the header file:
+
+```sh
+cbindgen --config libindy_vdr/include/cbindgen.toml --crate indy-vdr --lockfile Cargo.lock --output libindy_vdr/include/libindy_vdr.h
+```
+
+5. Copy to React Native:
+
+```sh
+cp libindy_vdr/include/libindy_vdr.h wrappers/javascript/indy-vdr-react-native/cpp/include/
+```

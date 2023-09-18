@@ -102,6 +102,8 @@ jsi::Value buildGetAttribRequest(jsi::Runtime &rt, jsi::Object options) {
   auto hash = jsiToValue<std::string>(rt, options, "hash", true);
   auto raw = jsiToValue<std::string>(rt, options, "raw", true);
   auto enc = jsiToValue<std::string>(rt, options, "enc", true);
+  auto seqNo = jsiToValue<int32_t>(rt, options, "seqNo", true);
+  auto timestamp = jsiToValue<int64_t>(rt, options, "timestamp", true);
 
   RequestHandle out;
 
@@ -110,7 +112,8 @@ jsi::Value buildGetAttribRequest(jsi::Runtime &rt, jsi::Object options) {
       targetDid.c_str(),
       raw.length() > 0 ? raw.c_str() : nullptr,
       hash.length() > 0 ? hash.c_str() : nullptr,
-      enc.length() > 0 ? enc.c_str() : nullptr, &out);
+      enc.length() > 0 ? enc.c_str() : nullptr, 
+      seqNo, timestamp, &out);
 
   return createReturnValue(rt, code, &out);
 };
@@ -226,12 +229,14 @@ jsi::Value buildGetNymRequest(jsi::Runtime &rt, jsi::Object options) {
   auto submitterDid =
       jsiToValue<std::string>(rt, options, "submitterDid", true);
   auto dest = jsiToValue<std::string>(rt, options, "dest");
+  auto seqNo = jsiToValue<int32_t>(rt, options, "seqNo", true);
+  auto timestamp = jsiToValue<int64_t>(rt, options, "timestamp", true);
 
   RequestHandle out;
 
   ErrorCode code = indy_vdr_build_get_nym_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr, dest.c_str(),
-      &out);
+      seqNo, timestamp, &out);
 
   return createReturnValue(rt, code, &out);
 };
@@ -297,6 +302,8 @@ jsi::Value buildNymRequest(jsi::Runtime &rt, jsi::Object options) {
   auto verkey = jsiToValue<std::string>(rt, options, "verkey", true);
   auto alias = jsiToValue<std::string>(rt, options, "alias", true);
   auto role = jsiToValue<std::string>(rt, options, "role", true);
+  auto diddocContent = jsiToValue<std::string>(rt, options, "diddocContent", true);
+  auto version = jsiToValue<int32_t>(rt, options, "version");
 
   RequestHandle out;
 
@@ -304,7 +311,9 @@ jsi::Value buildNymRequest(jsi::Runtime &rt, jsi::Object options) {
       submitterDid.c_str(), dest.c_str(),
       verkey.length() > 0 ? verkey.c_str() : nullptr,
       alias.length() > 0 ? alias.c_str() : nullptr,
-      role.length() > 0 ? role.c_str() : nullptr, &out);
+      role.length() > 0 ? role.c_str() : nullptr, 
+      diddocContent.length() > 0 ? diddocContent.c_str() : nullptr, 
+      version, &out);
 
   return createReturnValue(rt, code, &out);
 };
