@@ -289,7 +289,7 @@ jobs:
         if: |
           github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
-        run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
+        run: npx lerna@7.3.0 publish from-package --no-push --no-private --yes --no-git-tag-version
 
   build-ios:
     name: Build library (iOS)
