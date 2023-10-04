@@ -17,6 +17,7 @@ use super::requests::{PoolRequest, PoolRequestImpl};
 use super::types::{PoolSetup, RequestHandle, Verifiers};
 
 use crate::common::error::prelude::*;
+use crate::common::handle::ResourceHandle;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
 use crate::ledger::RequestBuilder;
