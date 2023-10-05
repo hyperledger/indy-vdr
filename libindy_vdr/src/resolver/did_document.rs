@@ -1,6 +1,6 @@
 use crate::common::error::prelude::*;
 use crate::ledger::responses::Endpoint;
-use indy_utils::base58;
+use crate::utils::base58;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value as SJsonValue};
 

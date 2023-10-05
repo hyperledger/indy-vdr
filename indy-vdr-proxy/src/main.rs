@@ -369,7 +369,7 @@ async fn init_server(config: app::Config) -> Result<(), String> {
     #[cfg(feature = "tls")]
     if let (Some(tls_cert_path), Some(tls_key_path)) = (&config.tls_cert_path, &config.tls_key_path)
     {
-        let tls_cfg = build_tls_config(&tls_cert_path, &tls_key_path)?;
+        let tls_cfg = build_tls_config(tls_cert_path, tls_key_path)?;
         let tls_acceptor = TlsAcceptor::from(Arc::new(tls_cfg));
         let tcp_listener = TcpListener::bind(&addr)
             .await
@@ -420,7 +420,7 @@ fn build_tls_config(cert_path: &str, key_path: &str) -> Result<ServerConfig, Str
                     .ok_or_else(|| "Error parsing TLS key file: no keys found".to_string())?,
             ),
         )
-        .map_err(|err| format!("Error building TLS config: {}", err.to_string()))
+        .map_err(|err| format!("Error building TLS config: {}", err))
 }
 
 async fn run_server<I>(

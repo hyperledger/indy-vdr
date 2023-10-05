@@ -10,15 +10,24 @@ use zmq::PollItem;
 use zmq::Socket as ZSocket;
 
 use crate::common::error::prelude::*;
+use crate::common::handle::ResourceHandle;
 use crate::config::PoolConfig;
 use crate::utils::{base58, base64};
 
 use super::types::{Message, Verifiers};
 use super::{Networker, NetworkerEvent, NetworkerFactory, RequestExtEvent, RequestHandle};
 
-new_handle_type!(ZMQSocketHandle, ZSC_COUNTER);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct ZMQSocketHandle(pub i64);
 
-new_handle_type!(ZMQConnectionHandle, ZCH_COUNTER);
+impl_sequence_handle!(ZMQSocketHandle, ZSC_COUNTER);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct ZMQConnectionHandle(pub i64);
+
+impl_sequence_handle!(ZMQConnectionHandle, ZCH_COUNTER);
 
 /// ZeroMQ `NetworkerFactory` implementation
 #[derive(Default)]

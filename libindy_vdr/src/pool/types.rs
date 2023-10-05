@@ -654,7 +654,11 @@ impl PoolSetup {
     }
 }
 
-new_handle_type!(RequestHandle, RQ_COUNTER);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct RequestHandle(pub i64);
+
+impl_sequence_handle!(RequestHandle, RQ_COUNTER);
 
 /// Common result type returned by request handlers
 #[derive(Debug)]

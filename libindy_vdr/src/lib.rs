@@ -48,7 +48,7 @@ extern crate serde;
 extern crate serde_json;
 
 #[macro_use]
-extern crate indy_utils;
+extern crate indy_data_types;
 
 /// Utility functions, traits and macros
 #[macro_use]

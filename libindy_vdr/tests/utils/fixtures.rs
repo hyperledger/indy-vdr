@@ -1,4 +1,4 @@
-use indy_utils::base58;
+use bs58;
 use rand::{thread_rng, Rng};
 
 use crate::utils::constants::*;
@@ -62,7 +62,7 @@ pub fn non_self_cert_identity() -> Identity {
     let mut id = Identity::new(None, None);
     let mut rng = thread_rng();
     let rand_arr: [u8; 16] = rng.gen();
-    let did = base58::encode(rand_arr);
+    let did = bs58::encode(rand_arr).into_string();
     id.did = DidValue(did);
     id
 }
