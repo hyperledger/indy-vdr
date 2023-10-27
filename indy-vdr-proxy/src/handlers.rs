@@ -264,7 +264,7 @@ fn get_pool_status(state: Rc<RefCell<AppState>>, namespace: &str) -> VdrResult<R
     let pool_states = &state.borrow().pool_states;
     let opt_pool = &pool_states
         .get(namespace)
-        .ok_or_else(|| err_msg(VdrErrorKind::Input, format!("Unkown ledger: {}", namespace)))?
+        .ok_or_else(|| err_msg(VdrErrorKind::Input, format!("Unknown ledger: {}", namespace)))?
         .pool;
     let (status, mt_root, mt_size, nodes) = if let Some(pool) = opt_pool {
         let (mt_root, mt_size) = pool.get_merkle_tree_info();
