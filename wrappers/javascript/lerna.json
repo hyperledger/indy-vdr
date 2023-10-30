@@ -1,11 +1,11 @@
 {
+  "$schema": "node_modules/lerna/schemas/lerna-schema.json",
   "packages": ["indy-vdr-*"],
-  "version": "0.2.0-dev.2",
+  "version": "0.2.0-dev.3",
   "npmClient": "yarn",
   "command": {
     "version": {
       "allowBranch": "main"
     }
-  },
-  "$schema": "node_modules/lerna/schemas/lerna-schema.json"
+  }
 }

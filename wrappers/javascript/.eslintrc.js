@@ -71,7 +71,7 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['arch.js', 'platform.js'],
+      files: ['**/scripts/*.js'],
       env: {
         node: true,
       },
@@ -79,6 +79,7 @@ module.exports = {
         '@typescript-eslint/no-unsafe-assignment': 'off',
         'no-console': 'off',
         '@typescript-eslint/no-var-requires': 'off',
+        '@typescript-eslint/restrict-template-expressions': 'off',
       },
     },
     {
