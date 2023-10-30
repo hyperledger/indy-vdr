@@ -3,8 +3,8 @@
 #include <ReactCommon/CallInvoker.h>
 #include <jsi/jsi.h>
 
-#include <HostObject.h>
-#include <include/libindy_vdr.h>
+#include "HostObject.h"
+#include "include/libindy_vdr.h"
 
 using namespace facebook;
 

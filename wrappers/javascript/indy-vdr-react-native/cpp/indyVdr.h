@@ -2,8 +2,8 @@
 
 #include <jsi/jsi.h>
 
-#include <include/libindy_vdr.h>
-#include <turboModuleUtility.h>
+#include "include/libindy_vdr.h"
+#include "turboModuleUtility.h"
 
 using namespace facebook;
 
