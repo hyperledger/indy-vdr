@@ -74,7 +74,7 @@ export class ReactNativeIndyVdr implements IndyVdr {
     isStream = false
   ): Promise<Return | null> => {
     return new Promise((resolve, reject) => {
-      const _cb: CallbackWithResponse = ({ value, errorCode }) => {
+      const cb: CallbackWithResponse = ({ value, errorCode }) => {
         if (errorCode !== 0) reject(new IndyVdrError(JSON.parse(this.getCurrentError()) as IndyVdrErrorObject))
 
         // this is required to add array brackets, and commas, to an invalid json object that
@@ -89,7 +89,7 @@ export class ReactNativeIndyVdr implements IndyVdr {
         }
       }
 
-      method(_cb)
+      method(cb)
     })
   }
 
@@ -255,10 +255,10 @@ export class ReactNativeIndyVdr implements IndyVdr {
   public async poolGetTransactions(options: { poolHandle: PoolHandle }): Promise<Transactions> {
     const { poolHandle } = serializeArguments(options)
     const result = handleInvalidNullResponse(
-      await this.promisifyWithResponse<string>((cb) => this.indyVdr.poolGetTransactions({ cb, poolHandle }), true)
+      await this.promisifyWithResponse<Transactions>((cb) => this.indyVdr.poolGetTransactions({ cb, poolHandle }), true)
     )
 
-    return JSON.parse(result) as Transactions
+    return result
   }
 
   public async poolGetVerifiers(options: { poolHandle: PoolHandle }): Promise<Verifiers> {

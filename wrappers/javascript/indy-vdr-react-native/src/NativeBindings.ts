@@ -1,4 +1,5 @@
 import type { Callback, CallbackWithResponse, ReturnObject } from './serialize'
+import type { Transactions } from '@hyperledger/indy-vdr-shared'
 
 export type PoolHandle = number
 export type RequestHandle = number
@@ -127,7 +128,7 @@ export interface NativeBindings {
 
   poolGetStatus(options: { poolHandle: PoolHandle; cb: CallbackWithResponse<string> }): ReturnObject<never>
 
-  poolGetTransactions(options: { poolHandle: PoolHandle; cb: CallbackWithResponse<string> }): ReturnObject<never>
+  poolGetTransactions(options: { poolHandle: PoolHandle; cb: CallbackWithResponse<Transactions> }): ReturnObject<never>
 
   poolGetVerifiers(options: { poolHandle: PoolHandle; cb: CallbackWithResponse<string> }): ReturnObject<never>
 
