@@ -120,7 +120,7 @@ impl RequestType for GetTxnAuthorAgreementOperation {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct AcceptanceMechanisms(pub HashMap<String, ::serde_json::Value>);
 
 impl AcceptanceMechanisms {
@@ -222,6 +222,12 @@ impl DisableAllTxnAuthorAgreementsOperation {
         Self {
             _type: Self::get_txn_type().to_string(),
         }
+    }
+}
+
+impl Default for DisableAllTxnAuthorAgreementsOperation {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

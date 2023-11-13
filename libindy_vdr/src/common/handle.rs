@@ -6,7 +6,6 @@ pub trait ResourceHandle: Copy + Ord + From<i64> {
     fn next() -> Self;
 }
 
-#[cfg(feature = "ffi")]
 /// Derive a new handle type having an atomically increasing sequence number
 macro_rules! impl_sequence_handle (($newtype:ident, $counter:ident) => (
     static $counter: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);

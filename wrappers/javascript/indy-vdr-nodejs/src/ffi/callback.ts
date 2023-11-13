@@ -1,4 +1,4 @@
-import { Callback } from 'ffi-napi'
+import { Callback } from '@2060.io/ffi-napi'
 
 import { allocateCallback } from './alloc'
 import { FFI_VOID, FFI_CALLBACK_ID, FFI_ERROR_CODE, FFI_STRING } from './primitives'

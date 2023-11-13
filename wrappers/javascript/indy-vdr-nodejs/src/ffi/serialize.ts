@@ -1,6 +1,6 @@
 import type { ByteBuffer } from './structures'
 
-import { NULL } from 'ref-napi'
+import { NULL } from '@2060.io/ref-napi'
 
 import { uint8ArrayToByteBuffer } from './conversion'
 
@@ -19,6 +19,8 @@ export type SerializedOptions<Type> = Required<{
     : Type[Property] extends number
     ? number
     : Type[Property] extends Record<string, unknown>
+    ? string
+    : Type[Property] extends string | Record<string, unknown>
     ? string
     : Type[Property] extends Array<unknown>
     ? string

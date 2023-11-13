@@ -181,7 +181,7 @@ mod send_revoc_reg {
 
     #[rstest]
     fn test_pool_send_revoc_reg_def_def_requests(pool: TestPool) {
-        let identity = helpers::new_ledger_identity(&pool, Some(String::from("TRUSTEE")));
+        let identity = helpers::new_ledger_identity(&pool, Some(constants::LedgerRole::Trustee));
 
         let schema = helpers::schema::default_schema(&identity.did);
         let (_schema_id, schema_seq_no) = helpers::schema::publish(&identity, &pool, &schema);
@@ -349,13 +349,11 @@ mod send_revoc_reg {
     ) -> String {
         let get_revoc_reg = pool
             .request_builder()
-            .build_get_revoc_reg_request(None, &revoc_reg_id, timestamp)
+            .build_get_revoc_reg_request(None, revoc_reg_id, timestamp)
             .unwrap();
 
-        let response = pool
-            .send_request_with_retries(&get_revoc_reg, revoc_reg_entry_response)
-            .unwrap();
-        response
+        pool.send_request_with_retries(&get_revoc_reg, revoc_reg_entry_response)
+            .unwrap()
     }
 
     fn _get_revocation_registry_delta(
@@ -367,13 +365,11 @@ mod send_revoc_reg {
     ) -> String {
         let get_revoc_reg_delta = pool
             .request_builder()
-            .build_get_revoc_reg_delta_request(None, &revoc_reg_id, from, to)
+            .build_get_revoc_reg_delta_request(None, revoc_reg_id, from, to)
             .unwrap();
 
-        let response = pool
-            .send_request_with_retries(&get_revoc_reg_delta, revoc_reg_entry_response)
-            .unwrap();
-        response
+        pool.send_request_with_retries(&get_revoc_reg_delta, revoc_reg_entry_response)
+            .unwrap()
     }
 
     fn _extract_txn_time_from_reply(reply: &str) -> u64 {

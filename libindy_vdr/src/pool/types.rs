@@ -1,10 +1,11 @@
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::str::FromStr;
 
+pub use indy_blssignatures::VerKey as BlsVerKey;
 use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{self, Value as SJsonValue};
-pub use ursa::bls::VerKey as BlsVerKey;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -32,15 +33,19 @@ impl ProtocolVersion {
         value.try_into()
     }
 
-    pub fn from_str(value: &str) -> VdrResult<Self> {
+    pub fn to_id(&self) -> i64 {
+        *self as i64
+    }
+}
+
+impl FromStr for ProtocolVersion {
+    type Err = VdrError;
+
+    fn from_str(value: &str) -> VdrResult<Self> {
         let value = value
             .parse::<i64>()
             .map_input_err(|| format!("Invalid protocol version: {}", value))?;
         Self::from_id(value)
-    }
-
-    pub fn to_id(&self) -> i64 {
-        *self as i64
     }
 }
 
@@ -53,6 +58,14 @@ impl TryFrom<i64> for ProtocolVersion {
             x if x == Self::Node1_4 as i64 => Ok(Self::Node1_4),
             _ => Err(input_err(format!("Unknown protocol version: {}", value))),
         }
+    }
+}
+
+impl TryFrom<&str> for ProtocolVersion {
+    type Error = VdrError;
+
+    fn try_from(value: &str) -> VdrResult<Self> {
+        Self::from_str(value)
     }
 }
 
@@ -93,9 +106,23 @@ impl LedgerType {
     pub fn from_id(value: i32) -> VdrResult<Self> {
         value.try_into()
     }
+}
 
-    pub fn from_str(value: &str) -> VdrResult<Self> {
-        value.try_into()
+impl FromStr for LedgerType {
+    type Err = VdrError;
+
+    fn from_str(value: &str) -> VdrResult<Self> {
+        match value.to_ascii_uppercase().as_str() {
+            "POOL" => Ok(LedgerType::POOL),
+            "DOMAIN" => Ok(LedgerType::DOMAIN),
+            "CONFIG" => Ok(LedgerType::CONFIG),
+            _ => {
+                let ival = value
+                    .parse::<i32>()
+                    .map_input_err(|| format!("Unknown ledger type: {}", value))?;
+                Self::try_from(ival)
+            }
+        }
     }
 }
 
@@ -116,17 +143,7 @@ impl TryFrom<&str> for LedgerType {
     type Error = VdrError;
 
     fn try_from(value: &str) -> VdrResult<Self> {
-        match value.to_ascii_uppercase().as_str() {
-            "POOL" => Ok(LedgerType::POOL),
-            "DOMAIN" => Ok(LedgerType::DOMAIN),
-            "CONFIG" => Ok(LedgerType::CONFIG),
-            _ => {
-                let ival = value
-                    .parse::<i32>()
-                    .map_input_err(|| format!("Unknown ledger type: {}", value))?;
-                Self::try_from(ival)
-            }
-        }
+        Self::from_str(value)
     }
 }
 
@@ -559,7 +576,7 @@ impl Message {
     }
 
     pub fn serialize(&self) -> VdrResult<serde_json::Value> {
-        serde_json::to_value(&self).with_input_err("Cannot serialize message")
+        serde_json::to_value(self).with_input_err("Cannot serialize message")
     }
 }
 
@@ -637,7 +654,11 @@ impl PoolSetup {
     }
 }
 
-new_handle_type!(RequestHandle, RQ_COUNTER);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct RequestHandle(pub i64);
+
+impl_sequence_handle!(RequestHandle, RQ_COUNTER);
 
 /// Common result type returned by request handlers
 #[derive(Debug)]

@@ -1,6 +1,7 @@
 use crate::utils::crypto::Identity;
 use crate::utils::pool::TestPool;
 use indy_vdr::common::error::VdrResult;
+use indy_vdr::ledger::constants::{LedgerRole, UpdateRole};
 use indy_vdr::pool::{NodeReplies, PreparedRequest};
 use indy_vdr::utils::did::DidValue;
 use rand::distributions::Alphanumeric;
@@ -31,9 +32,9 @@ pub fn get_response_data(response: &str) -> Result<serde_json::Value, String> {
     Err(String::from("Cannot get response data"))
 }
 
-pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
+pub fn new_ledger_identity(pool: &TestPool, role: Option<LedgerRole>) -> Identity {
     let trustee = Identity::trustee();
-    let new_identity = Identity::new(None);
+    let new_identity = Identity::new(None, None);
 
     // Send NYM
     let mut nym_request = pool
@@ -43,7 +44,9 @@ pub fn new_ledger_identity(pool: &TestPool, role: Option<String>) -> Identity {
             &new_identity.did,
             Some(new_identity.verkey.to_string()),
             None,
-            role,
+            role.map(UpdateRole::Set),
+            None,
+            None,
         )
         .unwrap();
 
@@ -287,7 +290,7 @@ pub mod revoc_reg {
 
     pub fn revoc_reg_entry_value() -> serde_json::Value {
         json!({
-            "accum": "1 0000000000000000000000000000000000000000000000000000000000000000 1 0000000000000000000000000000000000000000000000000000000000000000 1 0000000000000000000000000000000000000000000000000000000000000000 1 0000000000000000000000000000000000000000000000000000000000000000 1 0000000000000000000000000000000000000000000000000000000000000000 1 0000000000000000000000000000000000000000000000000000000000000000"
+            "accum": "21 121E4902163FA84792C3E4C2E604C82ED26BD38E1E2F5F01C225FBA626E32643E 21 142EAE10B26DE9509795080384CA7FB7CDBF1930123B074316C4CE57C0E31BA18 6 6F0359B45CAB4B6BD99B1E84F5A3B2B898C85FE5FA70587A2B50BB7D3E96F6AA 4 10D027488E3C9EE878D6C22B3E03E0CC7383AFB886FAC4C4A3AE2A4102B59C93 6 573ADA67E24E89B506C8524AAD657D0D96B0490D3889E3EF4919A0C347D08D43 4 285EB88031AE201869561751CF761E71D482FC01795746CB7BE81B8FDAB7DAA9"
         })
     }
 

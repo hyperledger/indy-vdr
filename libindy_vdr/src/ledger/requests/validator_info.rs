@@ -15,6 +15,12 @@ impl GetValidatorInfoOperation {
     }
 }
 
+impl Default for GetValidatorInfoOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RequestType for GetValidatorInfoOperation {
     fn get_txn_type<'a>() -> &'a str {
         GET_VALIDATOR_INFO

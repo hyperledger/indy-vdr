@@ -1,4 +1,7 @@
+use std::str::FromStr;
+
 use crate::common::error::prelude::*;
+use crate::ledger::constants::UpdateRole;
 #[cfg(any(feature = "rich_schema", test))]
 use crate::ledger::identifiers::RichSchemaId;
 use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
@@ -110,9 +113,11 @@ pub extern "C" fn indy_vdr_build_attrib_request(
 pub extern "C" fn indy_vdr_build_get_attrib_request(
     submitter_did: FfiStr, // optional
     target_did: FfiStr,
-    raw: FfiStr,  // optional
-    hash: FfiStr, // optional
-    enc: FfiStr,  // optional
+    raw: FfiStr,    // optional
+    hash: FfiStr,   // optional
+    enc: FfiStr,    // optional
+    seq_no: i32,    // optional, -1 for None
+    timestamp: i64, // optional, -1 for None
     handle_p: *mut RequestHandle,
 ) -> ErrorCode {
     catch_err! {
@@ -127,7 +132,9 @@ pub extern "C" fn indy_vdr_build_get_attrib_request(
         let raw = raw.into_opt_string();
         let hash = hash.into_opt_string();
         let enc = enc.into_opt_string();
-        let req = builder.build_get_attrib_request(identifier.as_ref(), &dest, raw, hash, enc)?;
+        let seq_no = if seq_no == -1 { None } else { Some(seq_no) };
+        let timestamp = if timestamp == -1 { None } else { Some(timestamp as u64) };
+        let req = builder.build_get_attrib_request(identifier.as_ref(), &dest, raw, hash, enc, seq_no, timestamp)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
@@ -219,6 +226,8 @@ pub extern "C" fn indy_vdr_build_get_cred_def_request(
 pub extern "C" fn indy_vdr_build_get_nym_request(
     submitter_did: FfiStr, // optional
     dest: FfiStr,
+    seq_no: i32,    // optional, -1 for None
+    timestamp: i64, // optional, -1 for None
     handle_p: *mut RequestHandle,
 ) -> ErrorCode {
     catch_err! {
@@ -227,7 +236,9 @@ pub extern "C" fn indy_vdr_build_get_nym_request(
         let builder = get_request_builder()?;
         let identifier = submitter_did.as_opt_str().map(DidValue::from_str).transpose()?;
         let dest = DidValue::from_str(dest.as_str())?;
-        let req = builder.build_get_nym_request(identifier.as_ref(), &dest)?;
+        let seq_no = if seq_no == -1 { None } else { Some(seq_no) };
+        let timestamp = if timestamp == -1 { None } else { Some(timestamp as u64) };
+        let req = builder.build_get_nym_request(identifier.as_ref(), &dest, seq_no, timestamp)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;
@@ -396,9 +407,11 @@ pub extern "C" fn indy_vdr_build_get_validator_info_request(
 pub extern "C" fn indy_vdr_build_nym_request(
     submitter_did: FfiStr,
     dest: FfiStr,
-    verkey: FfiStr, // optional
-    alias: FfiStr,  // optional
-    role: FfiStr,   // optional
+    verkey: FfiStr,         // optional
+    alias: FfiStr,          // optional
+    role: FfiStr,           // optional
+    diddoc_content: FfiStr, // optional
+    version: i32,           // optional, -1 for none
     handle_p: *mut RequestHandle,
 ) -> ErrorCode {
     catch_err! {
@@ -409,8 +422,10 @@ pub extern "C" fn indy_vdr_build_nym_request(
         let dest = DidValue::from_str(dest.as_str())?;
         let verkey = verkey.into_opt_string();
         let alias = alias.into_opt_string();
-        let role = role.into_opt_string();
-        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role)?;
+        let role = role.as_opt_str().map(UpdateRole::from_str).transpose()?;
+        let diddoc_content = diddoc_content.as_opt_str().map(serde_json::from_str).transpose().with_input_err("Error deserializing raw value as JSON")?;
+        let version = if version == -1 { None } else { Some(version) };
+        let req = builder.build_nym_request(&identifier, &dest, verkey, alias, role, diddoc_content.as_ref(), version)?;
         let handle = add_request(req)?;
         unsafe {
             *handle_p = handle;

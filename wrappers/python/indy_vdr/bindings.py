@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 
 from .error import VdrError, VdrErrorCode
 
-
 CALLBACKS = {}
 LIB: CDLL = None
 LOGGER = logging.getLogger(__name__)
@@ -44,8 +43,16 @@ class RequestHandle(c_int64):
         return f"{self.__class__.__name__}({self.value})"
 
 
+class ResolverHandle(c_int64):
+    """Index of an active Resolver instance."""
+
+    def __repr__(self) -> str:
+        """Format resolver handle as a string."""
+        return f"{self.__class__.__name__}({self.value})"
+
+
 class FfiByteBuffer(Structure):
-    """A byte buffer allocated by python."""
+    """A byte buffer allocated by Python."""
 
     _fields_ = [
         ("len", c_int64),
@@ -249,6 +256,35 @@ def pool_create(params: Union[str, bytes, dict]) -> PoolHandle:
     return handle
 
 
+def resolver_create(pool_handle: PoolHandle) -> ResolverHandle:
+    """Create a new resolver instance."""
+    handle = ResolverHandle()
+    do_call("indy_vdr_resolver_create", pool_handle, byref(handle))
+    return handle
+
+
+def resolve(resolver_handle: ResolverHandle, did: str) -> asyncio.Future:
+    """Resolve a DID to retrieve a DID Doc."""
+    return do_call_async(
+        "indy_vdr_resolve",
+        resolver_handle,
+        encode_str(did),
+        return_type=lib_string,
+        post_process=str,
+    )
+
+
+def dereference(pool_handle: PoolHandle, did_url: str) -> asyncio.Future:
+    """Dereference a DID Url to retrieve a ledger object."""
+    return do_call_async(
+        "indy_vdr_dereference",
+        pool_handle,
+        encode_str(did_url),
+        return_type=lib_string,
+        post_process=str,
+    )
+
+
 def pool_get_status(pool_handle: PoolHandle) -> asyncio.Future:
     """Get the status of an opened pool instance."""
     return do_call_async(
@@ -352,7 +388,6 @@ def request_set_multi_signature(
 ):
     """Add a multi-signature entry to a prepared request."""
     identifier = encode_str(identifier)
-    sig_len = len(signature)
     do_call(
         "indy_vdr_request_set_multi_signature",
         handle,

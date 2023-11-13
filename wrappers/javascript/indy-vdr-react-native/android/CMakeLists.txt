@@ -1,26 +1,30 @@
-cmake_minimum_required(VERSION 3.9.0)
 project(indyvdrreactnative)
+cmake_minimum_required(VERSION 3.4.1)
 
 set (PACKAGE_NAME "indyvdrreactnative")
 set (LIB_NAME "indyvdr")
-set (BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
+file (GLOB LIBINDY_VDR_DIR "${CMAKE_SOURCE_DIR}/../native/mobile/android/${ANDROID_ABI}")
 
-file (GLOB LIBFBJNI_INCLUDE_DIR "${BUILD_DIR}/fbjni-*-headers.jar/")
-file (GLOB LIBRN_DIR "${BUILD_DIR}/react-native-0*/jni/${ANDROID_ABI}")
-file (GLOB LIBVDR_DIR "${CMAKE_SOURCE_DIR}/../native/mobile/android/${ANDROID_ABI}")
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_CXX_STANDARD 14)
+
+set (BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
+if(${REACT_NATIVE_VERSION} GREATER_EQUAL 71)
+  find_package(fbjni REQUIRED CONFIG)
+  find_package(ReactAndroid REQUIRED CONFIG)
+else()
+  set (RN_SO_DIR ${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/first-party/react/jni)
+endif()
+
+if(${REACT_NATIVE_VERSION} LESS 66)
+  set (INCLUDE_JSI_CPP "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi/jsi/jsi.cpp")
+  set (INCLUDE_JSIDYNAMIC_CPP "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi/jsi/JSIDynamic.cpp")
+endif()
 
 include_directories(
   ../cpp
   ../cpp/include
-  "${LIBVDR_DIR}"
-  "${LIBFBJNI_INCLUDE_DIR}"
-  "${NODE_MODULES_DIR}/react-native/React"
-  "${NODE_MODULES_DIR}/react-native/React/Base"
-  "${NODE_MODULES_DIR}/react-native/ReactCommon"
-  "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
-  "${NODE_MODULES_DIR}/react-native/ReactCommon/callinvoker"
-  "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni"
-  "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/java/com/facebook/react/turbomodule/core/jni"
+  "${LIBINDY_VDR_DIR}"
 )
 
 add_library(
@@ -32,15 +36,83 @@ add_library(
   ../cpp/indyVdr.cpp
 )
 
-set_target_properties(
-  ${PACKAGE_NAME}
-  PROPERTIES
-  CXX_STANDARD 17
-  CXX_EXTENSION OFF
-  POSITION_INDEPENDENT_CODE ON
+if(${REACT_NATIVE_VERSION} GREATER_EQUAL 71)
+  target_include_directories(
+    ${PACKAGE_NAME}
+    PRIVATE
+    "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni/react/turbomodule"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/callinvoker"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/react/renderer/graphics/platform/cxx"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/runtimeexecutor"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/yoga"
+  )
+else()
+  file (GLOB LIBFBJNI_INCLUDE_DIR "${BUILD_DIR}/fbjni-*-headers.jar/")
+
+  target_include_directories(
+    ${PACKAGE_NAME}
+    PRIVATE
+    "${LIBFBJNI_INCLUDE_DIR}"
+    "${NODE_MODULES_DIR}/react-native/React"
+    "${NODE_MODULES_DIR}/react-native/React/Base"
+    "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/jni"
+    "${NODE_MODULES_DIR}/react-native/ReactAndroid/src/main/java/com/facebook/react/turbomodule/core/jni"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/callinvoker"
+    "${NODE_MODULES_DIR}/react-native/ReactCommon/jsi"
+    ${INCLUDE_JSI_CPP} # only on older RN versions
+    ${INCLUDE_JSIDYNAMIC_CPP} # only on older RN versions
+  )
+endif()
+
+file (GLOB LIBRN_DIR "${BUILD_DIR}/react-native-0*/jni/${ANDROID_ABI}")
+
+if(${REACT_NATIVE_VERSION} LESS 71)
+  find_library(
+    FBJNI_LIB
+    fbjni
+    PATHS ${LIBRN_DIR}
+    NO_CMAKE_FIND_ROOT_PATH
+  )
+endif()
+
+if(${REACT_NATIVE_VERSION} LESS 71)
+  find_library(
+    REACT_NATIVE_JNI_LIB
+    reactnativejni
+    PATHS ${LIBRN_DIR}
+    NO_CMAKE_FIND_ROOT_PATH
+  )
+endif()
+
+if(${REACT_NATIVE_VERSION} GREATER_EQUAL 71)
+  target_link_libraries(
+    ${PACKAGE_NAME}
+    ReactAndroid::jsi
+    ReactAndroid::reactnativejni
+    fbjni::fbjni
+  )
+elseif(${REACT_NATIVE_VERSION} LESS 66)
+  # JSI lib didn't exist on RN 0.65 and before. Simply omit it.
+  set (JSI_LIB "")
+else()
+  # RN 0.66 distributes libjsi.so, can be used instead of compiling jsi.cpp manually.
+  find_library(
+    JSI_LIB
+    jsi
+    PATHS ${LIBRN_DIR}
+    NO_CMAKE_FIND_ROOT_PATH
+  )
+endif()
+
+find_library(
+  REANIMATED_LIB
+  reanimated
+  PATHS ${LIBREANIMATED_DIR}
+  NO_CMAKE_FIND_ROOT_PATH
 )
-
-
 
 find_library(
   LOG_LIB
@@ -48,40 +120,19 @@ find_library(
 )
 
 find_library(
-  FBJNI_LIB
-  fbjni
-  PATHS ${LIBRN_DIR}
-  NO_CMAKE_FIND_ROOT_PATH
-)
-
-find_library(
-  REACT_NATIVE_JNI_LIB
-  reactnativejni
-  PATHS ${LIBRN_DIR}
-  NO_CMAKE_FIND_ROOT_PATH
-)
-
-find_library(
-  JSI_LIB
-  jsi
-  PATHS ${LIBRN_DIR}
-  NO_CMAKE_FIND_ROOT_PATH
-)
-
-find_library(
-  VDR_LIB
+  INDY_VDR_LIB 
   indy_vdr
-  paths ${LIBVDR_DIR}
+  paths ${LIBINDY_VDR_DIR}
   NO_CMAKE_FIND_ROOT_PATH
 )
 
-if (NOT VDR_LIB)
-  message(FATAL_ERROR "Could not find VDR_LIB at: ${LIBVDR_DIR}")
+if (NOT INDY_VDR_LIB)
+  message(FATAL_ERROR "Could not find INDY_VDR_LIB at: ${LIBINDY_VDR_DIR}")
 endif()
 
 target_link_libraries(
   ${PACKAGE_NAME}
-  ${VDR_LIB}
+  ${INDY_VDR_LIB}
   ${LOG_LIB}
   ${JSI_LIB}
   ${REACT_NATIVE_JNI_LIB}

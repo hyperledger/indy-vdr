@@ -48,7 +48,7 @@ extern crate serde;
 extern crate serde_json;
 
 #[macro_use]
-extern crate indy_utils;
+extern crate indy_data_types;
 
 /// Utility functions, traits and macros
 #[macro_use]
@@ -66,6 +66,9 @@ mod ffi;
 pub mod ledger;
 /// Handling of verifier pool instances and communication
 pub mod pool;
+
+/// did:indy DID URL resolver
+pub mod resolver;
 /// State proof verification for ledger read transactions
 pub mod state_proof;
 

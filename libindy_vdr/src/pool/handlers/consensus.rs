@@ -77,7 +77,7 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                                 && check_state_proof(
                                     result,
                                     f,
-                                    &*DEFAULT_GENERATOR,
+                                    &DEFAULT_GENERATOR,
                                     &node_keys,
                                     &raw_msg,
                                     state_proof_key.as_deref(),

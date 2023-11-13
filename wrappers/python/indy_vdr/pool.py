@@ -2,11 +2,12 @@
 
 import json
 from datetime import datetime
-from typing import Mapping, Sequence, Union
+from typing import Dict, Mapping, Sequence, Union
 
 from . import bindings
 from .error import VdrError, VdrErrorCode
 from .ledger import Request, build_custom_request
+from .utils import get_genesis_txns_from_did_indy_repo_by_name
 
 
 class Pool:
@@ -155,7 +156,8 @@ async def open_pool(
             node a higher probability of being selected. A weight of zero means the
             node will never be selected.
         no_refresh: Disable the initial verifier pool refresh
-        socks_proxy: The socks proxy host name and port for ZMQ (example: proxy1.intranet.company.com:1080)
+        socks_proxy: The socks proxy host name and port for ZMQ
+            (example: proxy1.intranet.company.com:1080)
 
     Returns:
         A new `Pool` instance which may be used to submit ledger requests
@@ -176,3 +178,45 @@ async def open_pool(
     if not no_refresh:
         await pool.refresh()
     return pool
+
+
+async def open_pools(
+    genesis_map: dict = None,
+    ledgers: list = None,
+    no_refresh: bool = False,
+    socks_proxy: str = None,
+) -> Dict[str, Pool]:
+    """Create a map of new ledger pool instances.
+
+    Either `genesis_map` or `ledgers` must be specified, but not both.
+
+    Args:
+        genesis_map: A dict mapping namespaces to ledger genesis files
+        ledgers: A list of ledger namespaces. Genesis files will be fetched from
+            did indy networks Github repo
+        no_refresh: Disable the initial verifier pool refresh
+        socks_proxy: The socks proxy host name and port for ZMQ
+            (example: proxy1.intranet.company.com:1080)
+
+    Returns:
+        A dict of namespace to `Pool` instance mappings which may be used to
+        initialize a DID resolver.
+    """
+
+    pool_map = dict()
+
+    if not (bool(genesis_map) ^ bool(ledgers)):
+        raise VdrError(
+            VdrErrorCode.WRAPPER,
+            "Must provide one of genesis_map or ledgers",
+        )
+
+    if not genesis_map:
+        genesis_map = get_genesis_txns_from_did_indy_repo_by_name(ledgers)
+
+    for namespace, genesis_txn_path in genesis_map.items():
+
+        pool = await open_pool(genesis_txn_path, None, None, no_refresh, socks_proxy)
+        pool_map[namespace] = pool
+
+    return pool_map

@@ -1,5 +1,9 @@
 name: "Indy-VDR"
 
+env:
+  RUST_VERSION: "1.70.0"
+  CROSS_VERSION: "0.2.4"
+
 on:
   push:
     branches: [main]
@@ -20,12 +24,16 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
-    name: Run Checks
+  checks:
+    name: Run checks
     strategy:
       matrix:
-        os: [macos-11, windows-latest, ubuntu-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -33,68 +41,89 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy, rustfmt
 
       - name: Cache cargo resources
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: deps
+          cache-on-failure: true
 
       - name: Cargo check
         run: cargo check
 
+      - name: Cargo check TLS support
+        run: cargo check --package indy-vdr-proxy --features tls
+
       - name: Cargo fmt
         run: cargo fmt --all -- --check
 
-      - name: Debug build
-        run: cargo build --manifest-path libindy_vdr/Cargo.toml --features zmq_vendored
+      - if: ${{ runner.os == 'Linux' }}
+        name: Pre-install cross
+        run: |
+          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
 
   test-suite:
     name: Run Test Suite
-    needs: [check]
+    needs: [checks]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Cache cargo resources
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: deps
+          save-if: false
+
+      - name: Debug build
+        run: cargo build --manifest-path libindy_vdr/Cargo.toml
 
       - name: Run local node pool
         run: |
-          docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
-          docker network create --subnet=10.0.0.0/8 indy-sdk-network
-          docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+          ./ci/test.sh up
 
       - name: Run tests
         run: cargo test --manifest-path libindy_vdr/Cargo.toml --features local_nodes_pool
 
+      - name: Stop local node pool
+        run: |
+          ./ci/test.sh down
+
   build-release:
-    name: Build Library
-    needs: [check]
+    name: Build library
+    needs: [checks]
 
     strategy:
       matrix:
         include:
-          - arch: linux-aarch64
+          - architecture: linux-aarch64
             os: ubuntu-latest
             lib: libindy_vdr.so
             target: aarch64-unknown-linux-gnu
             use_cross: true
-          - arch: linux-x86_64
+          - architecture: linux-x86_64
             os: ubuntu-latest
             lib: libindy_vdr.so
             target: x86_64-unknown-linux-gnu
             # using cross here to build against an older glibc for compatibility
             use_cross: true
-          - arch: darwin-universal
-            os: macos-11
+          - architecture: darwin-universal
+            os: macos-latest
             lib: libindy_vdr.dylib
-            target: apple-darwin
+            target: darwin-universal
             # beta or nightly required for aarch64-apple-darwin target
             toolchain: beta
-          - arch: windows-x86_64
+          - architecture: windows-x86_64
             os: windows-latest
             lib: indy_vdr.dll
             target: x86_64-pc-windows-msvc
@@ -108,30 +137,35 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.toolchain || 'stable' }}
+          toolchain: ${{ matrix.toolchain || env.RUST_VERSION }}
 
       - name: Cache cargo resources
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: deps
+          save-if: false
 
-      - if: "!matrix.use_cross"
-        name: Build library
-        env:
-          BUILD_TARGET: ${{ matrix.target }}
-          BUILD_TOOLCHAIN: ${{ matrix.toolchain || 'stable' }}
-          BUILD_FEATURES: zmq_vendored
-        shell: sh
-        run: ./build.sh
-
-      - if: matrix.use_cross
-        name: Build library (cross)
+      - if: ${{ matrix.use_cross }}
+        name: Build (cross)
         run: |
-          cargo install --bins --git https://github.com/rust-embedded/cross --tag v0.2.4 cross
-          cross build --lib --release --target ${{ matrix.target }} --features zmq_vendored
+          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
+          cross build --lib --release --target ${{ matrix.target }}
+
+      - if: ${{ !matrix.use_cross && matrix.architecture == 'darwin-universal' }}
+        name: Build (mac)
+        run: ./build-universal.sh
+
+      # Requires using the default shell on Windows, otherwise it will complain:
+      # "This perl implementation doesn't produce Windows like paths"
+      - if: ${{ !matrix.use_cross && matrix.architecture != 'darwin-universal' }}
+        name: Build (standard)
+        run: |
+          cargo build --lib --release --target ${{ matrix.target }}
 
       - name: Upload library artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: library-${{ matrix.arch }}
+          name: library-${{ matrix.architecture }}
           path: target/${{ matrix.target }}/release/${{ matrix.lib }}
 
       - name: Create library artifacts directory
@@ -150,7 +184,7 @@ jobs:
           command: c
           cwd: release-artifacts
           files: .
-          outPath: "library-${{ matrix.arch }}.tar.gz"
+          outPath: "library-${{ matrix.architecture }}.tar.gz"
 
       - name: Add library artifacts to release
         if: |
@@ -158,8 +192,8 @@ jobs:
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-binaries == 'true')
         uses: svenstaro/upload-release-action@v2
         with:
-          file: library-${{ matrix.arch }}.tar.gz
-          asset_name: "library-${{ matrix.arch }}.tar.gz"
+          file: library-${{ matrix.architecture }}.tar.gz
+          asset_name: "library-${{ matrix.architecture }}.tar.gz"
 
   build-golang:
     name: Build and Test Go wrapper
@@ -198,10 +232,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set up Node.JS 16.x
+      - name: Set up Node.JS 18.x
         uses: actions/setup-node@v3
         with:
-          node-version: 16.x
+          node-version: 18.x
+          registry-url: "https://registry.npmjs.org/"
 
       - name: Fetch library artifacts
         uses: actions/download-artifact@v3
@@ -211,65 +246,79 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Build JavaScript Wrapper
+      - name: Build
         run: yarn build
 
-      - name: Lint JavaScript Wrapper
+      - name: Lint
         run: yarn lint
 
-      - name: Format Check JavaScript Wrapper
+      - name: Check format
         run: yarn check-format
 
-      - name: Type Check JavaScript Wrapper
+      - name: Check types
         run: yarn check-types
 
-      - name: Test JavaScript Wrapper
+      - name: Run local node pool
+        run: |
+          cd ../../
+          docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
+          docker network create --subnet=10.0.0.0/8 indy-sdk-network
+          docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+          cd wrappers/javascript
+          docker exec $(docker ps -aqf "ancestor=test_pool") cat /var/lib/indy/sandbox/pool_transactions_genesis >> genesis.txn
+
+      - name: Run tests
         env:
           # binary is downloaded to root of repository
           LIB_INDY_VDR_PATH: ../../../
         run: yarn test
 
-      - name: Set NPM config
+      - name: Publish
         if: |
           github.event_name == 'release' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
         run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
-          echo "registry=https://registry.npmjs.org/" >> .npmrc
-          echo "always-auth=true" >> .npmrc
-
-      # TODO: this will currently publish the version as defined in the package.json. If the version already
-      # exists on NPM it will skip the publishing. This means if a new version is released, but the version hasn't been
-      # updated in the package.json files yet, it won't publish to NPM (which is kinda nice). We should however add a check
-      # to see if the JS version matches the release version (do we want to keep the js and rust version in sync?)
-      - name: Publish JavaScript Wrapper
-        if: |
-          github.event_name == 'release' ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
-        run: npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
+          if [[ $(cat lerna.json | grep version | head -1 | grep dev) ]]; then
+            npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version --dist-tag=alpha
+          else
+            npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   build-ios:
-    name: Build Library (iOS)
+    name: Build library (iOS)
+    needs: [checks]
     runs-on: macos-latest
-
     strategy:
       matrix:
-        architecture:
-          [aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios]
+        target: [aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios]
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
-          targets: ${{ matrix.architecture }}
-      - run: cargo build --release --target ${{ matrix.architecture }} --package indy-vdr
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo resources
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: deps
+          save-if: false
+
+      - name: Build
+        run: |
+          cargo build --lib --release --target ${{ matrix.target }} --package indy-vdr
+
       - name: Save library
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.architecture}}
-          path: target/${{ matrix.architecture }}/release/libindy_vdr.dylib
+          name: library-${{ matrix.target}}
+          path: target/${{ matrix.target }}/release/libindy_vdr.a
 
   create-ios-xcframework:
     name: Create iOS xcframework
@@ -277,32 +326,41 @@ jobs:
     needs: build-ios
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Fetch dynamic libraries
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Fetch static libraries
         uses: actions/download-artifact@v3
+
       - run: >
-          ./build-xcframework.sh aarch64-apple-ios \
-                                 aarch64-apple-ios-sim \
-                                 x86_64-apple-ios
+          ./build-xcframework.sh library-aarch64-apple-ios \
+                                 library-aarch64-apple-ios-sim \
+                                 library-x86_64-apple-ios
       - name: Save xcframework
         uses: actions/upload-artifact@v3
         with:
           name: indy_vdr.xcframework
-          path: out
+          path: ./out
+
       - uses: geekyeggo/delete-artifact@v2
         with:
           name: |
-            aarch64-apple-ios
-            aarch64-apple-ios-sim
-            x86_64-apple-ios
+            library-aarch64-apple-ios
+            library-aarch64-apple-ios-sim
+            library-x86_64-apple-ios
           failOnError: false
 
   build-android:
     name: Build library (Android)
+    needs: [checks]
+    # NB: RUST_VERSION must be <1.68 here to support NDK 17
+    env:
+      RUST_VERSION: "1.67"
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        architecture:
+        target:
           [
             aarch64-linux-android,
             armv7-linux-androideabi,
@@ -311,15 +369,24 @@ jobs:
           ]
 
     steps:
-      - uses: actions/checkout@v3
-      - run: |
-          cargo install --bins --git https://github.com/rust-embedded/cross --tag v0.2.4 cross
-          cross build --release --target ${{matrix.architecture}} --package indy-vdr
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Build
+        run: |
+          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
+          cross build --lib --release --target ${{matrix.target}} --package indy-vdr
+
       - name: Save library
         uses: actions/upload-artifact@v3
         with:
-          name: ${{matrix.architecture}}
-          path: target/${{ matrix.architecture }}/release/libindy_vdr.so
+          name: library-${{matrix.target}}
+          path: target/${{ matrix.target }}/release/libindy_vdr.so
 
   create-android-library:
     name: Create library (Android)
@@ -328,28 +395,31 @@ jobs:
     steps:
       - name: Fetch libraries
         uses: actions/download-artifact@v3
+
       - run: |
           sudo mkdir ./libs
-          sudo mv aarch64-linux-android   ./libs/arm64-v8a
-          sudo mv armv7-linux-androideabi ./libs/armeabi-v7a
-          sudo mv i686-linux-android      ./libs/x86
-          sudo mv x86_64-linux-android    ./libs/x86_64
+          sudo mv library-aarch64-linux-android   ./libs/arm64-v8a
+          sudo mv library-armv7-linux-androideabi ./libs/armeabi-v7a
+          sudo mv library-i686-linux-android      ./libs/x86
+          sudo mv library-x86_64-linux-android    ./libs/x86_64
+
       - name: Save Android library
         uses: actions/upload-artifact@v3
         with:
           name: android-libraries
           path: ./libs
+
       - uses: geekyeggo/delete-artifact@v2
         with:
           name: |
-            aarch64-linux-android
-            armv7-linux-androideabi
-            i686-linux-android
-            x86_64-linux-android
+            library-aarch64-linux-android
+            library-armv7-linux-androideabi
+            library-i686-linux-android
+            library-x86_64-linux-android
           failOnError: false
 
   create-ios-android-release-asset:
-    name: Create iOS and Android Release Assets
+    name: Create iOS and Android release assets
     runs-on: ubuntu-latest
     needs:
       - create-ios-xcframework
@@ -357,7 +427,7 @@ jobs:
     if: |
       (github.event_name == 'release' ||
       (github.event_name == 'workflow_dispatch' &&
-       github.event.inputs.publish == 'true'))
+       github.event.inputs.publish-binaries == 'true'))
 
     steps:
       - name: Fetch Android libraries
@@ -385,25 +455,26 @@ jobs:
           asset_name: "library-ios-android.tar.gz"
 
   build-py:
-    name: Build and Test Python Wrapper
+    name: Build and test Python wrapper
     needs: [build-release]
 
     strategy:
       matrix:
-        arch: [linux-aarch64, linux-x86_64, darwin-universal, windows-x86_64]
+        architecture:
+          [linux-aarch64, linux-x86_64, darwin-universal, windows-x86_64]
         python-version: ["3.8"]
         include:
           - os: ubuntu-latest
-            arch: linux-aarch64
+            architecture: linux-aarch64
             plat-name: manylinux2014_aarch64
           - os: ubuntu-latest
-            arch: linux-x86_64
+            architecture: linux-x86_64
             plat-name: manylinux2014_x86_64
-          - os: macos-11
-            arch: darwin-universal
+          - os: macos-latest
+            architecture: darwin-universal
             plat-name: macosx_10_9_universal2 # macosx_10_9_x86_64
           - os: windows-latest
-            arch: windows-x86_64
+            architecture: windows-x86_64
             plat-name: win_amd64
 
     runs-on: ${{ matrix.os }}
@@ -425,7 +496,7 @@ jobs:
       - name: Fetch library artifacts
         uses: actions/download-artifact@v3
         with:
-          name: library-${{ matrix.arch }}
+          name: library-${{ matrix.architecture }}
           path: wrappers/python/indy_vdr/
 
       - name: Build python package
@@ -437,21 +508,23 @@ jobs:
       - name: Test python package
         # FIXME cross platform test the python package
         # maybe use the cross docker image?
-        if: "matrix.arch != 'linux-aarch64'"
+        if: ${{ matrix.architecture != 'linux-aarch64' }}
         shell: sh
         run: |
           pip install dist/*
           python -m demo.test
         working-directory: wrappers/python
 
-      - if: "runner.os == 'Linux'"
-        name: Auditwheel
-        run: auditwheel show wrappers/python/dist/*
+      - if: ${{ runner.os == 'Linux' }}
+        name: Audit wheel
+        run: |
+          auditwheel show wrappers/python/dist/* | tee auditwheel.log
+          grep -q manylinux_2_17_ auditwheel.log
 
       - name: Upload python package
         uses: actions/upload-artifact@v3
         with:
-          name: python-${{ matrix.arch }}
+          name: python-${{ matrix.architecture }}
           path: wrappers/python/dist/*
 
       - if: |

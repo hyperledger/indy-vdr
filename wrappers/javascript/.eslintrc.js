@@ -71,12 +71,15 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['arch.js'],
-      env: { node: true },
+      files: ['**/scripts/*.js'],
+      env: {
+        node: true,
+      },
       rules: {
         '@typescript-eslint/no-unsafe-assignment': 'off',
         'no-console': 'off',
         '@typescript-eslint/no-var-requires': 'off',
+        '@typescript-eslint/restrict-template-expressions': 'off',
       },
     },
     {
@@ -89,6 +92,15 @@ module.exports = {
         '@typescript-eslint/no-unsafe-assignment': 'off',
         '@typescript-eslint/no-unsafe-member-access': 'off',
         '@typescript-eslint/no-unsafe-call': 'off',
+      },
+    },
+    {
+      files: ['**.test.**'],
+      env: {
+        node: true,
+      },
+      rules: {
+        '@typescript-eslint/no-unsafe-assignment': 'off',
       },
     },
   ],

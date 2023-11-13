@@ -1,6 +1,6 @@
 import type { NativeMethods } from './NativeBindings'
 
-import { Library } from 'ffi-napi'
+import { Library } from '@2060.io/ffi-napi'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
@@ -70,6 +70,8 @@ const getLibrary = () => {
   return Library(validLibraryPath, nativeBindings)
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-export const nativeIndyVdr = getLibrary() as NativeMethods
+let nativeIndyVdr: NativeMethods | undefined = undefined
+export const getNativeIndyVdr = () => {
+  if (!nativeIndyVdr) nativeIndyVdr = getLibrary() as unknown as NativeMethods
+  return nativeIndyVdr
+}

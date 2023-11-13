@@ -220,9 +220,7 @@ ErrorCode indy_vdr_build_get_cred_def_request(FfiStr submitter_did,
                                               FfiStr cred_def_id,
                                               RequestHandle *handle_p);
 
-ErrorCode indy_vdr_build_get_nym_request(FfiStr submitter_did,
-                                         FfiStr dest,
-                                         RequestHandle *handle_p);
+ErrorCode indy_vdr_build_get_nym_request(FfiStr submitter_did, FfiStr dest, int32_t seq_no, int64_t timestamp, RequestHandle *handle_p);
 
 ErrorCode indy_vdr_build_get_revoc_reg_def_request(FfiStr submitter_did,
                                                    FfiStr revoc_reg_id,
@@ -273,6 +271,8 @@ ErrorCode indy_vdr_build_nym_request(FfiStr submitter_did,
                                      FfiStr verkey,
                                      FfiStr alias,
                                      FfiStr role,
+                                     FfiStr diddoc_content,
+                                     int32_t version,
                                      RequestHandle *handle_p);
 
 ErrorCode indy_vdr_build_revoc_reg_def_request(FfiStr submitter_did,

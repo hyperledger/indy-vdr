@@ -60,6 +60,8 @@ mod get_txn {
                 Some(identity.verkey.to_string()),
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap();
 

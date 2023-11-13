@@ -1,4 +1,5 @@
-import type { PoolHandle, RequestHandle } from '../indyVdr/IndyVdrNativeBindings'
+export type PoolHandle = number
+export type RequestHandle = number
 
 export type Raw = Record<string, unknown>
 

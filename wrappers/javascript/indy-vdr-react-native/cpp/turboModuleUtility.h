@@ -3,8 +3,8 @@
 #include <ReactCommon/CallInvoker.h>
 #include <jsi/jsi.h>
 
-#include <HostObject.h>
-#include <include/libindy_vdr.h>
+#include "HostObject.h"
+#include "include/libindy_vdr.h"
 
 using namespace facebook;
 
@@ -33,8 +33,19 @@ template <typename T>
 T jsiToValue(jsi::Runtime &rt, jsi::Object &options, const char *name,
              bool optional = false);
 
-// Handles an error from within the module and sends it back to the js side
-void handleError(jsi::Runtime &rt, ErrorCode code);
+// Instantiate a return object for JS side.
+// ```typescript
+// type ReturnObject = {
+//   errorCode: number
+//   value?: unknown | null
+// }
+// ```
+//
+// Value will be defined if there is no error.
+// Value will be `null` if there is no value to return
+// Value will be undefined if there is an error, e.g. error code != 0
+template <typename T>
+jsi::Value createReturnValue(jsi::Runtime &rt, ErrorCode code, T out);
 
 // Callback function that makes the host function async
 void callback(CallbackId result, ErrorCode code);

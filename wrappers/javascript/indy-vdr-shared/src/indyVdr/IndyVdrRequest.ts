@@ -36,7 +36,7 @@ export class IndyVdrRequest<ResponseType extends Record<string, unknown> = Recor
     return this._handle
   }
 
-  public get body(): Record<string, unknown> {
+  public get body(): string {
     return indyVdr.requestGetBody({ requestHandle: this.handle })
   }
 
