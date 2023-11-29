@@ -679,8 +679,48 @@ impl<T> RequestResult<T> {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StateProofAssertions {
+    pub ledger_id: i32,
+    pub pool_state_root_hash: String,
+    pub state_root_hash: String,
+    pub timestamp: u64,
+    pub txn_root_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StateProofResult {
+    Missing,
+    Invalid(String),
+    Expired(StateProofAssertions),
+    Verified(StateProofAssertions),
+}
+
+impl StateProofResult {
+    pub fn is_verified(&self) -> bool {
+        matches!(self, Self::Verified(_))
+    }
+}
+
+impl std::fmt::Display for StateProofResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Missing => f.write_str("Missing state proof"),
+            Self::Invalid(msg) => f.write_fmt(format_args!("Invalid state proof: {msg}")),
+            Self::Expired(_) => f.write_str("Expired state proof"),
+            Self::Verified(_) => f.write_str("Verified state proof"),
+        }
+    }
+}
+
 /// Type representing timing information collected for ledger transaction request
 pub type TimingResult = HashMap<String, f32>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RequestResultMeta {
+    pub state_proof: HashMap<String, StateProofResult>,
+    pub timing: Option<TimingResult>,
+}
 
 /// The result of a request to a single validator node
 #[derive(Debug)]

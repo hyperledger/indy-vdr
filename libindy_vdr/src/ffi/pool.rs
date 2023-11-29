@@ -1,7 +1,7 @@
 use crate::common::error::prelude::*;
 use crate::common::handle::ResourceHandle;
 use crate::pool::{
-    PoolBuilder, PoolRunner, PoolTransactions, RequestMethod, RequestResult, TimingResult,
+    PoolBuilder, PoolRunner, PoolTransactions, RequestMethod, RequestResult, RequestResultMeta,
 };
 
 use std::collections::{btree_map::Entry, BTreeMap, HashMap};
@@ -227,7 +227,7 @@ pub extern "C" fn indy_vdr_pool_get_verifiers(
 }
 
 fn handle_request_result(
-    result: VdrResult<(RequestResult<String>, Option<TimingResult>)>,
+    result: VdrResult<(RequestResult<String>, RequestResultMeta)>,
 ) -> (ErrorCode, String) {
     match result {
         Ok((reply, _timing)) => match reply {

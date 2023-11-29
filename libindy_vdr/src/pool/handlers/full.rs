@@ -2,14 +2,14 @@ use futures_util::stream::StreamExt;
 
 use crate::common::error::prelude::*;
 
-use super::types::{Message, NodeReplies, RequestResult, TimingResult};
+use super::types::{Message, NodeReplies, RequestResult, RequestResultMeta};
 use super::{PoolRequest, ReplyState, RequestEvent};
 
 pub async fn handle_full_request<R: PoolRequest>(
     request: &mut R,
     nodes_to_send: Option<Vec<String>>,
     local_timeout: Option<i64>,
-) -> VdrResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<NodeReplies<String>>, RequestResultMeta)> {
     trace!("full request");
     let timeout = local_timeout.unwrap_or(request.pool_config().reply_timeout);
     let req_reply_count = if let Some(nodes) = nodes_to_send {
@@ -46,12 +46,12 @@ pub async fn handle_full_request<R: PoolRequest>(
                         VdrErrorKind::PoolTimeout,
                         "Request was interrupted",
                     )),
-                    request.get_timing(),
+                    request.get_meta(),
                 ))
             }
         };
         if replies.len() == req_reply_count {
-            return Ok((RequestResult::Reply(replies.result()), request.get_timing()));
+            return Ok((RequestResult::Reply(replies.result()), request.get_meta()));
         }
     }
 }

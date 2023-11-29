@@ -99,8 +99,12 @@ impl RequestTiming {
     }
 
     pub fn result(&self) -> Option<TimingResult> {
-        Some(HashMap::from_iter(
-            self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
-        ))
+        if self.replies.is_empty() {
+            None
+        } else {
+            Some(HashMap::from_iter(
+                self.replies.iter().map(|(k, (_, v))| (k.clone(), *v)),
+            ))
+        }
     }
 }

@@ -4,14 +4,14 @@ use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 
 use super::types::Message;
-use super::{check_cons_proofs, PoolRequest, RequestEvent, RequestResult, TimingResult};
+use super::{check_cons_proofs, PoolRequest, RequestEvent, RequestResult, RequestResultMeta};
 
 pub async fn handle_catchup_request<R: PoolRequest>(
     request: &mut R,
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
-) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, RequestResultMeta)> {
     trace!("catchup request");
     let config = request.pool_config();
     let ack_timeout = config.ack_timeout;
@@ -29,7 +29,7 @@ pub async fn handle_catchup_request<R: PoolRequest>(
                             cr.consProof.clone(),
                         ) {
                             Ok(txns) => {
-                                return Ok((RequestResult::Reply(txns), request.get_timing()))
+                                return Ok((RequestResult::Reply(txns), request.get_meta()))
                             }
                             Err(_) => {
                                 request.clean_timeout(node_alias)?;
@@ -44,7 +44,7 @@ pub async fn handle_catchup_request<R: PoolRequest>(
                                 VdrErrorKind::Connection,
                                 "Unexpected response",
                             )),
-                            request.get_timing(),
+                            request.get_meta(),
                         ));
                     }
                 }
@@ -55,7 +55,7 @@ pub async fn handle_catchup_request<R: PoolRequest>(
             None => {
                 return Ok((
                     RequestResult::Failed(VdrErrorKind::PoolTimeout.into()),
-                    request.get_timing(),
+                    request.get_meta(),
                 ))
             }
         }

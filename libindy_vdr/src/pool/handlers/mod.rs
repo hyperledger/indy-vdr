@@ -10,7 +10,7 @@ use crate::utils::{base58, ValidationError};
 use super::requests::{PoolRequest, RequestEvent};
 use super::types::{
     self, CatchupReq, LedgerStatus, LedgerType, Message, NodeReplies, ProtocolVersion,
-    RequestResult, SingleReply, TimingResult,
+    RequestResult, RequestResultMeta, SingleReply,
 };
 
 mod catchup;

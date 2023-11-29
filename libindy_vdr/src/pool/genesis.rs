@@ -155,7 +155,9 @@ impl std::fmt::Debug for PoolTransactions {
 
 impl std::fmt::Display for PoolTransactions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let vec_json = unwrap_or_return!(self.encode_json(), Err(std::fmt::Error {}));
+        let Ok(vec_json) = self.encode_json() else {
+            return Err(std::fmt::Error {});
+        };
         let txns = SJsonValue::from(vec_json);
         write!(f, "{}", txns)
     }

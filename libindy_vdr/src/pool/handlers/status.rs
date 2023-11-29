@@ -8,7 +8,7 @@ use crate::utils::base58;
 use super::types::Message;
 use super::{
     check_cons_proofs, min_consensus, ConsensusState, PoolRequest, ReplyState, RequestEvent,
-    RequestResult, TimingResult,
+    RequestResult, RequestResultMeta,
 };
 
 pub type CatchupTarget = (Vec<u8>, usize);
@@ -16,7 +16,7 @@ pub type CatchupTarget = (Vec<u8>, usize);
 pub async fn handle_status_request<R: PoolRequest>(
     request: &mut R,
     merkle_tree: MerkleTree,
-) -> VdrResult<(RequestResult<Option<CatchupTarget>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<Option<CatchupTarget>>, RequestResultMeta)> {
     trace!("status request");
     let config = request.pool_config();
     let total_node_count = request.node_count();
@@ -61,7 +61,7 @@ pub async fn handle_status_request<R: PoolRequest>(
                         VdrErrorKind::PoolTimeout,
                         "Request was interrupted",
                     )),
-                    request.get_timing(),
+                    request.get_meta(),
                 ))
             }
         };
@@ -73,22 +73,22 @@ pub async fn handle_status_request<R: PoolRequest>(
             f,
         ) {
             Ok(CatchupProgress::NotNeeded) => {
-                return Ok((RequestResult::Reply(None), request.get_timing()));
+                return Ok((RequestResult::Reply(None), request.get_meta()));
             }
             Ok(CatchupProgress::InProgress) => {}
             Ok(CatchupProgress::NoConsensus) => {
                 return Ok((
                     RequestResult::Failed(replies.get_error()),
-                    request.get_timing(),
+                    request.get_meta(),
                 ));
             }
             Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size)) => {
                 return Ok((
                     RequestResult::Reply(Some((target_mt_root, target_mt_size))),
-                    request.get_timing(),
+                    request.get_meta(),
                 ));
             }
-            Err(err) => return Ok((RequestResult::Failed(err), request.get_timing())),
+            Err(err) => return Ok((RequestResult::Failed(err), request.get_meta())),
         };
     }
 }

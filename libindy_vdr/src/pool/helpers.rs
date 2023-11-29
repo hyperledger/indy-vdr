@@ -10,7 +10,7 @@ use super::handlers::{
 };
 use super::manager::Pool;
 use super::requests::{PreparedRequest, RequestMethod};
-use super::types::{NodeReplies, RequestResult, TimingResult};
+use super::types::{NodeReplies, RequestResult, RequestResultMeta};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -20,7 +20,7 @@ use crate::utils::base58;
 pub async fn perform_pool_status_request<T: Pool>(
     pool: &T,
     merkle_tree: MerkleTree,
-) -> VdrResult<(RequestResult<Option<CatchupTarget>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<Option<CatchupTarget>>, RequestResultMeta)> {
     let (mt_root, mt_size) = (merkle_tree.root_hash(), merkle_tree.count());
     let message = build_pool_status_request(mt_root, mt_size, pool.get_config().protocol_version)?;
     let req_json = message.serialize()?.to_string();
@@ -34,7 +34,7 @@ pub async fn perform_pool_catchup_request<T: Pool>(
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
-) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, RequestResultMeta)> {
     let message = build_pool_catchup_request(merkle_tree.count(), target_mt_size)?;
     let req_json = message.serialize()?.to_string();
     let mut request = pool.create_request("".to_string(), req_json).await?;
@@ -44,9 +44,9 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 /// Perform a pool ledger status request followed by a catchup request if necessary
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
-) -> VdrResult<(Option<Vec<String>>, Option<TimingResult>)> {
+) -> VdrResult<(Option<Vec<String>>, RequestResultMeta)> {
     let merkle_tree = pool.get_merkle_tree().clone();
-    let (result, timing) = perform_pool_status_request(pool, merkle_tree.clone()).await?;
+    let (result, meta) = perform_pool_status_request(pool, merkle_tree.clone()).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {
@@ -55,19 +55,19 @@ pub async fn perform_refresh<T: Pool>(
                     "Catchup target found {} {} {:?}",
                     base58::encode(&target_mt_root),
                     target_mt_size,
-                    timing
+                    meta
                 );
-                let (txns, timing) =
+                let (txns, meta) =
                     perform_catchup(pool, merkle_tree, target_mt_root, target_mt_size).await?;
-                Ok((Some(txns), timing))
+                Ok((Some(txns), meta))
             }
             _ => {
-                info!("No catchup required {:?}", timing);
-                Ok((None, timing))
+                info!("No catchup required {:?}", meta);
+                Ok((None, meta))
             }
         },
         RequestResult::Failed(err) => {
-            warn!("Catchup target not found {:?}", timing);
+            warn!("Catchup target not found {:?}", meta);
             Err(err)
         }
     }
@@ -78,13 +78,13 @@ pub(crate) async fn perform_catchup<T: Pool>(
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
-) -> VdrResult<(Vec<String>, Option<TimingResult>)> {
-    let (catchup_result, timing) =
+) -> VdrResult<(Vec<String>, RequestResultMeta)> {
+    let (catchup_result, meta) =
         perform_pool_catchup_request(pool, merkle_tree, target_mt_root.clone(), target_mt_size)
             .await?;
     match catchup_result {
         RequestResult::Reply(ref txns) => {
-            info!("Catchup completed {:?}", timing);
+            info!("Catchup completed {:?}", meta);
             let new_txns = PoolTransactions::from_transactions(txns);
             let json_txns = new_txns.encode_json()?;
             let reload_txns = PoolTransactions::from_json_transactions(&json_txns)?;
@@ -94,10 +94,10 @@ pub(crate) async fn perform_catchup<T: Pool>(
                     "Error validating rount-trip for pool transactions",
                 ));
             }
-            Ok((json_txns, timing))
+            Ok((json_txns, meta))
         }
         RequestResult::Failed(err) => {
-            trace!("Catchup failed {:?}", timing);
+            trace!("Catchup failed {:?}", meta);
             Err(err)
         }
     }
@@ -108,7 +108,7 @@ pub async fn perform_get_txn<T: Pool>(
     pool: &T,
     ledger_type: i32,
     seq_no: i32,
-) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
     let builder = pool.get_request_builder();
     let prepared = builder.build_get_txn_request(None, ledger_type, seq_no)?;
     perform_ledger_request(pool, &prepared).await
@@ -121,7 +121,7 @@ pub async fn perform_ledger_action<T: Pool>(
     req_json: String,
     node_aliases: Option<Vec<String>>,
     timeout: Option<i64>,
-) -> VdrResult<(RequestResult<NodeReplies<String>>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<NodeReplies<String>>, RequestResultMeta)> {
     let mut request = pool.create_request(req_id, req_json).await?;
     handle_full_request(&mut request, node_aliases, timeout).await
 }
@@ -130,7 +130,7 @@ pub async fn perform_ledger_action<T: Pool>(
 pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
     prepared: &PreparedRequest,
-) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
     let mut request = pool
         .create_request(prepared.req_id.clone(), prepared.req_json.to_string())
         .await?;
