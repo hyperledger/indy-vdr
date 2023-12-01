@@ -12,7 +12,7 @@ use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, S
 use crate::ledger::responses::{Endpoint, GetNymResultV1};
 use crate::ledger::RequestBuilder;
 use crate::pool::helpers::perform_ledger_request;
-use crate::pool::{Pool, PreparedRequest, RequestResult, TimingResult};
+use crate::pool::{Pool, PreparedRequest, RequestResult, RequestResultMeta};
 use crate::utils::did::DidValue;
 use crate::utils::Qualifiable;
 
@@ -252,7 +252,7 @@ pub fn parse_or_now(datetime: Option<&String>) -> VdrResult<i64> {
 }
 
 pub async fn handle_request<T: Pool>(pool: &T, request: &PreparedRequest) -> VdrResult<String> {
-    let (result, _timing) = request_transaction(pool, request).await?;
+    let (result, _meta) = request_transaction(pool, request).await?;
     match result {
         RequestResult::Reply(data) => Ok(data),
         RequestResult::Failed(error) => Err(error),
@@ -262,7 +262,7 @@ pub async fn handle_request<T: Pool>(pool: &T, request: &PreparedRequest) -> Vdr
 pub async fn request_transaction<T: Pool>(
     pool: &T,
     request: &PreparedRequest,
-) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
     perform_ledger_request(pool, request).await
 }
 

@@ -12,7 +12,7 @@ use crate::utils::base64;
 use super::types::Message;
 use super::{
     min_consensus, ConsensusState, HashableValue, PoolRequest, ReplyState, RequestEvent,
-    RequestResult, TimingResult,
+    RequestResult, RequestResultMeta,
 };
 
 pub async fn handle_consensus_request<R: PoolRequest>(
@@ -21,7 +21,7 @@ pub async fn handle_consensus_request<R: PoolRequest>(
     state_proof_timestamps: (Option<u64>, Option<u64>),
     as_read_request: bool,
     custom_state_proof_parser: Option<&BoxedSPParser>,
-) -> VdrResult<(RequestResult<String>, Option<TimingResult>)> {
+) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
     trace!("consensus request");
     let config = request.pool_config();
     let node_keys = request.node_keys();
@@ -72,40 +72,45 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                                     .clone(),
                             )
                         };
-                        if cnt > f
-                            || (request_with_state_proof
-                                && check_state_proof(
-                                    result,
-                                    f,
-                                    &DEFAULT_GENERATOR,
-                                    &node_keys,
-                                    &raw_msg,
-                                    state_proof_key.as_deref(),
-                                    state_proof_timestamps,
-                                    last_write_time,
-                                    config.freshness_threshold,
-                                    custom_state_proof_parser,
-                                ))
-                        {
-                            if state_proof_key.is_some() {
+                        if request_with_state_proof {
+                            let sp_result = check_state_proof(
+                                result,
+                                f,
+                                &DEFAULT_GENERATOR,
+                                &node_keys,
+                                &raw_msg,
+                                state_proof_key.as_deref(),
+                                state_proof_timestamps,
+                                last_write_time,
+                                config.freshness_threshold,
+                                custom_state_proof_parser,
+                            );
+                            let verified = sp_result.is_verified();
+                            request.set_state_proof_result(node_alias.clone(), sp_result);
+                            if verified {
                                 debug!(
                                     "State proof verification succeeded for node: {}, sp_key: '{}'",
                                     node_alias,
                                     base64::encode(state_proof_key.as_ref().unwrap()),
                                 );
+                            } else {
+                                debug!(
+                                    "State proof verification failed for node: {}, sp_key: '{}'",
+                                    node_alias,
+                                    base64::encode(state_proof_key.as_ref().unwrap()),
+                                );
                             }
-                            return Ok((
-                                RequestResult::Reply(if cnt > f { soonest } else { raw_msg }),
-                                request.get_timing(),
-                            ));
-                        } else if state_proof_key.is_some() {
-                            debug!(
-                                "State proof verification failed for node: {}, sp_key: '{}'",
-                                node_alias,
-                                base64::encode(state_proof_key.as_ref().unwrap()),
-                            );
-                            request.clean_timeout(node_alias)?;
-                            true
+                            if verified || cnt > f {
+                                return Ok((
+                                    RequestResult::Reply(if verified { raw_msg } else { soonest }),
+                                    request.get_meta(),
+                                ));
+                            } else {
+                                request.clean_timeout(node_alias)?;
+                                true
+                            }
+                        } else if cnt > f {
+                            return Ok((RequestResult::Reply(soonest), request.get_meta()));
                         } else {
                             false
                         }
@@ -132,7 +137,7 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                                 RequestResult::Failed(
                                     VdrErrorKind::PoolRequestFailed(raw_msg).into(),
                                 ),
-                                request.get_timing(),
+                                request.get_meta(),
                             ));
                         }
                     }
@@ -156,14 +161,14 @@ pub async fn handle_consensus_request<R: PoolRequest>(
                         VdrErrorKind::PoolTimeout,
                         "Request was interrupted",
                     )),
-                    request.get_timing(),
+                    request.get_meta(),
                 ))
             }
         };
         let total_replies = replies.len();
         if total_replies >= total_nodes_count {
             let err = replies.get_error();
-            return Ok((RequestResult::Failed(err), request.get_timing()));
+            return Ok((RequestResult::Failed(err), request.get_meta()));
         }
         if resend {
             request.send_to_any(1, config.ack_timeout)?;

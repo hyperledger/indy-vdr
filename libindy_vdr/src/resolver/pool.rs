@@ -2,7 +2,7 @@ use super::did::DidUrl;
 use crate::common::error::prelude::*;
 
 use crate::ledger::RequestBuilder;
-use crate::pool::{Pool, PoolRunner, RequestResult, TimingResult};
+use crate::pool::{Pool, PoolRunner, RequestResult, RequestResultMeta};
 
 use super::types::*;
 use super::utils::*;
@@ -158,11 +158,11 @@ impl<'a> PoolRunnerResolver<'a> {
     }
 }
 
-type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
+type SendReqResponse = VdrResult<(RequestResult<String>, RequestResultMeta)>;
 
 pub fn handle_resolution_result(result: SendReqResponse, did_url: String) -> VdrResult<String> {
     let did = DidUrl::parse(did_url.as_str())?;
-    let (req_result, _timing_result) = result?;
+    let (req_result, _meta) = result?;
 
     let ledger_data = match req_result {
         RequestResult::Reply(reply_data) => Ok(reply_data),

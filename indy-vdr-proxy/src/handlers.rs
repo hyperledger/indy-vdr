@@ -13,7 +13,9 @@ use super::AppState;
 use indy_vdr::common::error::prelude::*;
 use indy_vdr::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
 use indy_vdr::pool::helpers::{perform_get_txn, perform_ledger_request};
-use indy_vdr::pool::{LedgerType, Pool, PreparedRequest, RequestResult, TimingResult};
+use indy_vdr::pool::{
+    LedgerType, Pool, PreparedRequest, RequestResult, RequestResultMeta, TimingResult,
+};
 use indy_vdr::resolver::did::DidUrl;
 use indy_vdr::resolver::PoolResolver as Resolver;
 use indy_vdr::utils::did::DidValue;
@@ -34,16 +36,16 @@ enum ResponseType {
     Resolver(String),
 }
 
-impl<T> From<(RequestResult<T>, Option<TimingResult>)> for ResponseType
+impl<T> From<(RequestResult<T>, RequestResultMeta)> for ResponseType
 where
     T: std::fmt::Display,
 {
-    fn from(result: (RequestResult<T>, Option<TimingResult>)) -> ResponseType {
+    fn from(result: (RequestResult<T>, RequestResultMeta)) -> ResponseType {
         match result {
-            (RequestResult::Reply(message), timing) => {
-                ResponseType::RequestReply(message.to_string(), timing)
+            (RequestResult::Reply(message), meta) => {
+                ResponseType::RequestReply(message.to_string(), meta.timing)
             }
-            (RequestResult::Failed(err), timing) => ResponseType::RequestFailed(err, timing),
+            (RequestResult::Failed(err), meta) => ResponseType::RequestFailed(err, meta.timing),
         }
     }
 }

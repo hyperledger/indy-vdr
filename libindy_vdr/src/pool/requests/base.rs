@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::pin::Pin;
 
@@ -10,9 +10,10 @@ use pin_utils::unsafe_pinned;
 
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
+use crate::pool::types::StateProofResult;
 
 use super::networker::{Networker, NetworkerEvent};
-use super::types::{RequestHandle, TimingResult, VerifierKeys};
+use super::types::{RequestHandle, RequestResultMeta, TimingResult, VerifierKeys};
 use super::PoolSetup;
 use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming};
 
@@ -21,6 +22,7 @@ use super::{RequestEvent, RequestExtEvent, RequestState, RequestTiming};
 pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStream + Unpin {
     fn clean_timeout(&self, node_alias: String) -> VdrResult<()>;
     fn extend_timeout(&self, node_alias: String, timeout: i64) -> VdrResult<()>;
+    fn get_meta(&self) -> RequestResultMeta;
     fn get_timing(&self) -> Option<TimingResult>;
     fn is_active(&self) -> bool;
     fn node_count(&self) -> usize;
@@ -30,6 +32,8 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn send_to_all(&mut self, timeout: i64) -> VdrResult<()>;
     fn send_to_any(&mut self, count: usize, timeout: i64) -> VdrResult<Vec<String>>;
     fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> VdrResult<Vec<String>>;
+    fn set_preferred_nodes(&mut self, nodes: &[String]);
+    fn set_state_proof_result(&mut self, node_alias: String, res: StateProofResult);
 }
 
 /// Default `PoolRequestImpl` used by `PoolImpl`
@@ -41,6 +45,7 @@ pub struct PoolRequestImpl<S: AsRef<PoolSetup>, T: Networker> {
     networker: T,
     send_count: usize,
     state: RequestState,
+    state_proof: HashMap<String, StateProofResult>,
     timing: RequestTiming,
 }
 
@@ -65,6 +70,7 @@ where
             networker,
             node_order,
             send_count: 0,
+            state_proof: HashMap::new(),
             state: RequestState::NotStarted,
             timing: RequestTiming::new(),
         }
@@ -97,6 +103,13 @@ where
             node_alias,
             timeout,
         ))
+    }
+
+    fn get_meta(&self) -> RequestResultMeta {
+        RequestResultMeta {
+            state_proof: self.state_proof.clone(),
+            timing: self.timing.result(),
+        }
     }
 
     fn get_timing(&self) -> Option<TimingResult> {
@@ -181,6 +194,20 @@ where
             self.send_count += aliases.len();
         }
         Ok(aliases)
+    }
+
+    fn set_preferred_nodes(&mut self, preferred: &[String]) {
+        let mut nodes: HashSet<String> = HashSet::from_iter(self.node_order.drain(..));
+        for node in preferred {
+            if let Some(n) = nodes.take(node) {
+                self.node_order.push(n);
+            }
+        }
+        self.node_order.extend(nodes);
+    }
+
+    fn set_state_proof_result(&mut self, node_alias: String, res: StateProofResult) {
+        self.state_proof.insert(node_alias, res);
     }
 }
 

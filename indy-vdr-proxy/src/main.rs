@@ -313,7 +313,7 @@ async fn refresh_pool(
         tokio::time::sleep(Duration::from_secs((delay_mins * 60 / n_pools) as u64)).await
     }
 
-    let (txns, _timing) = perform_refresh(pool).await?;
+    let (txns, _meta) = perform_refresh(pool).await?;
 
     let cloned_state = state.clone();
     let pool_states = &cloned_state.borrow().pool_states;

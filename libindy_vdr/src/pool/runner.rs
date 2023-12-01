@@ -10,7 +10,7 @@ use futures_util::{select, FutureExt};
 use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
 use super::requests::PreparedRequest;
-use super::types::{RequestResult, TimingResult, Verifiers};
+use super::types::{RequestResult, RequestResultMeta, Verifiers};
 use super::{LocalPool, Pool};
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -118,9 +118,9 @@ type GetTxnsResponse = VdrResult<Vec<String>>;
 
 type GetVerifiersResponse = VdrResult<Verifiers>;
 
-type RefreshResponse = VdrResult<(Vec<String>, Option<Vec<String>>, Option<TimingResult>)>;
+type RefreshResponse = VdrResult<(Vec<String>, Option<Vec<String>>, RequestResultMeta)>;
 
-type SendReqResponse = VdrResult<(RequestResult<String>, Option<TimingResult>)>;
+type SendReqResponse = VdrResult<(RequestResult<String>, RequestResultMeta)>;
 
 enum PoolEvent {
     GetStatus(Callback<GetStatusResponse>),
@@ -213,8 +213,8 @@ impl PoolThread {
 async fn _perform_refresh(pool: &LocalPool, callback: Callback<RefreshResponse>) {
     let result = {
         match perform_refresh(pool).await {
-            Ok((new_txns, timing)) => match pool.get_json_transactions() {
-                Ok(old_txns) => Ok((old_txns, new_txns, timing)),
+            Ok((new_txns, meta)) => match pool.get_json_transactions() {
+                Ok(old_txns) => Ok((old_txns, new_txns, meta)),
                 Err(err) => Err(err),
             },
             Err(err) => Err(err),

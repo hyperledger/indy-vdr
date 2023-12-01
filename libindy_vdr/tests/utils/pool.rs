@@ -60,7 +60,7 @@ impl TestPool {
 
     pub fn send_request(&self, prepared_request: &PreparedRequest) -> Result<String, String> {
         block_on(async {
-            let (request_result, _timing) = perform_ledger_request(&self.pool, prepared_request)
+            let (request_result, _meta) = perform_ledger_request(&self.pool, prepared_request)
                 .await
                 .unwrap();
 
@@ -78,7 +78,7 @@ impl TestPool {
         timeout: Option<i64>,
     ) -> VdrResult<NodeReplies<String>> {
         block_on(async {
-            let (request_result, _timing) = perform_ledger_action(
+            let (request_result, _meta) = perform_ledger_action(
                 &self.pool,
                 prepared_request.req_id.clone(),
                 prepared_request.req_json.to_string(),

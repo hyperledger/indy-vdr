@@ -60,38 +60,3 @@ macro_rules! map_err_log {
         }
     };
 }
-
-macro_rules! unwrap_opt_or_return {
-    ($opt:expr, $err:expr) => {
-        match $opt {
-            Some(val) => val,
-            None => return $err,
-        }
-    };
-}
-
-macro_rules! unwrap_or_return {
-    ($result:expr, $err:expr) => {
-        match $result {
-            Ok(res) => res,
-            Err(_) => return $err,
-        }
-    };
-}
-
-macro_rules! unwrap_or_map_return {
-    ($result:expr, $on_err:expr) => {
-        match $result {
-            Ok(res) => res,
-            Err(err) =>
-            {
-                #[allow(clippy::redundant_closure_call)]
-                return ($on_err)(err)
-            }
-        }
-    };
-}
-
-macro_rules! in_closure {
-    ($($e:tt)*) => {(|| -> Result<_, _> {$($e)*})()}
-}

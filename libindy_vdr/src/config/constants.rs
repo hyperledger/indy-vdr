@@ -3,10 +3,10 @@ use once_cell::sync::Lazy;
 
 use crate::pool::ProtocolVersion;
 
-pub const DEFAULT_ACK_TIMEOUT: i64 = 20;
-pub const DEFAULT_REPLY_TIMEOUT: i64 = 60;
+pub const DEFAULT_ACK_TIMEOUT: i64 = 5;
+pub const DEFAULT_REPLY_TIMEOUT: i64 = 30;
 pub const DEFAULT_CONN_ACTIVE_TIMEOUT: i64 = 5;
-pub const DEFAULT_CONN_REQUEST_LIMIT: usize = 5;
+pub const DEFAULT_CONN_REQUEST_LIMIT: usize = 10;
 pub const DEFAULT_REQUEST_READ_NODES: usize = 2;
 pub const DEFAULT_FRESHNESS_TIMEOUT: u64 = 300;
 pub const DEFAULT_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::Node1_4;
