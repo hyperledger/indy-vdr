@@ -103,7 +103,7 @@ pub(crate) fn check_state_proof(
         Some(parsed_sps) => {
             trace!("process_reply: Proof and signature are present");
             match verify_parsed_sp(parsed_sps, bls_keys, f, gen) {
-                Ok(asserts) => {
+                Ok((asserts, None)) => {
                     if check_freshness(msg_result, requested_timestamps, last_write_time, threshold)
                     {
                         StateProofResult::Verified(asserts)
@@ -111,7 +111,10 @@ pub(crate) fn check_state_proof(
                         StateProofResult::Expired(asserts)
                     }
                 }
-                Err(err) => StateProofResult::Invalid(err),
+                Ok((asserts, Some(verify_err))) => {
+                    StateProofResult::Invalid(verify_err, Some(asserts))
+                }
+                Err(err) => StateProofResult::Invalid(err, None),
             }
         }
         None => StateProofResult::Missing,
@@ -279,7 +282,7 @@ pub(crate) fn verify_parsed_sp(
     nodes: &VerifierKeys,
     f: usize,
     gen: &Generator,
-) -> Result<StateProofAssertions, String> {
+) -> Result<(StateProofAssertions, Option<String>), String> {
     let mut multi_sig: Option<SJsonValue> = None;
 
     for parsed_sp in parsed_sps {
@@ -363,12 +366,21 @@ pub(crate) fn verify_parsed_sp(
         let Some((signature, participants, value)) = _parse_reply_for_proof_signature_checking(multi_sig) else {
             return Err("State proof parsing of reply failed".into());
         };
-        _verify_proof_signature(signature, participants.as_slice(), &value, nodes, f, gen)
-            .map_err(|err| format!("Proof signature verification failed: {}", err))?;
+        let verify_err = match _verify_proof_signature(
+            signature,
+            participants.as_slice(),
+            &value,
+            nodes,
+            f,
+            gen,
+        ) {
+            Ok(_) => None,
+            Err(err) => Some(format!("Proof signature verification failed: {}", err)),
+        };
         let Ok(asserts) = serde_json::from_value(multi_sig["value"].clone()) else {
             return Err("Error parsing state proof assertions".into());
         };
-        Ok(asserts)
+        Ok((asserts, verify_err))
     } else {
         Err("Proof signature verification failed: no parsed state proofs".into())
     }

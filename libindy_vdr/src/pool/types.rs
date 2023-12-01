@@ -691,7 +691,7 @@ pub struct StateProofAssertions {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateProofResult {
     Missing,
-    Invalid(String),
+    Invalid(String, Option<StateProofAssertions>),
     Expired(StateProofAssertions),
     Verified(StateProofAssertions),
 }
@@ -706,7 +706,7 @@ impl std::fmt::Display for StateProofResult {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Missing => f.write_str("Missing state proof"),
-            Self::Invalid(msg) => f.write_fmt(format_args!("Invalid state proof: {msg}")),
+            Self::Invalid(msg, _asserts) => f.write_fmt(format_args!("Invalid state proof: {msg}")),
             Self::Expired(_) => f.write_str("Expired state proof"),
             Self::Verified(_) => f.write_str("Verified state proof"),
         }
