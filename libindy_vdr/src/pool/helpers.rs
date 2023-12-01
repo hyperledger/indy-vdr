@@ -9,7 +9,7 @@ use super::handlers::{
     handle_consensus_request, handle_full_request, handle_status_request, CatchupTarget,
 };
 use super::manager::Pool;
-use super::requests::{PreparedRequest, RequestMethod};
+use super::requests::{PoolRequest, PreparedRequest, RequestMethod};
 use super::types::{NodeReplies, RequestResult, RequestResultMeta};
 
 use crate::common::error::prelude::*;
@@ -34,10 +34,14 @@ pub async fn perform_pool_catchup_request<T: Pool>(
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
+    preferred_nodes: Option<Vec<String>>,
 ) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, RequestResultMeta)> {
     let message = build_pool_catchup_request(merkle_tree.count(), target_mt_size)?;
     let req_json = message.serialize()?.to_string();
     let mut request = pool.create_request("".to_string(), req_json).await?;
+    if let Some(nodes) = preferred_nodes {
+        request.set_preferred_nodes(&nodes);
+    }
     handle_catchup_request(&mut request, merkle_tree, target_mt_root, target_mt_size).await
 }
 
@@ -50,15 +54,21 @@ pub async fn perform_refresh<T: Pool>(
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {
-            Some((target_mt_root, target_mt_size)) => {
+            Some((target_mt_root, target_mt_size, nodes)) => {
                 debug!(
                     "Catchup target found {} {} {:?}",
                     base58::encode(&target_mt_root),
                     target_mt_size,
                     meta
                 );
-                let (txns, meta) =
-                    perform_catchup(pool, merkle_tree, target_mt_root, target_mt_size).await?;
+                let (txns, meta) = perform_catchup(
+                    pool,
+                    merkle_tree,
+                    target_mt_root,
+                    target_mt_size,
+                    Some(nodes),
+                )
+                .await?;
                 Ok((Some(txns), meta))
             }
             _ => {
@@ -78,10 +88,16 @@ pub(crate) async fn perform_catchup<T: Pool>(
     merkle_tree: MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
+    preferred_nodes: Option<Vec<String>>,
 ) -> VdrResult<(Vec<String>, RequestResultMeta)> {
-    let (catchup_result, meta) =
-        perform_pool_catchup_request(pool, merkle_tree, target_mt_root.clone(), target_mt_size)
-            .await?;
+    let (catchup_result, meta) = perform_pool_catchup_request(
+        pool,
+        merkle_tree,
+        target_mt_root.clone(),
+        target_mt_size,
+        preferred_nodes,
+    )
+    .await?;
     match catchup_result {
         RequestResult::Reply(ref txns) => {
             info!("Catchup completed {:?}", meta);

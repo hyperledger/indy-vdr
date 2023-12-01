@@ -18,37 +18,28 @@ pub async fn handle_catchup_request<R: PoolRequest>(
     request.send_to_any(config.request_read_nodes, ack_timeout)?;
     loop {
         match request.next().await {
-            Some(RequestEvent::Received(node_alias, _message, parsed)) => {
-                match parsed {
-                    Message::CatchupRep(cr) => {
-                        match process_catchup_reply(
-                            &merkle_tree,
-                            &target_mt_root,
-                            target_mt_size,
-                            cr.load_txns()?,
-                            cr.consProof.clone(),
-                        ) {
-                            Ok(txns) => {
-                                return Ok((RequestResult::Reply(txns), request.get_meta()))
-                            }
-                            Err(_) => {
-                                request.clean_timeout(node_alias)?;
-                                request.send_to_any(1, ack_timeout)?;
-                            }
+            Some(RequestEvent::Received(node_alias, _message, parsed)) => match parsed {
+                Message::CatchupRep(cr) => {
+                    match process_catchup_reply(
+                        &merkle_tree,
+                        &target_mt_root,
+                        target_mt_size,
+                        cr.load_txns()?,
+                        cr.consProof.clone(),
+                    ) {
+                        Ok(txns) => return Ok((RequestResult::Reply(txns), request.get_meta())),
+                        Err(_) => {
+                            request.clean_timeout(node_alias)?;
+                            request.send_to_any(1, ack_timeout)?;
                         }
                     }
-                    _ => {
-                        // FIXME could be more tolerant of ReqNACK etc
-                        return Ok((
-                            RequestResult::Failed(err_msg(
-                                VdrErrorKind::Connection,
-                                "Unexpected response",
-                            )),
-                            request.get_meta(),
-                        ));
-                    }
                 }
-            }
+                _ => {
+                    debug!("Unexpected reply from {}", &node_alias);
+                    request.clean_timeout(node_alias)?;
+                    request.send_to_any(1, ack_timeout)?;
+                }
+            },
             Some(RequestEvent::Timeout(_node_alias)) => {
                 request.send_to_any(1, ack_timeout)?;
             }

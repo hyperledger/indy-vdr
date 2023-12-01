@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::pin::Pin;
 
@@ -32,6 +32,7 @@ pub trait PoolRequest: std::fmt::Debug + Stream<Item = RequestEvent> + FusedStre
     fn send_to_all(&mut self, timeout: i64) -> VdrResult<()>;
     fn send_to_any(&mut self, count: usize, timeout: i64) -> VdrResult<Vec<String>>;
     fn send_to(&mut self, node_aliases: Vec<String>, timeout: i64) -> VdrResult<Vec<String>>;
+    fn set_preferred_nodes(&mut self, nodes: &[String]);
     fn set_state_proof_result(&mut self, node_alias: String, res: StateProofResult);
 }
 
@@ -193,6 +194,16 @@ where
             self.send_count += aliases.len();
         }
         Ok(aliases)
+    }
+
+    fn set_preferred_nodes(&mut self, preferred: &[String]) {
+        let mut nodes: HashSet<String> = HashSet::from_iter(self.node_order.drain(..));
+        for node in preferred {
+            if let Some(n) = nodes.take(node) {
+                self.node_order.push(n);
+            }
+        }
+        self.node_order.extend(nodes);
     }
 
     fn set_state_proof_result(&mut self, node_alias: String, res: StateProofResult) {

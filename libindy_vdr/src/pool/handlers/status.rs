@@ -1,5 +1,7 @@
-use futures_util::stream::StreamExt;
 use std::cmp::Ordering;
+use std::collections::HashSet;
+
+use futures_util::stream::StreamExt;
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
@@ -11,7 +13,7 @@ use super::{
     RequestResult, RequestResultMeta,
 };
 
-pub type CatchupTarget = (Vec<u8>, usize);
+pub type CatchupTarget = (Vec<u8>, usize, Vec<String>);
 
 pub async fn handle_status_request<R: PoolRequest>(
     request: &mut R,
@@ -82,11 +84,8 @@ pub async fn handle_status_request<R: PoolRequest>(
                     request.get_meta(),
                 ));
             }
-            Ok(CatchupProgress::ShouldBeStarted(target_mt_root, target_mt_size)) => {
-                return Ok((
-                    RequestResult::Reply(Some((target_mt_root, target_mt_size))),
-                    request.get_meta(),
-                ));
+            Ok(CatchupProgress::ShouldBeStarted(target)) => {
+                return Ok((RequestResult::Reply(Some(target)), request.get_meta()));
             }
             Err(err) => return Ok((RequestResult::Failed(err), request.get_meta())),
         };
@@ -94,10 +93,7 @@ pub async fn handle_status_request<R: PoolRequest>(
 }
 
 enum CatchupProgress {
-    ShouldBeStarted(
-        Vec<u8>, //target_mt_root
-        usize,   //target_mt_size
-    ),
+    ShouldBeStarted(CatchupTarget),
     NoConsensus,
     NotNeeded,
     InProgress,
@@ -110,9 +106,10 @@ fn check_nodes_responses_on_status<R>(
     total_nodes_count: usize,
     f: usize,
 ) -> VdrResult<CatchupProgress> {
-    let max_consensus = if let Some((most_popular_vote, votes_count)) = consensus.max_entry() {
+    let max_consensus = if let Some((most_popular_vote, votes)) = consensus.max_entry() {
+        let votes_count = votes.len();
         if votes_count > f {
-            return try_to_catch_up(most_popular_vote, merkle_tree);
+            return try_to_catch_up(most_popular_vote, merkle_tree, votes);
         }
         votes_count
     } else {
@@ -127,6 +124,7 @@ fn check_nodes_responses_on_status<R>(
 fn try_to_catch_up(
     ledger_status: &(String, usize, Option<Vec<String>>),
     merkle_tree: &MerkleTree,
+    nodes: &HashSet<String>,
 ) -> VdrResult<CatchupProgress> {
     let &(ref target_mt_root, target_mt_size, ref hashes) = ledger_status;
     let cur_mt_size = merkle_tree.count();
@@ -153,10 +151,11 @@ fn try_to_catch_up(
                 }
             };
 
-            Ok(CatchupProgress::ShouldBeStarted(
+            Ok(CatchupProgress::ShouldBeStarted((
                 target_mt_root,
                 target_mt_size,
-            ))
+                nodes.iter().cloned().collect(),
+            )))
         }
         _ => Err(input_err("Local merkle tree greater than mt from ledger")),
     }

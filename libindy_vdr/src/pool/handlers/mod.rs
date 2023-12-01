@@ -119,16 +119,13 @@ impl<K: Eq + Hash, T: Eq + Hash> ConsensusState<K, T> {
         }
     }
 
-    fn max_entry(&self) -> Option<(&K, usize)> {
-        self.inner
-            .iter()
-            .map(|(key, set)| (key, set.len()))
-            .max_by_key(|entry| entry.1)
+    fn max_entry(&self) -> Option<(&K, &HashSet<T>)> {
+        self.inner.iter().max_by_key(|entry| entry.1.len())
     }
 
     #[allow(dead_code)]
     fn max_len(&self) -> usize {
-        self.max_entry().map(|entry| entry.1).unwrap_or(0)
+        self.max_entry().map(|entry| entry.1.len()).unwrap_or(0)
     }
 
     pub fn insert(&mut self, key: K, reply: T) -> &mut HashSet<T> {
