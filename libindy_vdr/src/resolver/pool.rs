@@ -162,7 +162,7 @@ type SendReqResponse = VdrResult<(RequestResult<String>, RequestResultMeta)>;
 
 pub fn handle_resolution_result(result: SendReqResponse, did_url: String) -> VdrResult<String> {
     let did = DidUrl::parse(did_url.as_str())?;
-    let (req_result, _timing_result) = result?;
+    let (req_result, _meta) = result?;
 
     let ledger_data = match req_result {
         RequestResult::Reply(reply_data) => Ok(reply_data),

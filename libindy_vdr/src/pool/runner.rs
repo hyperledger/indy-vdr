@@ -213,8 +213,8 @@ impl PoolThread {
 async fn _perform_refresh(pool: &LocalPool, callback: Callback<RefreshResponse>) {
     let result = {
         match perform_refresh(pool).await {
-            Ok((new_txns, timing)) => match pool.get_json_transactions() {
-                Ok(old_txns) => Ok((old_txns, new_txns, timing)),
+            Ok((new_txns, meta)) => match pool.get_json_transactions() {
+                Ok(old_txns) => Ok((old_txns, new_txns, meta)),
                 Err(err) => Err(err),
             },
             Err(err) => Err(err),

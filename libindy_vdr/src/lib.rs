@@ -32,7 +32,7 @@
 //! // Create a new GET_TXN request and dispatch it
 //! let ledger_type = 1;  // 1 identifies the Domain ledger, see pool::LedgerType
 //! let seq_no = 1;       // Transaction sequence number
-//! let (result, _timing) = block_on(perform_get_txn(&pool, ledger_type, seq_no)).unwrap();
+//! let (result, _meta) = block_on(perform_get_txn(&pool, ledger_type, seq_no)).unwrap();
 
 #![cfg_attr(feature = "fatal_warnings", deny(warnings))]
 #![recursion_limit = "1024"] // for select! macro usage

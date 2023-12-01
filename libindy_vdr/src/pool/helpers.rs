@@ -156,9 +156,9 @@ pub async fn perform_ledger_request<T: Pool>(
             node_aliases,
             timeout,
         } => {
-            let (result, timing) =
+            let (result, meta) =
                 handle_full_request(&mut request, node_aliases.clone(), *timeout).await?;
-            return Ok((result.map_result(format_full_reply)?, timing));
+            return Ok((result.map_result(format_full_reply)?, meta));
         }
         RequestMethod::BuiltinStateProof {
             sp_key,

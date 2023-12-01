@@ -107,7 +107,7 @@ pub extern "C" fn indy_vdr_pool_refresh(
         pool.refresh(Box::new(
             move |result| {
                 let errcode = match result {
-                    Ok((old_txns, new_txns, _timing)) => {
+                    Ok((old_txns, new_txns, _meta)) => {
                         if let Some(new_txns) = new_txns {
                             // We must spawn a new thread here because this callback
                             // is being run in the PoolRunner's thread, and if we drop
@@ -230,7 +230,7 @@ fn handle_request_result(
     result: VdrResult<(RequestResult<String>, RequestResultMeta)>,
 ) -> (ErrorCode, String) {
     match result {
-        Ok((reply, _timing)) => match reply {
+        Ok((reply, _meta)) => match reply {
             RequestResult::Reply(body) => (ErrorCode::Success, body),
             RequestResult::Failed(err) => {
                 let code = ErrorCode::from(err.kind());

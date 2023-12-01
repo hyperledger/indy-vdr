@@ -252,7 +252,7 @@ pub fn parse_or_now(datetime: Option<&String>) -> VdrResult<i64> {
 }
 
 pub async fn handle_request<T: Pool>(pool: &T, request: &PreparedRequest) -> VdrResult<String> {
-    let (result, _timing) = request_transaction(pool, request).await?;
+    let (result, _meta) = request_transaction(pool, request).await?;
     match result {
         RequestResult::Reply(data) => Ok(data),
         RequestResult::Failed(error) => Err(error),
