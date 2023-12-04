@@ -27,9 +27,10 @@ pub fn init_pool_state_from_folder_structure(
 
     let entries = fs::read_dir(path).map_err(|err| {
         err_msg(
-            VdrErrorKind::FileSystem(err),
+            VdrErrorKind::FileSystem,
             "Could not read local networks folder",
         )
+        .with_source(err)
     })?;
 
     for entry in entries {
