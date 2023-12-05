@@ -4,7 +4,7 @@ use std::fs::{self, File};
 use std::io::{self, BufReader};
 use std::iter::IntoIterator;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use rand::random;
 use serde_json::{self, Deserializer, Value as SJsonValue};
@@ -125,6 +125,11 @@ impl PoolTransactions {
     }
 
     /// Get the root hash corresponding to the transactions
+    pub fn root_hash(&self) -> VdrResult<Vec<u8>> {
+        Ok(self.merkle_tree()?.root_hash().clone())
+    }
+
+    /// Get the root hash corresponding to the transactions
     pub fn root_hash_base58(&self) -> VdrResult<String> {
         Ok(base58::encode(self.merkle_tree()?.root_hash()))
     }
@@ -233,7 +238,7 @@ where
     })
 }
 
-pub trait PoolTransactionsCache: Clone {
+pub trait PoolTransactionsCache: Send + Sync {
     fn resolve_latest(&self, txns: &PoolTransactions) -> VdrResult<Option<PoolTransactions>>;
 
     fn update(&self, base: &PoolTransactions, latest: &PoolTransactions) -> VdrResult<()>;
@@ -244,9 +249,9 @@ struct _MemoryCacheEntry {
     txns: PoolTransactions,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct InMemoryCache {
-    cache: Arc<Mutex<HashMap<String, _MemoryCacheEntry>>>,
+    cache: Mutex<HashMap<String, _MemoryCacheEntry>>,
 }
 
 impl InMemoryCache {

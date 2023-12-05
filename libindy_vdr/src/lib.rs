@@ -14,6 +14,7 @@
 //!
 //! ```no_run
 //! use futures_executor::block_on;
+//! use indy_vdr::config::PoolConfig;
 //! use indy_vdr::pool::{
 //!     helpers::perform_get_txn,
 //!     PoolBuilder,
@@ -25,7 +26,7 @@
 //! let txns = PoolTransactions::from_json_file("./genesis.txn").unwrap();
 //!
 //! // Create a PoolBuilder instance
-//! let pool_builder = PoolBuilder::default().transactions(txns).unwrap();
+//! let pool_builder = PoolBuilder::new(PoolConfig::default(), txns);
 //! // Convert into a thread-local Pool instance
 //! let pool = pool_builder.into_local().unwrap();
 //!

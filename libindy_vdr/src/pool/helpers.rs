@@ -48,7 +48,7 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 /// Perform a pool ledger status request followed by a catchup request if necessary
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
-) -> VdrResult<(Option<Vec<String>>, RequestResultMeta)> {
+) -> VdrResult<(Option<PoolTransactions>, RequestResultMeta)> {
     let merkle_tree = pool.get_merkle_tree().clone();
     let (result, meta) = perform_pool_status_request(pool, merkle_tree.clone()).await?;
     trace!("Got status result: {:?}", &result);
@@ -89,7 +89,7 @@ pub(crate) async fn perform_catchup<T: Pool>(
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
     preferred_nodes: Option<Vec<String>>,
-) -> VdrResult<(Vec<String>, RequestResultMeta)> {
+) -> VdrResult<(PoolTransactions, RequestResultMeta)> {
     let (catchup_result, meta) = perform_pool_catchup_request(
         pool,
         merkle_tree,
@@ -98,19 +98,27 @@ pub(crate) async fn perform_catchup<T: Pool>(
         preferred_nodes,
     )
     .await?;
+    let mut new_txns = PoolTransactions::from_transactions(&merkle_tree);
     match catchup_result {
-        RequestResult::Reply(ref txns) => {
-            info!("Catchup completed {:?}", meta);
-            let new_txns = PoolTransactions::from_transactions(txns);
+        RequestResult::Reply(txns) => {
+            info!("Catchup completed {:?}", timing);
+            new_txns.extend(txns);
+            let new_root = new_txns.root_hash()?;
+            if new_root != target_mt_root {
+                return Err(err_msg(
+                    VdrErrorKind::Unexpected,
+                    "Merkle tree root does not match for new transactions",
+                ));
+            }
             let json_txns = new_txns.encode_json()?;
-            let reload_txns = PoolTransactions::from_json_transactions(&json_txns)?;
+            let reload_txns = PoolTransactions::from_json_transactions(json_txns)?;
             if new_txns != reload_txns {
                 return Err(err_msg(
                     VdrErrorKind::Unexpected,
-                    "Error validating rount-trip for pool transactions",
+                    "Error validating round-trip for pool transactions",
                 ));
             }
-            Ok((json_txns, meta))
+            Ok((new_txns, meta))
         }
         RequestResult::Failed(err) => {
             trace!("Catchup failed {:?}", meta);

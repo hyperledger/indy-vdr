@@ -36,6 +36,7 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
+use indy_vdr::config::PoolConfig;
 #[cfg(feature = "tls")]
 use rustls_pemfile::{certs, pkcs8_private_keys};
 #[cfg(feature = "tls")]
@@ -260,10 +261,10 @@ async fn create_pool(
 ) -> VdrResult<LocalPool> {
     let pool_states = &state.borrow().pool_states;
     let pool_state = pool_states.get(namespace).unwrap();
-    let builder = PoolBuilder::default().transactions(pool_state.transactions.clone())?;
-    let pool = builder.into_local()?;
+    let pool =
+        PoolBuilder::new(PoolConfig::default(), pool_state.transactions.clone()).into_local()?;
     let refresh_pool = if refresh {
-        refresh_pool(state.clone(), namespace, &pool, 0).await?
+        refresh_pool(state.clone(), &pool, 0).await?
     } else {
         None
     };
@@ -279,7 +280,7 @@ async fn refresh_pools(
     let pool_states = &state.borrow().pool_states;
     for (namespace, pool_state) in pool_states {
         if let Some(pool) = &pool_state.pool {
-            let upd_pool = match refresh_pool(state.clone(), namespace, pool, delay_mins).await {
+            let upd_pool = match refresh_pool(state.clone(), pool, delay_mins).await {
                 Ok(p) => p,
                 Err(err) => {
                     eprintln!(
@@ -304,7 +305,6 @@ async fn refresh_pools(
 
 async fn refresh_pool(
     state: Rc<RefCell<AppState>>,
-    namespace: &str,
     pool: &LocalPool,
     delay_mins: u32,
 ) -> VdrResult<Option<LocalPool>> {
@@ -314,19 +314,9 @@ async fn refresh_pool(
     }
 
     let (txns, _meta) = perform_refresh(pool).await?;
-
-    let cloned_state = state.clone();
-    let pool_states = &cloned_state.borrow().pool_states;
-    let pool_state = pool_states.get(namespace).unwrap();
-
-    let pool_txns = &mut pool_state.transactions.to_owned();
-
     if let Some(txns) = txns {
-        let builder = {
-            pool_txns.extend_from_json(&txns)?;
-            PoolBuilder::default().transactions(pool_txns.clone())?
-        };
-        Ok(Some(builder.into_local()?))
+        let pool = PoolBuilder::new(PoolConfig::default(), txns).into_local()?;
+        Ok(Some(pool))
     } else {
         Ok(None)
     }

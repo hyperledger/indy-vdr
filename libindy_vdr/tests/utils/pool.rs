@@ -3,6 +3,7 @@ use std::env;
 use futures_executor::block_on;
 
 use indy_vdr::common::error::VdrResult;
+use indy_vdr::config::PoolConfig;
 use indy_vdr::ledger::RequestBuilder;
 use indy_vdr::pool::helpers::{perform_ledger_action, perform_ledger_request};
 use indy_vdr::pool::{
@@ -41,9 +42,7 @@ impl TestPool {
         let pool_transactions =
             PoolTransactions::from_json_transactions(default_transactions()).unwrap();
 
-        let pool = PoolBuilder::default()
-            .transactions(pool_transactions)
-            .unwrap()
+        let pool = PoolBuilder::new(PoolConfig::default(), pool_transactions)
             .into_shared()
             .unwrap();
 
