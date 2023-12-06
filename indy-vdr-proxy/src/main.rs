@@ -36,7 +36,6 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
-use indy_vdr::config::PoolConfig;
 #[cfg(feature = "tls")]
 use rustls_pemfile::{certs, pkcs8_private_keys};
 #[cfg(feature = "tls")]
@@ -51,6 +50,7 @@ use tokio_rustls::{
 };
 
 use indy_vdr::common::error::prelude::*;
+use indy_vdr::config::PoolConfig;
 use indy_vdr::pool::{helpers::perform_refresh, LocalPool, PoolBuilder, PoolTransactions};
 
 use crate::utils::{
