@@ -14,6 +14,7 @@ use super::types::{NodeReplies, RequestResult, RequestResultMeta};
 
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
+use crate::pool::{LedgerType, StateProofResult};
 use crate::utils::base58;
 
 /// Perform a pool ledger status request to see if catchup is required
@@ -49,6 +50,23 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
 ) -> VdrResult<(Option<PoolTransactions>, RequestResultMeta)> {
+    if pool.get_refreshed() {
+        trace!("Performing fast status check");
+        let mt_root = pool.get_merkle_tree_info().0;
+        match perform_get_txn(pool, LedgerType::POOL.to_id(), 1).await {
+            Ok((_result, res_meta)) => {
+                for prf in res_meta.state_proof.values() {
+                    if let StateProofResult::Verified(asserts) = prf {
+                        if asserts.txn_root_hash == mt_root {
+                            info!("Fast status check succeeded, pool state is up to date");
+                            return Ok((None, res_meta));
+                        }
+                    }
+                }
+            }
+            Err(err) => warn!("Failed fast status request: {err}"),
+        }
+    }
     let merkle_tree = pool.get_merkle_tree().clone();
     let (result, meta) = perform_pool_status_request(pool, merkle_tree.clone()).await?;
     trace!("Got status result: {:?}", &result);
@@ -90,6 +108,7 @@ pub(crate) async fn perform_catchup<T: Pool>(
     target_mt_size: usize,
     preferred_nodes: Option<Vec<String>>,
 ) -> VdrResult<(PoolTransactions, RequestResultMeta)> {
+    let mut new_txns = PoolTransactions::from_transactions(&merkle_tree);
     let (catchup_result, meta) = perform_pool_catchup_request(
         pool,
         merkle_tree,
@@ -98,10 +117,9 @@ pub(crate) async fn perform_catchup<T: Pool>(
         preferred_nodes,
     )
     .await?;
-    let mut new_txns = PoolTransactions::from_transactions(&merkle_tree);
     match catchup_result {
         RequestResult::Reply(txns) => {
-            info!("Catchup completed {:?}", timing);
+            debug!("Catchup completed {:?}", meta);
             new_txns.extend(txns);
             let new_root = new_txns.root_hash()?;
             if new_root != target_mt_root {

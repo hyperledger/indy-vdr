@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-use crate::common::error::prelude::*;
-use crate::common::handle::ResourceHandle;
-use crate::pool::{
-    PoolBuilder, PoolRunner, PoolTransactions, RequestMethod, RequestResult, RequestResultMeta,
-};
-
-=======
->>>>>>> cda65a0 (implement genesis transactions cache for FFI pool instances)
 use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 use std::os::raw::c_char;
 use std::sync::{Arc, RwLock};
@@ -20,7 +11,7 @@ use crate::common::handle::ResourceHandle;
 use crate::config::PoolConfig;
 use crate::pool::{
     InMemoryCache, PoolBuilder, PoolRunner, PoolTransactions, PoolTransactionsCache, RequestMethod,
-    RequestResult, TimingResult,
+    RequestResult, RequestResultMeta,
 };
 
 use super::error::{set_last_error, ErrorCode};
@@ -77,13 +68,15 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut PoolHandle
                 "Invalid pool create parameters: must provide transactions or transactions_path"
             ));
         };
-        let config = read_lock!(POOL_CONFIG)?.clone();
-        if let Some(cache) = read_lock!(POOL_CACHE)?.clone() {
+        let mut cached = false;
+        if let Some(cache) = read_lock!(POOL_CACHE)?.as_ref() {
             if let Some(newer_txns) = cache.resolve_latest(&txns)? {
                 txns = newer_txns;
+                cached = true;
             }
         }
-        let runner = PoolBuilder::new(config, txns.clone()).node_weights(params.node_weights.clone()).into_runner()?;
+        let config = read_lock!(POOL_CONFIG)?.clone();
+        let runner = PoolBuilder::new(config, txns.clone()).node_weights(params.node_weights.clone()).refreshed(cached).into_runner()?;
         let handle = PoolHandle::next();
         let mut pools = write_lock!(POOLS)?;
         pools.insert(handle, PoolInstance { runner, init_txns: txns, node_weights: params.node_weights });
@@ -97,23 +90,27 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut PoolHandle
 fn handle_pool_refresh(
     pool_handle: PoolHandle,
     init_txns: PoolTransactions,
-    txns: PoolTransactions,
+    new_txns: Option<PoolTransactions>,
     node_weights: Option<NodeWeights>,
 ) -> ErrorCode {
     catch_err! {
-        debug!("Updating pool transactions, length: {}", txns.len());
+        let latest_txns = new_txns.as_ref().unwrap_or(&init_txns);
+        let count = latest_txns.len();
+        debug!("Updating pool transactions, length: {count}");
         let config = read_lock!(POOL_CONFIG)?.clone();
-        if let Some(cache) = read_lock!(POOL_CACHE)?.clone() {
-            cache.update(&init_txns, &txns)?;
+        if let Some(cache) = read_lock!(POOL_CACHE)?.as_ref() {
+            cache.update(&init_txns, latest_txns)?;
         }
-        let runner = PoolBuilder::new(config, txns).node_weights(node_weights).into_runner()?;
-        let mut pools = write_lock!(POOLS)?;
-        if let Entry::Occupied(mut entry) = pools.entry(pool_handle) {
-            entry.get_mut().runner = runner;
-            Ok(ErrorCode::Success)
-        } else {
-            Err(err_msg(VdrErrorKind::Unexpected, "Pool was freed before refresh completed"))
+        if let Some(new_txns) = new_txns {
+            let runner = PoolBuilder::new(config, new_txns).node_weights(node_weights).refreshed(true).into_runner()?;
+            let mut pools = write_lock!(POOLS)?;
+            if let Entry::Occupied(mut entry) = pools.entry(pool_handle) {
+                entry.get_mut().runner = runner;
+            } else {
+                return Err(err_msg(VdrErrorKind::Unexpected, "Pool was freed before refresh completed"))
+            }
         }
+        Ok(ErrorCode::Success)
     }
 }
 
@@ -135,18 +132,14 @@ pub extern "C" fn indy_vdr_pool_refresh(
             move |result| {
                 let errcode = match result {
                     Ok((new_txns, _meta)) => {
-                        if let Some(new_txns) = new_txns {
-                            // We must spawn a new thread here because this callback
-                            // is being run in the PoolRunner's thread, and if we drop
-                            // the instance now it will create a deadlock
-                            thread::spawn(move || {
-                                let result = handle_pool_refresh(pool_handle, init_txns, new_txns, node_weights);
-                                cb(cb_id, result)
-                            });
-                            return
-                        } else {
-                            ErrorCode::Success
-                        }
+                        // We must spawn a new thread here because this callback
+                        // is being run in the PoolRunner's thread, and if we drop
+                        // the instance now it will create a deadlock
+                        thread::spawn(move || {
+                            let result = handle_pool_refresh(pool_handle, init_txns, new_txns, node_weights);
+                            cb(cb_id, result)
+                        });
+                        return
                     },
                     Err(err) => {
                         let code = ErrorCode::from(err.kind());

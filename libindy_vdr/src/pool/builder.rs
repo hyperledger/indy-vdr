@@ -14,6 +14,7 @@ pub struct PoolBuilder {
     pub config: PoolConfig,
     transactions: PoolTransactions,
     node_weights: Option<HashMap<String, f32>>,
+    refreshed: bool,
 }
 
 impl PoolBuilder {
@@ -23,7 +24,14 @@ impl PoolBuilder {
             config,
             transactions,
             node_weights: None,
+            refreshed: false,
         }
+    }
+
+    /// Enable or disable the fast refresh option.
+    pub fn refreshed(mut self, flag: bool) -> Self {
+        self.refreshed = flag;
+        self
     }
 
     /// Set the node weights associated with the builder.
@@ -40,6 +48,7 @@ impl PoolBuilder {
             merkle_tree,
             MakeLocal(ZMQNetworkerFactory {}),
             self.node_weights,
+            self.refreshed,
         )
     }
 
@@ -52,6 +61,7 @@ impl PoolBuilder {
             merkle_tree,
             MakeShared(ZMQNetworkerFactory {}),
             self.node_weights,
+            self.refreshed,
         )
     }
 
@@ -64,6 +74,7 @@ impl PoolBuilder {
             merkle_tree,
             MakeLocal(ZMQNetworkerFactory {}),
             self.node_weights,
+            self.refreshed,
         ))
     }
 }

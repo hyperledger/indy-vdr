@@ -15,8 +15,7 @@ mod resolver;
 
 use crate::common::error::prelude::*;
 use crate::config::{PoolConfig, LIB_VERSION};
-use crate::pool::ProtocolVersion;
-use crate::pool::{FilesystemCache, PoolTransactionsCache};
+use crate::pool::{FilesystemCache, PoolTransactionsCache, ProtocolVersion};
 use crate::utils::Validatable;
 
 use self::error::{set_last_error, ErrorCode};
@@ -62,10 +61,10 @@ pub extern "C" fn indy_vdr_set_protocol_version(version: i64) -> ErrorCode {
 pub extern "C" fn indy_vdr_set_cache_directory(path: FfiStr) -> ErrorCode {
     catch_err! {
         let cache = if let Some(path) = path.as_opt_str() {
-            trace!("Initializing filesystem pool transactions cache");
+            debug!("Initializing filesystem pool transactions cache");
             Some(Arc::new(FilesystemCache::new(path)) as Arc<dyn PoolTransactionsCache>)
         } else {
-            trace!("Clearing filesystem pool transactions cache");
+            debug!("Clearing filesystem pool transactions cache");
             None
         };
         *write_lock!(POOL_CACHE)? = cache;

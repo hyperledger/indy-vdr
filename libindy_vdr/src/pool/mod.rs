@@ -24,6 +24,7 @@ pub use {
     self::runner::{PoolRunner, PoolRunnerStatus},
     self::types::{
         LedgerType, NodeReplies, PoolSetup, ProtocolVersion, RequestHandle, RequestResult,
-        SingleReply, TimingResult, VerifierInfo, VerifierKey, VerifierKeys, Verifiers,
+        RequestResultMeta, SingleReply, StateProofAssertions, StateProofResult, TimingResult,
+        VerifierInfo, VerifierKey, VerifierKeys, Verifiers,
     },
 };

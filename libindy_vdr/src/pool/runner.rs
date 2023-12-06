@@ -33,6 +33,7 @@ impl PoolRunner {
         merkle_tree: MerkleTree,
         networker_factory: F,
         node_weights: Option<HashMap<String, f32>>,
+        refreshed: bool,
     ) -> Self
     where
         F: NetworkerFactory<Output = Rc<dyn Networker>> + Send + 'static,
@@ -40,9 +41,14 @@ impl PoolRunner {
         let (sender, receiver) = unbounded();
         let worker = thread::spawn(move || {
             // FIXME handle error on build
-            let pool =
-                LocalPool::build(config.clone(), merkle_tree, networker_factory, node_weights)
-                    .unwrap();
+            let pool = LocalPool::build(
+                config.clone(),
+                merkle_tree,
+                networker_factory,
+                node_weights,
+                refreshed,
+            )
+            .unwrap();
             let mut thread = PoolThread::new(pool, receiver);
             thread.run();
             debug!("Pool thread ended")
