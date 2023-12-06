@@ -57,9 +57,9 @@ pub trait Pool: Clone {
         RequestBuilder::new(self.get_config().protocol_version)
     }
 
-    /// Get the set of verifier pool transactions in JSON format
-    fn get_json_transactions(&self) -> VdrResult<Vec<String>> {
-        PoolTransactions::from(self.get_merkle_tree()).encode_json()
+    /// Get the set of verifier pool transactions
+    fn get_transactions(&self) -> PoolTransactions {
+        PoolTransactions::from(self.get_merkle_tree())
     }
 
     /// Get the summarized verifier details.

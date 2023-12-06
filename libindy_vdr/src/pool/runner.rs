@@ -187,7 +187,7 @@ impl PoolThread {
                             callback(Ok(status));
                         }
                         Some(PoolEvent::GetTransactions(callback)) => {
-                            let txns = self.pool.get_json_transactions();
+                            let txns = self.pool.get_transactions().encode_json();
                             callback(txns);
                         }
                         Some(PoolEvent::GetVerifiers(callback)) => {

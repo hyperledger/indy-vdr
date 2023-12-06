@@ -50,7 +50,7 @@ impl TestPool {
     }
 
     pub fn transactions(&self) -> Vec<String> {
-        self.pool.get_json_transactions().unwrap()
+        self.pool.get_transactions().encode_json().unwrap()
     }
 
     pub fn request_builder(&self) -> RequestBuilder {
