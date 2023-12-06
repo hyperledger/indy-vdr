@@ -315,7 +315,9 @@ async fn refresh_pool(
 
     let (txns, _meta) = perform_refresh(pool).await?;
     if let Some(txns) = txns {
-        let pool = PoolBuilder::new(PoolConfig::default(), txns).into_local()?;
+        let pool = PoolBuilder::new(PoolConfig::default(), txns)
+            .refreshed(true)
+            .into_local()?;
         Ok(Some(pool))
     } else {
         Ok(None)
