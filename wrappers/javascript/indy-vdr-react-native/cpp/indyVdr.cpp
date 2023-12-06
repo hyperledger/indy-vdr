@@ -24,6 +24,14 @@ jsi::Value setConfig(jsi::Runtime &rt, jsi::Object options) {
   return createReturnValue(rt, code, nullptr);
 };
 
+jsi::Value setCacheDirectory(jsi::Runtime &rt, jsi::Object options) {
+  auto path = jsiToValue<std::string>(rt, options, "path");
+
+  ErrorCode code = indy_vdr_set_cache_directory(path.c_str());
+
+  return createReturnValue(rt, code, nullptr);
+};
+
 jsi::Value setDefaultLogger(jsi::Runtime &rt, jsi::Object options) {
   ErrorCode code = indy_vdr_set_default_logger();
 
