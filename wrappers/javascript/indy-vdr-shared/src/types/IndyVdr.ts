@@ -47,6 +47,8 @@ export interface IndyVdr {
 
   setConfig(options: { config: Record<string, unknown> }): void
 
+  setCacheDirectory(options: { path: string }): void
+
   setDefaultLogger(): void
 
   setProtocolVersion(options: { version: number }): void

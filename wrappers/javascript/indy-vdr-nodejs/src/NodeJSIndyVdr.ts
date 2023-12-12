@@ -136,6 +136,11 @@ export class NodeJSIndyVdr implements IndyVdr {
     this.handleError(this.nativeIndyVdr.indy_vdr_set_config(config))
   }
 
+  public setCacheDirectory(options: { path: string }): void {
+    const { path } = serializeArguments(options)
+    this.handleError(this.nativeIndyVdr.indy_vdr_set_cache_directory(path))
+  }
+
   public setDefaultLogger(): void {
     this.handleError(this.nativeIndyVdr.indy_vdr_set_default_logger())
   }
