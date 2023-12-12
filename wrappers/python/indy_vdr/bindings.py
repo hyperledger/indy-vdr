@@ -421,6 +421,11 @@ def request_set_txn_author_agreement_acceptance(
     )
 
 
+def set_cache_directory(path: str):
+    """Set the library configuration."""
+    do_call("indy_vdr_set_cache_directory", encode_str(path))
+
+
 def set_config(config: dict):
     """Set the library configuration."""
     do_call("indy_vdr_set_config", encode_json(config))

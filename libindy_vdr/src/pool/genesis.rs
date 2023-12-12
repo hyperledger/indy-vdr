@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::fs::File;
-use std::io::BufReader;
+use std::fs::{self, File};
+use std::io::{self, BufReader};
 use std::iter::IntoIterator;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
+use rand::random;
 use serde_json::{self, Deserializer, Value as SJsonValue};
 
 use super::types::{
@@ -19,6 +21,11 @@ use crate::utils::{
 };
 
 pub type NodeTransactionMap = HashMap<String, NodeTransactionV1>;
+
+#[cfg(windows)]
+const LINE_ENDING: &str = "\r\n";
+#[cfg(not(windows))]
+const LINE_ENDING: &str = "\n";
 
 /// A collection of pool genesis transactions.
 #[derive(Clone, PartialEq, Eq)]
@@ -50,9 +57,10 @@ impl PoolTransactions {
     {
         let f = File::open(&file_name).map_err(|err| {
             err_msg(
-                VdrErrorKind::FileSystem(err),
+                VdrErrorKind::FileSystem,
                 format!("Can't open genesis transactions file: {:?}", file_name),
             )
+            .with_source(err)
         })?;
         let reader = BufReader::new(&f);
         let stream = Deserializer::from_reader(reader).into_iter::<SJsonValue>();
@@ -116,6 +124,16 @@ impl PoolTransactions {
         Ok(MerkleTree::from_vec(self.inner)?)
     }
 
+    /// Get the root hash corresponding to the transactions
+    pub fn root_hash(&self) -> VdrResult<Vec<u8>> {
+        Ok(self.merkle_tree()?.root_hash().clone())
+    }
+
+    /// Get the root hash corresponding to the transactions
+    pub fn root_hash_base58(&self) -> VdrResult<String> {
+        Ok(base58::encode(self.merkle_tree()?.root_hash()))
+    }
+
     /// Iterate the set of transactions as a sequence of msgpack-encoded byte strings.
     pub fn iter(&self) -> impl Iterator<Item = &Vec<u8>> {
         self.inner.iter()
@@ -128,6 +146,16 @@ impl PoolTransactions {
             .into_iter()
             .map(|v| v.to_string())
             .collect())
+    }
+
+    /// Get a sequence of JSON strings representing the pool transactions.
+    pub fn encode_json_string(&self) -> VdrResult<String> {
+        let mut buf = String::new();
+        for line in self.json_values()? {
+            buf.push_str(&line.to_string());
+            buf.push_str(LINE_ENDING);
+        }
+        Ok(buf)
     }
 
     /// Get a sequence of `serde_json::Value` instances representing the pool transactions.
@@ -208,6 +236,114 @@ where
             err
         ))),
     })
+}
+
+pub trait PoolTransactionsCache: Send + Sync {
+    fn resolve_latest(&self, txns: &PoolTransactions) -> VdrResult<Option<PoolTransactions>>;
+
+    fn update(&self, base: &PoolTransactions, latest: &PoolTransactions) -> VdrResult<()>;
+}
+
+#[derive(Debug, Clone)]
+struct _MemoryCacheEntry {
+    txns: PoolTransactions,
+}
+
+#[derive(Debug, Default)]
+pub struct InMemoryCache {
+    cache: Mutex<HashMap<String, _MemoryCacheEntry>>,
+}
+
+impl InMemoryCache {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl PoolTransactionsCache for InMemoryCache {
+    fn resolve_latest(&self, txns: &PoolTransactions) -> VdrResult<Option<PoolTransactions>> {
+        let hash = txns.root_hash_base58()?;
+        let cache = self.cache.lock().unwrap();
+        if let Some(entry) = cache.get(&hash) {
+            Ok(Some(entry.txns.clone()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn update(&self, base: &PoolTransactions, latest: &PoolTransactions) -> VdrResult<()> {
+        let from_hash = base.root_hash_base58()?;
+        let mut cache = self.cache.lock().unwrap();
+        cache
+            .entry(from_hash)
+            .and_modify(|e| e.txns = latest.clone())
+            .or_insert_with(|| _MemoryCacheEntry {
+                txns: latest.clone(),
+            });
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FilesystemCache {
+    cache_dir: PathBuf,
+}
+
+impl FilesystemCache {
+    pub fn new<P: Into<PathBuf>>(path: P) -> Self {
+        Self {
+            cache_dir: path.into(),
+        }
+    }
+
+    fn establish(&self, ident: &str) -> VdrResult<()> {
+        Ok(fs::create_dir_all(self.cache_dir.join(ident))?)
+    }
+
+    fn read_cache_file(&self, ident: &str, name: &str) -> Option<String> {
+        let mut path = self.cache_dir.clone();
+        path.extend(&[ident, name]);
+        fs::read_to_string(path)
+            .map_err(|e| {
+                if e.kind() != io::ErrorKind::NotFound {
+                    warn!("Error reading from pool genesis cache: {e}")
+                }
+            })
+            .ok()
+    }
+
+    fn write_cache_file(&self, ident: &str, name: &str, contents: &str) -> VdrResult<()> {
+        self.establish(ident)?;
+        let mut target_path = self.cache_dir.clone();
+        target_path.push(ident);
+        let temp_name = format!("{:020}.tmp", random::<u64>());
+        let temp_path = target_path.join(temp_name);
+        target_path.push(name);
+        fs::write(&temp_path, contents.as_bytes())
+            .and_then(|_| fs::rename(&temp_path, &target_path))
+            .map_err(|e| warn!("Error writing from pool genesis cache: {e}"))
+            .ok();
+        Ok(())
+    }
+}
+
+impl PoolTransactionsCache for FilesystemCache {
+    fn resolve_latest(&self, txns: &PoolTransactions) -> VdrResult<Option<PoolTransactions>> {
+        let ident = txns.root_hash_base58()?;
+        if let Some(txns) = self.read_cache_file(&ident, "txns") {
+            Ok(PoolTransactions::from_json(&txns)
+                .map_err(|e| warn!("Error reading from pool genesis cache: {e}"))
+                .ok())
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn update(&self, base: &PoolTransactions, latest: &PoolTransactions) -> VdrResult<()> {
+        let ident = base.root_hash_base58()?;
+        self.write_cache_file(&ident, "txns", &latest.encode_json_string()?)?;
+        Ok(())
+    }
 }
 
 pub fn build_node_transaction_map<T>(
@@ -370,6 +506,8 @@ fn _decode_transaction(
 
 #[cfg(test)]
 mod tests {
+    use std::env::temp_dir;
+
     use super::*;
 
     const NODE1: &str = r#"{"reqSignature":{},"txn":{"data":{"data":{"alias":"Node1","blskey":"4N8aUNHSgjQVgkpm8nhNEfDf6txHznoYREg9kirmJrkivgL4oSEimFF6nsQ6M41QvhM2Z33nves5vfSn9n1UwNFJBYtWVnHYMATn76vLuL3zU88KyeAYcHfsih3He6UHcXDxcaecHVz6jhCYz1P2UZn2bDVruL5wXpehgBfBaLKm3Ba","blskey_pop":"RahHYiCvoNCtPTrVtP7nMC5eTYrsUA8WjXbdhNc8debh1agE9bGiJxWBXYNFbnJXoXhWFMvyqhqhRoq737YQemH5ik9oL7R4NTTCz2LEZhkgLJzB3QRQqJyBNyv7acbdHrAT8nQ9UkLbaVL9NBpnWXBTw4LEMePaSHEw66RzPNdAX1","client_ip":"127.0.0.1","client_port":9702,"node_ip":"127.0.0.1","node_port":9701,"services":["VALIDATOR"]},"dest":"Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv"},"metadata":{"from":"Th7MpTaRZVRYnPiabds81Y"},"type":"0"},"txnMetadata":{"seqNo":1,"txnId":"fea82e10e894419fe2bea7d96296a6d46f50f93f9eeda954ec461b2ed2950b62"},"ver":"1"}"#;
@@ -378,11 +516,12 @@ mod tests {
     const NODE1_OLD: &str = r#"{"data":{"alias":"Node1","client_ip":"192.168.1.35","client_port":9702,"node_ip":"192.168.1.35","node_port":9701,"services":["VALIDATOR"]},"dest":"Gw6pDLhcBcoQesN72qfotTgFa7cbuqZpkX3Xo6pLhPhv","identifier":"FYmoFw55GeQH7SRFa37dkx1d2dZ3zUF8ckg7wmL7ofN4","txnId":"fea82e10e894419fe2bea7d96296a6d46f50f93f9eeda954ec461b2ed2950b62","type":"0"}"#;
     const NODE2_OLD: &str = r#"{"data":{"alias":"Node2","client_ip":"192.168.1.35","client_port":9704,"node_ip":"192.168.1.35","node_port":9703,"services":["VALIDATOR"]},"dest":"8ECVSk179mjsjKRLWiQtssMLgp6EPhWXtaYyStWPSGAb","identifier":"8QhFxKxyaFsJy4CyxeYX34dFH8oWqyBv1P4HLQCsoeLy","txnId":"1ac8aece2a18ced660fef8694b61aac3af08ba875ce3026a160acbc3a3af35fc","type":"0"}"#;
 
-    pub fn _merkle_tree() -> MerkleTree {
-        PoolTransactions::from_json_transactions(&[NODE1, NODE2, NODE3])
-            .unwrap()
-            .merkle_tree()
-            .unwrap()
+    fn _merkle_tree() -> MerkleTree {
+        _transactions().merkle_tree().unwrap()
+    }
+
+    fn _transactions() -> PoolTransactions {
+        PoolTransactions::from_json_transactions(&[NODE1, NODE2, NODE3]).unwrap()
     }
 
     #[test]
@@ -448,5 +587,48 @@ mod tests {
             .unwrap();
 
         let _err = build_node_transaction_map(merkle_tree, ProtocolVersion::Node1_4).unwrap_err();
+    }
+
+    #[test]
+    fn test_in_memory_cache() {
+        let txns = _transactions();
+        let cache = InMemoryCache::new();
+        assert_eq!(cache.resolve_latest(&txns).unwrap(), None);
+        let mut txns_long = txns.clone();
+        txns_long.extend_from_json(&[NODE1_OLD]).unwrap();
+        cache.update(&txns, &txns_long).unwrap();
+        assert_eq!(
+            cache.resolve_latest(&txns).unwrap().as_ref(),
+            Some(&txns_long)
+        );
+        txns_long.extend_from_json(&[NODE2_OLD]).unwrap();
+        cache.update(&txns, &txns_long).unwrap();
+        assert_eq!(
+            cache.resolve_latest(&txns).unwrap().as_ref(),
+            Some(&txns_long)
+        );
+    }
+
+    #[test]
+    fn test_fs_cache() {
+        let temp_name = format!("vdr-test-{:020}", random::<u64>());
+        let temp_dir = temp_dir().join(temp_name);
+        let txns = _transactions();
+        let cache = FilesystemCache::new(&temp_dir);
+        assert_eq!(cache.resolve_latest(&txns).unwrap(), None);
+        let mut txns_long = txns.clone();
+        txns_long.extend_from_json(&[NODE1_OLD]).unwrap();
+        cache.update(&txns, &txns_long).unwrap();
+        assert_eq!(
+            cache.resolve_latest(&txns).unwrap().as_ref(),
+            Some(&txns_long)
+        );
+        txns_long.extend_from_json(&[NODE2_OLD]).unwrap();
+        cache.update(&txns, &txns_long).unwrap();
+        assert_eq!(
+            cache.resolve_latest(&txns).unwrap().as_ref(),
+            Some(&txns_long)
+        );
+        fs::remove_dir_all(&temp_dir).unwrap();
     }
 }

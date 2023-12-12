@@ -27,8 +27,8 @@ pub enum VdrErrorKind {
     Config,
     #[error("Connection error")]
     Connection,
-    #[error("File system error: {0}")]
-    FileSystem(std::io::Error),
+    #[error("File system error")]
+    FileSystem,
     #[error("Input error")]
     Input,
     #[error("Resource error")]
@@ -69,6 +69,14 @@ impl VdrError {
             _ => None,
         }
     }
+
+    pub fn with_source<E>(mut self, source: E) -> Self
+    where
+        E: Into<Box<dyn std::error::Error + Send + Sync>>,
+    {
+        self.source.replace(source.into());
+        self
+    }
 }
 
 impl fmt::Display for VdrError {
@@ -107,6 +115,12 @@ impl From<crate::utils::ConversionError> for VdrError {
 impl From<crate::utils::ValidationError> for VdrError {
     fn from(err: crate::utils::ValidationError) -> Self {
         VdrError::new(VdrErrorKind::Input, Some(err.to_string()), None)
+    }
+}
+
+impl From<std::io::Error> for VdrError {
+    fn from(err: std::io::Error) -> VdrError {
+        VdrError::new(VdrErrorKind::FileSystem, None, Some(Box::new(err)))
     }
 }
 

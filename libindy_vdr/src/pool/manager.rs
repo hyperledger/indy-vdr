@@ -49,14 +49,17 @@ pub trait Pool: Clone {
         (base58::encode(tree.root_hash()), tree.count())
     }
 
+    /// Determine whether a refresh has been performed.
+    fn get_refreshed(&self) -> bool;
+
     /// Get a request builder corresponding to this verifier pool
     fn get_request_builder(&self) -> RequestBuilder {
         RequestBuilder::new(self.get_config().protocol_version)
     }
 
-    /// Get the set of verifier pool transactions in JSON format
-    fn get_json_transactions(&self) -> VdrResult<Vec<String>> {
-        PoolTransactions::from(self.get_merkle_tree()).encode_json()
+    /// Get the set of verifier pool transactions
+    fn get_transactions(&self) -> PoolTransactions {
+        PoolTransactions::from(self.get_merkle_tree())
     }
 
     /// Get the summarized verifier details.
@@ -91,6 +94,7 @@ where
         merkle_tree: MerkleTree,
         networker_factory: F,
         node_weights: Option<HashMap<String, f32>>,
+        refreshed: bool,
     ) -> VdrResult<Self>
     where
         F: NetworkerFactory<Output = T>,
@@ -98,7 +102,7 @@ where
         let txn_map = build_node_transaction_map(&merkle_tree, config.protocol_version)?;
         let verifiers = build_verifiers(txn_map)?;
         let networker = networker_factory.make_networker(config.clone(), &verifiers)?;
-        let setup = PoolSetup::new(config, merkle_tree, node_weights, verifiers);
+        let setup = PoolSetup::new(config, merkle_tree, node_weights, verifiers, refreshed);
         Ok(Self::new(S::from(Box::new(setup)), networker))
     }
 }
@@ -136,6 +140,10 @@ where
 
     fn get_config(&self) -> &PoolConfig {
         &self.setup.as_ref().config
+    }
+
+    fn get_refreshed(&self) -> bool {
+        self.setup.as_ref().refreshed
     }
 
     fn get_merkle_tree(&self) -> &MerkleTree {

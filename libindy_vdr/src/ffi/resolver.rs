@@ -19,7 +19,7 @@ pub extern "C" fn indy_vdr_resolve(
         let pools = read_lock!(POOLS)?;
         let pool = pools.get(&pool_handle).ok_or_else(|| input_err("Unknown pool handle"))?;
         let did = did.as_str().to_owned();
-        let resolver = Resolver::new(pool);
+        let resolver = Resolver::new(&pool.runner);
         resolver
         .dereference(
             did.clone(),
@@ -52,7 +52,7 @@ pub extern "C" fn indy_vdr_dereference(
         let pools = read_lock!(POOLS)?;
         let pool = pools.get(&pool_handle).ok_or_else(|| input_err("Unknown pool handle"))?;
         let did_url = did_url.as_str().to_owned();
-        let resolver = Resolver::new(pool);
+        let resolver = Resolver::new(&pool.runner);
         resolver.dereference(
             did_url.clone(),
             Box::new(move |ledger_reply| {

@@ -31,7 +31,7 @@ impl From<&VdrErrorKind> for ErrorCode {
         match kind {
             VdrErrorKind::Config => ErrorCode::Config,
             VdrErrorKind::Connection => ErrorCode::Connection,
-            VdrErrorKind::FileSystem(_) => ErrorCode::FileSystem,
+            VdrErrorKind::FileSystem => ErrorCode::FileSystem,
             VdrErrorKind::Input => ErrorCode::Input,
             VdrErrorKind::Resource => ErrorCode::Resource,
             VdrErrorKind::Unavailable => ErrorCode::Unavailable,

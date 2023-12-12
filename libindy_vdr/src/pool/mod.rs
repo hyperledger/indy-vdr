@@ -14,15 +14,17 @@ mod requests;
 mod runner;
 mod types;
 
-pub use self::builder::PoolBuilder;
-pub use self::genesis::PoolTransactions;
-pub use self::manager::{LocalPool, Pool, PoolImpl, SharedPool};
-pub use self::requests::{
-    new_request_id, PoolRequest, PoolRequestImpl, PreparedRequest, RequestMethod,
-};
-pub use self::runner::{PoolRunner, PoolRunnerStatus};
-pub use self::types::{
-    LedgerType, NodeReplies, PoolSetup, ProtocolVersion, RequestHandle, RequestResult,
-    RequestResultMeta, SingleReply, StateProofAssertions, StateProofResult, TimingResult,
-    VerifierInfo, VerifierKey, VerifierKeys, Verifiers,
+pub use {
+    self::builder::PoolBuilder,
+    self::genesis::{FilesystemCache, InMemoryCache, PoolTransactions, PoolTransactionsCache},
+    self::manager::{LocalPool, Pool, PoolImpl, SharedPool},
+    self::requests::{
+        new_request_id, PoolRequest, PoolRequestImpl, PreparedRequest, RequestMethod,
+    },
+    self::runner::{PoolRunner, PoolRunnerStatus},
+    self::types::{
+        LedgerType, NodeReplies, PoolSetup, ProtocolVersion, RequestHandle, RequestResult,
+        RequestResultMeta, SingleReply, StateProofAssertions, StateProofResult, TimingResult,
+        VerifierInfo, VerifierKey, VerifierKeys, Verifiers,
+    },
 };
