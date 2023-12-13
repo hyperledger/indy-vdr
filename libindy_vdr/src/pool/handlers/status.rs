@@ -17,7 +17,7 @@ pub type CatchupTarget = (Vec<u8>, usize, Vec<String>);
 
 pub async fn handle_status_request<R: PoolRequest>(
     request: &mut R,
-    merkle_tree: MerkleTree,
+    merkle_tree: &MerkleTree,
 ) -> VdrResult<(RequestResult<Option<CatchupTarget>>, RequestResultMeta)> {
     trace!("status request");
     let config = request.pool_config();
@@ -68,7 +68,7 @@ pub async fn handle_status_request<R: PoolRequest>(
             }
         };
         match check_nodes_responses_on_status(
-            &merkle_tree,
+            merkle_tree,
             &replies,
             &consensus,
             total_node_count,
@@ -126,7 +126,7 @@ fn try_to_catch_up(
     merkle_tree: &MerkleTree,
     nodes: &HashSet<String>,
 ) -> VdrResult<CatchupProgress> {
-    let &(ref target_mt_root, target_mt_size, ref hashes) = ledger_status;
+    let (target_mt_root, target_mt_size, hashes) = ledger_status;
     let cur_mt_size = merkle_tree.count();
     let cur_mt_hash = base58::encode(merkle_tree.root_hash());
 
@@ -144,16 +144,16 @@ fn try_to_catch_up(
             let target_mt_root = base58::decode(target_mt_root)
                 .with_input_err("Can't parse target MerkleTree hash from nodes responses")?;
 
-            match *hashes {
+            match hashes {
                 None => (),
                 Some(ref hashes) => {
-                    check_cons_proofs(merkle_tree, hashes, &target_mt_root, target_mt_size)?
+                    check_cons_proofs(merkle_tree, hashes, &target_mt_root, *target_mt_size)?
                 }
             };
 
             Ok(CatchupProgress::ShouldBeStarted((
                 target_mt_root,
-                target_mt_size,
+                *target_mt_size,
                 nodes.iter().cloned().collect(),
             )))
         }

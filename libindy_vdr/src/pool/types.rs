@@ -636,6 +636,7 @@ pub struct PoolSetup {
     pub merkle_tree: MerkleTree,
     pub node_weights: Option<HashMap<String, f32>>,
     pub verifiers: Verifiers,
+    pub refreshed: bool,
 }
 
 impl PoolSetup {
@@ -644,12 +645,14 @@ impl PoolSetup {
         merkle_tree: MerkleTree,
         node_weights: Option<HashMap<String, f32>>,
         verifiers: Verifiers,
+        refreshed: bool,
     ) -> Self {
         Self {
             config,
             merkle_tree,
             node_weights,
             verifiers,
+            refreshed,
         }
     }
 }

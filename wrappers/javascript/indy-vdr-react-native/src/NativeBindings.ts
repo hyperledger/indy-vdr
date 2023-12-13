@@ -11,6 +11,8 @@ export interface NativeBindings {
 
   setConfig(options: { config: string }): ReturnObject<never>
 
+  setCacheDirectory(options: { path: string }): ReturnObject<never>
+
   setDefaultLogger(options: Record<string, never>): ReturnObject<never>
 
   setProtocolVersion(options: { version: number }): ReturnObject<never>

@@ -8,7 +8,7 @@ use super::{check_cons_proofs, PoolRequest, RequestEvent, RequestResult, Request
 
 pub async fn handle_catchup_request<R: PoolRequest>(
     request: &mut R,
-    merkle_tree: MerkleTree,
+    merkle_tree: &MerkleTree,
     target_mt_root: Vec<u8>,
     target_mt_size: usize,
 ) -> VdrResult<(RequestResult<Vec<Vec<u8>>>, RequestResultMeta)> {
@@ -21,7 +21,7 @@ pub async fn handle_catchup_request<R: PoolRequest>(
             Some(RequestEvent::Received(node_alias, _message, parsed)) => match parsed {
                 Message::CatchupRep(cr) => {
                     match process_catchup_reply(
-                        &merkle_tree,
+                        merkle_tree,
                         &target_mt_root,
                         target_mt_size,
                         cr.load_txns()?,

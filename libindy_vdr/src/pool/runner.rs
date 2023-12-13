@@ -11,7 +11,8 @@ use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
 use super::requests::PreparedRequest;
 use super::types::{RequestResult, RequestResultMeta, Verifiers};
-use super::{LocalPool, Pool};
+use super::{LocalPool, Pool, PoolTransactions};
+
 use crate::common::error::prelude::*;
 use crate::common::merkle_tree::MerkleTree;
 use crate::config::PoolConfig;
@@ -32,6 +33,7 @@ impl PoolRunner {
         merkle_tree: MerkleTree,
         networker_factory: F,
         node_weights: Option<HashMap<String, f32>>,
+        refreshed: bool,
     ) -> Self
     where
         F: NetworkerFactory<Output = Rc<dyn Networker>> + Send + 'static,
@@ -39,9 +41,14 @@ impl PoolRunner {
         let (sender, receiver) = unbounded();
         let worker = thread::spawn(move || {
             // FIXME handle error on build
-            let pool =
-                LocalPool::build(config.clone(), merkle_tree, networker_factory, node_weights)
-                    .unwrap();
+            let pool = LocalPool::build(
+                config.clone(),
+                merkle_tree,
+                networker_factory,
+                node_weights,
+                refreshed,
+            )
+            .unwrap();
             let mut thread = PoolThread::new(pool, receiver);
             thread.run();
             debug!("Pool thread ended")
@@ -118,7 +125,7 @@ type GetTxnsResponse = VdrResult<Vec<String>>;
 
 type GetVerifiersResponse = VdrResult<Verifiers>;
 
-type RefreshResponse = VdrResult<(Vec<String>, Option<Vec<String>>, RequestResultMeta)>;
+type RefreshResponse = VdrResult<(Option<PoolTransactions>, RequestResultMeta)>;
 
 type SendReqResponse = VdrResult<(RequestResult<String>, RequestResultMeta)>;
 
@@ -180,7 +187,7 @@ impl PoolThread {
                             callback(Ok(status));
                         }
                         Some(PoolEvent::GetTransactions(callback)) => {
-                            let txns = self.pool.get_json_transactions();
+                            let txns = self.pool.get_transactions().encode_json();
                             callback(txns);
                         }
                         Some(PoolEvent::GetVerifiers(callback)) => {
@@ -211,15 +218,7 @@ impl PoolThread {
 }
 
 async fn _perform_refresh(pool: &LocalPool, callback: Callback<RefreshResponse>) {
-    let result = {
-        match perform_refresh(pool).await {
-            Ok((new_txns, meta)) => match pool.get_json_transactions() {
-                Ok(old_txns) => Ok((old_txns, new_txns, meta)),
-                Err(err) => Err(err),
-            },
-            Err(err) => Err(err),
-        }
-    };
+    let result = perform_refresh(pool).await;
     callback(result);
 }
 
