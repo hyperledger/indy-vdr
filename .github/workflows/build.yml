@@ -64,7 +64,7 @@ jobs:
       - if: ${{ runner.os == 'Linux' }}
         name: Pre-install cross
         run: |
-          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
+          cargo install --bins --git https://github.com/rust-embedded/cross --locked --tag v${{ env.CROSS_VERSION }} cross
 
   test-suite:
     name: Run Test Suite
@@ -148,7 +148,7 @@ jobs:
       - if: ${{ matrix.use_cross }}
         name: Build (cross)
         run: |
-          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
+          cargo install --bins --git https://github.com/rust-embedded/cross --locked --tag v${{ env.CROSS_VERSION }} cross
           cross build --lib --release --target ${{ matrix.target }}
 
       - if: ${{ !matrix.use_cross && matrix.architecture == 'darwin-universal' }}
@@ -379,7 +379,7 @@ jobs:
 
       - name: Build
         run: |
-          cargo install --bins --git https://github.com/rust-embedded/cross --tag v${{ env.CROSS_VERSION }} cross
+          cargo install --bins --git https://github.com/rust-embedded/cross --locked --tag v${{ env.CROSS_VERSION }} cross
           cross build --lib --release --target ${{matrix.target}} --package indy-vdr
 
       - name: Save library
