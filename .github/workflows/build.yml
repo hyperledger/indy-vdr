@@ -23,6 +23,16 @@ on:
         required: true
         default: false
         type: boolean
+      publish-python-wrapper:
+        description: "Publish Python Wrapper to Registries"
+        required: true
+        default: false
+        type: boolean
+      publish-javascript-wrapper:
+        description: "Publish JavaScript Wrapper to Registries"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -273,10 +283,10 @@ jobs:
           LIB_INDY_VDR_PATH: ../../../
         run: yarn test
 
-      - name: Publish
+      - name: Publish JavaScript Wrapper
         if: |
           github.event_name == 'release' ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-javascript-wrapper == 'true')
         run: |
           if [[ $(cat lerna.json | grep version | head -1 | grep dev) ]]; then
             npx lerna publish from-package --no-push --no-private --yes --no-git-tag-version --dist-tag=alpha
@@ -529,7 +539,7 @@ jobs:
 
       - if: |
           github.event_name == 'release' ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-wrappers == 'true')
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish-python-wrapper == 'true')
         name: Publish python package
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
