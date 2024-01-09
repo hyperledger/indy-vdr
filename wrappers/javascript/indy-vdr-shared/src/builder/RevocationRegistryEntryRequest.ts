@@ -2,22 +2,27 @@ import type { WriteRequestResultTxnBase, WriteRequestResponse } from '../types'
 
 import { indyVdr, IndyVdrRequest } from '../indyVdr'
 
+type ClRevocationRegistryDelta = {
+  prevAccum?: string
+  accum: string
+  issued: Array<number>
+  revoked: Array<number>
+}
+
 export type RevocationRegistryEntryRequestOptions = {
   submitterDid: string
   revocationRegistryDefinitionId: string
   revocationRegistryDefinitionType: string
   revocationRegistryEntry: {
     ver: '1.0'
-    value: { accum: string }
+    value: ClRevocationRegistryDelta | Record<string, unknown>
   }
 }
 
 interface RevocationRegistryEntryResultTxn extends WriteRequestResultTxnBase {
   type: '114'
   data: {
-    value: {
-      accum: string
-    }
+    value: ClRevocationRegistryDelta | Record<string, unknown>
     revocRegDefId: string
     revocDefType: 'CL_ACCUM'
   }
