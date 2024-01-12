@@ -18,11 +18,6 @@ on:
         required: true
         default: false
         type: boolean
-      publish-wrappers:
-        description: "Publish Wrappers to Registries"
-        required: true
-        default: false
-        type: boolean
       publish-python-wrapper:
         description: "Publish Python Wrapper to Registries"
         required: true
