@@ -3,6 +3,7 @@ use std::string::ToString;
 
 use serde_json;
 
+use super::cache::Cacheable;
 use super::genesis::PoolTransactions;
 use super::handlers::{
     build_pool_catchup_request, build_pool_status_request, handle_catchup_request,
@@ -19,12 +20,13 @@ use crate::utils::base58;
 /// Perform a pool ledger status request to see if catchup is required
 pub async fn perform_pool_status_request<T: Pool>(
     pool: &T,
+    cache: Option<&mut impl Cacheable<String, String>>,
 ) -> VdrResult<(RequestResult<Option<CatchupTarget>>, RequestResultMeta)> {
     let (mt_root, mt_size) = pool.get_merkle_tree_info();
 
     if pool.get_refreshed() {
         trace!("Performing fast status check");
-        match perform_get_txn(pool, LedgerType::POOL.to_id(), 1).await {
+        match perform_get_txn(pool, LedgerType::POOL.to_id(), 1, cache).await {
             Ok((RequestResult::Reply(reply), res_meta)) => {
                 if let Ok(body) = serde_json::from_str::<serde_json::Value>(&reply) {
                     if let (Some(status_root_hash), Some(status_txn_count)) = (
@@ -91,8 +93,9 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 /// Perform a pool ledger status request followed by a catchup request if necessary
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
+    cache: Option<&mut impl Cacheable<String, String>>,
 ) -> VdrResult<(Option<PoolTransactions>, RequestResultMeta)> {
-    let (result, meta) = perform_pool_status_request(pool).await?;
+    let (result, meta) = perform_pool_status_request(pool, cache).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {
@@ -166,10 +169,11 @@ pub async fn perform_get_txn<T: Pool>(
     pool: &T,
     ledger_type: i32,
     seq_no: i32,
+    cache: Option<&mut impl Cacheable<String, String>>,
 ) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
     let builder = pool.get_request_builder();
     let prepared = builder.build_get_txn_request(None, ledger_type, seq_no)?;
-    perform_ledger_request(pool, &prepared).await
+    perform_ledger_request(pool, &prepared, cache).await
 }
 
 /// Dispatch a request to a specific set of nodes and collect the results
@@ -184,10 +188,13 @@ pub async fn perform_ledger_action<T: Pool>(
     handle_full_request(&mut request, node_aliases, timeout).await
 }
 
+//do the caching here after we know if it is a read only
+
 /// Dispatch a prepared ledger request to the appropriate handler
 pub async fn perform_ledger_request<T: Pool>(
     pool: &T,
     prepared: &PreparedRequest,
+    cache_opt: Option<&mut impl Cacheable<String, String>>,
 ) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
     let mut request = pool
         .create_request(prepared.req_id.clone(), prepared.req_json.to_string())
@@ -214,7 +221,23 @@ pub async fn perform_ledger_request<T: Pool>(
         RequestMethod::Consensus => (None, (None, None), false, None),
     };
 
-    handle_consensus_request(&mut request, sp_key, sp_timestamps, is_read_req, sp_parser).await
+    if is_read_req {
+        if let Some(ref cache) = cache_opt {
+            if let Some((response, meta)) = cache.get_cached_request(prepared.req_id.clone()).await {
+                return Ok((RequestResult::Reply(response), meta));
+            }
+        }
+    }
+    let result =
+        handle_consensus_request(&mut request, sp_key, sp_timestamps, is_read_req, sp_parser).await;
+    if is_read_req && result.is_ok() {
+        if let (RequestResult::Reply(response), meta) = result.as_ref().unwrap() {
+            if let Some(cache) = cache_opt {
+                cache.cache_request(prepared.req_id.clone(), response.to_string(), meta.clone());
+            }
+        }
+    }
+    return result;
 }
 
 /// Format a collection of node replies in the expected response format
