@@ -13,6 +13,7 @@ pub struct Config {
     pub is_multiple: bool,
     pub tls_cert_path: Option<String>,
     pub tls_key_path: Option<String>,
+    pub cache: bool,
 }
 
 pub fn load_config() -> Result<Config, String> {
@@ -81,6 +82,11 @@ pub fn load_config() -> Result<Config, String> {
                 .long("tls-key")
                 .value_name("KEY")
                 .help("Path to the TLS private key file")
+        ).arg(
+            Arg::new("use-cache")
+                .long("use-cache")
+                .value_name("CACHE")
+                .help("Whether to use cache or not")
         );
 
     #[cfg(unix)]
@@ -139,6 +145,7 @@ pub fn load_config() -> Result<Config, String> {
 
     let tls_cert_path = matches.get_one::<String>("tls-cert").cloned();
     let tls_key_path = matches.get_one::<String>("tls-key").cloned();
+    let cache = matches.get_one::<bool>("use-cache").cloned().unwrap_or(false);
 
     Ok(Config {
         genesis,
@@ -152,5 +159,6 @@ pub fn load_config() -> Result<Config, String> {
         is_multiple,
         tls_cert_path,
         tls_key_path,
+        cache
     })
 }

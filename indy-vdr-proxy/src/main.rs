@@ -36,6 +36,8 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
+use indy_vdr::pool::RequestResultMeta;
+use indy_vdr::pool::cache::{Cache, MemCacheStorage};
 #[cfg(feature = "tls")]
 use rustls_pemfile::{certs, pkcs8_private_keys};
 #[cfg(feature = "tls")]
@@ -181,11 +183,16 @@ async fn init_app_state(
     Ok(state)
 }
 
-async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_refresh: u32) {
+async fn run_pools(
+    state: Rc<RefCell<AppState>>,
+    init_refresh: bool,
+    interval_refresh: u32,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) {
     let mut pool_states = HashMap::new();
 
     for (namespace, pool_state) in &state.clone().borrow().pool_states {
-        let pool_state = match create_pool(state.clone(), namespace.as_str(), init_refresh).await {
+        let pool_state = match create_pool(state.clone(), namespace.as_str(), init_refresh, cache.clone()).await {
             Ok(pool) => {
                 let pool = Some(pool.clone());
                 PoolState {
@@ -213,7 +220,7 @@ async fn run_pools(state: Rc<RefCell<AppState>>, init_refresh: bool, interval_re
     if interval_refresh > 0 {
         loop {
             select! {
-                refresh_result = refresh_pools(state.clone(), interval_refresh) => {
+                refresh_result = refresh_pools(state.clone(), interval_refresh, cache.clone()) => {
                     match refresh_result {
                         Ok(upd_pool_states) => {
                             state.borrow_mut().pool_states = upd_pool_states;
@@ -258,13 +265,14 @@ async fn create_pool(
     state: Rc<RefCell<AppState>>,
     namespace: &str,
     refresh: bool,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<LocalPool> {
     let pool_states = &state.borrow().pool_states;
     let pool_state = pool_states.get(namespace).unwrap();
     let pool =
         PoolBuilder::new(PoolConfig::default(), pool_state.transactions.clone()).into_local()?;
     let refresh_pool = if refresh {
-        refresh_pool(state.clone(), &pool, 0).await?
+        refresh_pool(state.clone(), &pool, 0, cache).await?
     } else {
         None
     };
@@ -275,12 +283,13 @@ async fn refresh_pools(
     state: Rc<RefCell<AppState>>,
     // pool_states: HashMap<String, PoolState>,
     delay_mins: u32,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<HashMap<String, PoolState>> {
     let mut upd_pool_states = HashMap::new();
     let pool_states = &state.borrow().pool_states;
     for (namespace, pool_state) in pool_states {
         if let Some(pool) = &pool_state.pool {
-            let upd_pool = match refresh_pool(state.clone(), pool, delay_mins).await {
+            let upd_pool = match refresh_pool(state.clone(), pool, delay_mins, cache.clone()).await {
                 Ok(p) => p,
                 Err(err) => {
                     eprintln!(
@@ -307,13 +316,14 @@ async fn refresh_pool(
     state: Rc<RefCell<AppState>>,
     pool: &LocalPool,
     delay_mins: u32,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<Option<LocalPool>> {
     let n_pools = state.borrow().pool_states.len() as u32;
     if delay_mins > 0 {
         tokio::time::sleep(Duration::from_secs((delay_mins * 60 / n_pools) as u64)).await
     }
 
-    let (txns, _meta) = perform_refresh(pool).await?;
+    let (txns, _meta) = perform_refresh(pool, cache).await?;
     if let Some(txns) = txns {
         let pool = PoolBuilder::new(PoolConfig::default(), txns)
             .refreshed(true)
@@ -426,13 +436,27 @@ where
     I::Conn: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
     I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
-    let until_done = run_pools(state.clone(), config.init_refresh, config.interval_refresh);
+    let cache = if config.cache {
+        let mem_storage = MemCacheStorage::new();
+        let mem_cache = Cache::new(mem_storage, 86400);
+        Some(mem_cache)
+    } else {
+        None
+    };
+    
+    let until_done = run_pools(
+        state.clone(),
+        config.init_refresh,
+        config.interval_refresh,
+        cache.clone(),
+    );
     let svc = make_service_fn(move |_| {
         let state = state.clone();
+        let cache = cache.clone();
         async move {
             let state = state.clone();
             Ok::<_, hyper::Error>(service_fn(move |req| {
-                handlers::handle_request(req, state.to_owned())
+                handlers::handle_request(req, state.to_owned(), cache.clone())
             }))
         }
     });

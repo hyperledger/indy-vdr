@@ -11,7 +11,7 @@ use crate::ledger::constants;
 use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
 use crate::ledger::responses::{Endpoint, GetNymResultV1};
 use crate::ledger::RequestBuilder;
-use crate::pool::cache::Cacheable;
+use crate::pool::cache::Cache;
 use crate::pool::helpers::perform_ledger_request;
 use crate::pool::{Pool, PreparedRequest, RequestResult, RequestResultMeta};
 use crate::utils::did::DidValue;
@@ -255,7 +255,7 @@ pub fn parse_or_now(datetime: Option<&String>) -> VdrResult<i64> {
 pub async fn handle_request<T: Pool>(
     pool: &T,
     request: &PreparedRequest,
-    cache: Option<&mut impl Cacheable<String,String>>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<String> {
     let (result, _meta) = request_transaction(pool, request, cache).await?;
     match result {
@@ -267,7 +267,7 @@ pub async fn handle_request<T: Pool>(
 pub async fn request_transaction<T: Pool>(
     pool: &T,
     request: &PreparedRequest,
-    cache: Option<&mut impl Cacheable<String, String>>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
     perform_ledger_request(pool, request, cache).await
 }
@@ -278,7 +278,7 @@ pub async fn fetch_legacy_endpoint<T: Pool>(
     did: &DidValue,
     seq_no: Option<i32>,
     timestamp: Option<u64>,
-    cache: Option<&mut impl Cacheable<String, String>>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<Endpoint> {
     let builder = pool.get_request_builder();
     let request = builder.build_get_attrib_request(
