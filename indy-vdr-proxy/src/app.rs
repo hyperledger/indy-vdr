@@ -84,7 +84,7 @@ pub fn load_config() -> Result<Config, String> {
                 .help("Path to the TLS private key file")
         ).arg(
             Arg::new("use-cache")
-                .long("use-cache")
+                .long("use-cache").action(ArgAction::SetTrue)
                 .value_name("CACHE")
                 .help("Whether to use cache or not")
         );
@@ -145,7 +145,7 @@ pub fn load_config() -> Result<Config, String> {
 
     let tls_cert_path = matches.get_one::<String>("tls-cert").cloned();
     let tls_key_path = matches.get_one::<String>("tls-key").cloned();
-    let cache = matches.get_one::<bool>("use-cache").cloned().unwrap_or(false);
+    let cache = matches.get_flag("use-cache");
 
     Ok(Config {
         genesis,

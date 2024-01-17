@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use std::{
     collections::HashMap,
     hash::Hash,
@@ -8,10 +9,11 @@ use std::{
 use tokio::sync::RwLock;
 
 // cant use async traits yet because not object safe
+#[async_trait]
 pub trait CacheStorage<K, V>: Send + Sync + 'static {
-    fn get(&self, key: &K) -> Option<(V, u64)>;
+    async fn get(&self, key: &K) -> Option<(V, u64)>;
 
-    fn insert(&mut self, key: K, value: V, expiration: u64) -> Option<(V, u64)>;
+    async fn insert(&mut self, key: K, value: V, expiration: u64) -> Option<(V, u64)>;
 }
 
 pub struct Cache<K, V> {
@@ -27,7 +29,7 @@ impl<K: 'static, V: 'static> Cache<K, V> {
         }
     }
     pub async fn get(&self, key: &K) -> Option<V> {
-        match self.storage.read().await.get(key) {
+        match self.storage.read().await.get(key).await {
             Some((item, expiry)) => {
                 if expiry > 0
                     && expiry
@@ -50,7 +52,13 @@ impl<K: 'static, V: 'static> Cache<K, V> {
             .unwrap()
             .as_secs()
             + self.expiration_offset;
-        match self.storage.write().await.insert(key, value, exp_timestamp) {
+        match self
+            .storage
+            .write()
+            .await
+            .insert(key, value, exp_timestamp)
+            .await
+        {
             Some(item) => Some(item.0),
             None => None,
         }
@@ -78,15 +86,15 @@ impl<K, V> MemCacheStorage<K, V> {
         }
     }
 }
-
+#[async_trait]
 impl<K: Hash + Eq + Send + Sync + 'static, V: Clone + Send + Sync + 'static> CacheStorage<K, V>
     for MemCacheStorage<K, V>
 {
-    fn get(&self, key: &K) -> Option<(V, u64)> {
+    async fn get(&self, key: &K) -> Option<(V, u64)> {
         self.cache.get(key).map(|(v, e)| (v.clone(), *e))
     }
 
-    fn insert(&mut self, key: K, value: V, expiration: u64) -> Option<(V, u64)> {
+    async fn insert(&mut self, key: K, value: V, expiration: u64) -> Option<(V, u64)> {
         self.cache
             .insert(key, (value, expiration))
             .map(|(v, e)| (v.clone(), e))
@@ -101,7 +109,7 @@ mod tests {
     #[rstest]
     fn test_cache() {
         use super::*;
-        use std::{time::Duration, thread};
+        use std::{thread, time::Duration};
 
         let mut cache = Cache::new(MemCacheStorage::new(), 1);
         block_on(async {
