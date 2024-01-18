@@ -56,7 +56,7 @@ mod send_resolver {
         // Resolve DID
         let resolver = Resolver::new(pool.pool);
         let qualified_did = format!("did:indy:test:{}", &identity.did);
-        let result = block_on(resolver.resolve(&qualified_did)).unwrap();
+        let result = block_on(resolver.resolve(&qualified_did, None)).unwrap();
 
         let v: serde_json::Value = serde_json::from_str(result.as_str()).unwrap();
 
@@ -107,7 +107,7 @@ mod send_resolver {
         let resolver = Resolver::new(pool.pool);
         let qualified_did = format!("did:indy:test:{}", &identity.did);
         let did_url = format!("{}?versionId={}", qualified_did, seq_no);
-        let result = block_on(resolver.resolve(&did_url)).unwrap();
+        let result = block_on(resolver.resolve(&did_url, None)).unwrap();
 
         let v: serde_json::Value = serde_json::from_str(result.as_str()).unwrap();
 

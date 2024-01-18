@@ -63,7 +63,6 @@ impl TestPool {
                 perform_ledger_request(&self.pool, prepared_request, None)
                     .await
                     .unwrap();
-
             match request_result {
                 RequestResult::Reply(message) => Ok(message),
                 RequestResult::Failed(err) => Err(err.extra().unwrap_or_default()),

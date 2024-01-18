@@ -8,7 +8,6 @@ use std::{
 
 use tokio::sync::RwLock;
 
-// cant use async traits yet because not object safe
 #[async_trait]
 pub trait CacheStorage<K, V>: Send + Sync + 'static {
     async fn get(&self, key: &K) -> Option<(V, u64)>;
