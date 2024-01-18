@@ -80,9 +80,11 @@ impl PreparedRequest {
         }
     }
 
-    pub fn get_cache_key(&self) -> VdrResult<String>{
+    pub fn get_cache_key(&self) -> VdrResult<String> {
         let mut req_json = self.req_json.clone();
-        let req_map = req_json.as_object_mut().ok_or_else(|| input_err("Invalid request JSON"))?;
+        let req_map = req_json
+            .as_object_mut()
+            .ok_or_else(|| input_err("Invalid request JSON"))?;
         req_map.remove("reqId");
         req_map.remove("signature");
         serde_json::to_string(&req_json).with_input_err("Invalid request JSON")

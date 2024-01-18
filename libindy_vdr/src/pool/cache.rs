@@ -13,6 +13,8 @@ use tokio::sync::RwLock;
 pub trait CacheStorage<K, V>: Send + Sync + 'static {
     async fn get(&self, key: &K) -> Option<(V, u64)>;
 
+    async fn remove(&mut self, key: &K) -> Option<(V, u64)>;
+
     async fn insert(&mut self, key: K, value: V, expiration: u64) -> Option<(V, u64)>;
 }
 
@@ -43,6 +45,12 @@ impl<K: 'static, V: 'static> Cache<K, V> {
                     Some(item)
                 }
             }
+            None => None,
+        }
+    }
+    pub async fn remove(&mut self, key: &K) -> Option<V> {
+        match self.storage.write().await.remove(key).await {
+            Some(item) => Some(item.0),
             None => None,
         }
     }
@@ -93,7 +101,9 @@ impl<K: Hash + Eq + Send + Sync + 'static, V: Clone + Send + Sync + 'static> Cac
     async fn get(&self, key: &K) -> Option<(V, u64)> {
         self.cache.get(key).map(|(v, e)| (v.clone(), *e))
     }
-
+    async fn remove(&mut self, key: &K) -> Option<(V, u64)> {
+        self.cache.remove(key)
+    }
     async fn insert(&mut self, key: K, value: V, expiration: u64) -> Option<(V, u64)> {
         self.cache
             .insert(key, (value, expiration))
@@ -120,6 +130,10 @@ mod tests {
             );
             thread::sleep(Duration::from_secs(2));
             assert_eq!(cache.get(&"key".to_string()).await, None);
+            assert_eq!(
+                cache.remove(&"key".to_string()).await,
+                Some("value".to_string())
+            );
         });
     }
 }

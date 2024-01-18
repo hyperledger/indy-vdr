@@ -301,7 +301,7 @@ async fn get_attrib<T: Pool>(
     raw: &str,
     seq_no: Option<i32>,
     timestamp: Option<u64>,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<ResponseType> {
     let dest = DidValue::from_str(dest)?;
     let request = pool.get_request_builder().build_get_attrib_request(
@@ -322,7 +322,7 @@ async fn get_nym<T: Pool>(
     nym: &str,
     seq_no: Option<i32>,
     timestamp: Option<u64>,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<ResponseType> {
     let nym = DidValue::from_str(nym)?;
     let request = pool
@@ -332,7 +332,11 @@ async fn get_nym<T: Pool>(
     Ok(result.into())
 }
 
-async fn get_schema<T: Pool>(pool: &T, schema_id: &str, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
+async fn get_schema<T: Pool>(
+    pool: &T,
+    schema_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let schema_id = SchemaId::from_str(schema_id)?;
     let request = pool
         .get_request_builder()
@@ -341,7 +345,11 @@ async fn get_schema<T: Pool>(pool: &T, schema_id: &str, cache: Option<Cache<Stri
     Ok(result.into())
 }
 
-async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
+async fn get_cred_def<T: Pool>(
+    pool: &T,
+    cred_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let cred_def_id = CredentialDefinitionId::from_str(cred_def_id)?;
     let request = pool
         .get_request_builder()
@@ -350,7 +358,11 @@ async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str, cache: Option<Cache<
     Ok(result.into())
 }
 
-async fn get_revoc_reg_def<T: Pool>(pool: &T, revoc_reg_def_id: &str, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
+async fn get_revoc_reg_def<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
     let request = pool
         .get_request_builder()
@@ -359,7 +371,11 @@ async fn get_revoc_reg_def<T: Pool>(pool: &T, revoc_reg_def_id: &str, cache: Opt
     Ok(result.into())
 }
 
-async fn get_revoc_reg<T: Pool>(pool: &T, revoc_reg_def_id: &str, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
+async fn get_revoc_reg<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
     let request = pool.get_request_builder().build_get_revoc_reg_request(
         None,
@@ -370,7 +386,11 @@ async fn get_revoc_reg<T: Pool>(pool: &T, revoc_reg_def_id: &str, cache: Option<
     Ok(result.into())
 }
 
-async fn get_revoc_reg_delta<T: Pool>(pool: &T, revoc_reg_def_id: &str, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
+async fn get_revoc_reg_delta<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
     let request = pool
         .get_request_builder()
@@ -386,7 +406,10 @@ async fn test_get_validator_info<T: Pool>(pool: &T, pretty: bool) -> VdrResult<S
 }
 */
 
-async fn get_taa<T: Pool>(pool: &T, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
+async fn get_taa<T: Pool>(
+    pool: &T,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_txn_author_agreement_request(None, None)?;
@@ -394,7 +417,10 @@ async fn get_taa<T: Pool>(pool: &T, cache: Option<Cache<String, (String, Request
     Ok(result.into())
 }
 
-async fn get_aml<T: Pool>(pool: &T, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
+async fn get_aml<T: Pool>(
+    pool: &T,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_acceptance_mechanisms_request(None, None, None)?;
@@ -407,7 +433,7 @@ async fn get_auth_rule<T: Pool>(
     auth_type: Option<String>,
     auth_action: Option<String>,
     field: Option<String>,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<ResponseType> {
     let request = pool.get_request_builder().build_get_auth_rule_request(
         None,
@@ -421,8 +447,13 @@ async fn get_auth_rule<T: Pool>(
     Ok(result.into())
 }
 
-async fn get_txn<T: Pool>(pool: &T, ledger: LedgerType, seq_no: i32, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<ResponseType> {
-    let result = perform_get_txn(pool, ledger.to_id(), seq_no,  cache).await?;
+async fn get_txn<T: Pool>(
+    pool: &T,
+    ledger: LedgerType,
+    seq_no: i32,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
+    let result = perform_get_txn(pool, ledger.to_id(), seq_no, cache).await?;
     Ok(result.into())
 }
 
@@ -435,7 +466,7 @@ async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> VdrResult<Respon
 pub async fn handle_request(
     req: Request<Body>,
     state: Rc<RefCell<AppState>>,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> Result<Response<Body>, hyper::Error> {
     let mut parts = req
         .uri()
@@ -587,7 +618,7 @@ pub async fn handle_request(
                             Some(auth_type.to_owned()),
                             Some(auth_action.to_owned()),
                             Some("*".to_owned()),
-                            cache.clone()
+                            cache.clone(),
                         )
                         .await
                     } else {

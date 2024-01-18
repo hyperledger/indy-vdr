@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
 
-use super::RequestResultMeta;
 use super::cache::Cache;
 use super::genesis::PoolTransactions;
 use super::manager::{LocalPool, SharedPool};
 use super::networker::{MakeLocal, MakeShared, ZMQNetworkerFactory};
 use super::runner::PoolRunner;
+use super::RequestResultMeta;
 
 /// A utility class for building a new pool instance or runner.
 #[derive(Clone)]
@@ -17,7 +17,7 @@ pub struct PoolBuilder {
     transactions: PoolTransactions,
     node_weights: Option<HashMap<String, f32>>,
     refreshed: bool,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 }
 
 impl PoolBuilder {
@@ -28,7 +28,7 @@ impl PoolBuilder {
             transactions,
             node_weights: None,
             refreshed: false,
-            cache: None
+            cache: None,
         }
     }
 
@@ -79,7 +79,7 @@ impl PoolBuilder {
             MakeLocal(ZMQNetworkerFactory {}),
             self.node_weights,
             self.refreshed,
-            self.cache
+            self.cache,
         ))
     }
 }

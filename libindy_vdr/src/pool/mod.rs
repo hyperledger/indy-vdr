@@ -1,11 +1,11 @@
 mod builder;
+/// A trait for managing a transaction cache
+pub mod cache;
 mod genesis;
 /// Transaction request handlers
 pub(crate) mod handlers;
 /// Methods for performing requests against the verifier pool
 pub mod helpers;
-/// A trait for managing a transaction cache
-pub mod cache;
 /// General verifier pool management
 mod manager;
 /// Pool networker traits and implementations

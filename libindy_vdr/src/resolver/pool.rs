@@ -23,7 +23,11 @@ impl<T: Pool> PoolResolver<T> {
     }
 
     /// Dereference a DID Url and return a serialized `DereferencingResult`
-    pub async fn dereference(&self, did_url: &str, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<String> {
+    pub async fn dereference(
+        &self,
+        did_url: &str,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<String> {
         debug!("PoolResolver: Dereference DID Url {}", did_url);
         let did_url = DidUrl::parse(did_url)?;
         let (data, metadata) = self._resolve(&did_url, cache).await?;
@@ -49,7 +53,11 @@ impl<T: Pool> PoolResolver<T> {
     }
 
     /// Resolve a DID and return a serialized `ResolutionResult`
-    pub async fn resolve(&self, did: &str, cache: Option<Cache<String, (String, RequestResultMeta)>>) -> VdrResult<String> {
+    pub async fn resolve(
+        &self,
+        did: &str,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<String> {
         debug!("PoolResolver: Resolve DID {}", did);
         let did = DidUrl::parse(did)?;
         let (data, metadata) = self._resolve(&did, cache.clone()).await?;
@@ -86,9 +94,10 @@ impl<T: Pool> PoolResolver<T> {
                     } else {
                         (None, None)
                     };
-                    doc.endpoint = fetch_legacy_endpoint(&self.pool, &did.id, seq_no, timestamp, cache)
-                        .await
-                        .ok();
+                    doc.endpoint =
+                        fetch_legacy_endpoint(&self.pool, &did.id, seq_no, timestamp, cache)
+                            .await
+                            .ok();
                 }
                 Some(doc.to_value()?)
             }
@@ -105,7 +114,11 @@ impl<T: Pool> PoolResolver<T> {
     }
 
     // Internal method to resolve and dereference
-    async fn _resolve(&self, did_url: &DidUrl, cache: Option<Cache<String,(String, RequestResultMeta)>>) -> VdrResult<(Result, Metadata)> {
+    async fn _resolve(
+        &self,
+        did_url: &DidUrl,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<(Result, Metadata)> {
         let builder = self.pool.get_request_builder();
         let request = build_request(did_url, &builder)?;
         debug!(

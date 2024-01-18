@@ -36,8 +36,8 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
-use indy_vdr::pool::RequestResultMeta;
 use indy_vdr::pool::cache::{Cache, MemCacheStorage};
+use indy_vdr::pool::RequestResultMeta;
 #[cfg(feature = "tls")]
 use rustls_pemfile::{certs, pkcs8_private_keys};
 #[cfg(feature = "tls")]
@@ -192,7 +192,14 @@ async fn run_pools(
     let mut pool_states = HashMap::new();
 
     for (namespace, pool_state) in &state.clone().borrow().pool_states {
-        let pool_state = match create_pool(state.clone(), namespace.as_str(), init_refresh, cache.clone()).await {
+        let pool_state = match create_pool(
+            state.clone(),
+            namespace.as_str(),
+            init_refresh,
+            cache.clone(),
+        )
+        .await
+        {
             Ok(pool) => {
                 let pool = Some(pool.clone());
                 PoolState {
@@ -289,7 +296,8 @@ async fn refresh_pools(
     let pool_states = &state.borrow().pool_states;
     for (namespace, pool_state) in pool_states {
         if let Some(pool) = &pool_state.pool {
-            let upd_pool = match refresh_pool(state.clone(), pool, delay_mins, cache.clone()).await {
+            let upd_pool = match refresh_pool(state.clone(), pool, delay_mins, cache.clone()).await
+            {
                 Ok(p) => p,
                 Err(err) => {
                     eprintln!(
@@ -443,7 +451,7 @@ where
     } else {
         None
     };
-    
+
     let until_done = run_pools(
         state.clone(),
         config.init_refresh,

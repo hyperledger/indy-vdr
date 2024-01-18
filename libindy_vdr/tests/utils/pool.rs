@@ -59,9 +59,10 @@ impl TestPool {
 
     pub fn send_request(&self, prepared_request: &PreparedRequest) -> Result<String, String> {
         block_on(async {
-            let (request_result, _meta) = perform_ledger_request(&self.pool, prepared_request, None)
-                .await
-                .unwrap();
+            let (request_result, _meta) =
+                perform_ledger_request(&self.pool, prepared_request, None)
+                    .await
+                    .unwrap();
 
             match request_result {
                 RequestResult::Reply(message) => Ok(message),

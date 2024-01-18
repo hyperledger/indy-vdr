@@ -236,10 +236,7 @@ pub async fn perform_ledger_request<T: Pool>(
         if let (RequestResult::Reply(response), meta) = result.as_ref().unwrap() {
             if let Some(mut cache) = cache_opt {
                 cache
-                    .insert(
-                        cache_key,
-                        (response.to_string(), meta.clone()),
-                    )
+                    .insert(cache_key, (response.to_string(), meta.clone()))
                     .await;
             }
         }

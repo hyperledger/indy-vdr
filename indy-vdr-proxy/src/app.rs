@@ -159,6 +159,6 @@ pub fn load_config() -> Result<Config, String> {
         is_multiple,
         tls_cert_path,
         tls_key_path,
-        cache
+        cache,
     })
 }
