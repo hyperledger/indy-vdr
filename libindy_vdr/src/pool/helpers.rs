@@ -93,9 +93,8 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 /// Perform a pool ledger status request followed by a catchup request if necessary
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<(Option<PoolTransactions>, RequestResultMeta)> {
-    let (result, meta) = perform_pool_status_request(pool, cache).await?;
+    let (result, meta) = perform_pool_status_request(pool, None).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {
@@ -224,7 +223,7 @@ pub async fn perform_ledger_request<T: Pool>(
     let cache_key = prepared.get_cache_key()?;
 
     if is_read_req {
-        if let Some(ref cache) = cache_opt {
+        if let Some(mut cache) = cache_opt.clone() {
             if let Some((response, meta)) = cache.get(&cache_key).await {
                 return Ok((RequestResult::Reply(response), meta));
             }

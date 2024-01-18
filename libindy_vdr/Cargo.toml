@@ -60,8 +60,8 @@ thiserror = "1.0"
 time = { version = "=0.3.20", features = ["parsing"] }
 url = "2.2.2"
 zmq = "0.9"
-tokio = { version = "1.35.1", features = ["full"] }
 async-trait = "0.1.77"
+async-lock = "3.3.0"
 
 [dev-dependencies]
 rstest = "0.18"

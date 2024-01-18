@@ -51,8 +51,8 @@ impl PoolRunner {
                 refreshed,
             )
             .unwrap();
-            let mut thread = PoolThread::new(pool, receiver);
-            thread.run(cache);
+            let mut thread = PoolThread::new(pool, receiver, cache);
+            thread.run();
             debug!("Pool thread ended")
         });
         Self {
@@ -161,23 +161,31 @@ impl PoolRunnerStatus {
 struct PoolThread {
     pool: LocalPool,
     receiver: UnboundedReceiver<PoolEvent>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 }
 
 impl PoolThread {
-    fn new(pool: LocalPool, receiver: UnboundedReceiver<PoolEvent>) -> Self {
-        Self { pool, receiver }
+    fn new(
+        pool: LocalPool,
+        receiver: UnboundedReceiver<PoolEvent>,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> Self {
+        Self {
+            pool,
+            receiver,
+            cache,
+        }
     }
 
-    fn run(&mut self, cache: Option<Cache<String, (String, RequestResultMeta)>>) {
-        block_on(self.run_loop(cache))
+    fn run(&mut self) {
+        block_on(self.run_loop())
     }
 
-    async fn run_loop(&mut self, cache: Option<Cache<String, (String, RequestResultMeta)>>) {
+    async fn run_loop(&mut self) {
         let mut futures = FuturesUnordered::new();
         let receiver = &mut self.receiver;
         loop {
-            let cache_ledger_request = cache.clone();
-            let cache_pool_refresh = cache.clone();
+            let cache_ledger_request = self.cache.clone();
             select! {
                 recv_evt = receiver.next() => {
                     match recv_evt {
@@ -199,7 +207,7 @@ impl PoolThread {
                             callback(vers);
                         }
                         Some(PoolEvent::Refresh(callback)) => {
-                            let fut = _perform_refresh(&self.pool, callback, cache_pool_refresh);
+                            let fut = _perform_refresh(&self.pool, callback);
                             futures.push(fut.boxed_local());
                         }
                         Some(PoolEvent::SendRequest(request, callback)) => {
@@ -221,12 +229,8 @@ impl PoolThread {
     }
 }
 
-async fn _perform_refresh(
-    pool: &LocalPool,
-    callback: Callback<RefreshResponse>,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>,
-) {
-    let result = perform_refresh(pool, cache).await;
+async fn _perform_refresh(pool: &LocalPool, callback: Callback<RefreshResponse>) {
+    let result = perform_refresh(pool).await;
     callback(result);
 }
 
