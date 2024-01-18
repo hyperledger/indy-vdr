@@ -80,6 +80,14 @@ impl PreparedRequest {
         }
     }
 
+    pub fn get_cache_key(&self) -> VdrResult<String>{
+        let mut req_json = self.req_json.clone();
+        let req_map = req_json.as_object_mut().ok_or_else(|| input_err("Invalid request JSON"))?;
+        req_map.remove("reqId");
+        req_map.remove("signature");
+        serde_json::to_string(&req_json).with_input_err("Invalid request JSON")
+    }
+
     /// Generate the normalized representation of a transaction for signing the request
     pub fn get_signature_input(&self) -> VdrResult<String> {
         Ok(serialize_signature(&self.req_json)?)

@@ -221,9 +221,11 @@ pub async fn perform_ledger_request<T: Pool>(
         RequestMethod::Consensus => (None, (None, None), false, None),
     };
 
+    let cache_key = prepared.get_cache_key()?;
+
     if is_read_req {
         if let Some(ref cache) = cache_opt {
-            if let Some((response, meta)) = cache.get(&prepared.req_id).await {
+            if let Some((response, meta)) = cache.get(&cache_key).await {
                 return Ok((RequestResult::Reply(response), meta));
             }
         }
@@ -233,7 +235,12 @@ pub async fn perform_ledger_request<T: Pool>(
     if is_read_req && result.is_ok() {
         if let (RequestResult::Reply(response), meta) = result.as_ref().unwrap() {
             if let Some(mut cache) = cache_opt {
-                cache.insert(prepared.req_id.clone(), (response.to_string(), meta.clone())).await;
+                cache
+                    .insert(
+                        cache_key,
+                        (response.to_string(), meta.clone()),
+                    )
+                    .await;
             }
         }
     }
