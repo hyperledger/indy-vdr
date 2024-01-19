@@ -3,7 +3,6 @@ use std::{
     collections::{BTreeMap, HashMap},
     fmt::Debug,
     hash::Hash,
-    ops::DerefMut,
     sync::Arc,
     time::SystemTime,
 };
@@ -49,10 +48,120 @@ impl<K, V> Clone for Cache<K, V> {
     }
 }
 
+/// A hashmap that also maintains a BTreeMap of keys ordered by a given value
+/// This is useful for structures that need fast O(1) lookups, but also need to evict the oldest or least recently used entries
+struct OrderedHashMap<K, O, V>((HashMap<K, (O, V)>, BTreeMap<O, Vec<K>>));
+
+impl<K, O, V> OrderedHashMap<K, O, V> {
+    fn new() -> Self {
+        Self((HashMap::new(), BTreeMap::new()))
+    }
+}
+
+impl<K: Hash + Eq + Clone, O: Ord + Copy, V> OrderedHashMap<K, O, V> {
+    fn len(&self) -> usize {
+        let (lookup, _) = &self.0;
+        lookup.len()
+    }
+    fn get(&self, key: &K) -> Option<&(O, V)> {
+        let (lookup, _) = &self.0;
+        lookup.get(key)
+    }
+    fn get_key_value(
+        &self,
+        selector: Box<dyn Fn(&BTreeMap<O, Vec<K>>) -> Option<(&O, &Vec<K>)>>,
+    ) -> Option<(&K, &O, &V)> {
+        let (lookup, ordered_lookup) = &self.0;
+        selector(ordered_lookup).and_then(|(_, keys)| {
+            keys.first()
+                .and_then(|key| lookup.get(key).and_then(|(o, v)| Some((key, o, v))))
+        })
+    }
+    /// gets the entry with the lowest order value
+    fn get_first_key_value(&self) -> Option<(&K, &O, &V)> {
+        self.get_key_value(Box::new(|ordered_lookup| ordered_lookup.first_key_value()))
+    }
+    /// gets the entry with the highest order value
+    fn get_last_key_value(&self) -> Option<(&K, &O, &V)> {
+        self.get_key_value(Box::new(|ordered_lookup| ordered_lookup.last_key_value()))
+    }
+    /// re-orders the entry with the given key
+    fn re_order(&mut self, key: &K, new_order: O) {
+        let (lookup, order_lookup) = &mut self.0;
+        if let Some((old_order, _)) = lookup.get(key) {
+            // remove entry in btree
+            match order_lookup.get_mut(old_order) {
+                Some(keys) => {
+                    keys.retain(|k| k != key);
+                    if keys.len() == 0 {
+                        order_lookup.remove(old_order);
+                    }
+                }
+                None => {}
+            }
+        }
+        order_lookup
+            .entry(new_order)
+            .or_insert(vec![])
+            .push(key.clone());
+        lookup.get_mut(key).map(|(o, _)| *o = new_order);
+    }
+    /// inserts a new entry with the given key and value and order
+    fn insert(&mut self, key: K, value: V, order: O) -> Option<V> {
+        let (lookup, order_lookup) = &mut self.0;
+
+        if let Some((old_order, _)) = lookup.get(&key) {
+            // remove entry in btree
+            match order_lookup.get_mut(old_order) {
+                Some(keys) => {
+                    keys.retain(|k| k != &key);
+                    if keys.len() == 0 {
+                        order_lookup.remove(old_order);
+                    }
+                }
+                None => {}
+            }
+        }
+        order_lookup
+            .entry(order)
+            .or_insert(vec![])
+            .push(key.clone());
+        lookup
+            .insert(key, (order, value))
+            .and_then(|(_, v)| Some(v))
+    }
+    /// removes the entry with the given key
+    fn remove(&mut self, key: &K) -> Option<(O, V)> {
+        let (lookup, order_lookup) = &mut self.0;
+        lookup.remove(key).and_then(|(order, v)| {
+            match order_lookup.get_mut(&order) {
+                Some(keys) => {
+                    keys.retain(|k| k != key);
+                    if keys.len() == 0 {
+                        order_lookup.remove(&order);
+                    }
+                }
+                None => {}
+            }
+            Some((order, v))
+        })
+    }
+    /// removes the entry with the lowest order value
+    fn remove_first(&mut self) -> Option<(K, O, V)> {
+        let first_key = self.get_first_key_value().map(|(k, _, _)| k.clone());
+        if let Some(first_key) = first_key {
+            self.remove(&first_key)
+                .map(|(order, v)| (first_key, order, v))
+        } else {
+            None
+        }
+    }
+}
+
 /// A simple in-memory cache that uses timestamps to expire entries. Once the cache fills up, the oldest entry is evicted.
 /// Uses a hashmap for lookups and a BTreeMap for ordering by age
 pub struct MemCacheStorageTTL<K, V> {
-    store: (HashMap<K, (V, u128)>, BTreeMap<u128, Vec<K>>),
+    store: OrderedHashMap<K, u128, V>,
     capacity: usize,
     startup_time: SystemTime,
     expire_after: u128,
@@ -62,16 +171,10 @@ impl<K, V> MemCacheStorageTTL<K, V> {
     /// Create a new cache with the given capacity and expiration time in milliseconds
     pub fn new(capacity: usize, expire_after: u128) -> Self {
         Self {
-            store: (HashMap::new(), BTreeMap::new()),
+            store: OrderedHashMap::new(),
             capacity,
             startup_time: SystemTime::now(),
             expire_after,
-        }
-    }
-    fn get_oldest_ts(cache_order: &mut BTreeMap<u128, Vec<K>>) -> u128 {
-        match cache_order.first_key_value() {
-            Some((oldest_ts_ref, _)) => *oldest_ts_ref,
-            None => 0,
         }
     }
 }
@@ -81,9 +184,8 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Syn
     CacheStorage<K, V> for MemCacheStorageTTL<K, V>
 {
     async fn get(&self, key: &K) -> Option<V> {
-        let (cache_lookup, _) = &self.store;
-        match cache_lookup.get(key) {
-            Some((v, ts)) => {
+        match self.store.get(key) {
+            Some((ts, v)) => {
                 let current_time = SystemTime::now()
                     .duration_since(self.startup_time)
                     .unwrap()
@@ -98,81 +200,36 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Syn
         }
     }
     async fn remove(&mut self, key: &K) -> Option<V> {
-        let (cache_lookup, cache_order) = &mut self.store;
-        let ttl_val = cache_lookup.remove(key);
-        match ttl_val {
-            Some((v, ts)) => {
-                let val = cache_order.get_mut(&ts).unwrap();
-                if val.len() <= 1 {
-                    cache_order.remove(&ts);
-                } else {
-                    val.retain(|k| k != key);
-                }
-                Some(v)
-            }
-            None => None,
-        }
+        self.store.remove(key).map(|(_, v)| v)
     }
     async fn insert(&mut self, key: K, value: V) -> Option<V> {
-        let (cache_lookup, cache_order) = &mut self.store;
-        let ts = SystemTime::now()
+        let current_ts = SystemTime::now()
             .duration_since(self.startup_time)
             .unwrap()
             .as_millis();
 
         // remove expired entries
-        while cache_order.len() > 0 {
-            let oldest_ts = Self::get_oldest_ts(cache_order);
-            if ts > oldest_ts + self.expire_after {
-                let expired_keys = cache_order.get(&oldest_ts).unwrap();
-                for key in expired_keys.iter() {
-                    println!(
-                        "removing expired key: {:?}, exp_time {:?}, oldest entry date {:?}",
-                        key,
-                        ts + self.expire_after,
-                        oldest_ts
-                    );
-                    cache_lookup.remove(key);
-                }
-                cache_order.remove(&oldest_ts);
-            } else {
-                break;
-            }
+        let exp_offset = self.expire_after;
+        while self.store.len() > 0
+            && self
+                .store
+                .get_first_key_value()
+                .map(|(_, ts, _)| ts + exp_offset < current_ts)
+                .unwrap_or(false)
+        {
+            self.store.remove_first();
         }
 
         // remove the oldest item if the cache is still full
-        if cache_lookup.len() >= self.capacity && cache_lookup.get(&key).is_none() {
+        if self.store.len() >= self.capacity && self.store.get(&key).is_none() {
             // remove the oldest item
-            let oldest_ts = Self::get_oldest_ts(cache_order);
-            let oldest_keys = cache_order.get_mut(&oldest_ts).unwrap();
-            let removal_key = oldest_keys.first().and_then(|k| Some(k.clone()));
-            if oldest_keys.len() <= 1 {
-                // remove the whole array since it's the last entry
-                cache_order.remove(&oldest_ts);
-            } else {
-                oldest_keys.swap_remove(0);
-            }
-            cache_lookup.remove(&key);
+            let removal_key = self.store.get_first_key_value().map(|(k, _, _)| k.clone());
             if let Some(removal_key) = removal_key {
-                cache_lookup.remove(&removal_key);
+                self.store.remove(&removal_key);
             }
         };
 
-        // if value is overwritten when inserting a new key, we need to remove the old key from the order index
-        cache_order.entry(ts).or_insert(vec![]).push(key.clone());
-        match cache_lookup.insert(key.clone(), (value.clone(), ts)) {
-            Some((v, ts)) => {
-                if let Some(ord_keys) = cache_order.get_mut(&ts) {
-                    if ord_keys.len() <= 1 {
-                        cache_order.remove(&ts);
-                    } else {
-                        ord_keys.retain(|k| k != &key);
-                    }
-                }
-                Some(v)
-            }
-            None => None,
-        }
+        self.store.insert(key, value, current_ts)
     }
 }
 
@@ -180,14 +237,14 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Syn
 /// Uses a hashmap for lookups and a BTreeMap for ordering by least recently used
 pub struct MemCacheStorageLRU<K, V> {
     // The store is wrapped in an arc and a mutex so that get() can be immutable
-    store: Arc<Mutex<(HashMap<K, (V, u64)>, BTreeMap<u64, K>)>>,
+    store: Arc<Mutex<OrderedHashMap<K, u64, V>>>,
     capacity: usize,
 }
 
 impl<K, V> MemCacheStorageLRU<K, V> {
     pub fn new(capacity: usize) -> Self {
         Self {
-            store: Arc::new(Mutex::new((HashMap::new(), BTreeMap::new()))),
+            store: Arc::new(Mutex::new(OrderedHashMap::new())),
             capacity,
         }
     }
@@ -198,62 +255,37 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
 {
     async fn get(&self, key: &K) -> Option<V> {
         // move the key to the end of the LRU index
-        // this is O(log(n)) in the worst case, but in the average case it's close to O(1)
+        // this is O(log(n))
         let mut store_lock = self.store.lock().await;
-        let (cache_lookup, cache_order) = store_lock.deref_mut();
-        let highest_lru = cache_order
-            .last_key_value()
-            .map(|(hts, _)| hts + 1)
+        let highest_lru = store_lock
+            .get_last_key_value()
+            .map(|(_, ts, _)| ts + 1)
             .unwrap_or(0);
-        match cache_lookup.get_mut(key) {
-            Some((v, ts)) => {
-                cache_order.remove(ts).unwrap();
-                cache_order.entry(highest_lru).or_insert(key.clone());
-                *ts = highest_lru;
-                Some(v.clone())
-            }
-            None => None,
-        }
+        store_lock.re_order(key, highest_lru);
+        store_lock.get(key).map(|(_, v)| v.clone())
     }
     async fn remove(&mut self, key: &K) -> Option<V> {
         let mut store_lock = self.store.lock().await;
-        let (cache_lookup, cache_order) = store_lock.deref_mut();
-        let lru_val = cache_lookup.remove(key);
-        match lru_val {
-            Some((v, ts)) => {
-                cache_order.remove(&ts);
-                Some(v)
-            }
-            None => None,
-        }
+        store_lock.remove(key).map(|(_, v)| v)
     }
     async fn insert(&mut self, key: K, value: V) -> Option<V> {
         // this will be O(log(n)) in all cases when cache is at capacity since we need to fetch the first and last element from the btree
         let mut store_lock = self.store.lock().await;
-        let (cache_lookup, cache_order) = store_lock.deref_mut();
-        let highest_lru = cache_order
-            .last_key_value()
-            .map(|(ts, _)| ts + 1)
+        let highest_lru = store_lock
+            .get_last_key_value()
+            .map(|(_, ts, _)| ts + 1)
             .unwrap_or(0);
-        if cache_lookup.len() >= self.capacity && cache_lookup.get(&key).is_none() {
+
+        if store_lock.len() >= self.capacity && store_lock.get(&key).is_none() {
             // remove the LRU item
-            let (lru_ts, lru_key) = match cache_order.first_key_value() {
-                Some((ts, key)) => (*ts, key.clone()),
-                None => return None,
-            };
-            cache_lookup.remove(&lru_key);
-            cache_order.remove(&lru_ts);
+            let lru_key = store_lock
+                .get_first_key_value()
+                .map(|(k, _, _)| k.clone())
+                .unwrap();
+            store_lock.remove(&lru_key);
         };
 
-        // if value is overwritten when inserting a new key, we need to remove the old key from the order index
-        cache_order.insert(highest_lru, key.clone());
-        match cache_lookup.insert(key.clone(), (value.clone(), highest_lru)) {
-            Some((v, ts)) => {
-                cache_order.remove(&ts);
-                Some(v)
-            }
-            None => None,
-        }
+        store_lock.insert(key, value, highest_lru)
     }
 }
 
