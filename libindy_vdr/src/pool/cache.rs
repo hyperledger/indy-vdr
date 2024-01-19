@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use std::{
     collections::{BTreeMap, HashMap},
+    fmt::Debug,
     hash::Hash,
     ops::DerefMut,
     sync::Arc,
@@ -54,26 +55,45 @@ pub struct MemCacheStorageTTL<K, V> {
     store: (HashMap<K, (V, u128)>, BTreeMap<u128, Vec<K>>),
     capacity: usize,
     startup_time: SystemTime,
+    expire_after: u128,
 }
 
 impl<K, V> MemCacheStorageTTL<K, V> {
-    pub fn new(capacity: usize) -> Self {
+    /// Create a new cache with the given capacity and expiration time in milliseconds
+    pub fn new(capacity: usize, expire_after: u128) -> Self {
         Self {
             store: (HashMap::new(), BTreeMap::new()),
             capacity,
             startup_time: SystemTime::now(),
+            expire_after,
+        }
+    }
+    fn get_oldest_ts(cache_order: &mut BTreeMap<u128, Vec<K>>) -> u128 {
+        match cache_order.first_key_value() {
+            Some((oldest_ts_ref, _)) => *oldest_ts_ref,
+            None => 0,
         }
     }
 }
 
 #[async_trait]
-impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'static>
+impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Sync + 'static>
     CacheStorage<K, V> for MemCacheStorageTTL<K, V>
 {
     async fn get(&self, key: &K) -> Option<V> {
         let (cache_lookup, _) = &self.store;
         match cache_lookup.get(key) {
-            Some((v, _)) => Some(v.clone()),
+            Some((v, ts)) => {
+                let current_time = SystemTime::now()
+                    .duration_since(self.startup_time)
+                    .unwrap()
+                    .as_millis();
+                if current_time < ts + self.expire_after {
+                    Some(v.clone())
+                } else {
+                    None
+                }
+            }
             None => None,
         }
     }
@@ -99,11 +119,31 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
             .duration_since(self.startup_time)
             .unwrap()
             .as_millis();
-        // only remove the oldest item if the cache is full and the key is not already in the cache
+
+        // remove expired entries
+        while cache_order.len() > 0 {
+            let oldest_ts = Self::get_oldest_ts(cache_order);
+            if ts > oldest_ts + self.expire_after {
+                let expired_keys = cache_order.get(&oldest_ts).unwrap();
+                for key in expired_keys.iter() {
+                    println!(
+                        "removing expired key: {:?}, exp_time {:?}, oldest entry date {:?}",
+                        key,
+                        ts + self.expire_after,
+                        oldest_ts
+                    );
+                    cache_lookup.remove(key);
+                }
+                cache_order.remove(&oldest_ts);
+            } else {
+                break;
+            }
+        }
+
+        // remove the oldest item if the cache is still full
         if cache_lookup.len() >= self.capacity && cache_lookup.get(&key).is_none() {
             // remove the oldest item
-            let (oldest_ts_ref, _) = cache_order.first_key_value().unwrap();
-            let oldest_ts = *oldest_ts_ref;
+            let oldest_ts = Self::get_oldest_ts(cache_order);
             let oldest_keys = cache_order.get_mut(&oldest_ts).unwrap();
             let removal_key = oldest_keys.first().and_then(|k| Some(k.clone()));
             if oldest_keys.len() <= 1 {
@@ -255,7 +295,7 @@ mod tests {
     fn test_cache_ttl() {
         use super::*;
 
-        let mut cache = Cache::new(MemCacheStorageTTL::new(2));
+        let mut cache = Cache::new(MemCacheStorageTTL::new(2, 5));
         block_on(async {
             cache.insert("key".to_string(), "value".to_string()).await;
             thread::sleep(std::time::Duration::from_millis(1));
@@ -278,6 +318,8 @@ mod tests {
                 Some("value3".to_string())
             );
             cache.insert("key5".to_string(), "value5".to_string()).await;
+            thread::sleep(std::time::Duration::from_millis(6));
+            assert_eq!(cache.get(&"key5".to_string()).await, None);
         });
     }
 }

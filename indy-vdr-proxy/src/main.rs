@@ -428,7 +428,7 @@ where
     I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let cache = if config.cache {
-        let mem_storage = MemCacheStorageTTL::new(1024);
+        let mem_storage = MemCacheStorageTTL::new(1024, Duration::from_secs(86400).as_millis());
         let mem_cache = Cache::new(mem_storage);
         Some(mem_cache)
     } else {
