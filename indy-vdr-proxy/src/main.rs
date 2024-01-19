@@ -36,7 +36,7 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
-use indy_vdr::pool::cache::{Cache, MemCacheStorageTTL};
+use indy_vdr::pool::cache::{memcache::MemCacheStorageTTL, Cache};
 #[cfg(feature = "tls")]
 use rustls_pemfile::{certs, pkcs8_private_keys};
 #[cfg(feature = "tls")]
