@@ -7,7 +7,7 @@ use std::{
     time::SystemTime,
 };
 
-use async_lock::Mutex;
+use async_lock::{Mutex, RwLock};
 
 #[async_trait]
 pub trait CacheStorage<K, V>: Send + Sync + 'static {
@@ -19,23 +19,23 @@ pub trait CacheStorage<K, V>: Send + Sync + 'static {
 }
 
 pub struct Cache<K, V> {
-    storage: Arc<Mutex<dyn CacheStorage<K, V>>>,
+    storage: Arc<RwLock<dyn CacheStorage<K, V>>>,
 }
 
 impl<K: 'static, V: 'static> Cache<K, V> {
     pub fn new(storage: impl CacheStorage<K, V>) -> Self {
         Self {
-            storage: Arc::new(Mutex::new(storage)),
+            storage: Arc::new(RwLock::new(storage)),
         }
     }
     pub async fn get(&mut self, key: &K) -> Option<V> {
-        self.storage.lock().await.get(key).await
+        self.storage.read().await.get(key).await
     }
     pub async fn remove(&mut self, key: &K) -> Option<V> {
-        self.storage.lock().await.remove(key).await
+        self.storage.write().await.remove(key).await
     }
     pub async fn insert(&mut self, key: K, value: V) -> Option<V> {
-        self.storage.lock().await.insert(key, value).await
+        self.storage.write().await.insert(key, value).await
     }
 }
 
