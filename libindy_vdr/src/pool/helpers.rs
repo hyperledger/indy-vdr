@@ -233,6 +233,13 @@ pub async fn perform_ledger_request<T: Pool>(
         handle_consensus_request(&mut request, sp_key, sp_timestamps, is_read_req, sp_parser).await;
     if is_read_req && result.is_ok() {
         if let (RequestResult::Reply(response), meta) = result.as_ref().unwrap() {
+            // check and made sure data is not null before caching
+            let serialized = serde_json::from_str::<serde_json::Value>(response);
+            if let Ok(data) = serialized {
+                if data["result"]["data"].is_null() {
+                    return result;
+                }
+            }
             if let Some(mut cache) = cache_opt {
                 cache
                     .insert(cache_key, (response.to_string(), meta.clone()))
