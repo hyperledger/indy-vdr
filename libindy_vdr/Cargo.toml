@@ -62,6 +62,7 @@ url = "2.2.2"
 zmq = "0.9"
 async-trait = "0.1.77"
 async-lock = "3.3.0"
+sled = "0.34.7"
 
 [dev-dependencies]
 rstest = "0.18"

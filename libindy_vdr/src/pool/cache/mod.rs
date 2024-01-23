@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 mod helpers;
 pub mod memcache;
+pub mod fscache;
 
 #[async_trait]
 pub trait CacheStorage<K, V>: Send + Sync + 'static {
@@ -24,13 +25,13 @@ impl<K: 'static, V: 'static> Cache<K, V> {
             storage: Arc::new(RwLock::new(storage)),
         }
     }
-    pub async fn get(&mut self, key: &K) -> Option<V> {
+    pub async fn get(&self, key: &K) -> Option<V> {
         self.storage.read().await.get(key).await
     }
-    pub async fn remove(&mut self, key: &K) -> Option<V> {
+    pub async fn remove(&self, key: &K) -> Option<V> {
         self.storage.write().await.remove(key).await
     }
-    pub async fn insert(&mut self, key: K, value: V) -> Option<V> {
+    pub async fn insert(&self, key: K, value: V) -> Option<V> {
         self.storage.write().await.insert(key, value).await
     }
 }

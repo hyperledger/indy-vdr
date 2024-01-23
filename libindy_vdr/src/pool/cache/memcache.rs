@@ -2,7 +2,7 @@ use super::helpers::OrderedHashMap;
 use super::CacheStorage;
 use async_lock::Mutex;
 use async_trait::async_trait;
-use std::{hash::Hash, sync::Arc, time::SystemTime};
+use std::{collections::BTreeMap, fmt::Debug, hash::Hash, sync::Arc, time::SystemTime};
 /// A simple in-memory cache that uses timestamps to expire entries. Once the cache fills up, the oldest entry is evicted.
 /// Uses a hashmap for lookups and a BTreeMap for ordering by age
 pub struct MemCacheStorageTTL<K, V> {
@@ -12,11 +12,11 @@ pub struct MemCacheStorageTTL<K, V> {
     expire_after: u128,
 }
 
-impl<K, V> MemCacheStorageTTL<K, V> {
+impl<K: Clone + Send + Sync + 'static, V> MemCacheStorageTTL<K, V> {
     /// Create a new cache with the given capacity and expiration time in milliseconds
     pub fn new(capacity: usize, expire_after: u128) -> Self {
         Self {
-            store: OrderedHashMap::new(),
+            store: OrderedHashMap::new(BTreeMap::new()),
             capacity,
             startup_time: SystemTime::now(),
             expire_after,
@@ -25,7 +25,7 @@ impl<K, V> MemCacheStorageTTL<K, V> {
 }
 
 #[async_trait]
-impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'static>
+impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Sync + 'static>
     CacheStorage<K, V> for MemCacheStorageTTL<K, V>
 {
     async fn get(&self, key: &K) -> Option<V> {
@@ -35,7 +35,7 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
                     .duration_since(self.startup_time)
                     .unwrap()
                     .as_millis();
-                if current_time < ts + self.expire_after {
+                if current_time < *ts {
                     Some(v.clone())
                 } else {
                     None
@@ -54,12 +54,11 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
             .as_millis();
 
         // remove expired entries
-        let exp_offset = self.expire_after;
         while self.store.len() > 0
             && self
                 .store
                 .get_first_key_value()
-                .map(|(_, ts, _)| ts + exp_offset < current_ts)
+                .map(|(_, ts, _)| ts.clone() < current_ts)
                 .unwrap_or(false)
         {
             self.store.remove_first();
@@ -74,7 +73,8 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
             }
         };
 
-        self.store.insert(key, value, current_ts)
+        let exp_offset = self.expire_after;
+        self.store.insert(key, value, current_ts + exp_offset)
     }
 }
 
@@ -86,10 +86,10 @@ pub struct MemCacheStorageLRU<K, V> {
     capacity: usize,
 }
 
-impl<K, V> MemCacheStorageLRU<K, V> {
+impl<K: Clone + Send + Sync + 'static, V> MemCacheStorageLRU<K, V> {
     pub fn new(capacity: usize) -> Self {
         Self {
-            store: Arc::new(Mutex::new(OrderedHashMap::new())),
+            store: Arc::new(Mutex::new(OrderedHashMap::new(BTreeMap::new()))),
             capacity,
         }
     }
@@ -145,7 +145,7 @@ mod tests {
 
     #[rstest]
     fn test_cache_lru() {
-        let mut cache = Cache::new(MemCacheStorageLRU::new(2));
+        let cache = Cache::new(MemCacheStorageLRU::new(2));
         block_on(async {
             cache.insert("key".to_string(), "value".to_string()).await;
             assert_eq!(
@@ -170,7 +170,7 @@ mod tests {
 
     #[rstest]
     fn test_cache_ttl() {
-        let mut cache = Cache::new(MemCacheStorageTTL::new(2, 5));
+        let cache = Cache::new(MemCacheStorageTTL::new(2, 5));
         block_on(async {
             cache.insert("key".to_string(), "value".to_string()).await;
             thread::sleep(std::time::Duration::from_millis(1));
