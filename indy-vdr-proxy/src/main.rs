@@ -36,7 +36,7 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
-use indy_vdr::pool::cache::{memcache::MemCacheStorageTTL, Cache};
+use indy_vdr::pool::cache::{strategy::CacheStrategyTTL, Cache};
 #[cfg(feature = "tls")]
 use rustls_pemfile::{certs, pkcs8_private_keys};
 #[cfg(feature = "tls")]
@@ -428,7 +428,8 @@ where
     I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let cache = if config.cache {
-        let mem_storage = MemCacheStorageTTL::new(1024, Duration::from_secs(86400).as_millis());
+        let mem_storage =
+            CacheStrategyTTL::new(1024, Duration::from_secs(86400).as_millis(), None, None);
         let mem_cache = Cache::new(mem_storage);
         Some(mem_cache)
     } else {

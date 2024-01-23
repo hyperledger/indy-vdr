@@ -2,12 +2,11 @@ use async_lock::RwLock;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-mod helpers;
-pub mod memcache;
-pub mod fscache;
+pub mod storage;
+pub mod strategy;
 
 #[async_trait]
-pub trait CacheStorage<K, V>: Send + Sync + 'static {
+pub trait CacheStrategy<K, V>: Send + Sync + 'static {
     async fn get(&self, key: &K) -> Option<V>;
 
     async fn remove(&mut self, key: &K) -> Option<V>;
@@ -16,11 +15,11 @@ pub trait CacheStorage<K, V>: Send + Sync + 'static {
 }
 
 pub struct Cache<K, V> {
-    storage: Arc<RwLock<dyn CacheStorage<K, V>>>,
+    storage: Arc<RwLock<dyn CacheStrategy<K, V>>>,
 }
 
 impl<K: 'static, V: 'static> Cache<K, V> {
-    pub fn new(storage: impl CacheStorage<K, V>) -> Self {
+    pub fn new(storage: impl CacheStrategy<K, V>) -> Self {
         Self {
             storage: Arc::new(RwLock::new(storage)),
         }
@@ -36,7 +35,7 @@ impl<K: 'static, V: 'static> Cache<K, V> {
     }
 }
 
-// need to implement Clone manually because Mutex<dyn CacheStorage> doesn't implement Clone
+// need to implement Clone manually because Mutex<dyn CacheStrategy> doesn't implement Clone
 impl<K, V> Clone for Cache<K, V> {
     fn clone(&self) -> Self {
         Self {

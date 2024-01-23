@@ -1,5 +1,5 @@
 use serde::{de::DeserializeOwned, Serialize};
-use sled::{self, IVec, Tree};
+use sled::{self, Tree};
 use std::{
     collections::{BTreeMap, HashMap},
     hash::Hash,
@@ -13,36 +13,46 @@ pub trait OrderedStore<O, V>: Send + Sync {
     fn insert(&mut self, key: O, value: V) -> Option<V>;
     fn remove(&mut self, key: &O) -> Option<V>;
 }
-impl<V: Serialize + DeserializeOwned> OrderedStore<IVec, V> for Tree {
+impl<V: Serialize + DeserializeOwned> OrderedStore<u128, V> for Tree {
     fn len(&self) -> usize {
         Tree::len(self)
     }
-    fn first_key_value(&self) -> Option<(IVec, V)> {
+    fn first_key_value(&self) -> Option<(u128, V)> {
         match self.first() {
-            Ok(Some((k, v))) => serde_json::from_slice(v.as_ref()).ok().map(|v| (k, v)),
+            Ok(Some((k, v))) => serde_json::from_slice(v.as_ref()).ok().map(|v| {
+                (
+                    u128::from_be_bytes(k.as_ref().try_into().unwrap_or([0; 16])),
+                    v,
+                )
+            }),
             _ => None,
         }
     }
-    fn last_key_value(&self) -> Option<(IVec, V)> {
+    fn last_key_value(&self) -> Option<(u128, V)> {
         match self.last() {
-            Ok(Some((k, v))) => serde_json::from_slice(v.as_ref()).ok().map(|v| (k, v)),
+            Ok(Some((k, v))) => serde_json::from_slice(v.as_ref()).ok().map(|v| {
+                (
+                    u128::from_be_bytes(k.as_ref().try_into().unwrap_or([0; 16])),
+                    v,
+                )
+            }),
             _ => None,
         }
     }
-    fn get(&self, key: &IVec) -> Option<V> {
-        match self.get(key) {
+    fn get(&self, key: &u128) -> Option<V> {
+        match Tree::get(self, key.to_be_bytes()).map(|v| v) {
             Ok(Some(v)) => serde_json::from_slice(v.as_ref()).ok(),
             _ => None,
         }
     }
-    fn insert(&mut self, key: IVec, value: V) -> Option<V> {
-        match Tree::insert(self, key, serde_json::to_vec(&value).unwrap()) {
+    fn insert(&mut self, key: u128, value: V) -> Option<V> {
+        match Tree::insert(self, key.to_be_bytes(), serde_json::to_vec(&value).unwrap()) {
             Ok(Some(v)) => serde_json::from_slice(v.as_ref()).ok(),
             _ => None,
         }
     }
-    fn remove(&mut self, key: &IVec) -> Option<V> {
-        match Tree::remove(self, key).map(|v| v) {
+    fn remove(&mut self, key: &u128) -> Option<V> {
+        match Tree::remove(self, key.to_be_bytes()).map(|v| v) {
             Ok(Some(v)) => serde_json::from_slice(&v).ok(),
             _ => None,
         }
@@ -77,13 +87,13 @@ pub struct OrderedHashMap<K, O, V>(
     ),
 );
 
-impl<K: Clone + Send + Sync, O: Ord + Copy + Send + Sync, V> OrderedHashMap<K, O, V> {
+impl<K: Clone + Send + Sync, O: Ord + Clone + Send + Sync, V> OrderedHashMap<K, O, V> {
     pub fn new(order: impl OrderedStore<O, Vec<K>> + 'static) -> Self {
         Self((HashMap::new(), Box::new(order)))
     }
 }
 
-impl<K: Hash + Eq + Clone, O: Ord + Copy, V: Clone> OrderedHashMap<K, O, V> {
+impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
     pub fn len(&self) -> usize {
         let (lookup, _) = &self.0;
         lookup.len()
@@ -103,7 +113,7 @@ impl<K: Hash + Eq + Clone, O: Ord + Copy, V: Clone> OrderedHashMap<K, O, V> {
             keys.first().and_then(|key| {
                 lookup
                     .get(key)
-                    .and_then(|(o, v)| Some((key.clone(), *o, v.clone())))
+                    .and_then(|(o, v)| Some((key.clone(), o.clone(), v.clone())))
             })
         })
     }
@@ -131,7 +141,7 @@ impl<K: Hash + Eq + Clone, O: Ord + Copy, V: Clone> OrderedHashMap<K, O, V> {
                 keys.retain(|k| *k != key);
                 // insert modified keys back into btree
                 if !keys.is_empty() {
-                    order_lookup.insert(*old_order, keys);
+                    order_lookup.insert(old_order.clone(), keys);
                 }
             }
         }
@@ -142,7 +152,7 @@ impl<K: Hash + Eq + Clone, O: Ord + Copy, V: Clone> OrderedHashMap<K, O, V> {
             }
             None => vec![key.clone()],
         };
-        order_lookup.insert(order, keys);
+        order_lookup.insert(order.clone(), keys);
         lookup
             .insert(key, (order, value))
             .and_then(|(_, v)| Some(v))
@@ -156,7 +166,7 @@ impl<K: Hash + Eq + Clone, O: Ord + Copy, V: Clone> OrderedHashMap<K, O, V> {
                     keys.retain(|k| k != key);
                     // insert remaining keys back in
                     if !keys.is_empty() {
-                        order_lookup.insert(order, keys);
+                        order_lookup.insert(order.clone(), keys);
                     }
                 }
                 None => {}
