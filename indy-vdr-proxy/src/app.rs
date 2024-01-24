@@ -14,6 +14,8 @@ pub struct Config {
     pub tls_cert_path: Option<String>,
     pub tls_key_path: Option<String>,
     pub cache: bool,
+    pub cache_size: usize,
+    pub cache_path: Option<String>,
 }
 
 pub fn load_config() -> Result<Config, String> {
@@ -87,6 +89,16 @@ pub fn load_config() -> Result<Config, String> {
                 .long("use-cache").action(ArgAction::SetTrue)
                 .value_name("CACHE")
                 .help("Whether to use cache or not")
+        ).arg(
+            Arg::new("cache-size")
+                .long("cache-size")
+                .value_name("CACHE_SIZE")
+                .help("Size of cache")
+        ).arg(
+            Arg::new("cache-path")
+                .long("cache-path")
+                .value_name("CACHE_PATH")
+                .help("Path to cache")
         );
 
     #[cfg(unix)]
@@ -146,6 +158,12 @@ pub fn load_config() -> Result<Config, String> {
     let tls_cert_path = matches.get_one::<String>("tls-cert").cloned();
     let tls_key_path = matches.get_one::<String>("tls-key").cloned();
     let cache = matches.get_flag("use-cache");
+    let cache_size = matches
+        .get_one::<String>("cache-size")
+        .map(|ival| ival.parse::<usize>().map_err(|_| "Invalid cache size"))
+        .transpose()?
+        .unwrap_or(1000);
+    let cache_path = matches.get_one::<String>("cache-path").cloned();
 
     Ok(Config {
         genesis,
@@ -160,5 +178,7 @@ pub fn load_config() -> Result<Config, String> {
         tls_cert_path,
         tls_key_path,
         cache,
+        cache_size,
+        cache_path,
     })
 }

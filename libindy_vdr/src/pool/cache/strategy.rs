@@ -12,7 +12,9 @@ pub struct CacheStrategyTTL<K, V> {
     expire_after: u128,
 }
 
-impl<K: Clone + Send + Sync + 'static, V> CacheStrategyTTL<K, V> {
+impl<K: Eq + Hash + Clone + Send + Sync + 'static, V: Clone + Send + Sync + 'static>
+    CacheStrategyTTL<K, V>
+{
     /// Create a new cache with the given capacity and expiration time in milliseconds
     /// If store_type is None, the cache will use an in-memory hashmap and BTreeMap
     /// cache_time is used as a starting point to generate timestamps if it is None, the cache will use the UNIX_EPOCH as the cache start time
@@ -99,7 +101,9 @@ pub struct CacheStrategyLRU<K, V> {
     capacity: usize,
 }
 
-impl<K: Clone + Send + Sync + 'static, V> CacheStrategyLRU<K, V> {
+impl<K: Eq + Hash + Clone + Send + Sync + 'static, V: Clone + Send + Sync + 'static>
+    CacheStrategyLRU<K, V>
+{
     pub fn new(capacity: usize, store_type: Option<OrderedHashMap<K, u128, V>>) -> Self {
         Self {
             store: Arc::new(Mutex::new(match store_type {

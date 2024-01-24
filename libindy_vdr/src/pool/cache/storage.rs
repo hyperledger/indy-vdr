@@ -12,6 +12,7 @@ pub trait OrderedStore<O, V>: Send + Sync {
     fn get(&self, key: &O) -> Option<V>;
     fn insert(&mut self, key: O, value: V) -> Option<V>;
     fn remove(&mut self, key: &O) -> Option<V>;
+    fn entries(&self) -> Box<dyn Iterator<Item = (O, V)> + '_>;
 }
 impl<V: Serialize + DeserializeOwned> OrderedStore<u128, V> for Tree {
     fn len(&self) -> usize {
@@ -57,6 +58,15 @@ impl<V: Serialize + DeserializeOwned> OrderedStore<u128, V> for Tree {
             _ => None,
         }
     }
+    fn entries(&self) -> Box<dyn Iterator<Item = (u128, V)>> {
+        Box::new(self.iter().filter_map(|r| {
+            r.ok().and_then(|(k, v)| {
+                serde_json::from_slice(v.as_ref())
+                    .ok()
+                    .map(|v| (u128::from_be_bytes(k.as_ref().try_into().unwrap()), v))
+            })
+        }))
+    }
 }
 impl<O: Ord + Copy + Send + Sync, V: Clone + Send + Sync> OrderedStore<O, V> for BTreeMap<O, V> {
     fn len(&self) -> usize {
@@ -77,19 +87,33 @@ impl<O: Ord + Copy + Send + Sync, V: Clone + Send + Sync> OrderedStore<O, V> for
     fn remove(&mut self, key: &O) -> Option<V> {
         BTreeMap::remove(self, key)
     }
+    fn entries(&self) -> Box<dyn Iterator<Item = (O, V)> + '_> {
+        Box::new(self.iter().map(|(o, v)| (o.clone(), v.clone())))
+    }
 }
 /// A hashmap that also maintains a BTreeMap of keys ordered by a given value
 /// This is useful for structures that need fast O(1) lookups, but also need to evict the oldest or least recently used entries
+/// The Ordered Store must contain both the keys and values for persistence
 pub struct OrderedHashMap<K, O, V>(
     (
         HashMap<K, (O, V)>,
-        Box<dyn OrderedStore<O, Vec<K>> + Send + Sync>,
+        Box<dyn OrderedStore<O, Vec<(K, V)>> + Send + Sync>,
     ),
 );
 
-impl<K: Clone + Send + Sync, O: Ord + Clone + Send + Sync, V> OrderedHashMap<K, O, V> {
-    pub fn new(order: impl OrderedStore<O, Vec<K>> + 'static) -> Self {
-        Self((HashMap::new(), Box::new(order)))
+impl<K: Eq + Hash + Clone + Send + Sync, O: Ord + Clone + Send + Sync, V: Clone>
+    OrderedHashMap<K, O, V>
+{
+    pub fn new(order: impl OrderedStore<O, Vec<(K, V)>> + 'static) -> Self {
+        let ordered_data = Box::new(order);
+        let mut keyed_data = HashMap::new();
+        // ordered data may be from the FS, so we need to rebuild the keyed data
+        ordered_data.entries().for_each(|(order, keys)| {
+            keys.iter().for_each(|(k, v)| {
+                keyed_data.insert(k.clone(), (order.clone(), v.clone()));
+            })
+        });
+        Self((keyed_data, ordered_data))
     }
 }
 
@@ -105,7 +129,7 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
     fn get_key_value(
         &self,
         selector: Box<
-            dyn Fn(&Box<dyn OrderedStore<O, Vec<K>> + Send + Sync>) -> Option<(O, Vec<K>)>,
+            dyn Fn(&Box<dyn OrderedStore<O, Vec<(K, V)>> + Send + Sync>) -> Option<(O, Vec<K>)>,
         >,
     ) -> Option<(K, O, V)> {
         let (lookup, ordered_lookup) = &self.0;
@@ -119,11 +143,19 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
     }
     /// gets the entry with the lowest order value
     pub fn get_first_key_value(&self) -> Option<(K, O, V)> {
-        self.get_key_value(Box::new(|ordered_lookup| ordered_lookup.first_key_value()))
+        self.get_key_value(Box::new(|ordered_lookup| {
+            ordered_lookup.first_key_value().and_then(|(order, keys)| {
+                Some((order.clone(), keys.into_iter().map(|(k, _)| k).collect()))
+            })
+        }))
     }
     /// gets the entry with the highest order value
     pub fn get_last_key_value(&self) -> Option<(K, O, V)> {
-        self.get_key_value(Box::new(|ordered_lookup| ordered_lookup.last_key_value()))
+        self.get_key_value(Box::new(|ordered_lookup| {
+            ordered_lookup.last_key_value().and_then(|(order, keys)| {
+                Some((order.clone(), keys.into_iter().map(|(k, _)| k).collect()))
+            })
+        }))
     }
     /// re-orders the entry with the given new order
     pub fn re_order(&mut self, key: &K, new_order: O) {
@@ -138,7 +170,7 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
         if let Some((old_order, _)) = lookup.get(&key) {
             // if entry already exists, remove it from the btree
             if let Some(mut keys) = order_lookup.remove(old_order) {
-                keys.retain(|k| *k != key);
+                keys.retain(|k| k.0 != key);
                 // insert modified keys back into btree
                 if !keys.is_empty() {
                     order_lookup.insert(old_order.clone(), keys);
@@ -147,10 +179,10 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
         }
         let keys = match order_lookup.remove(&order) {
             Some(mut ks) => {
-                ks.push(key.clone());
+                ks.push((key.clone(), value.clone()));
                 ks
             }
-            None => vec![key.clone()],
+            None => vec![(key.clone(), value.clone())],
         };
         order_lookup.insert(order.clone(), keys);
         lookup
@@ -163,7 +195,7 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
         lookup.remove(key).and_then(|(order, v)| {
             match order_lookup.remove(&order) {
                 Some(mut keys) => {
-                    keys.retain(|k| k != key);
+                    keys.retain(|k| k.0 != *key);
                     // insert remaining keys back in
                     if !keys.is_empty() {
                         order_lookup.insert(order.clone(), keys);

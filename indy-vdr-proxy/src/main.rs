@@ -7,6 +7,8 @@ mod app;
 mod handlers;
 mod utils;
 
+use indy_vdr::pool::cache::storage::OrderedHashMap;
+use sled;
 use std::cell::RefCell;
 use std::collections::HashMap;
 #[cfg(unix)]
@@ -428,10 +430,26 @@ where
     I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let cache = if config.cache {
-        let mem_storage =
-            CacheStrategyTTL::new(1024, Duration::from_secs(86400).as_millis(), None, None);
-        let mem_cache = Cache::new(mem_storage);
-        Some(mem_cache)
+        let storage_type = match config.cache_path {
+            Some(path) => {
+                let storage = OrderedHashMap::new(
+                    sled::open(path.clone())
+                        .expect(format!("Invalid cache location: {}", path).as_str())
+                        .open_tree(path.clone())
+                        .expect(format!("Invalid cache location: {}", path).as_str()),
+                );
+                Some(storage)
+            }
+            None => None,
+        };
+        let strategy = CacheStrategyTTL::new(
+            config.cache_size,
+            Duration::from_secs(86400).as_millis(),
+            storage_type,
+            None,
+        );
+        let cache = Cache::new(strategy);
+        Some(cache)
     } else {
         None
     };

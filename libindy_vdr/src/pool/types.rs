@@ -691,7 +691,7 @@ pub struct StateProofAssertions {
     pub txn_root_hash: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StateProofResult {
     Missing,
     Invalid(String, Option<StateProofAssertions>),
@@ -719,7 +719,7 @@ impl std::fmt::Display for StateProofResult {
 /// Type representing timing information collected for ledger transaction request
 pub type TimingResult = HashMap<String, f32>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RequestResultMeta {
     pub state_proof: HashMap<String, StateProofResult>,
     pub timing: Option<TimingResult>,
