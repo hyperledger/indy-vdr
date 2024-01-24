@@ -3,6 +3,11 @@ use super::CacheStrategy;
 use async_lock::Mutex;
 use async_trait::async_trait;
 use std::{collections::BTreeMap, fmt::Debug, hash::Hash, sync::Arc, time::SystemTime};
+
+pub enum CacheStrategyConfig {
+    LRU(u128),
+    TTL(u128),
+}
 /// A simple cache that uses timestamps to expire entries. Once the cache fills up, the oldest entry is evicted.
 /// Uses a hashmap for lookups and a BTreeMap for ordering by age
 pub struct CacheStrategyTTL<K, V> {
@@ -62,7 +67,13 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Syn
     async fn remove(&mut self, key: &K) -> Option<V> {
         self.store.remove(key).map(|(_, v)| v)
     }
-    async fn insert(&mut self, key: K, value: V) -> Option<V> {
+
+    async fn insert(
+        &mut self,
+        key: K,
+        value: V,
+        config: Option<Vec<CacheStrategyConfig>>,
+    ) -> Option<V> {
         let current_ts = SystemTime::now()
             .duration_since(self.create_time)
             .unwrap()
@@ -88,7 +99,20 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Syn
             }
         };
 
-        let exp_offset = self.expire_after;
+        let exp_offset = match config {
+            Some(opt_vec) => opt_vec
+                .iter()
+                .find(|opt| match opt {
+                    CacheStrategyConfig::TTL(_) => true,
+                    _ => false,
+                })
+                .map(|opt| match opt {
+                    CacheStrategyConfig::TTL(ttl) => ttl.clone(),
+                    _ => self.expire_after,
+                })
+                .unwrap_or(self.expire_after),
+            _ => self.expire_after,
+        };
         self.store.insert(key, value, current_ts + exp_offset)
     }
 }
@@ -133,13 +157,33 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
         let mut store_lock = self.store.lock().await;
         store_lock.remove(key).map(|(_, v)| v)
     }
-    async fn insert(&mut self, key: K, value: V) -> Option<V> {
+    async fn insert(
+        &mut self,
+        key: K,
+        value: V,
+        config: Option<Vec<CacheStrategyConfig>>,
+    ) -> Option<V> {
         // this will be O(log(n)) in all cases when cache is at capacity since we need to fetch the first and last element from the btree
         let mut store_lock = self.store.lock().await;
         let highest_lru = store_lock
             .get_last_key_value()
             .map(|(_, ts, _)| ts + 1)
             .unwrap_or(0);
+
+        let insert_lru = match config {
+            Some(opt_vec) => opt_vec
+                .iter()
+                .find(|opt| match opt {
+                    CacheStrategyConfig::LRU(_) => true,
+                    _ => false,
+                })
+                .map(|opt| match opt {
+                    CacheStrategyConfig::LRU(lru) => lru.clone(),
+                    _ => highest_lru,
+                })
+                .unwrap_or(highest_lru),
+            _ => highest_lru,
+        };
 
         if store_lock.len() >= self.capacity && store_lock.get(&key).is_none() {
             // remove the LRU item
@@ -150,7 +194,7 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
             store_lock.remove(&lru_key);
         };
 
-        store_lock.insert(key, value, highest_lru)
+        store_lock.insert(key, value, insert_lru)
     }
 }
 
@@ -167,24 +211,48 @@ mod tests {
     fn test_cache_lru() {
         let cache = Cache::new(CacheStrategyLRU::new(2, None));
         block_on(async {
-            cache.insert("key".to_string(), "value".to_string()).await;
+            cache
+                .insert("key".to_string(), "value".to_string(), None)
+                .await;
             assert_eq!(
                 cache.get(&"key".to_string()).await,
                 Some("value".to_string())
             );
-            cache.insert("key1".to_string(), "value1".to_string()).await;
-            cache.insert("key2".to_string(), "value2".to_string()).await;
+            cache
+                .insert("key1".to_string(), "value1".to_string(), None)
+                .await;
+            cache
+                .insert("key2".to_string(), "value2".to_string(), None)
+                .await;
             assert_eq!(cache.get(&"key".to_string()).await, None);
-            cache.insert("key3".to_string(), "value3".to_string()).await;
-            cache.insert("key3".to_string(), "value3".to_string()).await;
+            cache
+                .insert("key3".to_string(), "value3".to_string(), None)
+                .await;
+            cache
+                .insert("key3".to_string(), "value3".to_string(), None)
+                .await;
             cache.get(&"key2".to_string()).await; // move key2 to the end of the LRU index
-            cache.insert("key4".to_string(), "value4".to_string()).await;
+            cache
+                .insert("key4".to_string(), "value4".to_string(), None)
+                .await;
             // key3 should be evicted
             assert_eq!(
                 cache.remove(&"key2".to_string()).await,
                 Some("value2".to_string())
             );
             assert_eq!(cache.remove(&"key3".to_string()).await, None);
+            // test lru config
+            cache
+                .insert(
+                    "key5".to_string(),
+                    "value5".to_string(),
+                    Some(vec![CacheStrategyConfig::LRU(1)]),
+                )
+                .await;
+            cache
+                .insert("key6".to_string(), "value6".to_string(), None)
+                .await;
+            assert_eq!(cache.get(&"key5".to_string()).await, None);
         });
     }
 
@@ -198,24 +266,47 @@ mod tests {
         let storage: OrderedHashMap<String, u128, String> = OrderedHashMap::new(tree);
         let cache = Cache::new(CacheStrategyLRU::new(2, Some(storage)));
         block_on(async {
-            cache.insert("key".to_string(), "value".to_string()).await;
+            cache
+                .insert("key".to_string(), "value".to_string(), None)
+                .await;
             assert_eq!(
                 cache.get(&"key".to_string()).await,
                 Some("value".to_string())
             );
-            cache.insert("key1".to_string(), "value1".to_string()).await;
-            cache.insert("key2".to_string(), "value2".to_string()).await;
+            cache
+                .insert("key1".to_string(), "value1".to_string(), None)
+                .await;
+            cache
+                .insert("key2".to_string(), "value2".to_string(), None)
+                .await;
             assert_eq!(cache.get(&"key".to_string()).await, None);
-            cache.insert("key3".to_string(), "value3".to_string()).await;
-            cache.insert("key3".to_string(), "value3".to_string()).await;
+            cache
+                .insert("key3".to_string(), "value3".to_string(), None)
+                .await;
+            cache
+                .insert("key3".to_string(), "value3".to_string(), None)
+                .await;
             cache.get(&"key2".to_string()).await; // move key2 to the end of the LRU index
-            cache.insert("key4".to_string(), "value4".to_string()).await;
+            cache
+                .insert("key4".to_string(), "value4".to_string(), None)
+                .await;
             // key3 should be evicted
             assert_eq!(
                 cache.remove(&"key2".to_string()).await,
                 Some("value2".to_string())
             );
             assert_eq!(cache.remove(&"key3".to_string()).await, None);
+            // test LRU config
+            cache
+                .insert(
+                    "key5".to_string(),
+                    "value5".to_string(),
+                    Some(vec![CacheStrategyConfig::LRU(1)]),
+                )
+                .await;
+            cache
+                .insert("key6".to_string(), "value6".to_string(), None)
+                .await;
 
             // cleanup
             std::fs::remove_dir_all(cache_location).unwrap();
@@ -226,29 +317,58 @@ mod tests {
     fn test_cache_ttl() {
         let cache = Cache::new(CacheStrategyTTL::new(2, 5, None, None));
         block_on(async {
-            cache.insert("key".to_string(), "value".to_string()).await;
+            cache
+                .insert("key".to_string(), "value".to_string(), None)
+                .await;
             thread::sleep(std::time::Duration::from_millis(1));
             assert_eq!(
                 cache.get(&"key".to_string()).await,
                 Some("value".to_string())
             );
-            cache.insert("key1".to_string(), "value1".to_string()).await;
+            cache
+                .insert("key1".to_string(), "value1".to_string(), None)
+                .await;
             thread::sleep(std::time::Duration::from_millis(1));
-            cache.insert("key2".to_string(), "value2".to_string()).await;
+            cache
+                .insert("key2".to_string(), "value2".to_string(), None)
+                .await;
             assert_eq!(cache.get(&"key".to_string()).await, None);
             thread::sleep(std::time::Duration::from_millis(1));
-            cache.insert("key3".to_string(), "value3".to_string()).await;
+            cache
+                .insert("key3".to_string(), "value3".to_string(), None)
+                .await;
             cache.get(&"key2".to_string()).await;
-            cache.insert("key4".to_string(), "value4".to_string()).await;
+            cache
+                .insert("key4".to_string(), "value4".to_string(), None)
+                .await;
             // key2 should be evicted
             assert_eq!(cache.remove(&"key2".to_string()).await, None);
             assert_eq!(
                 cache.remove(&"key3".to_string()).await,
                 Some("value3".to_string())
             );
-            cache.insert("key5".to_string(), "value5".to_string()).await;
+            cache
+                .insert("key5".to_string(), "value5".to_string(), None)
+                .await;
             thread::sleep(std::time::Duration::from_millis(6));
             assert_eq!(cache.get(&"key5".to_string()).await, None);
+            // test ttl config
+            cache
+                .insert(
+                    "key6".to_string(),
+                    "value6".to_string(),
+                    Some(vec![CacheStrategyConfig::TTL(1)]),
+                )
+                .await;
+            cache
+                .insert("key7".to_string(), "value7".to_string(), None)
+                .await;
+            thread::sleep(std::time::Duration::from_millis(1));
+            assert_eq!(cache.get(&"key6".to_string()).await, None);
+            assert_eq!(
+                cache.get(&"key7".to_string()).await,
+                Some("value7".to_string())
+            );
         });
     }
 
@@ -262,29 +382,58 @@ mod tests {
         let storage: OrderedHashMap<String, u128, String> = OrderedHashMap::new(tree);
         let cache = Cache::new(CacheStrategyTTL::new(2, 5, Some(storage), None));
         block_on(async {
-            cache.insert("key".to_string(), "value".to_string()).await;
+            cache
+                .insert("key".to_string(), "value".to_string(), None)
+                .await;
             thread::sleep(std::time::Duration::from_millis(1));
             assert_eq!(
                 cache.get(&"key".to_string()).await,
                 Some("value".to_string())
             );
-            cache.insert("key1".to_string(), "value1".to_string()).await;
+            cache
+                .insert("key1".to_string(), "value1".to_string(), None)
+                .await;
             thread::sleep(std::time::Duration::from_millis(1));
-            cache.insert("key2".to_string(), "value2".to_string()).await;
+            cache
+                .insert("key2".to_string(), "value2".to_string(), None)
+                .await;
             assert_eq!(cache.get(&"key".to_string()).await, None);
             thread::sleep(std::time::Duration::from_millis(1));
-            cache.insert("key3".to_string(), "value3".to_string()).await;
+            cache
+                .insert("key3".to_string(), "value3".to_string(), None)
+                .await;
             cache.get(&"key2".to_string()).await;
-            cache.insert("key4".to_string(), "value4".to_string()).await;
+            cache
+                .insert("key4".to_string(), "value4".to_string(), None)
+                .await;
             // key2 should be evicted
             assert_eq!(cache.remove(&"key2".to_string()).await, None);
             assert_eq!(
                 cache.remove(&"key3".to_string()).await,
                 Some("value3".to_string())
             );
-            cache.insert("key5".to_string(), "value5".to_string()).await;
+            cache
+                .insert("key5".to_string(), "value5".to_string(), None)
+                .await;
             thread::sleep(std::time::Duration::from_millis(6));
             assert_eq!(cache.get(&"key5".to_string()).await, None);
+            // test ttl config
+            cache
+                .insert(
+                    "key6".to_string(),
+                    "value6".to_string(),
+                    Some(vec![CacheStrategyConfig::TTL(1)]),
+                )
+                .await;
+            cache
+                .insert("key7".to_string(), "value7".to_string(), None)
+                .await;
+            thread::sleep(std::time::Duration::from_millis(1));
+            assert_eq!(cache.get(&"key6".to_string()).await, None);
+            assert_eq!(
+                cache.get(&"key7".to_string()).await,
+                Some("value7".to_string())
+            );
 
             // cleanup
             std::fs::remove_dir_all(cache_location).unwrap();
