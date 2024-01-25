@@ -9,6 +9,7 @@ use once_cell::sync::Lazy;
 use crate::common::error::prelude::*;
 use crate::common::handle::ResourceHandle;
 use crate::config::PoolConfig;
+use crate::pool::cache::Cache;
 use crate::pool::{
     InMemoryCache, PoolBuilder, PoolRunner, PoolTransactions, PoolTransactionsCache, RequestMethod,
     RequestResult, RequestResultMeta,
@@ -39,6 +40,9 @@ pub static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolInstance>>> =
 
 pub static POOL_CACHE: Lazy<RwLock<Option<Arc<dyn PoolTransactionsCache>>>> =
     Lazy::new(|| RwLock::new(Some(Arc::new(InMemoryCache::new()))));
+
+pub static LEDGER_TXN_CACHE: Lazy<RwLock<Option<Cache<String, (String, RequestResultMeta)>>>> =
+    Lazy::new(|| RwLock::new(None));
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct PoolCreateParams {
@@ -76,7 +80,8 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut PoolHandle
             }
         }
         let config = read_lock!(POOL_CONFIG)?.clone();
-        let runner = PoolBuilder::new(config, txns.clone()).node_weights(params.node_weights.clone()).refreshed(cached).into_runner()?;
+        let txn_cache = read_lock!(LEDGER_TXN_CACHE)?.clone();
+        let runner = PoolBuilder::new(config, txns.clone(), txn_cache).node_weights(params.node_weights.clone()).refreshed(cached).into_runner()?;
         let handle = PoolHandle::next();
         let mut pools = write_lock!(POOLS)?;
         pools.insert(handle, PoolInstance { runner, init_txns: txns, node_weights: params.node_weights });
@@ -102,7 +107,7 @@ fn handle_pool_refresh(
             cache.update(&init_txns, latest_txns)?;
         }
         if let Some(new_txns) = new_txns {
-            let runner = PoolBuilder::new(config, new_txns).node_weights(node_weights).refreshed(true).into_runner()?;
+            let runner = PoolBuilder::new(config, new_txns, None).node_weights(node_weights).refreshed(true).into_runner()?;
             let mut pools = write_lock!(POOLS)?;
             if let Entry::Occupied(mut entry) = pools.entry(pool_handle) {
                 entry.get_mut().runner = runner;

@@ -263,8 +263,8 @@ async fn create_pool(
 ) -> VdrResult<LocalPool> {
     let pool_states = &state.borrow().pool_states;
     let pool_state = pool_states.get(namespace).unwrap();
-    let pool =
-        PoolBuilder::new(PoolConfig::default(), pool_state.transactions.clone()).into_local()?;
+    let pool = PoolBuilder::new(PoolConfig::default(), pool_state.transactions.clone(), None)
+        .into_local()?;
     let refresh_pool = if refresh {
         refresh_pool(state.clone(), &pool, 0).await?
     } else {
@@ -317,7 +317,7 @@ async fn refresh_pool(
 
     let (txns, _meta) = perform_refresh(pool).await?;
     if let Some(txns) = txns {
-        let pool = PoolBuilder::new(PoolConfig::default(), txns)
+        let pool = PoolBuilder::new(PoolConfig::default(), txns, None)
             .refreshed(true)
             .into_local()?;
         Ok(Some(pool))

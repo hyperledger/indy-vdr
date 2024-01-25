@@ -22,13 +22,17 @@ pub struct PoolBuilder {
 
 impl PoolBuilder {
     /// Create a new `PoolBuilder` instance.
-    pub fn new(config: PoolConfig, transactions: PoolTransactions) -> Self {
+    pub fn new(
+        config: PoolConfig,
+        transactions: PoolTransactions,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> Self {
         Self {
             config,
             transactions,
             node_weights: None,
             refreshed: false,
-            cache: None,
+            cache,
         }
     }
 

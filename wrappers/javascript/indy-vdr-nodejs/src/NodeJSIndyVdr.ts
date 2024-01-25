@@ -141,6 +141,16 @@ export class NodeJSIndyVdr implements IndyVdr {
     this.handleError(this.nativeIndyVdr.indy_vdr_set_cache_directory(path))
   }
 
+  public setLedgerTxnCache(options: { capacity: number; expiry_offset_ms: number }): void {
+    const { capacity, expiry_offset_ms } = serializeArguments(options)
+    this.handleError(this.nativeIndyVdr.indy_vdr_set_ledger_txn_cache(capacity, expiry_offset_ms))
+  }
+
+  public setLedgerTxnFsCache(options: { capacity: number; expiry_offset_ms: number; path: string }): void {
+    const { capacity, expiry_offset_ms, path } = serializeArguments(options)
+    this.handleError(this.nativeIndyVdr.indy_vdr_set_ledger_txn_fs_cache(capacity, expiry_offset_ms, path))
+  }
+
   public setDefaultLogger(): void {
     this.handleError(this.nativeIndyVdr.indy_vdr_set_default_logger())
   }

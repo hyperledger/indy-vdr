@@ -13,6 +13,8 @@ jsi::Value version(jsi::Runtime &rt, jsi::Object options);
 jsi::Value getCurrentError(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setConfig(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setCacheDirectory(jsi::Runtime &rt, jsi::Object options);
+jsi::Value setLedgerTxnFsCache(jsi::Runtime &rt, jsi::Object options);
+jsi::Value setLedgerTxnCache(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setDefaultLogger(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setProtocolVersion(jsi::Runtime &rt, jsi::Object options);
 jsi::Value setSocksProxy(jsi::Runtime &rt, jsi::Object options);

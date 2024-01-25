@@ -13,6 +13,8 @@ FunctionMap IndyVdrTurboModuleHostObject::functionMapping(jsi::Runtime &rt) {
   fMap.insert(std::make_tuple("getCurrentError", &indyVdr::getCurrentError));
   fMap.insert(std::make_tuple("setConfig", &indyVdr::setConfig));
   fMap.insert(std::make_tuple("setCacheDirectory", &indyVdr::setCacheDirectory));
+  fMap.insert(std::make_tuple("setLedgerTxnCache", &indyVdr::setLedgerTxnCache));
+  fMap.insert(std::make_tuple("setLedgerTxnFsCache", &indyVdr::setLedgerTxnFsCache));
   fMap.insert(std::make_tuple("setDefaultLogger", &indyVdr::setDefaultLogger));
   fMap.insert(
       std::make_tuple("setProtocolVersion", &indyVdr::setProtocolVersion));

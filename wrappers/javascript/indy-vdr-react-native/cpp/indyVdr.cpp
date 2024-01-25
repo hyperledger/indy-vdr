@@ -32,6 +32,25 @@ jsi::Value setCacheDirectory(jsi::Runtime &rt, jsi::Object options) {
   return createReturnValue(rt, code, nullptr);
 };
 
+jsi::Value setLedgerTxnFsCache(jsi::Runtime &rt, jsi::Object options) {
+  auto capacity = jsiToValue<size_t>(rt, options, "capacity");
+  auto expiry_offset_ms = jsiToValue<c_ulong>(rt, options, "expiry_offset_ms");
+  auto path = jsiToValue<std::string>(rt, options, "path");
+
+  ErrorCode code = indy_vdr_set_ledger_txn_cache(capacity, expiry_offset_ms, path.c_str());
+
+  return createReturnValue(rt, code, nullptr);
+};
+
+jsi::Value setLedgerTxnCache(jsi::Runtime &rt, jsi::Object options) {
+  auto capacity = jsiToValue<size_t>(rt, options, "capacity");
+  auto expiry_offset_ms = jsiToValue<c_ulong>(rt, options, "expiry_offset_ms");
+
+  ErrorCode code = indy_vdr_set_ledger_txn_cache(capacity, expiry_offset_ms);
+
+  return createReturnValue(rt, code, nullptr);
+};
+
 jsi::Value setDefaultLogger(jsi::Runtime &rt, jsi::Object options) {
   ErrorCode code = indy_vdr_set_default_logger();
 

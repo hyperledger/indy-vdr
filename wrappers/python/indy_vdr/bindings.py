@@ -425,6 +425,14 @@ def set_cache_directory(path: str):
     """Set the library configuration."""
     do_call("indy_vdr_set_cache_directory", encode_str(path))
 
+def set_ledger_txn_cache(capacity: int, expiry_offset_ms: int):
+    """Set the library configuration."""
+    do_call("indy_vdr_set_ledger_txn_cache", c_size_t(capacity), c_ulong(expiry_offset_ms))
+
+def set_ledger_txn_fs_cache(capacity: int, expiry_offset_ms: int, path: str):
+    """Set the library configuration."""
+    do_call("indy_vdr_set_ledger_txn_fs_cache", c_size_t(capacity), c_ulong(expiry_offset_ms), encode_str(path))
+
 
 def set_config(config: dict):
     """Set the library configuration."""
