@@ -235,7 +235,7 @@ pub async fn perform_ledger_request<T: Pool>(
             // check and made sure data is not null before caching
             let serialized = serde_json::from_str::<serde_json::Value>(response);
             if let Ok(data) = serialized {
-                if data["result"]["data"].is_null() {
+                if data["result"]["data"].is_null() || data["result"]["seqNo"].is_null() {
                     return result;
                 }
             }
