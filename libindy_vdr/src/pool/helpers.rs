@@ -20,13 +20,12 @@ use crate::utils::base58;
 /// Perform a pool ledger status request to see if catchup is required
 pub async fn perform_pool_status_request<T: Pool>(
     pool: &T,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<(RequestResult<Option<CatchupTarget>>, RequestResultMeta)> {
     let (mt_root, mt_size) = pool.get_merkle_tree_info();
 
     if pool.get_refreshed() {
         trace!("Performing fast status check");
-        match perform_get_txn(pool, LedgerType::POOL.to_id(), 1, cache).await {
+        match perform_get_txn(pool, LedgerType::POOL.to_id(), 1, None).await {
             Ok((RequestResult::Reply(reply), res_meta)) => {
                 if let Ok(body) = serde_json::from_str::<serde_json::Value>(&reply) {
                     if let (Some(status_root_hash), Some(status_txn_count)) = (
@@ -94,7 +93,7 @@ pub async fn perform_pool_catchup_request<T: Pool>(
 pub async fn perform_refresh<T: Pool>(
     pool: &T,
 ) -> VdrResult<(Option<PoolTransactions>, RequestResultMeta)> {
-    let (result, meta) = perform_pool_status_request(pool, None).await?;
+    let (result, meta) = perform_pool_status_request(pool).await?;
     trace!("Got status result: {:?}", &result);
     match result {
         RequestResult::Reply(target) => match target {

@@ -7,8 +7,7 @@ mod app;
 mod handlers;
 mod utils;
 
-use indy_vdr::pool::cache::storage::OrderedHashMap;
-use sled;
+use indy_vdr::pool::cache::storage::{new_fs_ordered_store, OrderedHashMap};
 use std::cell::RefCell;
 use std::collections::HashMap;
 #[cfg(unix)]
@@ -433,10 +432,8 @@ where
         let storage_type = match config.cache_path {
             Some(path) => {
                 let storage = OrderedHashMap::new(
-                    sled::open(path.clone())
-                        .expect(format!("Invalid cache location: {}", path).as_str())
-                        .open_tree(path.clone())
-                        .expect(format!("Invalid cache location: {}", path).as_str()),
+                    new_fs_ordered_store(path.clone())
+                        .expect(format!("Error creating cache at {}", path).as_str()),
                 );
                 Some(storage)
             }

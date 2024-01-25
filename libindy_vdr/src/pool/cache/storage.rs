@@ -4,7 +4,15 @@ use std::{
     collections::{BTreeMap, HashMap},
     hash::Hash,
 };
-
+pub fn new_fs_ordered_store<V: Serialize + DeserializeOwned>(
+    path: String,
+) -> Result<impl OrderedStore<u128, V>, sled::Error> {
+    sled::open(path.clone()).and_then(|db| db.open_tree(path))
+}
+pub fn new_mem_ordered_store<V: Serialize + DeserializeOwned + Clone + Send + Sync>(
+) -> impl OrderedStore<u128, V> {
+    BTreeMap::new()
+}
 pub trait OrderedStore<O, V>: Send + Sync {
     fn len(&self) -> usize;
     fn first_key_value(&self) -> Option<(O, V)>;
@@ -128,9 +136,9 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
     }
     fn get_key_value(
         &self,
-        selector: Box<
-            dyn Fn(&Box<dyn OrderedStore<O, Vec<(K, V)>> + Send + Sync>) -> Option<(O, Vec<K>)>,
-        >,
+        selector: impl FnOnce(
+            &Box<dyn OrderedStore<O, Vec<(K, V)>> + Send + Sync>,
+        ) -> Option<(O, Vec<K>)>,
     ) -> Option<(K, O, V)> {
         let (lookup, ordered_lookup) = &self.0;
         selector(ordered_lookup).and_then(|(_, keys)| {
@@ -143,19 +151,19 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
     }
     /// gets the entry with the lowest order value
     pub fn get_first_key_value(&self) -> Option<(K, O, V)> {
-        self.get_key_value(Box::new(|ordered_lookup| {
+        self.get_key_value(|ordered_lookup| {
             ordered_lookup.first_key_value().and_then(|(order, keys)| {
                 Some((order.clone(), keys.into_iter().map(|(k, _)| k).collect()))
             })
-        }))
+        })
     }
     /// gets the entry with the highest order value
     pub fn get_last_key_value(&self) -> Option<(K, O, V)> {
-        self.get_key_value(Box::new(|ordered_lookup| {
+        self.get_key_value(|ordered_lookup| {
             ordered_lookup.last_key_value().and_then(|(order, keys)| {
                 Some((order.clone(), keys.into_iter().map(|(k, _)| k).collect()))
             })
-        }))
+        })
     }
     /// re-orders the entry with the given new order
     pub fn re_order(&mut self, key: &K, new_order: O) {

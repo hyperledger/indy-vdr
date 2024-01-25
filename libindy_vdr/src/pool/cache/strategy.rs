@@ -102,13 +102,9 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Syn
         let exp_offset = match config {
             Some(opt_vec) => opt_vec
                 .iter()
-                .find(|opt| match opt {
-                    CacheStrategyConfig::TTL(_) => true,
-                    _ => false,
-                })
-                .map(|opt| match opt {
-                    CacheStrategyConfig::TTL(ttl) => ttl.clone(),
-                    _ => self.expire_after,
+                .find_map(|opt| match opt {
+                    CacheStrategyConfig::TTL(ttl) => Some(ttl.clone()),
+                    _ => None,
                 })
                 .unwrap_or(self.expire_after),
             _ => self.expire_after,
@@ -173,13 +169,9 @@ impl<K: Hash + Eq + Send + Sync + 'static + Clone, V: Clone + Send + Sync + 'sta
         let insert_lru = match config {
             Some(opt_vec) => opt_vec
                 .iter()
-                .find(|opt| match opt {
-                    CacheStrategyConfig::LRU(_) => true,
-                    _ => false,
-                })
-                .map(|opt| match opt {
-                    CacheStrategyConfig::LRU(lru) => lru.clone(),
-                    _ => highest_lru,
+                .find_map(|opt| match opt {
+                    CacheStrategyConfig::LRU(lru) => Some(lru.clone()),
+                    _ => None,
                 })
                 .unwrap_or(highest_lru),
             _ => highest_lru,
