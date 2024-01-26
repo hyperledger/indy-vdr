@@ -17,22 +17,16 @@ pub struct PoolBuilder {
     transactions: PoolTransactions,
     node_weights: Option<HashMap<String, f32>>,
     refreshed: bool,
-    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 }
 
 impl PoolBuilder {
     /// Create a new `PoolBuilder` instance.
-    pub fn new(
-        config: PoolConfig,
-        transactions: PoolTransactions,
-        cache: Option<Cache<String, (String, RequestResultMeta)>>,
-    ) -> Self {
+    pub fn new(config: PoolConfig, transactions: PoolTransactions) -> Self {
         Self {
             config,
             transactions,
             node_weights: None,
             refreshed: false,
-            cache,
         }
     }
 
@@ -75,7 +69,10 @@ impl PoolBuilder {
 
     /// Create a `PoolRunner` instance from the builder, to handle pool interaction
     /// in a dedicated thread.
-    pub fn into_runner(self) -> VdrResult<PoolRunner> {
+    pub fn into_runner(
+        self,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<PoolRunner> {
         let merkle_tree = self.transactions.merkle_tree()?;
         Ok(PoolRunner::new(
             self.config,
@@ -83,7 +80,7 @@ impl PoolBuilder {
             MakeLocal(ZMQNetworkerFactory {}),
             self.node_weights,
             self.refreshed,
-            self.cache,
+            cache,
         ))
     }
 }

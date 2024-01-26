@@ -42,7 +42,7 @@ impl TestPool {
         let pool_transactions =
             PoolTransactions::from_json_transactions(default_transactions()).unwrap();
 
-        let pool = PoolBuilder::new(PoolConfig::default(), pool_transactions, None)
+        let pool = PoolBuilder::new(PoolConfig::default(), pool_transactions)
             .into_shared()
             .unwrap();
 

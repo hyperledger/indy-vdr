@@ -26,7 +26,7 @@
 //! let txns = PoolTransactions::from_json_file("./genesis.txn").unwrap();
 //!
 //! // Create a PoolBuilder instance
-//! let pool_builder = PoolBuilder::new(PoolConfig::default(), txns, None);
+//! let pool_builder = PoolBuilder::new(PoolConfig::default(), txns);
 //! // Convert into a thread-local Pool instance
 //! let pool = pool_builder.into_local().unwrap();
 //!
