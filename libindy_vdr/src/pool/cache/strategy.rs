@@ -146,7 +146,6 @@ mod tests {
                 cache
                     .insert("key".to_string(), "value".to_string(), None)
                     .await;
-                thread::sleep(std::time::Duration::from_millis(1));
                 assert_eq!(
                     cache.get(&"key".to_string()).await,
                     Some("value".to_string())
@@ -154,12 +153,10 @@ mod tests {
                 cache
                     .insert("key1".to_string(), "value1".to_string(), None)
                     .await;
-                thread::sleep(std::time::Duration::from_millis(1));
                 cache
                     .insert("key2".to_string(), "value2".to_string(), None)
                     .await;
                 assert_eq!(cache.get(&"key".to_string()).await, None);
-                thread::sleep(std::time::Duration::from_millis(1));
                 cache
                     .insert("key3".to_string(), "value3".to_string(), None)
                     .await;
@@ -186,6 +183,7 @@ mod tests {
                 cache
                     .insert("key7".to_string(), "value7".to_string(), None)
                     .await;
+                // wait until value6 expires
                 thread::sleep(std::time::Duration::from_millis(1));
                 assert_eq!(cache.get(&"key6".to_string()).await, None);
                 assert_eq!(
