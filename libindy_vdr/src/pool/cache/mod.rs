@@ -2,8 +2,6 @@ use async_lock::RwLock;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use self::strategy::CacheStrategyConfig;
-
 pub mod storage;
 pub mod strategy;
 
@@ -13,12 +11,7 @@ pub trait CacheStrategy<K, V>: Send + Sync + 'static {
 
     async fn remove(&mut self, key: &K) -> Option<V>;
 
-    async fn insert(
-        &mut self,
-        key: K,
-        value: V,
-        config: Option<Vec<CacheStrategyConfig>>,
-    ) -> Option<V>;
+    async fn insert(&mut self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V>;
 }
 
 pub struct Cache<K, V> {
@@ -37,13 +30,12 @@ impl<K: 'static, V: 'static> Cache<K, V> {
     pub async fn remove(&self, key: &K) -> Option<V> {
         self.storage.write().await.remove(key).await
     }
-    pub async fn insert(
-        &self,
-        key: K,
-        value: V,
-        config: Option<Vec<CacheStrategyConfig>>,
-    ) -> Option<V> {
-        self.storage.write().await.insert(key, value, config).await
+    pub async fn insert(&self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
+        self.storage
+            .write()
+            .await
+            .insert(key, value, custom_exp_offset)
+            .await
     }
 }
 
