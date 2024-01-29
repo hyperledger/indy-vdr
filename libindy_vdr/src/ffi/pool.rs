@@ -1,7 +1,8 @@
 use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 use std::os::raw::c_char;
+use std::path::Path;
 use std::sync::{Arc, RwLock};
-use std::thread;
+use std::{fs, thread};
 
 use ffi_support::{rust_string_to_c, FfiStr};
 use once_cell::sync::Lazy;
@@ -9,6 +10,8 @@ use once_cell::sync::Lazy;
 use crate::common::error::prelude::*;
 use crate::common::handle::ResourceHandle;
 use crate::config::PoolConfig;
+use crate::pool::cache::storage::{new_fs_ordered_store, OrderedHashMap};
+use crate::pool::cache::strategy::CacheStrategyTTL;
 use crate::pool::cache::Cache;
 use crate::pool::{
     InMemoryCache, PoolBuilder, PoolRunner, PoolTransactions, PoolTransactionsCache, RequestMethod,
@@ -31,6 +34,50 @@ pub struct PoolInstance {
     pub node_weights: Option<NodeWeights>,
 }
 
+#[derive(Clone)]
+pub struct LegerCacheConfig {
+    pub cache_size: usize,
+    pub cache_ttl: u128,
+    pub path: Option<String>,
+}
+
+impl LegerCacheConfig {
+    pub fn new(cache_size: usize, cache_ttl: u128, path: Option<String>) -> Self {
+        Self {
+            cache_size,
+            cache_ttl,
+            path,
+        }
+    }
+    pub fn create_cache(
+        &self,
+        id: Option<String>,
+    ) -> VdrResult<Cache<String, (String, RequestResultMeta)>> {
+        if let Some(path) = &self.path {
+            let full_path = Path::new(path).join(id.unwrap_or("default".to_string()));
+            let full_path_string = full_path
+                .into_os_string()
+                .into_string()
+                .unwrap_or(path.to_string());
+            fs::create_dir_all(full_path_string.clone())?;
+            let store = OrderedHashMap::new(new_fs_ordered_store(full_path_string)?);
+            Ok(Cache::new(CacheStrategyTTL::new(
+                self.cache_size,
+                self.cache_ttl,
+                Some(store),
+                None,
+            )))
+        } else {
+            Ok(Cache::new(CacheStrategyTTL::new(
+                self.cache_size,
+                self.cache_ttl,
+                None,
+                None,
+            )))
+        }
+    }
+}
+
 pub type NodeWeights = HashMap<String, f32>;
 
 pub static POOL_CONFIG: Lazy<RwLock<PoolConfig>> = Lazy::new(|| RwLock::new(PoolConfig::default()));
@@ -41,7 +88,7 @@ pub static POOLS: Lazy<RwLock<BTreeMap<PoolHandle, PoolInstance>>> =
 pub static POOL_CACHE: Lazy<RwLock<Option<Arc<dyn PoolTransactionsCache>>>> =
     Lazy::new(|| RwLock::new(Some(Arc::new(InMemoryCache::new()))));
 
-pub static LEDGER_TXN_CACHE: Lazy<RwLock<Option<Cache<String, (String, RequestResultMeta)>>>> =
+pub static LEDGER_TXN_CACHE_CONFIG: Lazy<RwLock<Option<LegerCacheConfig>>> =
     Lazy::new(|| RwLock::new(None));
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -72,6 +119,12 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut PoolHandle
                 "Invalid pool create parameters: must provide transactions or transactions_path"
             ));
         };
+        let txn_cache_config = read_lock!(LEDGER_TXN_CACHE_CONFIG)?.clone();
+        let txn_cache = if let Some(config) = txn_cache_config {
+            config.create_cache(txns.root_hash_base58().ok()).ok()
+        } else {
+            None
+        };
         let mut cached = false;
         if let Some(cache) = read_lock!(POOL_CACHE)?.as_ref() {
             if let Some(newer_txns) = cache.resolve_latest(&txns)? {
@@ -80,7 +133,6 @@ pub extern "C" fn indy_vdr_pool_create(params: FfiStr, handle_p: *mut PoolHandle
             }
         }
         let config = read_lock!(POOL_CONFIG)?.clone();
-        let txn_cache = read_lock!(LEDGER_TXN_CACHE)?.clone();
         let runner = PoolBuilder::new(config, txns.clone()).node_weights(params.node_weights.clone()).refreshed(cached).into_runner(txn_cache)?;
         let handle = PoolHandle::next();
         let mut pools = write_lock!(POOLS)?;
@@ -107,7 +159,12 @@ fn handle_pool_refresh(
             cache.update(&init_txns, latest_txns)?;
         }
         if let Some(new_txns) = new_txns {
-            let txn_cache = read_lock!(LEDGER_TXN_CACHE)?.clone();
+            let txn_cache_config = read_lock!(LEDGER_TXN_CACHE_CONFIG)?.clone();
+            let txn_cache = if let Some(config) = txn_cache_config {
+                config.create_cache(init_txns.root_hash_base58().ok()).ok()
+            } else {
+                None
+            };
             let runner = PoolBuilder::new(config, new_txns).node_weights(node_weights).refreshed(true).into_runner(txn_cache)?;
             let mut pools = write_lock!(POOLS)?;
             if let Entry::Occupied(mut entry) = pools.entry(pool_handle) {
