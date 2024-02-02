@@ -49,9 +49,7 @@ export interface IndyVdr {
 
   setCacheDirectory(options: { path: string }): void
 
-  setLedgerTxnCache(options: { capacity: number; expiry_offset_ms: number }): void
-
-  setLedgerTxnFsCache(options: { capacity: number; expiry_offset_ms: number; path: string }): void
+  setLedgerTxnCache(options: { capacity: number; expiry_offset_ms: number, path: string }): void
 
   setDefaultLogger(): void
 

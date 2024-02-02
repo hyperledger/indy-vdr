@@ -13,9 +13,7 @@ export interface NativeBindings {
 
   setCacheDirectory(options: { path: string }): ReturnObject<never>
 
-  setLedgerTxnCache(options: { capacity: number; expiry_offset_ms: number }): ReturnObject<never>
-
-  setLedgerTxnFsCache(options: { capacity: number; expiry_offset_ms: number; path: string }): ReturnObject<never>
+  setLedgerTxnCache(options: { capacity: number; expiry_offset_ms: number, path: string }): ReturnObject<never>
 
   setDefaultLogger(options: Record<string, never>): ReturnObject<never>
 

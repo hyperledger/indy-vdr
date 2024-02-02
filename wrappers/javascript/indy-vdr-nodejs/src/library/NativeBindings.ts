@@ -3,8 +3,7 @@ import type { ByteBuffer } from '../ffi'
 export interface NativeMethods {
   indy_vdr_set_config: (arg0: string) => number
   indy_vdr_set_cache_directory: (arg0: string) => number
-  indy_vdr_set_ledger_txn_cache: (arg0: number, arg1: number) => number
-  indy_vdr_set_ledger_txn_fs_cache: (arg0: number, arg1: number, arg2: string) => number
+  indy_vdr_set_ledger_txn_cache: (arg0: number, arg1: number, arg2: string) => number
   indy_vdr_set_default_logger: () => number
   indy_vdr_set_protocol_version: (arg0: number) => number
   indy_vdr_set_socks_proxy: (arg0: string) => number

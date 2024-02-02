@@ -26,20 +26,24 @@ impl<K: Display + 'static, V: 'static> Cache<K, V> {
             None => key.to_string(),
         }
     }
+
     pub fn new(storage: impl CacheStrategy<String, V>, key_prefix: Option<K>) -> Self {
         Self {
             storage: Arc::new(RwLock::new(storage)),
             key_prefix,
         }
     }
+
     pub async fn get(&self, key: &K) -> Option<V> {
         let full_key = self.full_key(key);
         self.storage.read().await.get(&full_key).await
     }
+
     pub async fn remove(&self, key: &K) -> Option<V> {
         let full_key = self.full_key(key);
         self.storage.write().await.remove(&full_key).await
     }
+
     pub async fn insert(&self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
         let full_key = self.full_key(&key);
         self.storage
