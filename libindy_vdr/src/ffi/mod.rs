@@ -85,10 +85,9 @@ pub extern "C" fn indy_vdr_set_ledger_txn_cache(
 ) -> ErrorCode {
     catch_err! {
         debug!("Setting pool ledger transactions cache: capacity={}, expire_offset={}", capacity, expire_offset);
-        let store = match path_opt.as_opt_str() {
-            Some("") => OrderedHashMap::new(new_mem_ordered_store()),
-            Some(path) => OrderedHashMap::new(new_fs_ordered_store(path.into())?),
-            None => OrderedHashMap::new(new_mem_ordered_store()),
+        let store = match path_opt.as_opt_str().unwrap_or_default() {
+            "" => OrderedHashMap::new(new_mem_ordered_store()),
+            path => OrderedHashMap::new(new_fs_ordered_store(path.into())?),
         };
 
         *write_lock!(LEDGER_CACHE_STRATEGY)? = Some(Arc::new(CacheStrategyTTL::new(capacity, expire_offset.into(), Some(store), None)));
