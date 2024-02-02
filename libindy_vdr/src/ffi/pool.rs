@@ -111,7 +111,7 @@ fn handle_pool_refresh(
         }
         if let Some(new_txns) = new_txns {
             // set this cache with unique key prefix
-            let txn_cache = read_lock!(LEDGER_CACHE_STRATEGY)?.as_ref().map(|s| Cache::new(s.clone(), init_txns.root_hash_base58().ok()));
+            let txn_cache = read_lock!(LEDGER_CACHE_STRATEGY)?.as_ref().map(|s| Cache::new(s.clone(), new_txns.root_hash_base58().ok()));
             let runner = PoolBuilder::new(config, new_txns).node_weights(node_weights).refreshed(true).into_runner(txn_cache)?;
             let mut pools = write_lock!(POOLS)?;
             if let Entry::Occupied(mut entry) = pools.entry(pool_handle) {
