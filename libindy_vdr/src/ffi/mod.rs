@@ -15,11 +15,15 @@ mod resolver;
 
 use crate::common::error::prelude::*;
 use crate::config::{PoolConfig, LIB_VERSION};
+use crate::pool::cache::{
+    storage::{new_fs_ordered_store, OrderedHashMap},
+    strategy::CacheStrategyTTL,
+};
 use crate::pool::{FilesystemCache, PoolTransactionsCache, ProtocolVersion};
 use crate::utils::Validatable;
 
 use self::error::{set_last_error, ErrorCode};
-use self::pool::{LegerCacheConfig, LEDGER_TXN_CACHE_CONFIG, POOL_CACHE, POOL_CONFIG};
+use self::pool::{LEDGER_CACHE_STRATEGY, POOL_CACHE, POOL_CONFIG};
 
 pub type CallbackId = i64;
 
@@ -76,7 +80,7 @@ pub extern "C" fn indy_vdr_set_cache_directory(path: FfiStr) -> ErrorCode {
 pub extern "C" fn indy_vdr_set_ledger_txn_cache(capacity: usize, expire_offset: u64) -> ErrorCode {
     catch_err! {
         debug!("Setting pool ledger transactions cache: capacity={}, expire_offset={}", capacity, expire_offset);
-        *write_lock!(LEDGER_TXN_CACHE_CONFIG)? = Some(LegerCacheConfig::new(capacity, expire_offset.into(), None));
+        *write_lock!(LEDGER_CACHE_STRATEGY)? = Some(Arc::new(CacheStrategyTTL::new(capacity, expire_offset.into(), None, None)));
         Ok(ErrorCode::Success)
     }
 }
@@ -89,7 +93,8 @@ pub extern "C" fn indy_vdr_set_ledger_txn_fs_cache(
 ) -> ErrorCode {
     catch_err! {
         debug!("Setting pool ledger transactions cache: capacity={}, expire_offset={}", capacity, expire_offset);
-        *write_lock!(LEDGER_TXN_CACHE_CONFIG)? = Some(LegerCacheConfig::new(capacity, expire_offset.into(), Some(path.into_string())));
+        let store = OrderedHashMap::new(new_fs_ordered_store(path.into())?);
+        *write_lock!(LEDGER_CACHE_STRATEGY)? = Some(Arc::new(CacheStrategyTTL::new(capacity, expire_offset.into(), Some(store), None)));
         Ok(ErrorCode::Success)
     }
 }

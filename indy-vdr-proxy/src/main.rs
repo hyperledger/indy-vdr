@@ -445,7 +445,7 @@ where
             storage_type,
             None,
         );
-        let cache = Cache::new(strategy);
+        let cache = Cache::new(strategy, None);
         Some(cache)
     } else {
         None

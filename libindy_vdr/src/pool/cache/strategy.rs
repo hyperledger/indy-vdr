@@ -51,6 +51,21 @@ impl<K: Eq + Hash + Clone + Send + Sync + 'static, V: Clone + Send + Sync + 'sta
 }
 
 #[async_trait]
+impl<K: Send + Sync + 'static, V: Send + Sync + 'static> CacheStrategy<K, V>
+    for Arc<dyn CacheStrategy<K, V>>
+{
+    async fn get(&self, key: &K) -> Option<V> {
+        self.get(key).await
+    }
+    async fn remove(&mut self, key: &K) -> Option<V> {
+        self.remove(key).await
+    }
+    async fn insert(&mut self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
+        self.insert(key, value, custom_exp_offset).await
+    }
+}
+
+#[async_trait]
 impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Sync + 'static>
     CacheStrategy<K, V> for CacheStrategyTTL<K, V>
 {
@@ -132,14 +147,14 @@ mod tests {
 
     #[rstest]
     fn test_cache_ttl() {
-        let cache = Cache::new(CacheStrategyTTL::new(2, 5, None, None));
+        let cache = Cache::new(CacheStrategyTTL::new(2, 5, None, None), None);
         let cache_location = "test_fs_cache_ttl";
         let tree = sled::open(cache_location)
             .unwrap()
             .open_tree(cache_location)
             .unwrap();
         let storage: OrderedHashMap<String, u128, TTLCacheItem<String>> = OrderedHashMap::new(tree);
-        let fs_cache = Cache::new(CacheStrategyTTL::new(2, 5, Some(storage), None));
+        let fs_cache = Cache::new(CacheStrategyTTL::new(2, 5, Some(storage), None), None);
         let caches = vec![cache, fs_cache];
         block_on(async {
             for cache in caches {
