@@ -102,12 +102,10 @@ impl<O: Ord + Copy + Send + Sync, V: Clone + Send + Sync> OrderedStore<O, V> for
 /// A hashmap that also maintains a BTreeMap of keys ordered by a given value
 /// This is useful for structures that need fast O(1) lookups, but also need to evict the oldest or least recently used entries
 /// The Ordered Store must contain both the keys and values for persistence
-pub struct OrderedHashMap<K, O, V>(
-    (
-        HashMap<K, (O, V)>,
-        Box<dyn OrderedStore<O, Vec<(K, V)>> + Send + Sync>,
-    ),
-);
+pub struct OrderedHashMap<K, O, V> {
+    lookup: HashMap<K, (O, V)>,
+    ordered_lookup: Box<dyn OrderedStore<O, Vec<(K, V)>> + Send + Sync>,
+}
 
 impl<K: Eq + Hash + Clone + Send + Sync, O: Ord + Clone + Send + Sync, V: Clone>
     OrderedHashMap<K, O, V>
@@ -121,17 +119,20 @@ impl<K: Eq + Hash + Clone + Send + Sync, O: Ord + Clone + Send + Sync, V: Clone>
                 keyed_data.insert(k.clone(), (order.clone(), v.clone()));
             })
         });
-        Self((keyed_data, ordered_data))
+        Self {
+            lookup: keyed_data,
+            ordered_lookup: ordered_data,
+        }
     }
 }
 
 impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
     pub fn len(&self) -> usize {
-        let (lookup, _) = &self.0;
+        let lookup = &self.lookup;
         lookup.len()
     }
     pub fn get(&self, key: &K) -> Option<&(O, V)> {
-        let (lookup, _) = &self.0;
+        let lookup = &self.lookup;
         lookup.get(key)
     }
     fn get_key_value(
@@ -140,7 +141,8 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
             &Box<dyn OrderedStore<O, Vec<(K, V)>> + Send + Sync>,
         ) -> Option<(O, Vec<K>)>,
     ) -> Option<(K, O, V)> {
-        let (lookup, ordered_lookup) = &self.0;
+        let lookup = &self.lookup;
+        let ordered_lookup = &self.ordered_lookup;
         selector(ordered_lookup).and_then(|(_, keys)| {
             keys.first().and_then(|key| {
                 lookup
@@ -173,40 +175,42 @@ impl<K: Hash + Eq + Clone, O: Ord + Clone, V: Clone> OrderedHashMap<K, O, V> {
     }
     /// inserts a new entry with the given key and value and order
     pub fn insert(&mut self, key: K, value: V, order: O) -> Option<V> {
-        let (lookup, order_lookup) = &mut self.0;
+        let lookup = &mut self.lookup;
+        let ordered_lookup = &mut self.ordered_lookup;
 
         if let Some((old_order, _)) = lookup.get(&key) {
             // if entry already exists, remove it from the btree
-            if let Some(mut keys) = order_lookup.remove(old_order) {
+            if let Some(mut keys) = ordered_lookup.remove(old_order) {
                 keys.retain(|k| k.0 != key);
                 // insert modified keys back into btree
                 if !keys.is_empty() {
-                    order_lookup.insert(old_order.clone(), keys);
+                    ordered_lookup.insert(old_order.clone(), keys);
                 }
             }
         }
-        let keys = match order_lookup.remove(&order) {
+        let keys = match ordered_lookup.remove(&order) {
             Some(mut ks) => {
                 ks.push((key.clone(), value.clone()));
                 ks
             }
             None => vec![(key.clone(), value.clone())],
         };
-        order_lookup.insert(order.clone(), keys);
+        ordered_lookup.insert(order.clone(), keys);
         lookup
             .insert(key, (order, value))
             .and_then(|(_, v)| Some(v))
     }
     /// removes the entry with the given key
     pub fn remove(&mut self, key: &K) -> Option<(O, V)> {
-        let (lookup, order_lookup) = &mut self.0;
+        let lookup = &mut self.lookup;
+        let ordered_lookup = &mut self.ordered_lookup;
         lookup.remove(key).and_then(|(order, v)| {
-            match order_lookup.remove(&order) {
+            match ordered_lookup.remove(&order) {
                 Some(mut keys) => {
                     keys.retain(|k| k.0 != *key);
                     // insert remaining keys back in
                     if !keys.is_empty() {
-                        order_lookup.insert(order.clone(), keys);
+                        ordered_lookup.insert(order.clone(), keys);
                     }
                 }
                 None => {}
