@@ -79,8 +79,8 @@ pub extern "C" fn indy_vdr_set_cache_directory(path: FfiStr) -> ErrorCode {
 
 #[no_mangle]
 pub extern "C" fn indy_vdr_set_ledger_txn_cache(
-    capacity: usize,
-    expire_offset: u64,
+    capacity: i32,
+    expire_offset: i64,
     path_opt: FfiStr,
 ) -> ErrorCode {
     catch_err! {
@@ -90,7 +90,7 @@ pub extern "C" fn indy_vdr_set_ledger_txn_cache(
             path => OrderedHashMap::new(new_fs_ordered_store(path.into())?),
         };
 
-        *write_lock!(LEDGER_CACHE_STRATEGY)? = Some(Arc::new(CacheStrategyTTL::new(capacity, expire_offset.into(), Some(store), None)));
+        *write_lock!(LEDGER_CACHE_STRATEGY)? = Some(Arc::new(CacheStrategyTTL::new(capacity.try_into().ok().unwrap_or_default(), expire_offset.try_into().ok().unwrap_or_default(), Some(store), None)));
         Ok(ErrorCode::Success)
     }
 }

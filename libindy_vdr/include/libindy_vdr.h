@@ -481,7 +481,7 @@ ErrorCode indy_vdr_resolve(PoolHandle pool_handle,
 
 ErrorCode indy_vdr_set_cache_directory(FfiStr path);
 
-ErrorCode indy_vdr_set_ledger_txn_cache(size_t capacity, c_ulong expiry_offset_ms, FfiStr path);
+ErrorCode indy_vdr_set_ledger_txn_cache(int32_t capacity, int64_t expiry_offset_ms, FfiStr path);
 
 ErrorCode indy_vdr_set_config(FfiStr config);
 
