@@ -14,7 +14,7 @@ pub trait CacheStrategy<K, V>: Send + Sync + 'static {
     async fn insert(&mut self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V>;
 }
 
-pub struct Cache<K, V> {
+pub struct Cache<K: Display, V> {
     storage: Arc<RwLock<dyn CacheStrategy<String, V>>>,
     key_prefix: Option<K>,
 }
