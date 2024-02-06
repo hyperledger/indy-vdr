@@ -11,6 +11,7 @@ use crate::ledger::constants;
 use crate::ledger::identifiers::{CredentialDefinitionId, RevocationRegistryId, SchemaId};
 use crate::ledger::responses::{Endpoint, GetNymResultV1};
 use crate::ledger::RequestBuilder;
+use crate::pool::cache::Cache;
 use crate::pool::helpers::perform_ledger_request;
 use crate::pool::{Pool, PreparedRequest, RequestResult, RequestResultMeta};
 use crate::utils::did::DidValue;
@@ -251,8 +252,12 @@ pub fn parse_or_now(datetime: Option<&String>) -> VdrResult<i64> {
     }
 }
 
-pub async fn handle_request<T: Pool>(pool: &T, request: &PreparedRequest) -> VdrResult<String> {
-    let (result, _meta) = request_transaction(pool, request).await?;
+pub async fn handle_request<T: Pool>(
+    pool: &T,
+    request: &PreparedRequest,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<String> {
+    let (result, _meta) = request_transaction(pool, request, cache).await?;
     match result {
         RequestResult::Reply(data) => Ok(data),
         RequestResult::Failed(error) => Err(error),
@@ -262,8 +267,9 @@ pub async fn handle_request<T: Pool>(pool: &T, request: &PreparedRequest) -> Vdr
 pub async fn request_transaction<T: Pool>(
     pool: &T,
     request: &PreparedRequest,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<(RequestResult<String>, RequestResultMeta)> {
-    perform_ledger_request(pool, request).await
+    perform_ledger_request(pool, request, cache).await
 }
 
 /// Fetch legacy service endpoint using ATTRIB tx
@@ -272,6 +278,7 @@ pub async fn fetch_legacy_endpoint<T: Pool>(
     did: &DidValue,
     seq_no: Option<i32>,
     timestamp: Option<u64>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<Endpoint> {
     let builder = pool.get_request_builder();
     let request = builder.build_get_attrib_request(
@@ -287,7 +294,7 @@ pub async fn fetch_legacy_endpoint<T: Pool>(
         "Fetching legacy endpoint for {} with request {:#?}",
         did, request
     );
-    let ledger_data = handle_request(pool, &request).await?;
+    let ledger_data = handle_request(pool, &request, cache).await?;
     let (_, _, endpoint_data) = parse_ledger_data(&ledger_data)?;
     let endpoint_data: Endpoint = serde_json::from_str(endpoint_data.as_str().unwrap())
         .map_err(|_| err_msg(VdrErrorKind::Resolver, "Could not parse endpoint data"))?;

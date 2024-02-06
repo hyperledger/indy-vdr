@@ -1,4 +1,5 @@
 use serde_json::{self, Value as SJsonValue};
+use sha2::{Digest, Sha256};
 
 use super::new_request_id;
 use crate::common::error::prelude::*;
@@ -78,6 +79,18 @@ impl PreparedRequest {
             req_json,
             method,
         }
+    }
+
+    pub fn get_cache_key(&self) -> VdrResult<String> {
+        let mut req_json = self.req_json.clone();
+        let req_map = req_json
+            .as_object_mut()
+            .ok_or_else(|| input_err("Invalid request JSON"))?;
+        req_map.remove("reqId");
+        req_map.remove("signature");
+        let raw_key = serde_json::to_string(&req_json).with_input_err("Invalid request JSON");
+        let hash = Sha256::digest(raw_key?.as_bytes());
+        Ok(hex::encode(hash))
     }
 
     /// Generate the normalized representation of a transaction for signing the request

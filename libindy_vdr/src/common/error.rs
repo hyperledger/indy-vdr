@@ -130,6 +130,12 @@ impl From<zmq::Error> for VdrError {
     }
 }
 
+impl From<sled::Error> for VdrError {
+    fn from(err: sled::Error) -> VdrError {
+        VdrError::new(VdrErrorKind::FileSystem, None, Some(Box::new(err)))
+    }
+}
+
 impl<M> From<(VdrErrorKind, M)> for VdrError
 where
     M: fmt::Display + Send + Sync + 'static,

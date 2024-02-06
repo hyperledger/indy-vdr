@@ -3,10 +3,12 @@ use std::collections::HashMap;
 use crate::common::error::prelude::*;
 use crate::config::PoolConfig;
 
+use super::cache::Cache;
 use super::genesis::PoolTransactions;
 use super::manager::{LocalPool, SharedPool};
 use super::networker::{MakeLocal, MakeShared, ZMQNetworkerFactory};
 use super::runner::PoolRunner;
+use super::RequestResultMeta;
 
 /// A utility class for building a new pool instance or runner.
 #[derive(Clone)]
@@ -67,7 +69,10 @@ impl PoolBuilder {
 
     /// Create a `PoolRunner` instance from the builder, to handle pool interaction
     /// in a dedicated thread.
-    pub fn into_runner(self) -> VdrResult<PoolRunner> {
+    pub fn into_runner(
+        self,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<PoolRunner> {
         let merkle_tree = self.transactions.merkle_tree()?;
         Ok(PoolRunner::new(
             self.config,
@@ -75,6 +80,7 @@ impl PoolBuilder {
             MakeLocal(ZMQNetworkerFactory {}),
             self.node_weights,
             self.refreshed,
+            cache,
         ))
     }
 }

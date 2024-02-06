@@ -13,6 +13,8 @@ export interface NativeBindings {
 
   setCacheDirectory(options: { path: string }): ReturnObject<never>
 
+  setLedgerTxnCache(options: { capacity: number; expiry_offset_ms: number; path?: string }): ReturnObject<never>
+
   setDefaultLogger(options: Record<string, never>): ReturnObject<never>
 
   setProtocolVersion(options: { version: number }): ReturnObject<never>

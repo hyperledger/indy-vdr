@@ -7,6 +7,7 @@ use futures_executor::block_on;
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use futures_util::{select, FutureExt};
 
+use super::cache::Cache;
 use super::helpers::{perform_ledger_request, perform_refresh};
 use super::networker::{Networker, NetworkerFactory};
 use super::requests::PreparedRequest;
@@ -34,6 +35,7 @@ impl PoolRunner {
         networker_factory: F,
         node_weights: Option<HashMap<String, f32>>,
         refreshed: bool,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
     ) -> Self
     where
         F: NetworkerFactory<Output = Rc<dyn Networker>> + Send + 'static,
@@ -49,7 +51,7 @@ impl PoolRunner {
                 refreshed,
             )
             .unwrap();
-            let mut thread = PoolThread::new(pool, receiver);
+            let mut thread = PoolThread::new(pool, receiver, cache);
             thread.run();
             debug!("Pool thread ended")
         });
@@ -159,11 +161,20 @@ impl PoolRunnerStatus {
 struct PoolThread {
     pool: LocalPool,
     receiver: UnboundedReceiver<PoolEvent>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 }
 
 impl PoolThread {
-    fn new(pool: LocalPool, receiver: UnboundedReceiver<PoolEvent>) -> Self {
-        Self { pool, receiver }
+    fn new(
+        pool: LocalPool,
+        receiver: UnboundedReceiver<PoolEvent>,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> Self {
+        Self {
+            pool,
+            receiver,
+            cache,
+        }
     }
 
     fn run(&mut self) {
@@ -174,6 +185,7 @@ impl PoolThread {
         let mut futures = FuturesUnordered::new();
         let receiver = &mut self.receiver;
         loop {
+            let cache_ledger_request = self.cache.clone();
             select! {
                 recv_evt = receiver.next() => {
                     match recv_evt {
@@ -199,7 +211,7 @@ impl PoolThread {
                             futures.push(fut.boxed_local());
                         }
                         Some(PoolEvent::SendRequest(request, callback)) => {
-                            let fut = _perform_ledger_request(&self.pool, request, callback);
+                            let fut = _perform_ledger_request(&self.pool, request, callback, cache_ledger_request);
                             futures.push(fut.boxed_local());
                         }
                         None => { trace!("Pool runner sender dropped") }
@@ -226,7 +238,8 @@ async fn _perform_ledger_request(
     pool: &LocalPool,
     request: PreparedRequest,
     callback: Callback<SendReqResponse>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) {
-    let result = perform_ledger_request(pool, &request).await;
+    let result = perform_ledger_request(pool, &request, cache).await;
     callback(result);
 }

@@ -110,6 +110,10 @@ export class ReactNativeIndyVdr implements IndyVdr {
     const serializedOptions = serializeArguments(options)
     this.indyVdr.setCacheDirectory(serializedOptions)
   }
+  public setLedgerTxnCache(options: { capacity: number; expiry_offset_ms: number; path?: string }): void {
+    const serializedOptions = serializeArguments(options)
+    this.indyVdr.setLedgerTxnCache(serializedOptions)
+  }
 
   public setDefaultLogger(): void {
     this.handleError(this.indyVdr.setDefaultLogger({}))

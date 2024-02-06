@@ -7,6 +7,7 @@ mod app;
 mod handlers;
 mod utils;
 
+use indy_vdr::pool::cache::storage::{new_fs_ordered_store, OrderedHashMap};
 use std::cell::RefCell;
 use std::collections::HashMap;
 #[cfg(unix)]
@@ -36,6 +37,7 @@ use hyper_tls::HttpsConnector;
 #[cfg(unix)]
 use hyper_unix_connector::UnixConnector;
 
+use indy_vdr::pool::cache::{strategy::CacheStrategyTTL, Cache};
 #[cfg(feature = "tls")]
 use rustls_pemfile::{certs, pkcs8_private_keys};
 #[cfg(feature = "tls")]
@@ -426,13 +428,37 @@ where
     I::Conn: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin,
     I::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
+    let cache = if config.cache {
+        let storage_type = match config.cache_path {
+            Some(path) => {
+                let storage = OrderedHashMap::new(
+                    new_fs_ordered_store(path.clone())
+                        .expect(format!("Error creating cache at {}", path).as_str()),
+                );
+                Some(storage)
+            }
+            None => None,
+        };
+        let strategy = CacheStrategyTTL::new(
+            config.cache_size,
+            Duration::from_secs(86400).as_millis(),
+            storage_type,
+            None,
+        );
+        let cache = Cache::new(strategy, None);
+        Some(cache)
+    } else {
+        None
+    };
+
     let until_done = run_pools(state.clone(), config.init_refresh, config.interval_refresh);
     let svc = make_service_fn(move |_| {
         let state = state.clone();
+        let cache = cache.clone();
         async move {
             let state = state.clone();
             Ok::<_, hyper::Error>(service_fn(move |req| {
-                handlers::handle_request(req, state.to_owned())
+                handlers::handle_request(req, state.to_owned(), cache.clone())
             }))
         }
     });

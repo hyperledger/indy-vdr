@@ -1,4 +1,6 @@
 mod builder;
+/// A trait for managing a transaction cache
+pub mod cache;
 mod genesis;
 /// Transaction request handlers
 pub(crate) mod handlers;

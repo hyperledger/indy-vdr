@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::time::UNIX_EPOCH;
 
 use hyper::{Body, Method, Request, Response, StatusCode};
+use indy_vdr::pool::cache::Cache;
 use percent_encoding::percent_decode_str;
 use regex::Regex;
 
@@ -300,6 +301,7 @@ async fn get_attrib<T: Pool>(
     raw: &str,
     seq_no: Option<i32>,
     timestamp: Option<u64>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<ResponseType> {
     let dest = DidValue::from_str(dest)?;
     let request = pool.get_request_builder().build_get_attrib_request(
@@ -311,7 +313,7 @@ async fn get_attrib<T: Pool>(
         seq_no,
         timestamp,
     )?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
@@ -320,59 +322,80 @@ async fn get_nym<T: Pool>(
     nym: &str,
     seq_no: Option<i32>,
     timestamp: Option<u64>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<ResponseType> {
     let nym = DidValue::from_str(nym)?;
     let request = pool
         .get_request_builder()
         .build_get_nym_request(None, &nym, seq_no, timestamp)?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
-async fn get_schema<T: Pool>(pool: &T, schema_id: &str) -> VdrResult<ResponseType> {
+async fn get_schema<T: Pool>(
+    pool: &T,
+    schema_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let schema_id = SchemaId::from_str(schema_id)?;
     let request = pool
         .get_request_builder()
         .build_get_schema_request(None, &schema_id)?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
-async fn get_cred_def<T: Pool>(pool: &T, cred_def_id: &str) -> VdrResult<ResponseType> {
+async fn get_cred_def<T: Pool>(
+    pool: &T,
+    cred_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let cred_def_id = CredentialDefinitionId::from_str(cred_def_id)?;
     let request = pool
         .get_request_builder()
         .build_get_cred_def_request(None, &cred_def_id)?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
-async fn get_revoc_reg_def<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrResult<ResponseType> {
+async fn get_revoc_reg_def<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
     let request = pool
         .get_request_builder()
         .build_get_revoc_reg_def_request(None, &revoc_reg_def_id)?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
-async fn get_revoc_reg<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrResult<ResponseType> {
+async fn get_revoc_reg<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
     let request = pool.get_request_builder().build_get_revoc_reg_request(
         None,
         &revoc_reg_def_id,
         timestamp_now(),
     )?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
-async fn get_revoc_reg_delta<T: Pool>(pool: &T, revoc_reg_def_id: &str) -> VdrResult<ResponseType> {
+async fn get_revoc_reg_delta<T: Pool>(
+    pool: &T,
+    revoc_reg_def_id: &str,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let revoc_reg_def_id = RevocationRegistryId::from_str(revoc_reg_def_id)?;
     let request = pool
         .get_request_builder()
         .build_get_revoc_reg_delta_request(None, &revoc_reg_def_id, None, timestamp_now())?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
@@ -383,19 +406,25 @@ async fn test_get_validator_info<T: Pool>(pool: &T, pretty: bool) -> VdrResult<S
 }
 */
 
-async fn get_taa<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
+async fn get_taa<T: Pool>(
+    pool: &T,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_txn_author_agreement_request(None, None)?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
-async fn get_aml<T: Pool>(pool: &T) -> VdrResult<ResponseType> {
+async fn get_aml<T: Pool>(
+    pool: &T,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
     let request = pool
         .get_request_builder()
         .build_get_acceptance_mechanisms_request(None, None, None)?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
@@ -404,6 +433,7 @@ async fn get_auth_rule<T: Pool>(
     auth_type: Option<String>,
     auth_action: Option<String>,
     field: Option<String>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> VdrResult<ResponseType> {
     let request = pool.get_request_builder().build_get_auth_rule_request(
         None,
@@ -413,24 +443,30 @@ async fn get_auth_rule<T: Pool>(
         None,
         None,
     )?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, cache).await?;
     Ok(result.into())
 }
 
-async fn get_txn<T: Pool>(pool: &T, ledger: LedgerType, seq_no: i32) -> VdrResult<ResponseType> {
-    let result = perform_get_txn(pool, ledger.to_id(), seq_no).await?;
+async fn get_txn<T: Pool>(
+    pool: &T,
+    ledger: LedgerType,
+    seq_no: i32,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
+) -> VdrResult<ResponseType> {
+    let result = perform_get_txn(pool, ledger.to_id(), seq_no, cache).await?;
     Ok(result.into())
 }
 
 async fn submit_request<T: Pool>(pool: &T, message: Vec<u8>) -> VdrResult<ResponseType> {
     let request = PreparedRequest::from_request_json(message)?;
-    let result = perform_ledger_request(pool, &request).await?;
+    let result = perform_ledger_request(pool, &request, None).await?;
     Ok(result.into())
 }
 
 pub async fn handle_request(
     req: Request<Body>,
     state: Rc<RefCell<AppState>>,
+    cache: Option<Cache<String, (String, RequestResultMeta)>>,
 ) -> Result<Response<Body>, hyper::Error> {
     let mut parts = req
         .uri()
@@ -532,12 +568,12 @@ pub async fn handle_request(
         let resolver = Resolver::new(pool);
         // is DID Url
         if did.find('/').is_some() {
-            match resolver.dereference(did).await {
+            match resolver.dereference(did, cache.clone()).await {
                 Ok(result) => Ok(ResponseType::Resolver(result)),
                 Err(err) => http_status_msg(StatusCode::BAD_REQUEST, err.to_string()),
             }
         } else {
-            match resolver.resolve(did).await {
+            match resolver.resolve(did, cache).await {
                 Ok(result) => Ok(ResponseType::Resolver(result)),
                 Err(err) => http_status_msg(StatusCode::BAD_REQUEST, err.to_string()),
             }
@@ -558,8 +594,8 @@ pub async fn handle_request(
                 }
             }
             (&Method::GET, "genesis") => get_pool_genesis(&pool).await,
-            (&Method::GET, "taa") => get_taa(&pool).await,
-            (&Method::GET, "aml") => get_aml(&pool).await,
+            (&Method::GET, "taa") => get_taa(&pool, cache.clone()).await,
+            (&Method::GET, "aml") => get_aml(&pool, cache.clone()).await,
             (&Method::GET, "attrib") => {
                 if let (Some(dest), Some(attrib)) = (parts.next(), parts.next()) {
                     // NOTE: 'endpoint' is currently the only supported attribute
@@ -569,7 +605,7 @@ pub async fn handle_request(
                     let timestamp: Option<u64> = query_params
                         .get("timestamp")
                         .and_then(|ts| ts.as_str().parse().ok());
-                    get_attrib(&pool, &dest, &attrib, seq_no, timestamp).await
+                    get_attrib(&pool, &dest, &attrib, seq_no, timestamp, cache.clone()).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
@@ -582,18 +618,19 @@ pub async fn handle_request(
                             Some(auth_type.to_owned()),
                             Some(auth_action.to_owned()),
                             Some("*".to_owned()),
+                            cache.clone(),
                         )
                         .await
                     } else {
                         http_status(StatusCode::NOT_FOUND)
                     }
                 } else {
-                    get_auth_rule(&pool, None, None, None).await // get all
+                    get_auth_rule(&pool, None, None, None, cache.clone()).await // get all
                 }
             }
             (&Method::GET, "cred_def") => {
                 if let Some(cred_def_id) = parts.next() {
-                    get_cred_def(&pool, &cred_def_id).await
+                    get_cred_def(&pool, &cred_def_id, cache.clone()).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
@@ -606,35 +643,35 @@ pub async fn handle_request(
                     let timestamp: Option<u64> = query_params
                         .get("timestamp")
                         .and_then(|ts| ts.as_str().parse().ok());
-                    get_nym(&pool, &nym, seq_no, timestamp).await
+                    get_nym(&pool, &nym, seq_no, timestamp, cache.clone()).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "rev_reg_def") => {
                 if let Some(rev_reg_def_id) = parts.next() {
-                    get_revoc_reg_def(&pool, &rev_reg_def_id).await
+                    get_revoc_reg_def(&pool, &rev_reg_def_id, cache.clone()).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "rev_reg") => {
                 if let Some(rev_reg_def_id) = parts.next() {
-                    get_revoc_reg(&pool, &rev_reg_def_id).await
+                    get_revoc_reg(&pool, &rev_reg_def_id, cache.clone()).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "rev_reg_delta") => {
                 if let Some(rev_reg_def_id) = parts.next() {
-                    get_revoc_reg_delta(&pool, &rev_reg_def_id).await
+                    get_revoc_reg_delta(&pool, &rev_reg_def_id, cache.clone()).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
             }
             (&Method::GET, "schema") => {
                 if let Some(schema_id) = parts.next() {
-                    get_schema(&pool, &schema_id).await
+                    get_schema(&pool, &schema_id, cache.clone()).await
                 } else {
                     http_status(StatusCode::NOT_FOUND)
                 }
@@ -644,7 +681,7 @@ pub async fn handle_request(
                     if let (Ok(ledger), Ok(txn)) =
                         (LedgerType::try_from(ledger.as_str()), txn.parse::<i32>())
                     {
-                        get_txn(&pool, ledger, txn).await
+                        get_txn(&pool, ledger, txn, cache.clone()).await
                     } else {
                         http_status(StatusCode::NOT_FOUND)
                     }

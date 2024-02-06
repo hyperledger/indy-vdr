@@ -2,6 +2,7 @@ use super::did::DidUrl;
 use crate::common::error::prelude::*;
 
 use crate::ledger::RequestBuilder;
+use crate::pool::cache::Cache;
 use crate::pool::{Pool, PoolRunner, RequestResult, RequestResultMeta};
 
 use super::types::*;
@@ -22,10 +23,14 @@ impl<T: Pool> PoolResolver<T> {
     }
 
     /// Dereference a DID Url and return a serialized `DereferencingResult`
-    pub async fn dereference(&self, did_url: &str) -> VdrResult<String> {
+    pub async fn dereference(
+        &self,
+        did_url: &str,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<String> {
         debug!("PoolResolver: Dereference DID Url {}", did_url);
         let did_url = DidUrl::parse(did_url)?;
-        let (data, metadata) = self._resolve(&did_url).await?;
+        let (data, metadata) = self._resolve(&did_url, cache).await?;
 
         let content = match data {
             Result::Content(c) => Some(c),
@@ -48,10 +53,14 @@ impl<T: Pool> PoolResolver<T> {
     }
 
     /// Resolve a DID and return a serialized `ResolutionResult`
-    pub async fn resolve(&self, did: &str) -> VdrResult<String> {
+    pub async fn resolve(
+        &self,
+        did: &str,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<String> {
         debug!("PoolResolver: Resolve DID {}", did);
         let did = DidUrl::parse(did)?;
-        let (data, metadata) = self._resolve(&did).await?;
+        let (data, metadata) = self._resolve(&did, cache.clone()).await?;
 
         let md = if let Metadata::DidDocumentMetadata(md) = metadata {
             Some(md)
@@ -85,9 +94,10 @@ impl<T: Pool> PoolResolver<T> {
                     } else {
                         (None, None)
                     };
-                    doc.endpoint = fetch_legacy_endpoint(&self.pool, &did.id, seq_no, timestamp)
-                        .await
-                        .ok();
+                    doc.endpoint =
+                        fetch_legacy_endpoint(&self.pool, &did.id, seq_no, timestamp, cache)
+                            .await
+                            .ok();
                 }
                 Some(doc.to_value()?)
             }
@@ -104,14 +114,18 @@ impl<T: Pool> PoolResolver<T> {
     }
 
     // Internal method to resolve and dereference
-    async fn _resolve(&self, did_url: &DidUrl) -> VdrResult<(Result, Metadata)> {
+    async fn _resolve(
+        &self,
+        did_url: &DidUrl,
+        cache: Option<Cache<String, (String, RequestResultMeta)>>,
+    ) -> VdrResult<(Result, Metadata)> {
         let builder = self.pool.get_request_builder();
         let request = build_request(did_url, &builder)?;
         debug!(
             "PoolResolver: Prepared Request for DID {}: {:#?}",
             did_url.id, request
         );
-        let ledger_data = handle_request(&self.pool, &request).await?;
+        let ledger_data = handle_request(&self.pool, &request, cache).await?;
         let namespace = did_url.namespace.clone();
         let result = handle_internal_resolution_result(namespace.as_str(), &ledger_data)?;
 

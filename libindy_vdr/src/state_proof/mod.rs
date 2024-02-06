@@ -363,7 +363,9 @@ pub(crate) fn verify_parsed_sp(
     }
 
     if let Some(multi_sig) = multi_sig.as_ref() {
-        let Some((signature, participants, value)) = _parse_reply_for_proof_signature_checking(multi_sig) else {
+        let Some((signature, participants, value)) =
+            _parse_reply_for_proof_signature_checking(multi_sig)
+        else {
             return Err("State proof parsing of reply failed".into());
         };
         let verify_err = match _verify_proof_signature(
