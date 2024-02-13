@@ -2013,10 +2013,10 @@
     "@types/scheduler" "*"
     csstype "^3.0.2"
 
-"@types/ref-array-di@^1.2.5":
-  version "1.2.5"
-  resolved "https://registry.yarnpkg.com/@types/ref-array-di/-/ref-array-di-1.2.5.tgz#822b9be5b934398fafd5c26264d8de80d487747d"
-  integrity sha512-dA/Himb7ca/Tf5vqLOhi7LewAAoOXghlocw7gAqvNrmLybAtu+w2BLzEsbFWAtx5ElNzMEHDaRybueYViFROjQ==
+"@types/ref-array-di@^1.2.8":
+  version "1.2.8"
+  resolved "https://registry.yarnpkg.com/@types/ref-array-di/-/ref-array-di-1.2.8.tgz#2b44567b8eaae72c59db68a482f5d26297e955be"
+  integrity sha512-+re5xrhRXDUR3sicMvN9N3C+6mklq5kd7FkN3ciRWio3BAvUDh2OEUTTG+619r10dqc6de25LIDtgpHtXCKGbA==
   dependencies:
     "@types/ref-napi" "*"
 
