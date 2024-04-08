@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@2060.io/ffi-napi@4.0.8":
-  version "4.0.8"
-  resolved "https://registry.yarnpkg.com/@2060.io/ffi-napi/-/ffi-napi-4.0.8.tgz#ec3424d9ec979491b41b8d82514ae82a647da8b0"
-  integrity sha512-sONRKLtxFKN5PXuZaa41b/kTN+R5qAh6PAL15/fnafnvAKQ5WBoxRIy8xRh8jo9mydywtt4IrWtatB93w0+3cA==
+"@2060.io/ffi-napi@^4.0.9":
+  version "4.0.9"
+  resolved "https://registry.yarnpkg.com/@2060.io/ffi-napi/-/ffi-napi-4.0.9.tgz#194fca2132932ba02e62d716c786d20169b20b8d"
+  integrity sha512-JfVREbtkJhMXSUpya3JCzDumdjeZDCKv4PemiWK+pts5CYgdoMidxeySVlFeF5pHqbBpox4I0Be7sDwAq4N0VQ==
   dependencies:
     "@2060.io/ref-napi" "^3.0.6"
     debug "^4.1.1"
@@ -14,7 +14,7 @@
     node-gyp-build "^4.2.1"
     ref-struct-di "^1.1.0"
 
-"@2060.io/ref-napi@3.0.6", "@2060.io/ref-napi@^3.0.6":
+"@2060.io/ref-napi@^3.0.6":
   version "3.0.6"
   resolved "https://registry.yarnpkg.com/@2060.io/ref-napi/-/ref-napi-3.0.6.tgz#32b1a257cada096f95345fd7abae746385ecc5dd"
   integrity sha512-8VAIXLdKL85E85jRYpPcZqATBL6fGnC/XjBGNeSgRSMJtrAMSmfRksqIq5AmuZkA2eeJXMWCiN6UQOUdozcymg==
@@ -2014,9 +2014,9 @@
     csstype "^3.0.2"
 
 "@types/ref-array-di@^1.2.5":
-  version "1.2.5"
-  resolved "https://registry.yarnpkg.com/@types/ref-array-di/-/ref-array-di-1.2.5.tgz#822b9be5b934398fafd5c26264d8de80d487747d"
-  integrity sha512-dA/Himb7ca/Tf5vqLOhi7LewAAoOXghlocw7gAqvNrmLybAtu+w2BLzEsbFWAtx5ElNzMEHDaRybueYViFROjQ==
+  version "1.2.8"
+  resolved "https://registry.yarnpkg.com/@types/ref-array-di/-/ref-array-di-1.2.8.tgz#2b44567b8eaae72c59db68a482f5d26297e955be"
+  integrity sha512-+re5xrhRXDUR3sicMvN9N3C+6mklq5kd7FkN3ciRWio3BAvUDh2OEUTTG+619r10dqc6de25LIDtgpHtXCKGbA==
   dependencies:
     "@types/ref-napi" "*"
 
