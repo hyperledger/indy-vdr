@@ -1,8 +1,6 @@
 {
   "$schema": "node_modules/lerna/schemas/lerna-schema.json",
-  "packages": [
-    "indy-vdr-*"
-  ],
+  "packages": ["indy-vdr-*"],
   "version": "0.2.2",
   "npmClient": "yarn",
   "command": {
