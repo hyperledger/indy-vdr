@@ -250,11 +250,13 @@ jsi::Value buildGetNymRequest(jsi::Runtime &rt, jsi::Object options) {
   auto seqNo = jsiToValue<int32_t>(rt, options, "seqNo", true);
   auto timestamp = jsiToValue<int64_t>(rt, options, "timestamp", true);
 
+  auto convertedSeqNo = seqNo == 0 ? -1 : seqNo;
+
   RequestHandle out;
 
   ErrorCode code = indy_vdr_build_get_nym_request(
       submitterDid.length() > 0 ? submitterDid.c_str() : nullptr, dest.c_str(),
-      seqNo, timestamp, &out);
+      convertedSeqNo, timestamp, &out);
 
   return createReturnValue(rt, code, &out);
 };

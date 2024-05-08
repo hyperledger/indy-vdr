@@ -91,6 +91,7 @@ export interface NativeBindings {
     dest: string
     didDocContent?: string
     version?: number
+    seqNo?: number
   }): ReturnObject<RequestHandle>
 
   buildGetSchemaRequest(options: { submitterDid?: string; schemaId: string }): ReturnObject<RequestHandle>

@@ -1,6 +1,6 @@
 {
   "name": "@hyperledger/indy-vdr-nodejs",
-  "version": "0.2.0-dev.6",
+  "version": "0.2.3",
   "license": "Apache-2.0",
   "description": "Nodejs wrapper for Indy Vdr",
   "source": "src/index",
@@ -41,7 +41,7 @@
   "dependencies": {
     "@2060.io/ffi-napi": "4.0.9",
     "@2060.io/ref-napi": "3.0.6",
-    "@hyperledger/indy-vdr-shared": "0.2.0-dev.6",
+    "@hyperledger/indy-vdr-shared": "0.2.3",
     "@mapbox/node-pre-gyp": "^1.0.10",
     "@types/ref-array-di": "^1.2.8",
     "ref-array-di": "^1.2.2",
@@ -50,7 +50,7 @@
   "binary": {
     "module_name": "indy_vdr",
     "module_path": "native",
-    "remote_path": "v0.4.0",
+    "remote_path": "v0.4.2",
     "host": "https://github.com/hyperledger/indy-vdr/releases/download/",
     "package_name": "library-{platform}-{arch}.tar.gz"
   },
