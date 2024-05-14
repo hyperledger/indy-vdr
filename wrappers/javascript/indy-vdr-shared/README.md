@@ -65,5 +65,5 @@ The JavaScript wrapper is versioned independently from the native bindings. The 
 | Indy VDR      | JavaScript Wrapper |
 | ------------- | ------------------ |
 | v0.4.0-dev.16 | v0.1.0             |
-| v0.4.1        | v0.2.0             |
-| v0.4.2        | v0.2.3             |
+| v0.4.1        | v0.2.x             |
+| v0.4.2        | v0.3.0             |
