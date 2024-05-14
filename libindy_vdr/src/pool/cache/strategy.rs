@@ -1,8 +1,13 @@
 use super::storage::OrderedHashMap;
 use super::CacheStrategy;
-use async_lock::Mutex;
-use async_trait::async_trait;
-use std::{collections::BTreeMap, fmt::Debug, hash::Hash, sync::Arc, time::SystemTime};
+use std::{
+    collections::BTreeMap,
+    fmt::Debug,
+    hash::Hash,
+    ops::Deref,
+    sync::{Arc, Mutex},
+    time::SystemTime,
+};
 
 /// A simple struct to hold a value and the expiry offset
 /// needed because items can be inserted with custom ttl values
@@ -50,89 +55,94 @@ impl<K: Eq + Hash + Clone + Send + Sync + 'static, V: Clone + Send + Sync + 'sta
     }
 }
 
-#[async_trait]
 impl<K: Send + Sync + 'static, V: Send + Sync + 'static> CacheStrategy<K, V>
     for Arc<dyn CacheStrategy<K, V>>
 {
-    async fn get(&self, key: &K) -> Option<V> {
-        self.get(key).await
+    fn get(&self, key: &K) -> Option<V> {
+        self.deref().get(key)
     }
-    async fn remove(&mut self, key: &K) -> Option<V> {
-        self.remove(key).await
+    fn remove(&self, key: &K) -> Option<V> {
+        self.deref().remove(key)
     }
-    async fn insert(&mut self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
-        self.insert(key, value, custom_exp_offset).await
+    fn insert(&self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
+        self.deref().insert(key, value, custom_exp_offset)
     }
 }
 
-#[async_trait]
 impl<K: Hash + Eq + Send + Sync + 'static + Clone + Debug, V: Clone + Send + Sync + 'static>
     CacheStrategy<K, V> for CacheStrategyTTL<K, V>
 {
-    async fn get(&self, key: &K) -> Option<V> {
-        let mut store_lock = self.store.lock().await;
-        let current_time = SystemTime::now()
-            .duration_since(self.create_time)
-            .unwrap()
-            .as_millis();
-        let get_res = match store_lock.get(key) {
-            Some((ts, v)) => {
-                if current_time < *ts {
-                    Some((*ts, v.clone()))
-                } else {
-                    store_lock.remove(key);
-                    None
+    fn get(&self, key: &K) -> Option<V> {
+        if let Some(mut store_lock) = self.store.lock().ok() {
+            let current_time = SystemTime::now()
+                .duration_since(self.create_time)
+                .unwrap()
+                .as_millis();
+            let get_res = match store_lock.get(key) {
+                Some((ts, v)) => {
+                    if current_time < *ts {
+                        Some((*ts, v.clone()))
+                    } else {
+                        store_lock.remove(key);
+                        None
+                    }
                 }
+                None => None,
+            };
+            // update the timestamp if the entry is still valid
+            if let Some((_, ref v)) = get_res {
+                store_lock.re_order(key, current_time + v.expire_offset);
             }
-            None => None,
-        };
-        // update the timestamp if the entry is still valid
-        if let Some((_, ref v)) = get_res {
-            store_lock.re_order(key, current_time + v.expire_offset);
+            return get_res.map(|(_, v)| v.value);
         }
-        get_res.map(|(_, v)| v.value)
+        None
     }
-    async fn remove(&mut self, key: &K) -> Option<V> {
-        self.store.lock().await.remove(key).map(|(_, v)| v.value)
-    }
-
-    async fn insert(&mut self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
-        let mut store_lock = self.store.lock().await;
-        let current_ts = SystemTime::now()
-            .duration_since(self.create_time)
-            .unwrap()
-            .as_millis();
-
-        // remove expired entries
-        while store_lock.len() > 0
-            && store_lock
-                .get_first_key_value()
-                .map(|(_, ts, _)| ts.clone() < current_ts)
-                .unwrap_or(false)
-        {
-            store_lock.remove_first();
+    fn remove(&self, key: &K) -> Option<V> {
+        if let Some(mut store) = self.store.lock().ok() {
+            return store.remove(key).map(|(_, v)| v.value);
         }
+        None
+    }
 
-        // remove the oldest item if the cache is still full
-        if store_lock.len() >= self.capacity && store_lock.get(&key).is_none() {
-            // remove the oldest item
-            let removal_key = store_lock.get_first_key_value().map(|(k, _, _)| k.clone());
-            if let Some(removal_key) = removal_key {
-                store_lock.remove(&removal_key);
+    fn insert(&self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
+        if let Some(mut store_lock) = self.store.lock().ok() {
+            let current_ts = SystemTime::now()
+                .duration_since(self.create_time)
+                .unwrap()
+                .as_millis();
+
+            // remove expired entries
+            while store_lock.len() > 0
+                && store_lock
+                    .get_first_key_value()
+                    .map(|(_, ts, _)| ts.clone() < current_ts)
+                    .unwrap_or(false)
+            {
+                store_lock.remove_first();
             }
-        };
 
-        let exp_offset = custom_exp_offset.unwrap_or(self.expire_after);
-        store_lock
-            .insert(
-                key,
-                TTLCacheItem {
-                    value: value,
-                    expire_offset: exp_offset,
-                },
-                current_ts + exp_offset,
-            )
-            .map(|v| v.value)
+            // remove the oldest item if the cache is still full
+            if store_lock.len() >= self.capacity && store_lock.get(&key).is_none() {
+                // remove the oldest item
+                let removal_key = store_lock.get_first_key_value().map(|(k, _, _)| k.clone());
+                if let Some(removal_key) = removal_key {
+                    store_lock.remove(&removal_key);
+                }
+            };
+
+            let exp_offset = custom_exp_offset.unwrap_or(self.expire_after);
+            return store_lock
+                .insert(
+                    key,
+                    TTLCacheItem {
+                        value: value,
+                        expire_offset: exp_offset,
+                    },
+                    current_ts + exp_offset,
+                )
+                .map(|v| v.value);
+        }
+        None
     }
 }
 
@@ -158,51 +168,42 @@ mod tests {
         let caches = vec![cache, fs_cache];
         block_on(async {
             for cache in caches {
-                cache
-                    .insert("key".to_string(), "value".to_string(), None)
-                    .await;
+                cache.insert("key".to_string(), "value".to_string(), None);
                 assert_eq!(
-                    cache.get(&"key".to_string()).await,
+                    cache.get(&"key".to_string()),
                     Some("value".to_string())
                 );
                 cache
-                    .insert("key1".to_string(), "value1".to_string(), None)
-                    .await;
+                    .insert("key1".to_string(), "value1".to_string(), None);
                 cache
-                    .insert("key2".to_string(), "value2".to_string(), None)
-                    .await;
-                assert_eq!(cache.get(&"key".to_string()).await, None);
+                    .insert("key2".to_string(), "value2".to_string(), None);
+                assert_eq!(cache.get(&"key".to_string()), None);
                 cache
-                    .insert("key3".to_string(), "value3".to_string(), None)
-                    .await;
-                cache.get(&"key2".to_string()).await;
+                    .insert("key3".to_string(), "value3".to_string(), None);
+                cache.get(&"key2".to_string());
                 cache
-                    .insert("key4".to_string(), "value4".to_string(), None)
-                    .await;
+                    .insert("key4".to_string(), "value4".to_string(), None);
                 // key2 should not be evicted because of LRU
                 assert_eq!(
-                    cache.remove(&"key2".to_string()).await,
+                    cache.remove(&"key2".to_string()),
                     Some("value2".to_string())
                 );
                 // key3 should be evicted because it was bumped to back after key2 was accessed
-                assert_eq!(cache.get(&"key3".to_string()).await, None);
+                assert_eq!(cache.get(&"key3".to_string()), None);
                 cache
-                    .insert("key5".to_string(), "value5".to_string(), None)
-                    .await;
+                    .insert("key5".to_string(), "value5".to_string(), None);
                 thread::sleep(std::time::Duration::from_millis(6));
-                assert_eq!(cache.get(&"key5".to_string()).await, None);
+                assert_eq!(cache.get(&"key5".to_string()), None);
                 // test ttl config
                 cache
-                    .insert("key6".to_string(), "value6".to_string(), Some(1))
-                    .await;
+                    .insert("key6".to_string(), "value6".to_string(), Some(1));
                 cache
-                    .insert("key7".to_string(), "value7".to_string(), None)
-                    .await;
+                    .insert("key7".to_string(), "value7".to_string(), None);
                 // wait until value6 expires
                 thread::sleep(std::time::Duration::from_millis(1));
-                assert_eq!(cache.get(&"key6".to_string()).await, None);
+                assert_eq!(cache.get(&"key6".to_string()), None);
                 assert_eq!(
-                    cache.get(&"key7".to_string()).await,
+                    cache.get(&"key7".to_string()),
                     Some("value7".to_string())
                 );
             }

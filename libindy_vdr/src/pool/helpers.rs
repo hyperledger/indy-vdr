@@ -223,7 +223,7 @@ pub async fn perform_ledger_request<T: Pool>(
 
     if is_read_req {
         if let Some(cache) = cache_opt.clone() {
-            if let Some((response, meta)) = cache.get(&cache_key).await {
+            if let Some((response, meta)) = cache.get(&cache_key) {
                 return Ok((RequestResult::Reply(response), meta));
             }
         }
@@ -241,8 +241,7 @@ pub async fn perform_ledger_request<T: Pool>(
             }
             if let Some(cache) = cache_opt {
                 cache
-                    .insert(cache_key, (response.to_string(), meta.clone()), None)
-                    .await;
+                    .insert(cache_key, (response.to_string(), meta.clone()), None);
             }
         }
     }

@@ -1,17 +1,17 @@
-use async_lock::RwLock;
-use async_trait::async_trait;
-use std::{fmt::Display, sync::Arc};
+use std::{
+    fmt::Display,
+    sync::{Arc, RwLock},
+};
 
 pub mod storage;
 pub mod strategy;
 
-#[async_trait]
 pub trait CacheStrategy<K, V>: Send + Sync + 'static {
-    async fn get(&self, key: &K) -> Option<V>;
+    fn get(&self, key: &K) -> Option<V>;
 
-    async fn remove(&mut self, key: &K) -> Option<V>;
+    fn remove(&self, key: &K) -> Option<V>;
 
-    async fn insert(&mut self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V>;
+    fn insert(&self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V>;
 }
 
 pub struct Cache<K: Display, V> {
@@ -34,23 +34,28 @@ impl<K: Display + 'static, V: 'static> Cache<K, V> {
         }
     }
 
-    pub async fn get(&self, key: &K) -> Option<V> {
+    pub fn get(&self, key: &K) -> Option<V> {
         let full_key = self.full_key(key);
-        self.storage.read().await.get(&full_key).await
+        if let Some(storage) = self.storage.read().ok() {
+            return storage.get(&full_key);
+        }
+        None
     }
 
-    pub async fn remove(&self, key: &K) -> Option<V> {
+    pub fn remove(&self, key: &K) -> Option<V> {
         let full_key = self.full_key(key);
-        self.storage.write().await.remove(&full_key).await
+        if let Some(storage) = self.storage.write().ok() {
+            return storage.remove(&full_key);
+        }
+        None
     }
 
-    pub async fn insert(&self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
+    pub fn insert(&self, key: K, value: V, custom_exp_offset: Option<u128>) -> Option<V> {
         let full_key = self.full_key(&key);
-        self.storage
-            .write()
-            .await
-            .insert(full_key, value, custom_exp_offset)
-            .await
+        if let Some(storage) = self.storage.write().ok() {
+            return storage.insert(full_key, value, custom_exp_offset);
+        }
+        None
     }
 }
 
