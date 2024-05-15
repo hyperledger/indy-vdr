@@ -169,20 +169,13 @@ mod tests {
         block_on(async {
             for cache in caches {
                 cache.insert("key".to_string(), "value".to_string(), None);
-                assert_eq!(
-                    cache.get(&"key".to_string()),
-                    Some("value".to_string())
-                );
-                cache
-                    .insert("key1".to_string(), "value1".to_string(), None);
-                cache
-                    .insert("key2".to_string(), "value2".to_string(), None);
+                assert_eq!(cache.get(&"key".to_string()), Some("value".to_string()));
+                cache.insert("key1".to_string(), "value1".to_string(), None);
+                cache.insert("key2".to_string(), "value2".to_string(), None);
                 assert_eq!(cache.get(&"key".to_string()), None);
-                cache
-                    .insert("key3".to_string(), "value3".to_string(), None);
+                cache.insert("key3".to_string(), "value3".to_string(), None);
                 cache.get(&"key2".to_string());
-                cache
-                    .insert("key4".to_string(), "value4".to_string(), None);
+                cache.insert("key4".to_string(), "value4".to_string(), None);
                 // key2 should not be evicted because of LRU
                 assert_eq!(
                     cache.remove(&"key2".to_string()),
@@ -190,22 +183,16 @@ mod tests {
                 );
                 // key3 should be evicted because it was bumped to back after key2 was accessed
                 assert_eq!(cache.get(&"key3".to_string()), None);
-                cache
-                    .insert("key5".to_string(), "value5".to_string(), None);
+                cache.insert("key5".to_string(), "value5".to_string(), None);
                 thread::sleep(std::time::Duration::from_millis(6));
                 assert_eq!(cache.get(&"key5".to_string()), None);
                 // test ttl config
-                cache
-                    .insert("key6".to_string(), "value6".to_string(), Some(1));
-                cache
-                    .insert("key7".to_string(), "value7".to_string(), None);
+                cache.insert("key6".to_string(), "value6".to_string(), Some(1));
+                cache.insert("key7".to_string(), "value7".to_string(), None);
                 // wait until value6 expires
                 thread::sleep(std::time::Duration::from_millis(1));
                 assert_eq!(cache.get(&"key6".to_string()), None);
-                assert_eq!(
-                    cache.get(&"key7".to_string()),
-                    Some("value7".to_string())
-                );
+                assert_eq!(cache.get(&"key7".to_string()), Some("value7".to_string()));
             }
             std::fs::remove_dir_all(cache_location).unwrap();
         });
