@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # NOTE:
-# MacOS universal build currently requires MacOS 11 (Big Sur) for the appropriate SDK,
+# MacOS universal build currently requires MacOS 11+ (Big Sur) for the appropriate SDK,
 # and `sudo xcode-select --install` must be run to install the command line utilities.
 # Rust's `beta` channel must be installed because aarch64 is still a tier-2 target:
 # `rustup toolchain install beta`.
@@ -41,7 +41,7 @@ for target in $MACOS_UNIVERSAL_TARGETS; do
 	fi
 done
 
-MAJOR_VER=`sw_vers | grep ProductVersion | cut -f 2 | cut -f 1 -d .`
+MAJOR_VER=`sw_vers -productVersion | cut -f 1 -d .`
 if [ "$MAJOR_VER" -lt 11 ]; then
 	echo "MacOS universal build requires OS 11 (Big Sur) or newer"
 	TARGET=
