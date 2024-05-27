@@ -127,7 +127,7 @@ jobs:
             # using cross here to build against an older glibc for compatibility
             use_cross: true
           - architecture: darwin-universal
-            os: macos-latest
+            os: macos-12
             lib: libindy_vdr.dylib
             target: darwin-universal
             # beta or nightly required for aarch64-apple-darwin target
@@ -298,7 +298,7 @@ jobs:
   build-ios:
     name: Build library (iOS)
     needs: [checks]
-    runs-on: macos-latest
+    runs-on: macos-12
     strategy:
       matrix:
         target: [aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios]
@@ -331,7 +331,7 @@ jobs:
 
   create-ios-xcframework:
     name: Create iOS xcframework
-    runs-on: macos-latest
+    runs-on: macos-12
     needs: build-ios
 
     steps:
@@ -479,7 +479,7 @@ jobs:
           - os: ubuntu-latest
             architecture: linux-x86_64
             plat-name: manylinux2014_x86_64
-          - os: macos-latest
+          - os: macos-12
             architecture: darwin-universal
             plat-name: macosx_10_9_universal2 # macosx_10_9_x86_64
           - os: windows-latest
