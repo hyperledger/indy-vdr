@@ -42,7 +42,7 @@ jobs:
     name: Run checks
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [macos-12, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
