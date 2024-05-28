@@ -931,6 +931,11 @@
   resolved "https://registry.yarnpkg.com/@hutson/parse-repository-url/-/parse-repository-url-3.0.2.tgz#98c23c950a3d9b6c8f0daed06da6c3af06981340"
   integrity sha512-H9XAx3hc0BQHY6l+IFSWHDySypcXsvsuLhgYLUGywmJ5pswRVQJUHpOsobnLYp2ZUaUlKiKDrgWWhosOwAEM8Q==
 
+"@hyperledger/indy-vdr-shared@0.2.0-dev.6":
+  version "0.2.0-dev.6"
+  resolved "https://registry.yarnpkg.com/@hyperledger/indy-vdr-shared/-/indy-vdr-shared-0.2.0-dev.6.tgz#4954ee06fa8a2e4545b35cd525b7b86e0f10b6fe"
+  integrity sha512-pNLq0zkqv5rFCpU9tzyJ5DPvED5YE+UFP8iKwVD7fe+mAD6/VpweOunYNKgIBT4K1DYI21q7bs3SzxQZ0hLlKw==
+
 "@isaacs/cliui@^8.0.2":
   version "8.0.2"
   resolved "https://registry.yarnpkg.com/@isaacs/cliui/-/cliui-8.0.2.tgz#b37667b7bc181c168782259bab42474fbf52b550"
