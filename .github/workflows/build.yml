@@ -427,7 +427,7 @@ jobs:
             library-x86_64-linux-android
           failOnError: false
 
-  release-alpha:
+  alpha-release:
     name: Alpha Release
     if: github.event_name == 'push'
     permissions:

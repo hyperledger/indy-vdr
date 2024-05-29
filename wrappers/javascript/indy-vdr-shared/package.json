@@ -1,6 +1,6 @@
 {
-  "name": "@wadeking98/indy-vdr-shared",
-  "version": "0.1.0",
+  "name": "@hyperledger/indy-vdr-shared",
+  "version": "0.2.2",
   "license": "Apache-2.0",
   "description": "Shared library for using Indy VDR with NodeJS and React Native",
   "main": "build/index",
@@ -8,7 +8,7 @@
   "homepage": "https://github.com/hyperledger/indy-vdr/tree/main/wrappers/javascript/indy-vdr-shared",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wadeking98/indy-vdr",
+    "url": "https://github.com/hyperledger/indy-vdr",
     "directory": "wrappers/javascript/indy-vdr-shared"
   },
   "publishConfig": {
