@@ -429,7 +429,7 @@ jobs:
 
   alpha-release:
     name: Alpha Release
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       id-token: write
     runs-on: ubuntu-latest
