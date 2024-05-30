@@ -253,7 +253,7 @@ jobs:
           name: library-linux-x86_64
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --immutable
 
       - name: Build
         run: yarn build
@@ -453,7 +453,7 @@ jobs:
           cache: "yarn"
           cache-dependency-path: "wrappers/javascript"
       - name: install
-        run: yarn install
+        run: yarn install --immutable
 
       - name: Fetch Android libraries
         uses: actions/download-artifact@v4
