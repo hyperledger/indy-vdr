@@ -1,6 +1,6 @@
 [package]
 name = "indy-vdr"
-version = "0.4.2"
+version = "0.4.3"
 authors = [
     "Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>",
 ]
