@@ -23,7 +23,7 @@
     "install": "node scripts/install.js"
   },
   "devDependencies": {
-    "@types/node": "^17.0.26",
+    "@types/node": "^20.14.2",
     "@types/ref-struct-di": "^1.1.6",
     "rimraf": "^5.0.7",
     "typescript": "~5.4.5"
