@@ -15,10 +15,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": [
-    "build",
-    "scripts"
-  ],
+  "files": ["build", "scripts"],
   "scripts": {
     "build": "pnpm clean && pnpm compile",
     "clean": "rimraf -rf ./build",

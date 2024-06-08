@@ -263,13 +263,10 @@ jobs:
         run: pnpm build
 
       - name: Lint
-        run: pnpm lint
-
-      - name: Check format
-        run: pnpm check-format
+        run: pnpm style:check
 
       - name: Check types
-        run: pnpm check-types
+        run: pnpm types:check
 
       - name: Run local node pool
         run: |

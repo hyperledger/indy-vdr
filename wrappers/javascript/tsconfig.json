@@ -3,21 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@hyperledger/indy-vdr-nodejs": [
-        "indy-vdr-nodejs/src"
-      ],
-      "@hyperledger/indy-vdr-react-native": [
-        "indy-vdr-react-native/src"
-      ],
-      "@hyperledger/indy-vdr-shared": [
-        "indy-vdr-shared/src"
-      ]
+      "@hyperledger/indy-vdr-nodejs": ["indy-vdr-nodejs/src"],
+      "@hyperledger/indy-vdr-react-native": ["indy-vdr-react-native/src"],
+      "@hyperledger/indy-vdr-shared": ["indy-vdr-shared/src"]
     }
   },
-  "exclude": [
-    "node_modules",
-    "**/build/**",
-    "build",
-    "vite.config.mts"
-  ]
+  "exclude": ["node_modules", "**/build/**", "build", "vite.config.mts"]
 }
