@@ -1,0 +1,63 @@
+0 silly argv {
+0 silly argv   _: [ 'version' ],
+0 silly argv   exact: true,
+0 silly argv   'git-tag-version': false,
+0 silly argv   gitTagVersion: false,
+0 silly argv   push: false,
+0 silly argv   yes: true,
+0 silly argv   y: true,
+0 silly argv   lernaVersion: '8.1.3',
+0 silly argv   '$0': 'node_modules/lerna/dist/cli.js',
+0 silly argv   bump: '0.3.0'
+0 silly argv }
+1 notice cli v8.1.3
+2 verbose packageConfigs Explicit "packages" configuration found in lerna.json. Resolving packages using the configured glob(s): ["indy-vdr-*"]
+3 verbose rootPath /Users/timo/Developer/Work/Animo/indy-vdr/wrappers/javascript
+4 info current version 0.2.0-dev.6
+5 silly isAnythingCommitted
+6 verbose isAnythingCommitted 1
+7 silly getCurrentBranch
+8 verbose currentBranch main
+9 silly hasTags
+10 verbose hasTags true
+11 silly git-describe.sync "16b467d-dirty" => {"refCount":"893","sha":"16b467d","isDirty":true}
+12 info Assuming all packages changed
+13 verbose updated @hyperledger/indy-vdr-nodejs
+14 verbose updated @hyperledger/indy-vdr-react-native
+15 verbose updated @hyperledger/indy-vdr-shared
+16 warn version Skipping working tree validation, proceed at your own risk
+17 info auto-confirmed
+18 info execute Skipping git tag/commit
+19 info execute Skipping git push
+20 info execute Skipping releases
+21 silly lifecycle No script for "preversion" in "indy-vdr-js", continuing
+22 silly lifecycle No script for "preversion" in "@hyperledger/indy-vdr-shared", continuing
+23 verbose version @hyperledger/indy-vdr-shared has no lockfile. Skipping lockfile update.
+24 silly lifecycle No script for "version" in "@hyperledger/indy-vdr-shared", continuing
+25 silly lifecycle No script for "preversion" in "@hyperledger/indy-vdr-nodejs", continuing
+26 silly lifecycle No script for "preversion" in "@hyperledger/indy-vdr-react-native", continuing
+27 verbose version @hyperledger/indy-vdr-react-native has no lockfile. Skipping lockfile update.
+28 verbose version @hyperledger/indy-vdr-nodejs has no lockfile. Skipping lockfile update.
+29 silly lifecycle No script for "version" in "@hyperledger/indy-vdr-react-native", continuing
+30 silly lifecycle No script for "version" in "@hyperledger/indy-vdr-nodejs", continuing
+31 silly lifecycle No script for "version" in "indy-vdr-js", continuing
+32 verbose version Updating root pnpm-lock.yaml
+33 error Error: Command failed with exit code 1: pnpm install --lockfile-only --ignore-scripts
+33 error Scope: all 4 workspace projects
+33 error  WARN  `node_modules` is present. Lockfile only installation will make it out-of-date
+33 error Progress: resolved 1, reused 0, downloaded 0, added 0
+33 error Progress: resolved 18, reused 0, downloaded 0, added 0
+33 error /Users/timo/Developer/Work/Animo/indy-vdr/wrappers/javascript/indy-vdr-nodejs:
+33 error  ERR_PNPM_NO_MATCHING_VERSION  No matching version found for @hyperledger/indy-vdr-shared@0.3.0
+33 error
+33 error This error happened while installing a direct dependency of /Users/timo/Developer/Work/Animo/indy-vdr/wrappers/javascript/indy-vdr-nodejs
+33 error
+33 error The latest release of @hyperledger/indy-vdr-shared is "0.2.2".
+33 error
+33 error Other releases are:
+33 error   * alpha: 0.2.0-dev.7
+33 error
+33 error If you need the full list of all 24 published versions run "$ pnpm view @hyperledger/indy-vdr-shared versions".
+33 error     at makeError (/Users/timo/Developer/Work/Animo/indy-vdr/wrappers/javascript/node_modules/.pnpm/execa@5.0.0/node_modules/execa/lib/error.js:59:11)
+33 error     at handlePromise (/Users/timo/Developer/Work/Animo/indy-vdr/wrappers/javascript/node_modules/.pnpm/execa@5.0.0/node_modules/execa/index.js:114:26)
+33 error     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)

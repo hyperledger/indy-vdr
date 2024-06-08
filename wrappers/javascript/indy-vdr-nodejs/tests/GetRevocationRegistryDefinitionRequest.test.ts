@@ -1,17 +1,18 @@
-import type { IndyVdrPool, GetRevocationRegistryDefinitionResponse } from '@hyperledger/indy-vdr-nodejs'
-
-import { REVOC_REG_DEF_ID, setupPool } from './utils'
+import type { GetRevocationRegistryDefinitionResponse } from '@hyperledger/indy-vdr-nodejs'
 
 import { GetRevocationRegistryDefinitionRequest } from '@hyperledger/indy-vdr-nodejs'
+import { describe, expect, test } from 'vitest'
+import { REVOC_REG_DEF_ID, setupPool } from './utils'
 
 describe('GetRevocationRegistryDefinitionRequest', () => {
-  let pool: IndyVdrPool
-
-  beforeAll(() => (pool = setupPool()))
+  const pool = setupPool()
 
   test('Submit request', async () => {
-    const request = new GetRevocationRegistryDefinitionRequest({ revocationRegistryId: REVOC_REG_DEF_ID })
-    const response: GetRevocationRegistryDefinitionResponse = await pool.submitRequest(request)
+    const request = new GetRevocationRegistryDefinitionRequest({
+      revocationRegistryId: REVOC_REG_DEF_ID,
+    })
+    const response: GetRevocationRegistryDefinitionResponse =
+      await pool.submitRequest(request)
 
     expect(response).toMatchObject({
       op: 'REPLY',

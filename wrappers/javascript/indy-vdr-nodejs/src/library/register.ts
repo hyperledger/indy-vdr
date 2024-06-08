@@ -1,9 +1,9 @@
 import type { NativeMethods } from './NativeBindings'
 
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { Library } from '@2060.io/ffi-napi'
-import fs from 'fs'
-import os from 'os'
-import path from 'path'
 
 import { nativeBindings } from './bindings'
 
@@ -34,7 +34,9 @@ const getLibrary = () => {
   const platform = os.platform()
 
   if (platform !== 'linux' && platform !== 'win32' && platform !== 'darwin')
-    throw new Error(`Unsupported platform: ${platform}. linux, win32 and darwin are supported.`)
+    throw new Error(
+      `Unsupported platform: ${platform}. linux, win32 and darwin are supported.`,
+    )
 
   // Get a potential path from the environment variable
   const pathFromEnvironment = process.env[ENV_VAR]
@@ -52,12 +54,17 @@ const getLibrary = () => {
 
   // Create the path + file
   const libraries = platformPaths.map((p) =>
-    path.join(p, `${extensions[platform].prefix ?? ''}${LIBNAME}${extensions[platform].extension}`)
+    path.join(
+      p,
+      `${extensions[platform].prefix ?? ''}${LIBNAME}${extensions[platform].extension}`,
+    ),
   )
 
-  // Gaurd so we quit if there is no valid path for the library
+  // Guard so we quit if there is no valid path for the library
   if (!libraries.some(doesPathExist))
-    throw new Error(`Could not find ${LIBNAME} with these paths: ${libraries.join(' ')}`)
+    throw new Error(
+      `Could not find ${LIBNAME} with these paths: ${libraries.join(' ')}`,
+    )
 
   // Get the first valid library
   // Casting here as a string because there is a guard of none of the paths
