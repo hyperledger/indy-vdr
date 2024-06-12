@@ -16,6 +16,10 @@ import {
 
 export const nativeBindings = {
   // first element is method return type, second element is list of method argument types
+  indy_vdr_set_ledger_txn_cache: [
+    FFI_ERROR_CODE,
+    [FFI_INT32, FFI_INT64, FFI_STRING],
+  ],
   indy_vdr_set_config: [FFI_ERROR_CODE, [FFI_STRING]],
   indy_vdr_set_default_logger: [FFI_ERROR_CODE, []],
   indy_vdr_set_protocol_version: [FFI_ERROR_CODE, [FFI_INT64]],

@@ -71,7 +71,6 @@ const getLibrary = () => {
   // would be valid
   const validLibraryPath = libraries.find((l) => doesPathExist(l)) as string
 
-  // TODO
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   return Library(validLibraryPath, nativeBindings)
