@@ -1,14 +1,16 @@
 import type { IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
-import { genesisTxnPath } from './utils'
-
 import { PoolCreate } from '@hyperledger/indy-vdr-nodejs'
+import { beforeAll, describe, expect, test } from 'vitest'
+import { genesisTxnPath } from './utils'
 
 describe('IndyVdrPool', () => {
   let pool: IndyVdrPool
 
   beforeAll(() => {
-    pool = new PoolCreate({ parameters: { transactions_path: genesisTxnPath } })
+    pool = new PoolCreate({
+      parameters: { transactions_path: genesisTxnPath },
+    })
   })
 
   test('Get pool handle', () => {
@@ -31,7 +33,7 @@ describe('IndyVdrPool', () => {
           },
           ver: expect.any(String),
         }),
-      ])
+      ]),
     )
   })
 
@@ -54,7 +56,7 @@ describe('IndyVdrPool', () => {
           public_key: expect.any(String),
           enc_key: expect.any(String),
         }),
-      ])
+      ]),
     )
   })
 })
