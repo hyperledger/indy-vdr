@@ -63,7 +63,7 @@ zmq = "0.9"
 sled = "0.34.7"
 
 [dev-dependencies]
-rstest = "0.18"
+rstest = "0.22"
 time = "0.3"
 indy-data-types = { version = "0.7", default-features = false, features = [
     "rich_schema",
