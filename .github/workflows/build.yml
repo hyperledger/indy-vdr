@@ -280,7 +280,7 @@ jobs:
       - name: Run tests
         env:
           # binary is downloaded to root of repository
-          LIB_INDY_VDR_PATH: ../../
+          LIB_INDY_VDR_PATH: ../../../
         run: pnpm test
 
       - name: Publish JavaScript Wrapper
