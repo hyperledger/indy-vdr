@@ -1,7 +1,7 @@
 import type { GetRevocationRegistryDeltaResponse } from '@hyperledger/indy-vdr-nodejs'
 
 import { GetRevocationRegistryDeltaRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 import { REVOC_REG_DEF_ID, setupPool } from './utils'
 
 describe('GetRevocationRegistryDeltaRequest', () => {

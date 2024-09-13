@@ -1,7 +1,7 @@
 import type { GetAttribResponse } from '@hyperledger/indy-vdr-nodejs'
 
 import { GetAttribRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 import { DID, setupPool } from './utils'
 
 describe('GetAttribRequest', () => {

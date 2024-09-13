@@ -8,7 +8,6 @@ import { genesisTxnPath } from './utils'
 import { accessSync, rmSync } from 'node:fs'
 import { PoolCreate } from '@hyperledger/indy-vdr-nodejs'
 import { GetTransactionRequest, indyVdr } from '@hyperledger/indy-vdr-shared'
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 describe('IndyVdrTxnCache', () => {
   let pool: IndyVdrPool

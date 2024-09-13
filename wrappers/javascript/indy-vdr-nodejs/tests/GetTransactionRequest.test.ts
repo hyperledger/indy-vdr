@@ -1,7 +1,7 @@
 import type { GetTransactionResponse } from '@hyperledger/indy-vdr-nodejs'
 
 import { GetTransactionRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 import { setupPool } from './utils'
 
 describe('GetTransactionRequest', () => {

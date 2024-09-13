@@ -1,7 +1,6 @@
 import type { IndyVdrPool } from '@hyperledger/indy-vdr-nodejs'
 
 import { PoolCreate } from '@hyperledger/indy-vdr-nodejs'
-import { beforeAll, describe, expect, test } from 'vitest'
 import { genesisTxnPath } from './utils'
 
 describe('IndyVdrPool', () => {

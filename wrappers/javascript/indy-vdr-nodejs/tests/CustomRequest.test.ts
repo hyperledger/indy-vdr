@@ -1,4 +1,3 @@
-import { describe, expect, test } from 'vitest'
 import { DID, setupPool } from './utils'
 
 import { CustomRequest } from '@hyperledger/indy-vdr-nodejs'

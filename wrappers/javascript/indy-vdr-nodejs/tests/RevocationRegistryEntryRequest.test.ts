@@ -1,7 +1,7 @@
 import { DID, REVOC_REG_DEF_ID, setupPool } from './utils'
 
 import { RevocationRegistryEntryRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 describe('RevocationRegistryEntryRequest', () => {
   const pool = setupPool()
 

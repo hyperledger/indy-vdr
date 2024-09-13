@@ -9,5 +9,5 @@
       "@hyperledger/indy-vdr-shared": ["indy-vdr-shared/src"]
     }
   },
-  "exclude": ["node_modules", "**/build/**", "build", "vite.config.mts"]
+  "exclude": ["node_modules", "**/build/**", "build"]
 }

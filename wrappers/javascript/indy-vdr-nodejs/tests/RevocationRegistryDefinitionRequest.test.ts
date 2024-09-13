@@ -1,7 +1,7 @@
 import { CRED_DEF_ID, DID, setupPool } from './utils'
 
 import { RevocationRegistryDefinitionRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 describe('RevocationRegistryDefinitionRequest', () => {
   const pool = setupPool()
 

@@ -1,5 +1,5 @@
 import { NymRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 import { DID, setupPool } from './utils'
 
 describe('NymRequest', () => {

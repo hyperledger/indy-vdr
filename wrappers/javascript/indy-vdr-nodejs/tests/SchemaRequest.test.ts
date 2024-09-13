@@ -1,4 +1,3 @@
-import { describe, expect, test } from 'vitest'
 import { SchemaRequest } from '../src'
 import { DID, SCHEMA_ID, setupPool } from './utils'
 

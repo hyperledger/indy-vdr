@@ -1,7 +1,7 @@
 import type { GetTransactionAuthorAgreementResponse } from '@hyperledger/indy-vdr-nodejs'
 
 import { GetTransactionAuthorAgreementRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 import { setupPool } from './utils'
 
 describe('GetTransactionAuthorAgreementRequest', () => {

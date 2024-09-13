@@ -1,7 +1,7 @@
 import type { GetAcceptanceMechanismsResponse } from '@hyperledger/indy-vdr-nodejs'
 
 import { GetAcceptanceMechanismsRequest } from '@hyperledger/indy-vdr-nodejs'
-import { describe, expect, test } from 'vitest'
+
 import { setupPool } from './utils'
 
 describe('GetAcceptanceMechanismsRequest', () => {
