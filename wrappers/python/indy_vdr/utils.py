@@ -1,16 +1,17 @@
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 import urllib.request
+import urllib.error
 
 
 INDY_NETWORKS_GITHUB_RAW_BASE = (
-    "https://raw.githubusercontent.com/IDunion/indy-did-networks/main"
+    "https://raw.githubusercontent.com/hyperledger/indy-did-networks/main"
 )
 GENESIS_FILENAME = "pool_transactions_genesis.json"
 
 
 def get_genesis_txns_from_did_indy_folder(
-    path: str, genesis_filename: str = None
+    path: str, genesis_filename: Optional[str] = None
 ) -> Dict[str, str]:
     """Retrieves mapping from local folder.
 
@@ -40,7 +41,7 @@ def get_genesis_txns_from_did_indy_folder(
         sub_entries = os.listdir(os.path.join(path, entry))
 
         for sub_entry in sub_entries:
- 
+
             sub_entry_p = os.path.join(entry_p, sub_entry)
             sub_namespace = sub_entry if os.path.isdir(sub_entry_p) else None
 
@@ -57,12 +58,15 @@ def get_genesis_txns_from_did_indy_folder(
 
 
 def get_genesis_txns_from_did_indy_repo_by_name(
-    namespaces: List[str], genesis_filename: str = None
+    namespaces: List[str], genesis_filename: Optional[str] = None,
+    *,
+    repo_base_url: Optional[str] = None,
 ) -> Dict[str, str]:
     """Retrieves genesis txn from standard indy networks repo given their names."""
     genesis_map = dict()
 
     genesis_filename = genesis_filename if genesis_filename else GENESIS_FILENAME
+    repo_base_url = repo_base_url or INDY_NETWORKS_GITHUB_RAW_BASE
 
     base_dir = "networks"
 
@@ -73,7 +77,7 @@ def get_genesis_txns_from_did_indy_repo_by_name(
         main = next(parts, None)
         sub = next(parts, None)
 
-        genesis_file_url = f"{INDY_NETWORKS_GITHUB_RAW_BASE}/networks/{name}/{genesis_filename}"
+        genesis_file_url = f"{repo_base_url}/networks/{name}/{genesis_filename}"
         target_local_path = f"{base_dir}/{name}/{genesis_filename}"
         try:
             urllib.request.urlretrieve(genesis_file_url, target_local_path)
