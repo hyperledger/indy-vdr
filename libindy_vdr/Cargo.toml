@@ -1,6 +1,6 @@
 [package]
 name = "indy-vdr"
-version = "0.4.3"
+version = "0.4.4"
 authors = [
     "Hyperledger Indy Contributors <hyperledger-indy@lists.hyperledger.org>",
 ]
@@ -30,10 +30,10 @@ default = ["ffi", "log", "zmq_vendored"]
 # This is added so we can lock the version that zmq uses
 # 0.1.49 is broken for ios targets
 cmake = { version = "=0.1.48", optional = true }
-base64 = "0.21"
+base64 = "0.22"
 bs58 = "0.5"
 etcommon-rlp = "0.2.4"
-env_logger = { version = "0.10", optional = true }
+env_logger = { version = "0.11", optional = true }
 ffi-support = { version = "0.4", optional = true }
 futures-channel = "0.3"
 futures-executor = "0.3"
@@ -63,7 +63,7 @@ zmq = "0.9"
 sled = "0.34.7"
 
 [dev-dependencies]
-rstest = "0.18"
+rstest = "0.25"
 indy-data-types = { version = "0.7", default-features = false, features = [
     "rich_schema",
 ] }
