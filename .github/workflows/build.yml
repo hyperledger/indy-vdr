@@ -1,8 +1,8 @@
 name: "Indy-VDR"
 
 env:
-  RUST_VERSION: "1.70.0"
-  CROSS_VERSION: "0.2.4"
+  RUST_VERSION: "1.80.0"
+  CROSS_VERSION: "0.2.5"
 
 on:
   push:
@@ -42,7 +42,7 @@ jobs:
     name: Run checks
     strategy:
       matrix:
-        os: [macos-12, windows-latest, ubuntu-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -127,11 +127,11 @@ jobs:
             # using cross here to build against an older glibc for compatibility
             use_cross: true
           - architecture: darwin-universal
-            os: macos-12
+            os: macos-latest
             lib: libindy_vdr.dylib
             target: darwin-universal
-            # beta or nightly required for aarch64-apple-darwin target
-            toolchain: beta
+            # As of Rust 1.80, aarch64-apple-darwin is stable
+            toolchain: stable
           - architecture: windows-x86_64
             os: windows-latest
             lib: indy_vdr.dll
@@ -298,7 +298,7 @@ jobs:
   build-ios:
     name: Build library (iOS)
     needs: [checks]
-    runs-on: macos-12
+    runs-on: macos-latest
     strategy:
       matrix:
         target: [aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios]
@@ -331,7 +331,7 @@ jobs:
 
   create-ios-xcframework:
     name: Create iOS xcframework
-    runs-on: macos-12
+    runs-on: macos-latest
     needs: build-ios
 
     steps:
@@ -362,10 +362,7 @@ jobs:
   build-android:
     name: Build library (Android)
     needs: [checks]
-    # NB: RUST_VERSION must be <1.68 here to support NDK 17
-    env:
-      RUST_VERSION: "1.67"
-
+    # Updated to use modern NDK for Rust 1.80+
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -385,6 +382,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
 
       - name: Build
         run: |
@@ -479,9 +477,9 @@ jobs:
           - os: ubuntu-latest
             architecture: linux-x86_64
             plat-name: manylinux2014_x86_64
-          - os: macos-12
+          - os: macos-latest
             architecture: darwin-universal
-            plat-name: macosx_10_9_universal2 # macosx_10_9_x86_64
+            plat-name: macosx_10_9_universal2
           - os: windows-latest
             architecture: windows-x86_64
             plat-name: win_amd64
@@ -515,8 +513,6 @@ jobs:
         working-directory: wrappers/python
 
       - name: Test python package
-        # FIXME cross platform test the python package
-        # maybe use the cross docker image?
         if: ${{ matrix.architecture != 'linux-aarch64' }}
         shell: sh
         run: |
