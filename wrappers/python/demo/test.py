@@ -234,7 +234,7 @@ def get_script_dir():
 
 def download_bcovrin_testnet_genesis_file():
     genesis_file_url = (
-        "https://raw.githubusercontent.com/bcgov/von-network/refs/heads/main/BCovrin/genesis_test"
+        "http://test.bcovrin.vonx.io/genesis"
     )
     target_local_path = f"{get_script_dir()}/genesis_bcovrin_testnet.txn"
     urllib.request.urlretrieve(genesis_file_url, target_local_path)
