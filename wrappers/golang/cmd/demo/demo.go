@@ -26,7 +26,7 @@ func main() {
 }
 
 func readOnlyDemo() {
-	genesisFile, err := http.Get("https://raw.githubusercontent.com/bcgov/von-network/refs/heads/main/BCovrin/genesis_test")
+	genesisFile, err := http.Get("http://test.bcovrin.vonx.io/genesis")
 	if err != nil {
 		log.Fatalln(err)
 	}
