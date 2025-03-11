@@ -197,7 +197,7 @@ async def basic_test(transactions_path):
     # --- DID Resolution ---
 
     # The DID resolver can be initialized with a dict containing namespaces and pool instances:
-    # pool_map = await open_pools(ledgers=["idunion", "sovrin:builder"])
+    # pool_map = await open_pools(ledgers=["idunion", "indicio:testnet"])
     # resolver = Resolver(pool_map)
 
     # In addition, the the DID resolver can be started with autopilot = True.
@@ -205,12 +205,12 @@ async def basic_test(transactions_path):
     # for the given did:indy namespace.
     resolver = Resolver(autopilot=True)
 
-    log("Resolve DID did:indy:idunion:test:APs6Xd2GH8FNwCaXDw6Qm2")
-    doc = await resolver.resolve("did:indy:idunion:test:Fhbr2wQrJeB1UcZeFKpG5F")
+    log("Resolve DID did:indy:bcovrin:test:EyeymGxWv3YVXXJkjMEXBC")
+    doc = await resolver.resolve("did:indy:bcovrin:test:EyeymGxWv3YVXXJkjMEXBC")
     log(json.dumps(doc, indent=2))
 
     try:
-        doc = await resolver.resolve("did:indy:idunion:test:APs6Xd2GH8FNwCaXDw6Qm2")
+        doc = await resolver.resolve("did:indy:bcovrin:test:EyeymGxWv3YVXXJkjMEXBC")
     except VdrError as err:
         print(err)
 
@@ -232,12 +232,11 @@ def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__))
 
 
-def download_buildernet_genesis_file():
+def download_bcovrin_testnet_genesis_file():
     genesis_file_url = (
-        "https://raw.githubusercontent.com/sovrin-foundation/"
-        "sovrin/master/sovrin/pool_transactions_builder_genesis"
+        "http://test.bcovrin.vonx.io/genesis"
     )
-    target_local_path = f"{get_script_dir()}/genesis_sov_buildernet.txn"
+    target_local_path = f"{get_script_dir()}/genesis_bcovrin_testnet.txn"
     urllib.request.urlretrieve(genesis_file_url, target_local_path)
     return target_local_path
 
@@ -246,6 +245,6 @@ if __name__ == "__main__":
     log("indy-vdr version:", version())
 
     genesis_path = (
-        sys.argv[1] if len(sys.argv) > 1 else download_buildernet_genesis_file()
+        sys.argv[1] if len(sys.argv) > 1 else download_bcovrin_testnet_genesis_file()
     )
     asyncio.get_event_loop().run_until_complete(basic_test(genesis_path))

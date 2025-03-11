@@ -26,7 +26,7 @@ func main() {
 }
 
 func readOnlyDemo() {
-	genesisFile, err := http.Get("https://raw.githubusercontent.com/sovrin-foundation/sovrin/master/sovrin/pool_transactions_builder_genesis")
+	genesisFile, err := http.Get("http://test.bcovrin.vonx.io/genesis")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -50,7 +50,7 @@ func readOnlyDemo() {
 	d, _ := json.MarshalIndent(status, " ", " ")
 	fmt.Println(string(d))
 
-	rply, err := client.GetNym("FzAaV9Waa1DccDa72qwg13")
+	rply, err := client.GetNym("EyeymGxWv3YVXXJkjMEXBC")
 	if err != nil {
 		log.Fatalln(err)
 	}

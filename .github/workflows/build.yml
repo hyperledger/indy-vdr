@@ -1,8 +1,8 @@
 name: "Indy-VDR"
 
 env:
-  RUST_VERSION: "1.70.0"
-  CROSS_VERSION: "0.2.4"
+  RUST_VERSION: "1.81.0"
+  CROSS_VERSION: "0.2.5"
 
 on:
   push:
@@ -42,7 +42,7 @@ jobs:
     name: Run checks
     strategy:
       matrix:
-        os: [macos-12, windows-latest, ubuntu-latest]
+        os: [macos-13, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -127,11 +127,11 @@ jobs:
             # using cross here to build against an older glibc for compatibility
             use_cross: true
           - architecture: darwin-universal
-            os: macos-12
+            os: macos-13
             lib: libindy_vdr.dylib
             target: darwin-universal
-            # beta or nightly required for aarch64-apple-darwin target
-            toolchain: beta
+            # As of Rust 1.80, aarch64-apple-darwin is stable
+            toolchain: stable
           - architecture: windows-x86_64
             os: windows-latest
             lib: indy_vdr.dll
@@ -298,7 +298,7 @@ jobs:
   build-ios:
     name: Build library (iOS)
     needs: [checks]
-    runs-on: macos-12
+    runs-on: macos-13
     strategy:
       matrix:
         target: [aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios]
@@ -321,7 +321,13 @@ jobs:
 
       - name: Build
         run: |
+          # Set RUSTFLAGS to cap lints at warning level to prevent warnings from becoming errors
+          export RUSTFLAGS="--cap-lints=warn"
           cargo build --lib --release --target ${{ matrix.target }} --package indy-vdr
+
+      - name: List files in target
+        run: |
+          ls -la target/${{ matrix.target }}/release/
 
       - name: Save library
         uses: actions/upload-artifact@v4
@@ -331,7 +337,7 @@ jobs:
 
   create-ios-xcframework:
     name: Create iOS xcframework
-    runs-on: macos-12
+    runs-on: macos-13
     needs: build-ios
 
     steps:
@@ -341,10 +347,21 @@ jobs:
       - name: Fetch static libraries
         uses: actions/download-artifact@v4
 
+      - name: Debug - List downloaded files
+        run: find . -name "*.a" | sort
+
+      - name: Debug - Show directory structure
+        run: |
+          ls -la
+          ls -la library-aarch64-apple-ios
+          ls -la library-aarch64-apple-ios-sim  
+          ls -la library-x86_64-apple-ios
+
       - run: >
           ./build-xcframework.sh library-aarch64-apple-ios \
                                  library-aarch64-apple-ios-sim \
                                  library-x86_64-apple-ios
+
       - name: Save xcframework
         uses: actions/upload-artifact@v4
         with:
@@ -362,10 +379,6 @@ jobs:
   build-android:
     name: Build library (Android)
     needs: [checks]
-    # NB: RUST_VERSION must be <1.68 here to support NDK 17
-    env:
-      RUST_VERSION: "1.67"
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -385,10 +398,18 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo resources
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: deps
+          save-if: false
 
       - name: Build
         run: |
           cargo install --bins --git https://github.com/rust-embedded/cross --locked --tag v${{ env.CROSS_VERSION }} cross
+          # Using default Cross images since custom ones were removed from Cross.toml
           cross build --lib --release --target ${{matrix.target}} --package indy-vdr
 
       - name: Save library
@@ -479,9 +500,9 @@ jobs:
           - os: ubuntu-latest
             architecture: linux-x86_64
             plat-name: manylinux2014_x86_64
-          - os: macos-12
+          - os: macos-13
             architecture: darwin-universal
-            plat-name: macosx_10_9_universal2 # macosx_10_9_x86_64
+            plat-name: macosx_10_9_universal2
           - os: windows-latest
             architecture: windows-x86_64
             plat-name: win_amd64
@@ -515,8 +536,6 @@ jobs:
         working-directory: wrappers/python
 
       - name: Test python package
-        # FIXME cross platform test the python package
-        # maybe use the cross docker image?
         if: ${{ matrix.architecture != 'linux-aarch64' }}
         shell: sh
         run: |
