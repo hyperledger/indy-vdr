@@ -26,7 +26,7 @@ func main() {
 }
 
 func readOnlyDemo() {
-	genesisFile, err := http.Get("https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis")
+	genesisFile, err := http.Get("https://raw.githubusercontent.com/bcgov/von-network/refs/heads/main/BCovrin/genesis_test")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -50,7 +50,7 @@ func readOnlyDemo() {
 	d, _ := json.MarshalIndent(status, " ", " ")
 	fmt.Println(string(d))
 
-	rply, err := client.GetNym("345seGJDVMwcPhgpHAZb7u")
+	rply, err := client.GetNym("EyeymGxWv3YVXXJkjMEXBC")
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -205,12 +205,12 @@ async def basic_test(transactions_path):
     # for the given did:indy namespace.
     resolver = Resolver(autopilot=True)
 
-    log("Resolve DID did:indy:indicio:test:345seGJDVMwcPhgpHAZb7u")
-    doc = await resolver.resolve("did:indy:indicio:test:345seGJDVMwcPhgpHAZb7u")
+    log("Resolve DID did:indy:bcovrin:test:EyeymGxWv3YVXXJkjMEXBC")
+    doc = await resolver.resolve("did:indy:bcovrin:test:EyeymGxWv3YVXXJkjMEXBC")
     log(json.dumps(doc, indent=2))
 
     try:
-        doc = await resolver.resolve("did:indy:indicio:test:345seGJDVMwcPhgpHAZb7u")
+        doc = await resolver.resolve("did:indy:bcovrin:test:EyeymGxWv3YVXXJkjMEXBC")
     except VdrError as err:
         print(err)
 
@@ -232,12 +232,11 @@ def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__))
 
 
-def download_indicio_testnet_genesis_file():
+def download_bcovrin_testnet_genesis_file():
     genesis_file_url = (
-        "https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/"
-        "genesis_files/pool_transactions_testnet_genesis"
+        "https://raw.githubusercontent.com/bcgov/von-network/refs/heads/main/BCovrin/genesis_test"
     )
-    target_local_path = f"{get_script_dir()}/genesis_indicio_testnet.txn"
+    target_local_path = f"{get_script_dir()}/genesis_bcovrin_testnet.txn"
     urllib.request.urlretrieve(genesis_file_url, target_local_path)
     return target_local_path
 
@@ -246,6 +245,6 @@ if __name__ == "__main__":
     log("indy-vdr version:", version())
 
     genesis_path = (
-        sys.argv[1] if len(sys.argv) > 1 else download_indicio_testnet_genesis_file()
+        sys.argv[1] if len(sys.argv) > 1 else download_bcovrin_testnet_genesis_file()
     )
     asyncio.get_event_loop().run_until_complete(basic_test(genesis_path))
