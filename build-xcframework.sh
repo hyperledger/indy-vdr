@@ -12,7 +12,7 @@ fi
 
 NAME="indy_vdr"
 BUNDLE_NAME="indy-vdr"
-VERSION=$(cargo generate-lockfile && cargo pkgid indy-vdr | sed -e "s/^.*[#@]//")
+VERSION=$(cargo pkgid --offline --locked indy-vdr | sed -e "s/^.*[#@]//")
 echo $VERSION
 BUNDLE_IDENTIFIER="org.hyperledger.$BUNDLE_NAME"
 LIBRARY_NAME="lib$NAME.a"
