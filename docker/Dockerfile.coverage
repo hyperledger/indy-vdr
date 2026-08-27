@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1.0-experimental
 
-FROM rust:1.85-slim
+FROM rust:1.95-slim
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
